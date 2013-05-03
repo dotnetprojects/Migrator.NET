@@ -112,11 +112,17 @@ namespace Migrator.Providers.SqlServer
 
 		public override void RenameTable(string oldName, string newName)
 		{
-			if (TableExists(newName))
-				throw new MigrationException(String.Format("Table with name '{0}' already exists", newName));
+            if (TableExists(newName))
+            {
+                throw new MigrationException(String.Format("Table with name '{0}' already exists", newName));
+            }
 
-			if (TableExists(oldName))
-				ExecuteNonQuery(String.Format("EXEC sp_rename '{0}', '{1}'", oldName, newName));
+            if (!TableExists(oldName))
+            {
+                throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", oldName));
+            }
+            
+            ExecuteNonQuery(String.Format("EXEC sp_rename '{0}', '{1}'", oldName, newName));
 		}
 
 		// Deletes all constraints linked to a column. Sql Server

@@ -198,35 +198,61 @@ namespace Migrator.Providers
 
 		public virtual void RemoveTable(string name)
 		{
-			if (TableExists(name))
-				ExecuteNonQuery(String.Format("DROP TABLE {0}", name));
+		    if (!TableExists(name))
+			{
+                throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", name));
+			}
+			
+            ExecuteNonQuery(String.Format("DROP TABLE {0}", name));
 		}
 
 		public virtual void RenameTable(string oldName, string newName)
 		{
-			if (TableExists(newName))
-				throw new MigrationException(String.Format("Table with name '{0}' already exists", newName));
+		    oldName = QuoteTableNameIfRequired(oldName);
+		    newName = QuoteTableNameIfRequired(newName);
 
-			if (TableExists(oldName))
-				ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
+			if (TableExists(newName))
+			{
+			    throw new MigrationException(String.Format("Table with name '{0}' already exists", newName));
+			}
+
+			if (!TableExists(oldName))
+			{
+                throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", oldName));
+			}
+
+			ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
 		}
 
 		public virtual void RenameColumn(string tableName, string oldColumnName, string newColumnName)
 		{
-			if (ColumnExists(tableName, newColumnName))
-				throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+		    if (ColumnExists(tableName, newColumnName))
+			{
+			    throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+			}
 
-			if (ColumnExists(tableName, oldColumnName))
-				ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, oldColumnName, newColumnName));
+            if (!ColumnExists(tableName, oldColumnName))
+		    {
+		        throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
+		    }
+		    
+            var column = GetColumnByName(tableName, oldColumnName);
+
+		    var quotedNewColumnName = QuoteColumnNameIfRequired(newColumnName);
+
+            ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, Dialect.Quote(column.Name), quotedNewColumnName));
 		}
 
 		public virtual void RemoveColumn(string table, string column)
 		{
-			if (ColumnExists(table, column))
-			{
-				column = QuoteColumnNameIfRequired(column);
-				ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP COLUMN {1} ", table, column));
-			}
+            if (!ColumnExists(table, column))
+            {
+                throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", table, column));                
+            }
+
+		    var existingColumn = GetColumnByName(table, column);
+
+		    ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP COLUMN {1} ", table, Dialect.Quote(existingColumn.Name)));
 		}
 
 		public virtual bool ColumnExists(string table, string column)

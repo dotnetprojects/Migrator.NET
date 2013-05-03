@@ -142,46 +142,50 @@ namespace Migrator.Providers.Mysql
         public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
         {
             if (ColumnExists(tableName, newColumnName))
-                throw new MigrationException(String.Format("Table '{0}' has column named '{0}' already", tableName, newColumnName));
-
-            if (ColumnExists(tableName, oldColumnName))
             {
-                string definition = null;
-                using (IDataReader reader = ExecuteQuery(String.Format("SHOW COLUMNS FROM {0} WHERE Field='{1}'", tableName, oldColumnName)))
+                throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+            }
+
+            if (!ColumnExists(tableName, oldColumnName))
+            {
+                throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
+            }
+
+            string definition = null;
+            using (IDataReader reader = ExecuteQuery(String.Format("SHOW COLUMNS FROM {0} WHERE Field='{1}'", tableName, oldColumnName)))
+            {
+                if (reader.Read())
                 {
-                    if (reader.Read())
+                    // TODO: Could use something similar to construct the columns in GetColumns
+                    definition = reader["Type"].ToString();
+                    if ("NO" == reader["Null"].ToString())
                     {
-                        // TODO: Could use something similar to construct the columns in GetColumns
-                        definition = reader["Type"].ToString();
-                        if ("NO" == reader["Null"].ToString())
-                        {
-                            definition += " " + "NOT NULL";
-                        }
+                        definition += " " + "NOT NULL";
+                    }
 
-                        if (!reader.IsDBNull(reader.GetOrdinal("Key")))
+                    if (!reader.IsDBNull(reader.GetOrdinal("Key")))
+                    {
+                        string key = reader["Key"].ToString();
+                        if ("PRI" == key)
                         {
-                            string key = reader["Key"].ToString();
-                            if ("PRI" == key)
-                            {
-                                definition += " " + "PRIMARY KEY";
-                            }
-                            else if ("UNI" == key)
-                            {
-                                definition += " " + "UNIQUE";
-                            }
+                            definition += " " + "PRIMARY KEY";
                         }
-
-                        if (!reader.IsDBNull(reader.GetOrdinal("Extra")))
+                        else if ("UNI" == key)
                         {
-                            definition += " " + reader["Extra"];
+                            definition += " " + "UNIQUE";
                         }
                     }
-                }
 
-                if (!String.IsNullOrEmpty(definition))
-                {
-                    ExecuteNonQuery(String.Format("ALTER TABLE {0} CHANGE {1} {2} {3}", tableName, oldColumnName, newColumnName, definition));
+                    if (!reader.IsDBNull(reader.GetOrdinal("Extra")))
+                    {
+                        definition += " " + reader["Extra"];
+                    }
                 }
+            }
+
+            if (!String.IsNullOrEmpty(definition))
+            {
+                ExecuteNonQuery(String.Format("ALTER TABLE {0} CHANGE {1} {2} {3}", tableName, oldColumnName, newColumnName, definition));
             }
         }
 
