@@ -78,6 +78,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\Oracle.DataAccess.dll</HintPath>
     </Reference>
+    <Reference Include="Oracle.ManagedDataAccess">
+      <HintPath>..\..\..\enterprise-tester\libs\Oracle.ManagedDataAccess.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Data.SQLite, Version=1.0.48.0, Culture=neutral, PublicKeyToken=db937bc2d44ff139, processorArchitecture=x86">
@@ -101,6 +104,7 @@
     <Compile Include="Impl\Mysql\MysqlDialect.cs" />
     <Compile Include="Impl\Mysql\MySqlTransformationProvider.cs" />
     <Compile Include="Impl\Oracle\OracleColumnPropertiesMapper.cs" />
+    <Compile Include="Impl\Oracle\OracleManagedDriverTransformationProvider.cs" />
     <Compile Include="Impl\PostgreSQL\PostgreSQL82Dialect.cs" />
     <Compile Include="Impl\SqlServer\SqlServer2005Dialect.cs" />
     <Compile Include="Impl\SqlServer\SqlServerCeDialect.cs" />
