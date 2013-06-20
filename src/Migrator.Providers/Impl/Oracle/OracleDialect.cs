@@ -5,7 +5,7 @@ using Migrator.Providers.Impl.Oracle;
 
 namespace Migrator.Providers.Oracle
 {
-	public class OracleDialect : Dialect
+    public class OracleDialect : Dialect
 	{
 		public OracleDialect()
 		{

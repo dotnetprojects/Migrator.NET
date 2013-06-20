@@ -35,9 +35,17 @@ namespace Migrator
 
 		public static ITransformationProvider Create(string providerName, string connectionString, string defaultSchema)
 		{
-			Dialect dialectInstance = DialectForProvider(providerName);
+		    try
+		    {
+		        Dialect dialectInstance = DialectForProvider(providerName);
 
-			return dialectInstance.NewProviderForDialect(connectionString, defaultSchema);
+		        return dialectInstance.NewProviderForDialect(connectionString, defaultSchema);
+		    }
+		    catch (Exception ex)
+		    {
+		        throw new MigrationException(string.Format("Failed to create migration provider from arguments.\r\n  providerName: {0}\r\n  connectionString: {1}\r\n  defaultSchema: {2}\r\n\r\nError message was: {3}",
+                    providerName,connectionString,defaultSchema,ex.Message),ex);
+		    }
 		}
 
 		public static Dialect DialectForProvider(string providerName)

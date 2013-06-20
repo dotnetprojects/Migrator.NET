@@ -103,6 +103,7 @@
     <Compile Include="ForeignKeyConstraintMapper.cs" />
     <Compile Include="Impl\Mysql\MysqlDialect.cs" />
     <Compile Include="Impl\Mysql\MySqlTransformationProvider.cs" />
+    <Compile Include="Impl\Oracle\OracleManagedDriverDialect.cs" />
     <Compile Include="Impl\Oracle\OracleColumnPropertiesMapper.cs" />
     <Compile Include="Impl\Oracle\OracleManagedDriverTransformationProvider.cs" />
     <Compile Include="Impl\PostgreSQL\PostgreSQL82Dialect.cs" />
@@ -121,6 +122,7 @@
     <Compile Include="TransformationProvider.cs" />
     <Compile Include="TypeNames.cs" />
     <Compile Include="Utility\MySqlServerUtility.cs" />
+    <Compile Include="Utility\OracleManagedDriverServerUtility.cs" />
     <Compile Include="Utility\OracleServerUtility.cs" />
     <Compile Include="Utility\PostgreSqlServerUtility.cs" />
     <Compile Include="Utility\SqlServerUtility.cs" />
