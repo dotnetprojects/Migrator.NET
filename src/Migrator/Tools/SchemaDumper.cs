@@ -63,7 +63,13 @@ namespace Migrator.Tools
                 
                 foreach (Index index in _provider.GetIndexes(table))
                 {
-                    writer.WriteLine(string.Format("\t\tDatabase.AddIndex(\"{0}\", new Index() {{ Name = \"{1}\", Unique = {2}, Clustered = {3}, KeyColumns = new[] {{\"{4}\"}}, IncludeColumns = new[] {{\"{5}\"}} }});", table, index.Name, index.Unique.ToString().ToLower(), index.Clustered.ToString().ToLower(), string.Join("\",\"", index.KeyColumns), string.Join("\",\"", index.IncludeColumns)));
+                    writer.WriteLine(string.Format("\t\tDatabase.AddIndex(\"{0}\", new Index() {{ Name = \"{1}\", Unique = {2}, Clustered = {3}, KeyColumns = new[] {{\"{4}\"}}, IncludeColumns = new[] {{\"{5}\"}} }});",
+                        table,
+                        index.Name,
+                        index.Unique.ToString().ToLower(),
+                        index.Clustered.ToString().ToLower(),
+                        string.Join("\",\"", index.KeyColumns),
+                        index.IncludeColumns == null ? string.Empty : string.Join("\",\"", index.IncludeColumns)));
                 }
 
                 writer.WriteLine("");
