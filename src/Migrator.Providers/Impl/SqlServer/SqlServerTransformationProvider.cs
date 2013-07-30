@@ -182,7 +182,7 @@ namespace Migrator.Providers.SqlServer
             var sql = @"SELECT  Tab.[name] AS TableName,
                         Ind.[name] AS IndexName,
                         Ind.[type_desc] AS IndexType,
-                        Ind.[is_unique_constraint] AS IndexUnique,
+                        Ind.[is_unique] AS IndexUnique,
                         SUBSTRING(( SELECT  ',' + AC.name
                     FROM    sys.[tables] AS T
                             INNER JOIN sys.[indexes] I ON T.[object_id] = I.[object_id]
@@ -269,8 +269,11 @@ FROM    sys.[indexes] Ind
                     {
                         column.DefaultValue = reader.GetValue(4);
 
-                        column.DefaultValue = column.DefaultValue.ToString().Substring(2, column.DefaultValue.ToString().Length - 4);
-                        
+                        if (column.DefaultValue.ToString()[1] == '(' || column.DefaultValue.ToString()[1] == '\'')
+                            column.DefaultValue = column.DefaultValue.ToString().Substring(2, column.DefaultValue.ToString().Length - 4); // Example "((10))" or "('false')"
+                        else
+                            column.DefaultValue = column.DefaultValue.ToString().Substring(1, column.DefaultValue.ToString().Length - 2); // Example "(CONVERT([datetime],'20000101',(112)))"
+
                         if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64) 
                             column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
 

@@ -93,11 +93,26 @@ namespace Migrator.Providers.SqlServer
             {
                 defaultValue = "'" + ((Guid) defaultValue).ToString("D") + "'";
             }
-            else if (defaultValue.GetType().Equals(typeof(string)) && !string.IsNullOrEmpty((string)defaultValue))
+            else if (defaultValue.GetType().Equals(typeof(string)))
             {
-                defaultValue = "'" + defaultValue + "'";
+                if (!string.IsNullOrEmpty((string)defaultValue))
+                    defaultValue = "'" + defaultValue + "'";
+                else
+                    defaultValue = "''";
             }
-			return String.Format("DEFAULT {0}", defaultValue);
+            else if (defaultValue.GetType().Equals(typeof(DateTime)))
+            {
+                defaultValue = "CONVERT(DateTime,'"
+                    + ((DateTime)defaultValue).Year.ToString("D4") + '-'
+                    + ((DateTime)defaultValue).Month.ToString("D2") + '-'
+                    + ((DateTime)defaultValue).Day.ToString("D2") + ' '
+                    + ((DateTime)defaultValue).Hour.ToString("D2") + ':'
+                    + ((DateTime)defaultValue).Minute.ToString("D2") + ':'
+                    + ((DateTime)defaultValue).Second.ToString("D2") + '.'
+                    + ((DateTime)defaultValue).Millisecond.ToString("D3")
+                    + "',121)";
+            }
+            return String.Format("DEFAULT ({0})", defaultValue);
 		}
 	}
 }
