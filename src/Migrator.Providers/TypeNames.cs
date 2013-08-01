@@ -51,11 +51,14 @@ namespace Migrator.Providers
 		readonly Dictionary<DbType, SortedList<int, string>> weighted =
 			new Dictionary<DbType, SortedList<int, string>>();
 
-	    public DbType GetDbType(string type)
-	    {
-	        type = type.Trim().ToLower();
-	        return defaults.Where(x => x.Value.Trim().ToLower().StartsWith(type)).Select(x => x.Key).FirstOrDefault();
-	    }
+        public DbType GetDbType(string type)
+        {
+            type = type.Trim().ToLower();
+            var retval = defaults.Where(x => x.Value.Trim().ToLower().StartsWith(type)).Select(x => x.Key);
+            if (retval.Any())
+                return retval.First();
+            return weighted.Where(x => x.Value.Where(y => y.Value.Trim().ToLower().StartsWith(type)).Any()).Select(x => x.Key).FirstOrDefault();
+        }
 
 	    /// <summary>
 		/// Get default type name for specified type
@@ -98,7 +101,7 @@ namespace Migrator.Providers
 				}
 			}
 			//Could not find a specific type for the size, using the default
-			return Replace(Get(typecode), size, precision, scale);
+			return Get(typecode);
 		}
 
 		static string Replace(string type, int size, int precision, int scale)

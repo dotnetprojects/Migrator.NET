@@ -212,6 +212,8 @@ namespace Migrator.Providers
             {
                 if (!defaultValue.ToString().StartsWith("'")) 
                     defaultValue = "'" + defaultValue + "'";
+                defaultValue = ((String)defaultValue).Replace("'", "''");
+                defaultValue = ((String)defaultValue).Substring(1, ((String)defaultValue).Length - 2);
             }
 
 			return String.Format("DEFAULT {0}", defaultValue);

@@ -24,10 +24,12 @@ namespace Migrator.Providers.SqlServer
 			RegisterColumnType(DbType.Currency, "MONEY");
 			RegisterColumnType(DbType.Date, "DATETIME");
 			RegisterColumnType(DbType.DateTime, "DATETIME");
-			RegisterColumnType(DbType.Decimal, "DECIMAL(19,5)");
-			RegisterColumnType(DbType.Decimal, 19, "DECIMAL(19, $l)");
-			RegisterColumnType(DbType.Double, "DOUBLE PRECISION"); //synonym for FLOAT(53)
-			RegisterColumnType(DbType.Guid, "UNIQUEIDENTIFIER");
+            RegisterColumnType(DbType.Decimal, "DECIMAL(19,5)");
+            RegisterColumnType(DbType.Decimal, 19, "DECIMAL(19, $l)");
+            RegisterColumnType(DbType.Double, "DOUBLE PRECISION"); //synonym for FLOAT(53)
+            RegisterColumnType(DbType.Double, 24, "FLOAT(24)");
+            RegisterColumnType(DbType.Double, 53, "FLOAT(53)");
+            RegisterColumnType(DbType.Guid, "UNIQUEIDENTIFIER");
 			RegisterColumnType(DbType.Int16, "SMALLINT");
 			RegisterColumnType(DbType.Int32, "INT");
 			RegisterColumnType(DbType.Int64, "BIGINT");
@@ -40,6 +42,8 @@ namespace Migrator.Providers.SqlServer
             RegisterColumnType(DbType.String, int.MaxValue, "NVARCHAR(max)");
 			//RegisterColumnType(DbType.String, 1073741823, "NTEXT");
 			RegisterColumnType(DbType.Time, "DATETIME");
+            RegisterColumnType(DbType.VarNumeric, "NUMERIC(18,0)");
+            RegisterColumnType(DbType.VarNumeric, 38, "NUMERIC($l,0)");
 
 			RegisterProperty(ColumnProperty.Identity, "IDENTITY");
 
@@ -83,26 +87,19 @@ namespace Migrator.Providers.SqlServer
 			return string.Format(QuoteTemplate, value);
 		}
 
-		public override string Default(object defaultValue)
-		{
-			if (defaultValue.GetType().Equals(typeof (bool)))
-			{
-				defaultValue = ((bool) defaultValue) ? 1 : 0;
-			}
+        public override string Default(object defaultValue)
+        {
+            if (defaultValue.GetType().Equals(typeof (bool)))
+            {
+                return String.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
+            }
             else if (defaultValue.GetType().Equals(typeof(Guid)))
             {
-                defaultValue = "'" + ((Guid) defaultValue).ToString("D") + "'";
-            }
-            else if (defaultValue.GetType().Equals(typeof(string)))
-            {
-                if (!string.IsNullOrEmpty((string)defaultValue))
-                    defaultValue = "'" + defaultValue + "'";
-                else
-                    defaultValue = "''";
+                return "DEFAULT '" + ((Guid) defaultValue).ToString("D") + "'";
             }
             else if (defaultValue.GetType().Equals(typeof(DateTime)))
             {
-                defaultValue = "CONVERT(DateTime,'"
+                return "DEFAULT CONVERT(DateTime,'"
                     + ((DateTime)defaultValue).Year.ToString("D4") + '-'
                     + ((DateTime)defaultValue).Month.ToString("D2") + '-'
                     + ((DateTime)defaultValue).Day.ToString("D2") + ' '
@@ -112,7 +109,8 @@ namespace Migrator.Providers.SqlServer
                     + ((DateTime)defaultValue).Millisecond.ToString("D3")
                     + "',121)";
             }
-            return String.Format("DEFAULT ({0})", defaultValue);
-		}
-	}
+
+            return base.Default(defaultValue);
+        }
+    }
 }

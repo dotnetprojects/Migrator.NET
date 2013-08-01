@@ -89,15 +89,10 @@ namespace Migrator.Providers.Oracle
 		{
 			if (defaultValue.GetType().Equals(typeof(bool)))
 			{
-				defaultValue = ((bool)defaultValue) ? 1 : 0;
-			}
-            else if (defaultValue is String)
-            {
-                if (!defaultValue.ToString().StartsWith("'"))
-                    defaultValue = "'" + defaultValue + "'";
+                return String.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
             }
 
-			return String.Format("DEFAULT {0}", defaultValue);
+			return base.Default(defaultValue);
 		}
 	}
 }
