@@ -55,14 +55,13 @@ namespace Migrator.Providers.Utility
 
         static string ExtractUserIDFromConnectionString(string connectionString)
         {
+            string[] values = connectionString.Split(new[] {";"}, StringSplitOptions.RemoveEmptyEntries);
 
-            string[] values = connectionString.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries);
-
-            var match = values.FirstOrDefault(v => v.StartsWith("User ID=", StringComparison.InvariantCultureIgnoreCase));
+            string match = values.FirstOrDefault(v => v.StartsWith("User ID=", StringComparison.InvariantCultureIgnoreCase));
 
             if (match != null)
             {
-                string userName = match.Split(new[] { "=" }, StringSplitOptions.None)[1];
+                string userName = match.Split(new[] {"="}, StringSplitOptions.None)[1];
                 return userName;
             }
 
@@ -71,9 +70,7 @@ namespace Migrator.Providers.Utility
 
         public static IEnumerable<string> GetTablesToDrop(OracleConnection connection)
         {
-            var schema = ExtractUserIDFromConnectionString(connection.ConnectionString);
-
-            string query = string.Format(@"select * from user_tables where TABLESPACE_NAME = '{0}'", schema);
+            string query = "select * from user_tables";
 
             using (var getDropAllTablesCommand = new OracleCommand(query, connection))
             {
