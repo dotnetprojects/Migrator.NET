@@ -201,5 +201,10 @@ namespace Migrator.Providers.Mysql
         {
             return ConstraintExists(table, name);
         }
+
+        public override string[] QuoteValues(string[] values)
+		{
+			return Array.ConvertAll(values, val => null == val ? "null" : String.Format("'{0}'", MySqlHelper.EscapeString(val)));
+		}
     }
 }
