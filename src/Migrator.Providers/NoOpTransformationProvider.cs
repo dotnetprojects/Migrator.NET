@@ -247,7 +247,12 @@ namespace Migrator.Providers
 			return 0;
 		}
 
-		public int Delete(string table, string[] columns, string[] columnValues)
+	    public int Update(string table, string @where, Dictionary<string, object> changes)
+	    {
+	        return 0;
+	    }
+
+	    public int Delete(string table, string[] columns, string[] columnValues)
 		{
 			return 0;
 		}

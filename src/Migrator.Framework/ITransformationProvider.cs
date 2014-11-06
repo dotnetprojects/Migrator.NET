@@ -464,6 +464,16 @@ namespace Migrator.Framework
 		/// <returns></returns>
 		int Update(string table, string[] columns, string[] values, string where);
 
+        /// <summary>
+        /// Update the values in a table, values are passed as objects so they can be
+        /// passed by param in the underlying implementation
+        /// </summary>
+        /// <param name="table"></param>
+        /// <param name="where"></param>
+        /// <param name="changes"></param>
+        /// <returns></returns>
+	    int Update(string table, string where, Dictionary<string,object> changes);
+
 		/// <summary>
 		/// Get a command instance
 		/// </summary>
