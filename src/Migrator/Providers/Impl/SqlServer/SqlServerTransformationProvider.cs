@@ -353,7 +353,10 @@ FROM    sys.[indexes] Ind
 
 		public override void DropDatabases(string databaseName)
 		{
-			ExecuteNonQuery(string.Format("USE [master]" + System.Environment.NewLine + "DROP DATABASE {0}", databaseName));
+			ExecuteNonQuery(string.Format(
+				"USE [master]" + System.Environment.NewLine +
+				"ALTER DATABASE {0} SET SINGLE_USER WITH ROLLBACK IMMEDIATE" + System.Environment.NewLine +
+				"DROP DATABASE {0}", databaseName));
 		}
 
 		public override void RemoveColumn(string table, string column)
