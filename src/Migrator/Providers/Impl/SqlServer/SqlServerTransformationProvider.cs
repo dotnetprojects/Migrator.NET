@@ -142,30 +142,30 @@ namespace Migrator.Providers.SqlServer
 			}
 		}
 
-		public override bool ColumnExists(string table, string column)
-		{
-			string schema;
-			if (!TableExists(table))
-			{
-				return false;
-			}
-			int firstIndex = table.IndexOf(".");
-			if (firstIndex >= 0)
-			{
-				schema = table.Substring(0, firstIndex);
-				table = table.Substring(firstIndex + 1);
-			}
-			else
-			{
-				schema = _defaultSchema;
-			}
-			using (var cmd = CreateCommand())
-			using (
-				IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{0}' AND TABLE_NAME='{1}' AND COLUMN_NAME='{2}'", schema, table, column)))
-			{
-				return reader.Read();
-			}
-		}
+		//public override bool ColumnExists(string table, string column)
+		//{
+		//	string schema;
+		//	if (!TableExists(table))
+		//	{
+		//		return false;
+		//	}
+		//	int firstIndex = table.IndexOf(".");
+		//	if (firstIndex >= 0)
+		//	{
+		//		schema = table.Substring(0, firstIndex);
+		//		table = table.Substring(firstIndex + 1);
+		//	}
+		//	else
+		//	{
+		//		schema = _defaultSchema;
+		//	}
+		//	using (var cmd = CreateCommand())
+		//	using (
+		//		IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{0}' AND TABLE_NAME='{1}' AND COLUMN_NAME='{2}'", schema, table, column)))
+		//	{
+		//		return reader.Read();
+		//	}
+		//}
 
 		public override void RemoveColumnDefaultValue(string table, string column)
 		{
@@ -176,27 +176,27 @@ namespace Migrator.Providers.SqlServer
 		}
 
 
-		public override bool TableExists(string table)
-		{
-			string schema;
+		//public override bool TableExists(string table)
+		//{
+		//	string schema;
 
-			int firstIndex = table.IndexOf(".");
-			if (firstIndex >= 0)
-			{
-				schema = table.Substring(0, firstIndex);
-				table = table.Substring(firstIndex + 1);
-			}
-			else
-			{
-				schema = _defaultSchema;
-			}
+		//	int firstIndex = table.IndexOf(".");
+		//	if (firstIndex >= 0)
+		//	{
+		//		schema = table.Substring(0, firstIndex);
+		//		table = table.Substring(firstIndex + 1);
+		//	}
+		//	else
+		//	{
+		//		schema = _defaultSchema;
+		//	}
 
-			using (var cmd = CreateCommand())
-			using (IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", table, schema)))
-			{
-				return reader.Read();
-			}
-		}
+		//	using (var cmd = CreateCommand())
+		//	using (IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", table, schema)))
+		//	{
+		//		return reader.Read();
+		//	}
+		//}
 
 		public override Index[] GetIndexes(string table)
 		{
