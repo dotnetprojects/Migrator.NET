@@ -19,10 +19,10 @@ using Migrator.Framework.Loggers;
 using NUnit.Framework;
 using NUnit.Mocks;
 
-namespace Migrator.Tests
+namespace Migrator.TestsNeu
 {
 	[TestFixture]
-	public class MigratorTest
+	public class MigratorTestDates
 	{
 		#region Setup/Teardown
 
@@ -52,13 +52,19 @@ namespace Migrator.Tests
 
 		void SetUpCurrentVersion(long version, bool assertRollbackIsCalled, bool includeBad)
 		{
-			var providerMock = new DynamicMock(typeof (ITransformationProvider));
-
 			var appliedVersions = new List<long>();
-			for (long i = 1; i <= version; i++)
+			for (long i = 2008010195; i <= version; i += 10000)
 			{
 				appliedVersions.Add(i);
 			}
+			SetUpCurrentVersion(version, appliedVersions, assertRollbackIsCalled, includeBad);
+		}
+
+		void SetUpCurrentVersion(long version, List<long> appliedVersions, bool assertRollbackIsCalled, bool includeBad)
+		{
+			var providerMock = new DynamicMock(typeof (ITransformationProvider));
+
+			providerMock.SetReturnValue("get_MaxVersion", version);
 			providerMock.SetReturnValue("get_AppliedMigrations", appliedVersions);
 			providerMock.SetReturnValue("get_Logger", new Logger(false));
 			if (assertRollbackIsCalled)
@@ -76,7 +82,7 @@ namespace Migrator.Tests
 			_migrator.MigrationsTypes.Add(typeof (FirstMigration));
 			_migrator.MigrationsTypes.Add(typeof (SecondMigration));
 			_migrator.MigrationsTypes.Add(typeof (ThirdMigration));
-			_migrator.MigrationsTypes.Add(typeof (ForthMigration));
+			_migrator.MigrationsTypes.Add(typeof (FourthMigration));
 			_migrator.MigrationsTypes.Add(typeof (SixthMigration));
 
 			if (includeBad)
@@ -96,27 +102,27 @@ namespace Migrator.Tests
 			}
 		}
 
-		[Migration(1, Ignore = true)]
+		[Migration(2008010195, Ignore = true)]
 		public class FirstMigration : AbstractTestMigration
 		{
 		}
 
-		[Migration(2, Ignore = true)]
+		[Migration(2008020195, Ignore = true)]
 		public class SecondMigration : AbstractTestMigration
 		{
 		}
 
-		[Migration(3, Ignore = true)]
+		[Migration(2008030195, Ignore = true)]
 		public class ThirdMigration : AbstractTestMigration
 		{
 		}
 
-		[Migration(4, Ignore = true)]
-		public class ForthMigration : AbstractTestMigration
+		[Migration(2008040195, Ignore = true)]
+		public class FourthMigration : AbstractTestMigration
 		{
 		}
 
-		[Migration(5, Ignore = true)]
+		[Migration(2008050195, Ignore = true)]
 		public class BadMigration : AbstractTestMigration
 		{
 			public override void Up()
@@ -130,12 +136,12 @@ namespace Migrator.Tests
 			}
 		}
 
-		[Migration(6, Ignore = true)]
+		[Migration(2008060195, Ignore = true)]
 		public class SixthMigration : AbstractTestMigration
 		{
 		}
 
-		[Migration(7)]
+		[Migration(2008070195)]
 		public class NonIgnoredMigration : AbstractTestMigration
 		{
 		}
@@ -143,20 +149,37 @@ namespace Migrator.Tests
 		[Test]
 		public void MigrateBackward()
 		{
-			SetUpCurrentVersion(3);
-			_migrator.MigrateTo(1);
+			SetUpCurrentVersion(2008030195);
+			_migrator.MigrateTo(2008010195);
 
 			Assert.AreEqual(0, _upCalled.Count);
 			Assert.AreEqual(2, _downCalled.Count);
 
-			Assert.AreEqual(3, _downCalled[0]);
-			Assert.AreEqual(2, _downCalled[1]);
+			Assert.AreEqual(2008030195, _downCalled[0]);
+			Assert.AreEqual(2008020195, _downCalled[1]);
+		}
+
+		[Test]
+		public void MigrateDownWithHoles()
+		{
+			var migs = new List<long>();
+			migs.Add(2008010195);
+			migs.Add(2008030195);
+			migs.Add(2008040195);
+			SetUpCurrentVersion(2008040195, migs, false, false);
+			_migrator.MigrateTo(2008030195);
+
+			Assert.AreEqual(1, _upCalled.Count);
+			Assert.AreEqual(1, _downCalled.Count);
+
+			Assert.AreEqual(2008020195, _upCalled[0]);
+			Assert.AreEqual(2008040195, _downCalled[0]);
 		}
 
 		[Test]
 		public void MigrateDownwardWithRollback()
 		{
-			SetUpCurrentVersion(6, true);
+			SetUpCurrentVersion(2008060195, true);
 
 			try
 			{
@@ -170,15 +193,15 @@ namespace Migrator.Tests
 			Assert.AreEqual(0, _upCalled.Count);
 			Assert.AreEqual(1, _downCalled.Count);
 
-			Assert.AreEqual(6, _downCalled[0]);
+			Assert.AreEqual(2008060195, _downCalled[0]);
 		}
 
 		[Test]
 		public void MigrateToCurrentVersion()
 		{
-			SetUpCurrentVersion(3);
+			SetUpCurrentVersion(2008030195);
 
-			_migrator.MigrateTo(3);
+			_migrator.MigrateTo(2008030195);
 
 			Assert.AreEqual(0, _upCalled.Count);
 			Assert.AreEqual(0, _downCalled.Count);
@@ -187,7 +210,7 @@ namespace Migrator.Tests
 		[Test]
 		public void MigrateToLastVersion()
 		{
-			SetUpCurrentVersion(3, false, false);
+			SetUpCurrentVersion(2008030195, false, false);
 
 			_migrator.MigrateToLastVersion();
 
@@ -196,39 +219,42 @@ namespace Migrator.Tests
 		}
 
 		[Test]
-		public void MigrateUpward()
+		public void MigrateUpWithHoles()
 		{
-			SetUpCurrentVersion(1);
-			_migrator.MigrateTo(3);
+			var migs = new List<long>();
+			migs.Add(2008010195);
+			migs.Add(2008030195);
+			SetUpCurrentVersion(2008030195, migs, false, false);
+			_migrator.MigrateTo(2008040195);
 
 			Assert.AreEqual(2, _upCalled.Count);
 			Assert.AreEqual(0, _downCalled.Count);
 
-			Assert.AreEqual(2, _upCalled[0]);
-			Assert.AreEqual(3, _upCalled[1]);
+			Assert.AreEqual(2008020195, _upCalled[0]);
+			Assert.AreEqual(2008040195, _upCalled[1]);
 		}
 
 		[Test]
-		public void MigrateUpwardFrom0()
+		public void MigrateUpward()
 		{
-			_migrator.MigrateTo(3);
+			SetUpCurrentVersion(2008010195);
+			_migrator.MigrateTo(2008030195);
 
-			Assert.AreEqual(3, _upCalled.Count);
+			Assert.AreEqual(2, _upCalled.Count);
 			Assert.AreEqual(0, _downCalled.Count);
 
-			Assert.AreEqual(1, _upCalled[0]);
-			Assert.AreEqual(2, _upCalled[1]);
-			Assert.AreEqual(3, _upCalled[2]);
+			Assert.AreEqual(2008020195, _upCalled[0]);
+			Assert.AreEqual(2008030195, _upCalled[1]);
 		}
 
 		[Test]
 		public void MigrateUpwardWithRollback()
 		{
-			SetUpCurrentVersion(3, true);
+			SetUpCurrentVersion(2008030195, true);
 
 			try
 			{
-				_migrator.MigrateTo(6);
+				_migrator.MigrateTo(2008060195);
 				Assert.Fail("La migration 5 devrait lancer une exception");
 			}
 			catch (Exception)
@@ -238,7 +264,43 @@ namespace Migrator.Tests
 			Assert.AreEqual(1, _upCalled.Count);
 			Assert.AreEqual(0, _downCalled.Count);
 
-			Assert.AreEqual(4, _upCalled[0]);
+			Assert.AreEqual(2008040195, _upCalled[0]);
+		}
+
+		[Test]
+		public void PostMergeMigrateDown()
+		{
+			// Assume trunk had versions 1 2 and 4.  A branch is merged with 3, then 
+			// rollback to version 2.  v3 should be untouched, and v4 should be rolled back
+			var migs = new List<long>();
+			migs.Add(2008010195);
+			migs.Add(2008020195);
+			migs.Add(2008040195);
+			SetUpCurrentVersion(2008040195, migs, false, false);
+			_migrator.MigrateTo(2008020195);
+
+			Assert.AreEqual(0, _upCalled.Count);
+			Assert.AreEqual(1, _downCalled.Count);
+
+			Assert.AreEqual(2008040195, _downCalled[0]);
+		}
+
+		[Test]
+		public void PostMergeOldAndMigrateLatest()
+		{
+			// Assume trunk had versions 1 2 and 4.  A branch is merged with 3, then 
+			// we migrate to Latest.  v3 should be applied and nothing else done.
+			var migs = new List<long>();
+			migs.Add(2008010195);
+			migs.Add(2008020195);
+			migs.Add(2008040195);
+			SetUpCurrentVersion(2008040195, migs, false, false);
+			_migrator.MigrateTo(2008040195);
+
+			Assert.AreEqual(1, _upCalled.Count);
+			Assert.AreEqual(0, _downCalled.Count);
+
+			Assert.AreEqual(2008030195, _upCalled[0]);
 		}
 
 		[Test]

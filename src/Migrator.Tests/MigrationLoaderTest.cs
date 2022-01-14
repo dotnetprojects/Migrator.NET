@@ -24,7 +24,7 @@ namespace Migrator.Tests
 		void SetUpCurrentVersion(int version, bool assertRollbackIsCalled)
 		{
 			var providerMock = new DynamicMock(typeof (ITransformationProvider));
-
+			
 			providerMock.SetReturnValue("get_CurrentVersion", version);
 			providerMock.SetReturnValue("get_Logger", new Logger(false));
 			if (assertRollbackIsCalled)

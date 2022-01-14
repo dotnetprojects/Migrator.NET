@@ -31,6 +31,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Migrator.TestsNeu", "Migrator.TestsNeu\Migrator.TestsNeu.csproj", "{466A331E-F0CB-4153-A562-712CC55D1228}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{C6DB41A3-8613-4B9D-8B54-ED3BA6111A7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C6DB41A3-8613-4B9D-8B54-ED3BA6111A7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C6DB41A3-8613-4B9D-8B54-ED3BA6111A7D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{466A331E-F0CB-4153-A562-712CC55D1228}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{466A331E-F0CB-4153-A562-712CC55D1228}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{466A331E-F0CB-4153-A562-712CC55D1228}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{466A331E-F0CB-4153-A562-712CC55D1228}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,6 +73,7 @@ Global
 		{CDD39DB7-C9C0-4ECA-AD36-1B4D0BF59101} = {1CC77E58-4B1E-4D3F-86EA-5078883434FC}
 		{882B6A93-67B8-45BF-8636-5796B1B1CBF8} = {8FF5F3DF-DF83-470C-ADFE-C0FF2B858F0F}
 		{C6DB41A3-8613-4B9D-8B54-ED3BA6111A7D} = {9844714F-717A-4C16-97A9-9995BB1B4A8B}
+		{466A331E-F0CB-4153-A562-712CC55D1228} = {8FF5F3DF-DF83-470C-ADFE-C0FF2B858F0F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {FCBFBB4D-FF78-4044-A35F-0DB216B846CE}

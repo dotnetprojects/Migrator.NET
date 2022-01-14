@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers
 {
 	[TestFixture]
-	public class GenericProviderTests
+	public class Create
 	{
 		[Test]
 		public void CanJoinColumnsAndValues()

@@ -37,6 +37,7 @@ namespace Migrator.Tools
 		{
 			return this.dumpResult;
 		}
+
 		private void Dump(string tablePrefix, string path)
 		{
 			if (String.IsNullOrEmpty(tablePrefix))
@@ -63,7 +64,8 @@ namespace Migrator.Tools
 			writer.WriteLine("\tpublic override void Down(){}");
 			writer.WriteLine("}");
 			this.dumpResult = writer.ToString();
-			File.WriteAllText(path, dumpResult);
+			if(!String.IsNullOrEmpty(path))
+				File.WriteAllText(path, dumpResult);
 		}
 
 		private string GetListString(string[] list)

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <RootNamespace>Migrator.CompareDB_Console</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetProjects.Migrator" Version="7.0.139" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\Migrator\DotNetProjects.Migrator.csproj" />
+  </ItemGroup>
+
+</Project>
