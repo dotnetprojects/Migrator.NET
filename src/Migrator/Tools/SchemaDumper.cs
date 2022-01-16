@@ -60,6 +60,7 @@ namespace Migrator.Tools
 			writer.WriteLine("\t{");
 			this.addTableStatement(writer);
 			this.addForeignKeys(writer);
+			writer.WriteLine($@"\t\tfor (int i = XXXX; i < XXXXX; i++,this.Database.MigrationApplied(i,{String.Format("\"{0}\"",tablePrefix)}));");
 			writer.WriteLine("\t}");
 			writer.WriteLine("\tpublic override void Down(){}");
 			writer.WriteLine("}");
