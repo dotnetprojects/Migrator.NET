@@ -28,7 +28,7 @@ namespace Migrator.Tools
 		List<ForeignKeyConstraint> foreignKeys = new List<ForeignKeyConstraint>();
 		List<Column> columns = new List<Column>();
 		string dumpResult;
-		public SchemaDumper(ProviderTypes provider, string connectionString, string defaultSchema, string path = null,string tablePrefix = null)
+		public SchemaDumper(ProviderTypes provider, string connectionString, string defaultSchema, string path = null, string tablePrefix = null)
 		{
 			_provider = ProviderFactory.Create(provider, connectionString, defaultSchema);
 			this.Dump(tablePrefix, path);
@@ -53,19 +53,23 @@ namespace Migrator.Tools
 			var writer = new StringWriter();
 			writer.WriteLine("using System.Data;");
 			writer.WriteLine("using Migrator.Framework;\n");
+
+			writer.WriteLine($"namespace MCC.{tablePrefix}.DL.DBMigration");
+			writer.WriteLine("{");
+
 			writer.WriteLine("\t[Migration(1)]");
-			writer.WriteLine("\tpublic class SchemaDump : Migration");
+			writer.WriteLine("\tpublic class Migration_01 : Migration");
 			writer.WriteLine("\t{");
 			writer.WriteLine("\tpublic override void Up()");
 			writer.WriteLine("\t{");
 			this.addTableStatement(writer);
 			this.addForeignKeys(writer);
-			writer.WriteLine($@"\t\tfor (int i = XXXX; i < XXXXX; i++,this.Database.MigrationApplied(i,{String.Format("\"{0}\"",tablePrefix)}));");
+			writer.WriteLine("\n\t\t" + $@"for (int i = XXXX; i < XXXXX; i++,this.Database.MigrationApplied(i,{String.Format("\"{0}\"", tablePrefix.ToUpper())}));");
 			writer.WriteLine("\t}");
 			writer.WriteLine("\tpublic override void Down(){}");
-			writer.WriteLine("}");
+			writer.WriteLine("}\n}");
 			this.dumpResult = writer.ToString();
-			if(!String.IsNullOrEmpty(path))
+			if (!String.IsNullOrEmpty(path))
 				File.WriteAllText(path, dumpResult);
 		}
 
@@ -106,6 +110,8 @@ namespace Migrator.Tools
 			{
 				if (ind.PrimaryKey == true)
 				{
+					if (this.PKAlreadyCreated.Contains(table))
+						continue;
 					string nonclusteredString = (ind.Clustered == false ? "NonClustered" : "");
 
 					string[] keys = ind.KeyColumns;
@@ -137,7 +143,7 @@ namespace Migrator.Tools
 			string precision = "";
 			if (col.Precision != null)
 				precision = $"({col.Precision})";
-			string propertyString = this.GetColumnPropertyString(col.ColumnProperty);
+			string propertyString = this.GetColumnPropertyString(col.ColumnProperty, table);
 
 			if (col.Size != 0 && col.DefaultValue == null && col.ColumnProperty == ColumnProperty.None)
 			{
@@ -166,17 +172,62 @@ namespace Migrator.Tools
 			return String.Format("new Column(\"{0}\",{1})", col.Name, col.Type);
 
 		}
-		private string GetColumnPropertyString(ColumnProperty prp)
+		private List<String> PKAlreadyCreated = new List<string>();
+		private string GetColumnPropertyString(ColumnProperty prp, String tableName)
 		{
+			bool isNonclusteredPk = false;
+			Index[] inds = this._provider.GetIndexes(tableName);
+			for (int i = 0; i < inds.Length; i++)
+			{
+				if (!inds[i].Clustered && inds[i].PrimaryKey)
+				{
+					isNonclusteredPk = true;
+				}
+			}
+
 			string retVal = "";
 			if ((prp & ColumnProperty.ForeignKey) == ColumnProperty.ForeignKey) retVal += "ColumnProperty.ForeignKey | ";
-			if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity) retVal += "ColumnProperty.Identity | ";
 			if ((prp & ColumnProperty.Indexed) == ColumnProperty.Indexed) retVal += "ColumnProperty.Indexed | ";
 			if ((prp & ColumnProperty.NotNull) == ColumnProperty.NotNull) retVal += "ColumnProperty.NotNull | ";
 			if ((prp & ColumnProperty.Null) == ColumnProperty.Null) retVal += "ColumnProperty.Null | ";
-			//if ((prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey) retVal += "ColumnProperty.PrimaryKey | ";
-			//if ((prp & ColumnProperty.PrimaryKeyWithIdentity) == ColumnProperty.PrimaryKeyWithIdentity) retVal += "ColumnProperty.PrimaryKeyWithIdentity | ";
-			//if ((prp & ColumnProperty.PrimaryKeyNonClustered) == ColumnProperty.PrimaryKeyNonClustered) retVal += "ColumnProperty.PrimaryKeyNonClustered | ";
+			if (!isNonclusteredPk && (prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey && (prp & ColumnProperty.Identity) != ColumnProperty.Identity)
+			{
+				retVal += "ColumnProperty.PrimaryKey | ";
+				this.PKAlreadyCreated.Add(tableName);
+			}
+			if (isNonclusteredPk && (prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey)
+			{
+				retVal += "ColumnProperty.PrimaryKeyNonClustered | ";
+				this.PKAlreadyCreated.Add(tableName);
+			}
+			if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity)
+			{
+				if ((prp & ColumnProperty.PrimaryKeyWithIdentity) == ColumnProperty.PrimaryKeyWithIdentity)
+				{
+					this.PKAlreadyCreated.Add(tableName);
+					retVal += "ColumnProperty.PrimaryKeyWithIdentity | ";
+				}
+				else
+					retVal += "ColumnProperty.Identity | ";
+				//if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity) 
+				//if ((prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey) retVal += "ColumnProperty.PrimaryKey | ";
+			}
+
+			//else
+			//{
+			//	if ((prp & ColumnProperty.PrimaryKeyNonClustered) == ColumnProperty.PrimaryKeyNonClustered)
+			//	{
+			//		retVal += "ColumnProperty.PrimaryKeyNonClustered | ";
+			//		this.PKAlreadyCreated.Add(tableName);
+			//	}
+			//	else
+			//	if ((prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey)
+			//	{
+			//		retVal += "ColumnProperty.PrimaryKey | ";
+			//		this.PKAlreadyCreated.Add(tableName);
+			//	}
+
+			//}
 			if ((prp & ColumnProperty.Unique) == ColumnProperty.Unique) retVal += "ColumnProperty.Unique | ";
 			if ((prp & ColumnProperty.Unsigned) == ColumnProperty.Unsigned) retVal += "ColumnProperty.Unsigned | ";
 
