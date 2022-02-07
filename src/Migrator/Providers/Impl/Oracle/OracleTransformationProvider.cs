@@ -448,7 +448,7 @@ namespace Migrator.Providers.Oracle
 			}
 		}
 
-		public override string Encode(Guid guid)
+		public override object Encode(Guid guid)
 		{
 			byte[] bytes = guid.ToByteArray();
 			var hex = new StringBuilder(bytes.Length * 2);

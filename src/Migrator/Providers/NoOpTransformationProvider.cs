@@ -440,7 +440,7 @@ namespace Migrator.Providers
 			throw new NotImplementedException();
 		}
 
-		public string Encode(Guid guid)
+		public object Encode(Guid guid)
 		{
 			return guid.ToString();
 		}
