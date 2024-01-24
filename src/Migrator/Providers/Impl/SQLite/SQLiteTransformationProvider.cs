@@ -320,6 +320,15 @@ namespace Migrator.Providers.SQLite
 			}
 		}
 
+		public override bool ViewExists(string view)
+		{
+			using (var cmd = CreateCommand())
+			using (IDataReader reader = ExecuteQuery(cmd, String.Format("SELECT name FROM sqlite_master WHERE type='view' and lower(name)=lower('{0}')", view)))
+			{
+				return reader.Read();
+			}
+		}
+
 		public override List<string> GetDatabases()
 		{
 			throw new NotImplementedException();

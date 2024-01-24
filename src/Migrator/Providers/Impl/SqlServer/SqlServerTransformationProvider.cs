@@ -198,6 +198,28 @@ namespace Migrator.Providers.SqlServer
 			}
 		}
 
+		public override bool ViewExists(string view)
+		{
+			string schema;
+
+			int firstIndex = view.IndexOf(".");
+			if (firstIndex >= 0)
+			{
+				schema = view.Substring(0, firstIndex);
+				view = view.Substring(firstIndex + 1);
+			}
+			else
+			{
+				schema = _defaultSchema;
+			}
+
+			using (var cmd = CreateCommand())
+			using (IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", view, schema)))
+			{
+				return reader.Read();
+			}
+		}
+
 		public override Index[] GetIndexes(string table)
 		{
 			var retVal = new List<Index>();

@@ -523,6 +523,19 @@ namespace Migrator.Providers
 			}
 		}
 
+		public virtual bool ViewExists(string view)
+		{
+			try
+			{
+				ExecuteNonQuery("SELECT COUNT(*) FROM " + view);
+				return true;
+			}
+			catch (Exception)
+			{
+				return false;
+			}
+		}
+
 		public virtual void SwitchDatabase(string databaseName)
 		{
 			_connection.ChangeDatabase(databaseName);

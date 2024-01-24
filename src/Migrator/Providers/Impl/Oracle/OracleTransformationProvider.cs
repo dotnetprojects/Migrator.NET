@@ -260,6 +260,18 @@ namespace Migrator.Providers.Oracle
 			return Convert.ToInt32(count) == 1;
 		}
 
+		public override bool ViewExists(string view)
+		{
+			string sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(view_name) = '{0}'", view.ToLower());
+
+			if (_defaultSchema != null)
+				sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(owner) = '{0}' and lower(view_name) = '{1}'", _defaultSchema.ToLower(), view.ToLower());
+
+			Logger.Log(sql);
+			object count = ExecuteScalar(sql);
+			return Convert.ToInt32(count) == 1;
+		}
+
 		public override List<string> GetDatabases()
 		{
 			throw new NotImplementedException();

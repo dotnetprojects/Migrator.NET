@@ -151,6 +151,16 @@ WHERE  lower(tablenm) = lower('{0}')
 			}
 		}
 
+		public override bool ViewExists(string view)
+		{
+			using (var cmd = CreateCommand())
+			using (IDataReader reader =
+				ExecuteQuery(cmd, String.Format("SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = lower('{0}')", view)))
+			{
+				return reader.Read();
+			}
+		}
+
 		public override List<string> GetDatabases()
 		{
 			return ExecuteStringQuery("SELECT datname FROM pg_database WHERE datistemplate = false");
