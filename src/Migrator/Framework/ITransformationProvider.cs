@@ -543,6 +543,13 @@ namespace Migrator.Framework
 		bool TableExists(string tableName);
 
 		/// <summary>
+		/// Check if a view already exists
+		/// </summary>
+		/// <param name="viewName">The name of the view that you want to check on.</param>
+		/// <returns></returns>
+		bool ViewExists(string viewName);
+
+		/// <summary>
 		/// Update the values in a table
 		/// </summary>
 		/// <param name="table">The name of the table to update</param>
