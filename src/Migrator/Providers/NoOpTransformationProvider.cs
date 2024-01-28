@@ -158,6 +158,11 @@ namespace Migrator.Providers
 			return false;
 		}
 
+		public bool ViewExists(string view)
+		{
+			return false;
+		}
+
 		public void AddColumn(string table, string column, DbType type, int size, ColumnProperty property, object defaultValue)
 		{
 			// No Op
