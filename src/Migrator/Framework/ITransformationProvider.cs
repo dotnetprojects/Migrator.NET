@@ -613,7 +613,7 @@ namespace Migrator.Framework
 		/// </summary>
 		/// <param name="guid"></param>
 		/// <returns></returns>
-		string Encode(Guid guid);
+		object Encode(Guid guid);
 
 		/// <summary>
 		/// Change the target database
