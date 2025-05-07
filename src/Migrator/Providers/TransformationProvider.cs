@@ -1278,6 +1278,7 @@ namespace Migrator.Providers
 		protected virtual string GetWhereStringWithNullCheck(string[] whereColumns, object[] whereValues, int parameterStartIndex = 0)
 		{
 			var builder2 = new StringBuilder();
+			var parCnt = 0;
 			for (int i = 0; i < whereColumns.Length; i++)
 			{
 				if (builder2.Length > 0) builder2.Append(" AND ");
@@ -1291,7 +1292,8 @@ namespace Migrator.Providers
 				{
 					builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
 					builder2.Append(" = ");
-					builder2.Append(GenerateParameterName(i + parameterStartIndex));
+					builder2.Append(GenerateParameterName(parCnt + parameterStartIndex));
+					parCnt++;
 				}
 			}
 
