@@ -1163,6 +1163,7 @@ namespace Migrator.Providers
 			if (columns == null) throw new ArgumentNullException("columns");
 			if (values == null) throw new ArgumentNullException("values");
 			if (columns.Length != values.Length) throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+			if (whereColumns.Length != whereValues.Length) throw new Exception(string.Format("The number of whereColumns: {0} does not match the number of supplied whereValues: {1}", whereColumns.Length, whereValues.Length));
 
 			table = QuoteTableNameIfRequired(table);
 
@@ -1182,13 +1183,12 @@ namespace Migrator.Providers
 
 				command.Transaction = _transaction;
 
-				var query = String.Format("UPDATE {0} SET {1} WHERE {2}", table, builder.ToString(), GetWhereString(whereColumns, whereValues, values.Length));
+				var query = String.Format("UPDATE {0} SET {1} WHERE {2}", table, builder.ToString(), GetWhereStringWithNullCheck(whereColumns, whereValues, values.Length));
 
 				command.CommandText = query;
 				command.CommandType = CommandType.Text;
 
 				int paramCount = 0;
-
 
 				foreach (object value in values)
 				{
@@ -1205,6 +1205,9 @@ namespace Migrator.Providers
 
 				foreach (object value in whereValues)
 				{
+					if (value == null || value == DBNull.Value)
+						continue;
+
 					IDbDataParameter parameter = command.CreateParameter();
 
 					ConfigureParameterWithValue(parameter, paramCount, value);
@@ -1270,6 +1273,29 @@ namespace Migrator.Providers
 
 				return command.ExecuteNonQuery();
 			}
+		}
+
+		protected virtual string GetWhereStringWithNullCheck(string[] whereColumns, object[] whereValues, int parameterStartIndex = 0)
+		{
+			var builder2 = new StringBuilder();
+			for (int i = 0; i < whereColumns.Length; i++)
+			{
+				if (builder2.Length > 0) builder2.Append(" AND ");
+				var val = whereValues[i];
+				if (val == null || val == DBNull.Value)
+				{
+					builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
+					builder2.Append(" is null ");
+				}
+				else
+				{
+					builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
+					builder2.Append(" = ");
+					builder2.Append(GenerateParameterName(i + parameterStartIndex));
+				}
+			}
+
+			return builder2.ToString();
 		}
 
 		protected virtual string GetWhereString(string[] whereColumns, object[] whereValues, int parameterStartIndex = 0)
