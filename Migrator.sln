@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31606.5
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Runners", "Runners", "{1CC77E58-4B1E-4D3F-86EA-5078883434FC}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{9844714F-717A-4C16-97A9-9995BB1B4A8B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{8FF5F3DF-DF83-470C-ADFE-C0FF2B858F0F}"
@@ -15,12 +13,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extras", "Extras", "{02B014
 		doc\README.txt = doc\README.txt
 		doc\TODO.txt = doc\TODO.txt
 	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Migrator.Console-vs2010", "src\Migrator.Console\Migrator.Console-vs2010.csproj", "{FBE3A83A-D0F8-4D72-AF8D-9EF772569A31}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Migrator.MSBuild-vs2010", "src\Migrator.MSBuild\Migrator.MSBuild-vs2010.csproj", "{A145FFA9-5FE6-4636-93B8-0C110D132BF3}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Migrator.NAnt-vs2010", "src\Migrator.NAnt\Migrator.NAnt-vs2010.csproj", "{CDD39DB7-C9C0-4ECA-AD36-1B4D0BF59101}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Migrator.Tests", "src\Migrator.Tests\Migrator.Tests.csproj", "{882B6A93-67B8-45BF-8636-5796B1B1CBF8}"
 EndProject
@@ -37,18 +29,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{FBE3A83A-D0F8-4D72-AF8D-9EF772569A31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FBE3A83A-D0F8-4D72-AF8D-9EF772569A31}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FBE3A83A-D0F8-4D72-AF8D-9EF772569A31}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FBE3A83A-D0F8-4D72-AF8D-9EF772569A31}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A145FFA9-5FE6-4636-93B8-0C110D132BF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A145FFA9-5FE6-4636-93B8-0C110D132BF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A145FFA9-5FE6-4636-93B8-0C110D132BF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A145FFA9-5FE6-4636-93B8-0C110D132BF3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CDD39DB7-C9C0-4ECA-AD36-1B4D0BF59101}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CDD39DB7-C9C0-4ECA-AD36-1B4D0BF59101}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CDD39DB7-C9C0-4ECA-AD36-1B4D0BF59101}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CDD39DB7-C9C0-4ECA-AD36-1B4D0BF59101}.Release|Any CPU.Build.0 = Release|Any CPU
 		{882B6A93-67B8-45BF-8636-5796B1B1CBF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{882B6A93-67B8-45BF-8636-5796B1B1CBF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{882B6A93-67B8-45BF-8636-5796B1B1CBF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -62,9 +42,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{FBE3A83A-D0F8-4D72-AF8D-9EF772569A31} = {1CC77E58-4B1E-4D3F-86EA-5078883434FC}
-		{A145FFA9-5FE6-4636-93B8-0C110D132BF3} = {1CC77E58-4B1E-4D3F-86EA-5078883434FC}
-		{CDD39DB7-C9C0-4ECA-AD36-1B4D0BF59101} = {1CC77E58-4B1E-4D3F-86EA-5078883434FC}
 		{882B6A93-67B8-45BF-8636-5796B1B1CBF8} = {8FF5F3DF-DF83-470C-ADFE-C0FF2B858F0F}
 		{C6DB41A3-8613-4B9D-8B54-ED3BA6111A7D} = {9844714F-717A-4C16-97A9-9995BB1B4A8B}
 	EndGlobalSection
