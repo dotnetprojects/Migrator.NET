@@ -303,7 +303,7 @@ namespace Migrator.Providers.Oracle
 				IDataReader reader =
 					ExecuteQuery(cmd,
 						string.Format(
-							"select column_name, data_type, data_length, data_precision, data_scale, NULLABLE FROM USER_TAB_COLUMNS WHERE lower(table_name) = '{0}'",
+							"select column_name, data_type, data_length, data_precision, data_scale, NULLABLE, data_default FROM USER_TAB_COLUMNS WHERE lower(table_name) = '{0}'",
 							table.ToLower())))
 			{
 				while (reader.Read())
@@ -312,6 +312,7 @@ namespace Migrator.Providers.Oracle
 					DbType colType = DbType.String;
 					string dataType = reader[1].ToString().ToLower();
 					bool isNullable = ParseBoolean(reader.GetValue(5));
+					object defaultValue = reader.GetValue(6);
 
 					if (dataType.Equals("number"))
 					{
@@ -332,8 +333,29 @@ namespace Migrator.Providers.Oracle
 					}
 
 					var columnProperties = (isNullable) ? ColumnProperty.Null : ColumnProperty.NotNull;
+					var column = new Column(colName, colType, columnProperties);
 
-					columns.Add(new Column(colName, colType, columnProperties));
+					if (defaultValue != null && defaultValue != DBNull.Value)
+						column.DefaultValue = defaultValue;
+
+					if (column.DefaultValue is string && ((string)column.DefaultValue).StartsWith("'") && ((string)column.DefaultValue).EndsWith("'"))
+					{
+						column.DefaultValue = ((string)column.DefaultValue).Substring(1, ((string)column.DefaultValue).Length - 2);
+					}
+
+					if (column.DefaultValue != null)
+					{
+						if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+							column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+							column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.Double || column.Type == DbType.Single)
+							column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.Boolean)
+							column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
+					}
+
+					columns.Add(column);
 				}
 			}
 

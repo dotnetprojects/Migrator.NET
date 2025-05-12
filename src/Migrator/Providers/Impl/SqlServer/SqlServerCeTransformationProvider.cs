@@ -90,6 +90,9 @@ namespace Migrator.Providers.SqlServer
 			if (ColumnExists(tableName, newColumnName))
 				throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
 
+			if (!ColumnExists(tableName, oldColumnName))
+				throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
+
 			if (ColumnExists(tableName, oldColumnName))
 			{
 				Column column = GetColumnByName(tableName, oldColumnName);

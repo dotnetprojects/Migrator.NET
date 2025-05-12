@@ -364,12 +364,12 @@ FROM    sys.[indexes] Ind
 
 						if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
 							column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
-
-						if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+						else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
 							column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
-
-						if (column.Type == DbType.Double || column.Type == DbType.Single)
+						else if (column.Type == DbType.Double || column.Type == DbType.Single)
 							column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.Boolean)
+							column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
 					}
 					if (!reader.IsDBNull(5))
 					{
@@ -417,6 +417,9 @@ FROM    sys.[indexes] Ind
 		{
 			if (ColumnExists(tableName, newColumnName))
 				throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+
+			if (!ColumnExists(tableName, oldColumnName))
+				throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
 
 			if (ColumnExists(tableName, oldColumnName))
 				ExecuteNonQuery(String.Format("EXEC sp_rename '{0}.{1}', '{2}', 'COLUMN'", tableName, oldColumnName, newColumnName));

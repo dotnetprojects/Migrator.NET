@@ -261,14 +261,31 @@ WHERE  lower(tablenm) = lower('{0}')
 			using (
 				IDataReader reader =
 					ExecuteQuery(cmd,
-						String.Format("select COLUMN_NAME, IS_NULLABLE from information_schema.columns where table_schema = 'public' AND table_name = lower('{0}');", table)))
+						String.Format("select COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT from information_schema.columns where table_schema = 'public' AND table_name = lower('{0}');", table)))
 			{
 				// FIXME: Mostly duplicated code from the Transformation provider just to support stupid case-insensitivty of Postgre
 				while (reader.Read())
 				{
 					var column = new Column(reader[0].ToString(), DbType.String);
 					bool isNullable = reader.GetString(1) == "YES";
+					object defaultValue = reader.GetValue(2);
+
 					column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
+
+					if (defaultValue != null && defaultValue != DBNull.Value)
+						column.DefaultValue = defaultValue;
+
+					if (column.DefaultValue != null)
+					{
+						if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+							column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+							column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.Double || column.Type == DbType.Single)
+							column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.Boolean)
+							column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+					}
 
 					columns.Add(column);
 				}
