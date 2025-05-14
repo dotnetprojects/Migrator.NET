@@ -131,6 +131,18 @@ namespace Migrator.Providers.SqlServer
 					+ ((DateTime)defaultValue).Millisecond.ToString("D3")
 					+ "',121)";
 			}
+			else if (defaultValue.GetType().Equals(typeof(DateTimeOffset)))
+			{
+				return "DEFAULT CONVERT(DateTime,'"
+					+ ((DateTimeOffset)defaultValue).Year.ToString("D4") + '-'
+					+ ((DateTimeOffset)defaultValue).Month.ToString("D2") + '-'
+					+ ((DateTimeOffset)defaultValue).Day.ToString("D2") + ' '
+					+ ((DateTimeOffset)defaultValue).Hour.ToString("D2") + ':'
+					+ ((DateTimeOffset)defaultValue).Minute.ToString("D2") + ':'
+					+ ((DateTimeOffset)defaultValue).Second.ToString("D2") + '.'
+					+ ((DateTimeOffset)defaultValue).Millisecond.ToString("D3")
+					+ "',121)";
+			}
 
 			return base.Default(defaultValue);
 		}

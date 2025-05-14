@@ -1,8 +1,8 @@
+using Migrator.Framework;
 using System;
 using System.Collections.Generic;
 using System.Data;
-
-using Migrator.Framework;
+using System.Globalization;
 using Index = Migrator.Framework.Index;
 
 namespace Migrator.Providers.Mysql
@@ -210,7 +210,41 @@ namespace Migrator.Providers.Mysql
 					var column = new Column(reader.GetString(0), DbType.String);
 					string nullableStr = reader.GetString(2);
 					bool isNullable = nullableStr == "YES";
+					object defaultValue = reader.GetValue(4);
 					column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
+
+					if (defaultValue != null && defaultValue != DBNull.Value)
+						column.DefaultValue = defaultValue;
+
+					if (column.DefaultValue != null)
+					{
+						if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+							column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+							column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.Double || column.Type == DbType.Single)
+							column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+						else if (column.Type == DbType.Boolean)
+							column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+						else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
+						{
+							if (column.DefaultValue is string defVal)
+							{
+								var dt = defVal.Substring(1, defVal.Length - 2);
+								var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+								column.DefaultValue = d;
+							}
+						}
+						else if (column.Type == DbType.Guid)
+						{
+							if (column.DefaultValue is string defVal)
+							{
+								var dt = defVal.Substring(1, defVal.Length - 2);
+								var d = Guid.Parse(dt);
+								column.DefaultValue = d;
+							}
+						}
+					}
 
 					columns.Add(column);
 				}

@@ -1,9 +1,10 @@
+using Migrator.Framework;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Text;
-using Migrator.Framework;
 using Index = Migrator.Framework.Index;
 
 namespace Migrator.Providers.Oracle
@@ -353,6 +354,36 @@ namespace Migrator.Providers.Oracle
 							column.DefaultValue = double.Parse(column.DefaultValue.ToString());
 						else if (column.Type == DbType.Boolean)
 							column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
+						else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
+						{
+							if (column.DefaultValue is string defValCv && defValCv.StartsWith("TO_TIMESTAMP("))
+							{
+								var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
+								var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.ff", CultureInfo.InvariantCulture);
+								column.DefaultValue = d;
+							}
+							else if (column.DefaultValue is string defVal)
+							{
+								var dt = defVal.Substring(1, defVal.Length - 2);
+								var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+								column.DefaultValue = d;
+							}
+						}
+						else if (column.Type == DbType.Guid)
+						{
+							if (column.DefaultValue is string defValCv && defValCv.StartsWith("HEXTORAW("))
+							{
+								var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
+								var d = Guid.Parse(dt);
+								column.DefaultValue = d;
+							}
+							else if(column.DefaultValue is string defVal)
+							{
+								var dt = defVal.Substring(1, defVal.Length - 2);
+								var d = Guid.Parse(dt);
+								column.DefaultValue = d;
+							}
+						}
 					}
 
 					columns.Add(column);
