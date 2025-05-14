@@ -410,7 +410,9 @@ namespace Migrator.Providers.SQLite
 						{
 							if (column.DefaultValue is string defVal)
 							{
-								var dt = defVal.Substring(1, defVal.Length - 2);
+								var dt = defVal;
+								if (defVal.StartsWith("'"))
+									dt = defVal.Substring(1, defVal.Length - 2);
 								var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 								column.DefaultValue = d;
 							}
