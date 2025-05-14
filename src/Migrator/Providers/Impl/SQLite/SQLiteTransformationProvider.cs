@@ -419,7 +419,9 @@ namespace Migrator.Providers.SQLite
 						{
 							if (column.DefaultValue is string defVal)
 							{
-								var dt = defVal.Substring(1, defVal.Length - 2);
+								var dt = defVal;
+								if (defVal.StartsWith("'"))
+									dt = defVal.Substring(1, defVal.Length - 2);
 								var d = Guid.Parse(dt);
 								column.DefaultValue = d;
 							}
