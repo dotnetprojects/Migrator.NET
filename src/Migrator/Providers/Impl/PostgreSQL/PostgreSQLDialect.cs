@@ -1,5 +1,6 @@
-using System.Data;
 using Migrator.Framework;
+using System;
+using System.Data;
 
 namespace Migrator.Providers.PostgreSQL
 {
@@ -104,6 +105,13 @@ namespace Migrator.Providers.PostgreSQL
 		public override ITransformationProvider GetTransformationProvider(Dialect dialect, IDbConnection connection, string defaultSchema, string scope, string providerName)
 		{
 			return new PostgreSQLTransformationProvider(dialect, connection, defaultSchema, scope, providerName);
+		}
+
+		public override string SqlForProperty(ColumnProperty property, Column column)
+		{
+			if (property == ColumnProperty.Identity && (column.Type == DbType.Int64 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64))
+				return "bigserial";
+			return base.SqlForProperty(property, column);
 		}
 	}
 }

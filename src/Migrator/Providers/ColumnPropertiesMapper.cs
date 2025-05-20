@@ -223,7 +223,7 @@ namespace Migrator.Providers
 		protected virtual void AddValueIfSelected(Column column, ColumnProperty property, ICollection<string> vals)
 		{
 			if (PropertySelected(column.ColumnProperty, property))
-				vals.Add(dialect.SqlForProperty(property));
+				vals.Add(dialect.SqlForProperty(property, column));
 		}
 
 		public static bool PropertySelected(ColumnProperty source, ColumnProperty comparison)

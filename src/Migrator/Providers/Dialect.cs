@@ -273,7 +273,7 @@ namespace Migrator.Providers
 			propertyMap[property] = sql;
 		}
 
-		public string SqlForProperty(ColumnProperty property)
+		public virtual string SqlForProperty(ColumnProperty property, Column column)
 		{
 			if (propertyMap.ContainsKey(property))
 			{

@@ -54,7 +54,7 @@ namespace Migrator.Framework
         DbType GetDbType(string databaseTypeName);
 
         void RegisterProperty(ColumnProperty property, string sql);
-        string SqlForProperty(ColumnProperty property);
+        string SqlForProperty(ColumnProperty property, Column column);
         string Quote(string value);
         string Default(object defaultValue);
        
