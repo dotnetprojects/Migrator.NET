@@ -266,6 +266,9 @@ namespace Migrator.Providers.SQLite
 
 		public override void ChangeColumn(string table, Column column)
 		{
+			if (!column.ColumnProperty.HasFlag(ColumnProperty.Null))
+				column.ColumnProperty |= ColumnProperty.NotNull;
+
 			if (!ColumnExists(table, column.Name))
 			{
 				Logger.Warn("Column {0}.{1} does not exist", table, column.Name);
@@ -522,6 +525,9 @@ WHERE type = 'index' AND lower(tbl_name) = lower('{0}');";
 			var columnProviders = new List<ColumnPropertiesMapper>(columns.Length);
 			foreach (Column column in columns)
 			{
+				if (!column.ColumnProperty.HasFlag(ColumnProperty.Null))
+					column.ColumnProperty |= ColumnProperty.NotNull;
+
 				// Remove the primary key notation if compound primary key because we'll add it back later
 				if (compoundPrimaryKey && column.IsPrimaryKey)
 				{

@@ -168,6 +168,9 @@ WHERE  lower(tablenm) = lower('{0}')
 
 		public override void ChangeColumn(string table, Column column)
 		{
+			if (!column.ColumnProperty.HasFlag(ColumnProperty.Null))
+				column.ColumnProperty |= ColumnProperty.NotNull;
+
 			var oldColumn = GetColumnByName(table, column.Name);
 
 			var isUniqueSet = column.ColumnProperty.IsSet(ColumnProperty.Unique);

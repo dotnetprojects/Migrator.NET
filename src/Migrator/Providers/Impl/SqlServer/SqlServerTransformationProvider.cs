@@ -117,6 +117,9 @@ namespace Migrator.Providers.SqlServer
 
 		public override void ChangeColumn(string table, Column column)
 		{
+			if (!column.ColumnProperty.HasFlag(ColumnProperty.Null))
+				column.ColumnProperty |= ColumnProperty.NotNull;
+
 			if (column.DefaultValue == null || column.DefaultValue == DBNull.Value)
 			{
 				base.ChangeColumn(table, column);
