@@ -73,9 +73,6 @@ namespace Migrator.Providers.Oracle
 
 		public override void ChangeColumn(string table, Column column)
 		{
-			if (!column.ColumnProperty.HasFlag(ColumnProperty.Null))
-				column.ColumnProperty |= ColumnProperty.NotNull;
-
 			if (!ColumnExists(table, column.Name))
 			{
 				Logger.Warn("Column {0}.{1} does not exist", table, column.Name);

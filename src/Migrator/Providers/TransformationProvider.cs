@@ -368,9 +368,6 @@ namespace Migrator.Providers
 			var columnProviders = new List<ColumnPropertiesMapper>(columns.Count());
 			foreach (Column column in columns)
 			{
-				if (!column.ColumnProperty.HasFlag(ColumnProperty.Null))
-					column.ColumnProperty |= ColumnProperty.NotNull;
-
 				// Remove the primary key notation if compound primary key because we'll add it back later
 				if (compoundPrimaryKey && column.IsPrimaryKey)
 				{
@@ -487,9 +484,6 @@ namespace Migrator.Providers
 
 		public virtual void ChangeColumn(string table, Column column)
 		{
-			if (!column.ColumnProperty.HasFlag(ColumnProperty.Null))
-				column.ColumnProperty |= ColumnProperty.NotNull;
-
 			var isUniqueSet = column.ColumnProperty.IsSet(ColumnProperty.Unique);
 
 			column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
@@ -585,9 +579,6 @@ namespace Migrator.Providers
 		public virtual void AddColumn(string table, string column, DbType type, int size, ColumnProperty property,
 									  object defaultValue)
 		{
-			if (!property.HasFlag(ColumnProperty.Null))
-				property |= ColumnProperty.NotNull;
-
 			if (ColumnExists(table, column))
 			{
 				Logger.Warn("Column {0}.{1} already exists", table, column);
