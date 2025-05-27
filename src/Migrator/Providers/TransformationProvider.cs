@@ -11,27 +11,21 @@
 
 #endregion
 
+using Migrator.Framework;
+using Migrator.Framework.Loggers;
+using Migrator.Framework.SchemaBuilder;
+using Migrator.Framework.Support;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
-using System.Text;
-using Migrator.Framework;
-using Migrator.Framework.Loggers;
-using Migrator.Framework.SchemaBuilder;
-using Migrator.Framework.Support;
-
-using ForeignKeyConstraintType = Migrator.Framework.ForeignKeyConstraintType;
-using ForeignKeyConstraint = Migrator.Framework.ForeignKeyConstraint;
-using Index = Migrator.Framework.Index;
 using System.Reflection;
-using Migrator.Providers.Mysql;
-using Migrator.Providers.Oracle;
-using Migrator.Providers.PostgreSQL;
-using Migrator.Providers.SQLite;
-using Migrator.Providers.SqlServer;
+using System.Text;
+using ForeignKeyConstraint = Migrator.Framework.ForeignKeyConstraint;
+using ForeignKeyConstraintType = Migrator.Framework.ForeignKeyConstraintType;
+using Index = Migrator.Framework.Index;
 
 namespace Migrator.Providers
 {
@@ -576,7 +570,22 @@ namespace Migrator.Providers
 		/// <param name="size">Max length of the column</param>
 		/// <param name="property">Properties of the column, see <see cref="ColumnProperty">ColumnProperty</see>,</param>
 		/// <param name="defaultValue">Default value</param>
-		public virtual void AddColumn(string table, string column, DbType type, int size, ColumnProperty property,
+		public void AddColumn(string table, string column, DbType type, int size, ColumnProperty property,
+									  object defaultValue)
+		{
+			AddColumn(table, column, (MigratorDbType)type, size, property, defaultValue);
+		}
+
+		/// <summary>
+		/// Add a new column to an existing table.
+		/// </summary>
+		/// <param name="table">Table to which to add the column</param>
+		/// <param name="column">Column name</param>
+		/// <param name="type">Date type of the column</param>
+		/// <param name="size">Max length of the column</param>
+		/// <param name="property">Properties of the column, see <see cref="ColumnProperty">ColumnProperty</see>,</param>
+		/// <param name="defaultValue">Default value</param>
+		public virtual void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property,
 									  object defaultValue)
 		{
 			if (ColumnExists(table, column))
@@ -601,7 +610,17 @@ namespace Migrator.Providers
 		/// AddColumn(string, string, Type, int, ColumnProperty, object)
 		/// </see>
 		/// </summary>
-		public virtual void AddColumn(string table, string column, DbType type)
+		public void AddColumn(string table, string column, DbType type)
+		{
+			AddColumn(table, column, type, 0, ColumnProperty.Null, null);
+		}
+
+		/// <summary>
+		/// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
+		/// AddColumn(string, string, Type, int, ColumnProperty, object)
+		/// </see>
+		/// </summary>
+		public virtual void AddColumn(string table, string column, MigratorDbType type)
 		{
 			AddColumn(table, column, type, 0, ColumnProperty.Null, null);
 		}
@@ -611,12 +630,27 @@ namespace Migrator.Providers
 		/// AddColumn(string, string, Type, int, ColumnProperty, object)
 		/// </see>
 		/// </summary>
-		public virtual void AddColumn(string table, string column, DbType type, int size)
+		public void AddColumn(string table, string column, DbType type, int size)
+		{
+			AddColumn(table, column, type, size, ColumnProperty.Null, null);
+		}
+
+		/// <summary>
+		/// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
+		/// AddColumn(string, string, Type, int, ColumnProperty, object)
+		/// </see>
+		/// </summary>
+		public virtual void AddColumn(string table, string column, MigratorDbType type, int size)
 		{
 			AddColumn(table, column, type, size, ColumnProperty.Null, null);
 		}
 
 		public virtual void AddColumn(string table, string column, DbType type, object defaultValue)
+		{
+			AddColumn(table, column, (MigratorDbType)type, defaultValue);
+		}
+
+		public virtual void AddColumn(string table, string column, MigratorDbType type, object defaultValue)
 		{
 			if (ColumnExists(table, column))
 			{
@@ -641,11 +675,31 @@ namespace Migrator.Providers
 		}
 
 		/// <summary>
+		/// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
+		/// AddColumn(string, string, Type, int, ColumnProperty, object)
+		/// </see>
+		/// </summary>
+		public virtual void AddColumn(string table, string column, MigratorDbType type, ColumnProperty property)
+		{
+			AddColumn(table, column, type, 0, property, null);
+		}
+
+		/// <summary>
 		/// <see cref="TransformationProvider.AddColumn(string, string, DbType, int, ColumnProperty, object)">
 		/// AddColumn(string, string, Type, int, ColumnProperty, object)
 		/// </see>
 		/// </summary>
 		public virtual void AddColumn(string table, string column, DbType type, int size, ColumnProperty property)
+		{
+			AddColumn(table, column, type, size, property, null);
+		}
+
+		/// <summary>
+		/// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
+		/// AddColumn(string, string, Type, int, ColumnProperty, object)
+		/// </see>
+		/// </summary>
+		public virtual void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property)
 		{
 			AddColumn(table, column, type, size, property, null);
 		}

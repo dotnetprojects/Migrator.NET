@@ -46,29 +46,29 @@ namespace Migrator.Providers
 		public const string PrecisionPlaceHolder = "$p";
 		public const string ScalePlaceHolder = "$s";
 
-		readonly Dictionary<DbType, string> defaults = new Dictionary<DbType, string>();
+		readonly Dictionary<MigratorDbType, string> defaults = new Dictionary<MigratorDbType, string>();
 
-		readonly Dictionary<DbType, string> parametrized = new Dictionary<DbType, string>();
+		readonly Dictionary<MigratorDbType, string> parametrized = new Dictionary<MigratorDbType, string>();
 
-		readonly Dictionary<string, DbType> aliases = new Dictionary<string, DbType>();
+		readonly Dictionary<string, MigratorDbType> aliases = new Dictionary<string, MigratorDbType>();
 
-		readonly Dictionary<DbType, SortedList<int, string>> weighted =
-			new Dictionary<DbType, SortedList<int, string>>();
+		readonly Dictionary<MigratorDbType, SortedList<int, string>> weighted =
+			new Dictionary<MigratorDbType, SortedList<int, string>>();
 
 		public DbType GetDbType(string type)
 		{
 			type = type.Trim().ToLower();
 			var retval = defaults.Where(x => x.Value.Trim().ToLower().StartsWith(type)).Select(x => x.Key);
 			if (retval.Any())
-				return retval.First();
+				return (DbType)retval.First();
             retval = weighted.Where(x => x.Value.Where(y => y.Value.Trim().ToLower().StartsWith(type)).Any()).Select(x => x.Key);
             if (retval.Any())
-                return retval.First();
+                return (DbType)retval.First();
 
             var alias = aliases.Where(x => x.Key.Trim().ToLower().StartsWith(type));
 
             if (alias.Any())
-                return alias.First().Value;
+                return (DbType)alias.First().Value;
 
             return DbType.AnsiString;
 		}
@@ -81,7 +81,7 @@ namespace Migrator.Providers
 		public string Get(DbType typecode)
 		{
 			string result;
-			if (!defaults.TryGetValue(typecode, out result))
+			if (!defaults.TryGetValue((MigratorDbType)typecode, out result))
 			{
 				throw new ArgumentException("Dialect does not support DbType." + typecode, "typecode");
 			}
@@ -96,7 +96,7 @@ namespace Migrator.Providers
 		public string GetParametrized(DbType typecode)
 		{
 			string result;
-			if (!parametrized.TryGetValue(typecode, out result))
+			if (!parametrized.TryGetValue((MigratorDbType)typecode, out result))
 			{
 				return null;
 			}
@@ -117,7 +117,7 @@ namespace Migrator.Providers
 		public string Get(DbType typecode, int size, int precision, int scale)
 		{
 			SortedList<int, string> map;
-			weighted.TryGetValue(typecode, out map);
+			weighted.TryGetValue((MigratorDbType)typecode, out map);
 			if (map != null && map.Count > 0)
 			{
 				foreach (var entry in map)
@@ -148,6 +148,23 @@ namespace Migrator.Providers
 		public void Put(DbType typecode, int capacity, string value)
 		{
 			SortedList<int, string> map;
+			if (!weighted.TryGetValue((MigratorDbType)typecode, out map))
+			{
+				// add new ordered map
+				weighted[(MigratorDbType)typecode] = map = new SortedList<int, string>();
+			}
+			map[capacity] = value;
+		}
+
+		/// <summary>
+		/// Set a type name for specified type key and capacity
+		/// </summary>
+		/// <param name="typecode">the type key</param>
+		/// <param name="capacity">the (maximum) type size/length</param>
+		/// <param name="value">The associated name</param>
+		public void Put(MigratorDbType typecode, int capacity, string value)
+		{
+			SortedList<int, string> map;
 			if (!weighted.TryGetValue(typecode, out map))
 			{
 				// add new ordered map
@@ -163,6 +180,16 @@ namespace Migrator.Providers
 		/// <param name="value"></param>
 		public void Put(DbType typecode, string value)
 		{
+			defaults[(MigratorDbType)typecode] = value;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="typecode"></param>
+		/// <param name="value"></param>
+		public void Put(MigratorDbType typecode, string value)
+		{
 			defaults[typecode] = value;
 		}
 
@@ -173,13 +200,13 @@ namespace Migrator.Providers
 		/// <param name="value"></param>
 		public void PutParametrized(DbType typecode, string value)
 		{
-			parametrized[typecode] = value;
+			parametrized[(MigratorDbType)typecode] = value;
 		}
 
 
 		public void PutAlias(DbType typecode, string value)
 	    {
-            aliases[value] = typecode;
+            aliases[value] = (MigratorDbType)typecode;
 	    }
 	}
 }

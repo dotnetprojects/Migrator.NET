@@ -135,6 +135,19 @@ namespace Migrator.Providers
 		/// Subclasses register a typename for the given type code and maximum
 		/// column length. <c>$l</c> in the type name will be replaced by the column
 		/// length (if appropriate)
+		/// </summary>
+		/// <param name="code">The typecode</param>
+		/// <param name="capacity">Maximum length of database type</param>
+		/// <param name="name">The database type name</param>
+		protected void RegisterColumnType(MigratorDbType code, int capacity, string name)
+		{
+			typeNames.Put(code, capacity, name);
+		}
+
+		/// <summary>
+		/// Subclasses register a typename for the given type code and maximum
+		/// column length. <c>$l</c> in the type name will be replaced by the column
+		/// length (if appropriate)
 		/// <c>$2</c> in the type name will be replaced by the column
 		/// precision (if appropriate)
 		/// </summary>
@@ -144,6 +157,17 @@ namespace Migrator.Providers
 		protected void RegisterColumnTypeWithPrecision(DbType code, string name)
 		{
 			typeNames.Put(code, -1, name);
+		}
+
+		/// <summary>
+		/// Suclasses register a typename for the given type code. <c>$l</c> in the 
+		/// typename will be replaced by the column length (if appropriate).
+		/// </summary>
+		/// <param name="code">The typecode</param>
+		/// <param name="name">The database type name</param>
+		protected void RegisterColumnType(MigratorDbType code, string name)
+		{
+			typeNames.Put(code, name);
 		}
 
 		/// <summary>

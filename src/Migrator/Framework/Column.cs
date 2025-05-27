@@ -77,9 +77,73 @@ namespace Migrator.Framework
 			DefaultValue = defaultValue;
 		}
 
+		public Column(string name, MigratorDbType type)
+		{
+			Name = name;
+			MigratorDbType = type;
+		}
+
+		public Column(string name, MigratorDbType type, int size)
+		{
+			Name = name;
+			MigratorDbType = type;
+			Size = size;
+		}
+
+		public Column(string name, MigratorDbType type, object defaultValue)
+		{
+			Name = name;
+			MigratorDbType = type;
+			DefaultValue = defaultValue;
+		}
+
+		public Column(string name, MigratorDbType type, ColumnProperty property)
+		{
+			Name = name;
+			MigratorDbType = type;
+			ColumnProperty = property;
+		}
+
+		public Column(string name, MigratorDbType type, int size, ColumnProperty property)
+		{
+			Name = name;
+			MigratorDbType = type;
+			Size = size;
+			ColumnProperty = property;
+		}
+
+		public Column(string name, MigratorDbType type, int size, ColumnProperty property, object defaultValue)
+		{
+			Name = name;
+			MigratorDbType = type;
+			Size = size;
+			ColumnProperty = property;
+			DefaultValue = defaultValue;
+		}
+
+		public Column(string name, MigratorDbType type, ColumnProperty property, object defaultValue)
+		{
+			Name = name;
+			MigratorDbType = type;
+			ColumnProperty = property;
+			DefaultValue = defaultValue;
+		}
+
 		public string Name { get; set; }
 
-		public DbType Type { get; set; }
+		public DbType Type
+		{
+			get
+			{
+				return (DbType)MigratorDbType;
+			}
+			set
+			{
+				MigratorDbType = (MigratorDbType)value;
+			}
+		}
+
+		public MigratorDbType MigratorDbType { get; set; }
 
 		public int Size { get; set; }
 

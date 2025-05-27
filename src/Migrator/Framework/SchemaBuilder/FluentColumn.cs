@@ -42,6 +42,12 @@ namespace Migrator.Framework.SchemaBuilder
 			set { _inner.Type = value; }
 		}
 
+		public MigratorDbType MigratorDbType
+		{
+			get { return _inner.MigratorDbType; }
+			set { _inner.MigratorDbType = value; }
+		}
+
 		public int Size
 		{
 			get { return _inner.Size; }

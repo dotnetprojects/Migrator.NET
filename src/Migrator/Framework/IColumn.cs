@@ -23,6 +23,8 @@ namespace Migrator.Framework
 
 		DbType Type { get; set; }
 
+		MigratorDbType MigratorDbType { get; set; }
+
 		int Size { get; set; }
 
 		bool IsIdentity { get; }

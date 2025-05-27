@@ -51,6 +51,7 @@ namespace Migrator.Providers.SqlServer
 			RegisterColumnType(DbType.Time, "DATETIME");
 			RegisterColumnType(DbType.VarNumeric, "NUMERIC(18,0)");
 			RegisterColumnType(DbType.VarNumeric, 38, "NUMERIC($l,0)");
+			RegisterColumnType(MigratorDbType.Interval, "BIGINT");
 
 			RegisterProperty(ColumnProperty.Identity, "IDENTITY");
 

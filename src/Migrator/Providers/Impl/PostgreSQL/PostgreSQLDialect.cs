@@ -40,6 +40,7 @@ namespace Migrator.Providers.PostgreSQL
 			RegisterColumnType(DbType.String, int.MaxValue, "text");
 			RegisterColumnType(DbType.Time, "time");
 			RegisterColumnType(DbType.Guid, "uuid");
+			RegisterColumnType(MigratorDbType.Interval, "interval");
 
 			RegisterProperty(ColumnProperty.Identity, "serial");
 

@@ -38,6 +38,7 @@ namespace Migrator.Providers.Mysql
 			RegisterColumnType(DbType.Int16, "SMALLINT");
 			RegisterColumnType(DbType.Int32, "INTEGER");
 			RegisterColumnType(DbType.Int64, "BIGINT");
+			RegisterColumnType(MigratorDbType.Interval, "BIGINT");
 			RegisterColumnType(DbType.UInt16, "INTEGER");
 			RegisterColumnType(DbType.UInt32, "BIGINT");
 			RegisterColumnType(DbType.UInt64, "NUMERIC(20,0)");

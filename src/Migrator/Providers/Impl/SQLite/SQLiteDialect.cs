@@ -17,6 +17,7 @@ namespace Migrator.Providers.SQLite
 			RegisterColumnType(DbType.UInt16, "INTEGER");
 			RegisterColumnType(DbType.UInt32, "INTEGER");
 			RegisterColumnType(DbType.UInt64, "INTEGER");
+			RegisterColumnType(MigratorDbType.Interval, "INTEGER");
 
 			RegisterColumnType(DbType.Currency, "CURRENCY");
 			RegisterColumnType(DbType.Decimal, "DECIMAL");

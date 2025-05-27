@@ -556,5 +556,35 @@ namespace Migrator.Providers
 		{
 			throw new NotImplementedException();
 		}
+
+		public void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property, object defaultValue)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void AddColumn(string table, string column, MigratorDbType type)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void AddColumn(string table, string column, MigratorDbType type, int size)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void AddColumn(string table, string column, MigratorDbType type, ColumnProperty property)
+		{
+			throw new NotImplementedException();
+		}
+
+		public void AddColumn(string table, string column, MigratorDbType type, object defaultValue)
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

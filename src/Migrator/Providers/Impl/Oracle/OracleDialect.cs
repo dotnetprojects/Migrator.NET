@@ -45,6 +45,7 @@ namespace Migrator.Providers.Oracle
 			RegisterColumnType(DbType.String, int.MaxValue, "NCLOB");
 			RegisterColumnType(DbType.Time, "DATE");
 			RegisterColumnType(DbType.Guid, "RAW(16)");
+			RegisterColumnType(MigratorDbType.Interval, "NUMBER(20,0)");
 
 			// the original Migrator.Net code had this, but it's a bad idea - when
 			// apply a "null" migration to a "not-null" field, it just leaves it as "not-null" and silent fails
