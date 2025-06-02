@@ -42,7 +42,7 @@ namespace Migrator.Providers.PostgreSQL
 			RegisterColumnType(DbType.Guid, "uuid");
 			RegisterColumnType(MigratorDbType.Interval, "interval");
 
-			RegisterProperty(ColumnProperty.Identity, "serial");
+			RegisterProperty(ColumnProperty.Identity, "GENERATED ALWAYS AS IDENTITY");
 
 			AddReservedWords("ABS", "ABSOLUTE", "ACCESS", "ACTION", "ADA", "ADD", "ADMIN", "AFTER", "AGGREGATE", "ALIAS", "ALL", "ALLOCATE", "ALTER", "ANALYSE", "ANALYZE", "AND", "ANY", "ARE",
 							 "ARRAY", "AS", "ASC", "ASENSITIVE", "ASSERTION", "ASSIGNMENT", "ASYMMETRIC", "AT", "ATOMIC", "AUTHORIZATION", "AVG", "BACKWARD", "BEFORE", "BEGIN", "BETWEEN", "BIGINT", "BINARY",
@@ -93,10 +93,10 @@ namespace Migrator.Providers.PostgreSQL
 			get { return false; }
 		}
 
-		public override bool IdentityNeedsType
-		{
-			get { return false; }
-		}
+		//public override bool IdentityNeedsType
+		//{
+		//	get { return false; }
+		//}
 
 		public override ITransformationProvider GetTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
 		{
@@ -108,11 +108,11 @@ namespace Migrator.Providers.PostgreSQL
 			return new PostgreSQLTransformationProvider(dialect, connection, defaultSchema, scope, providerName);
 		}
 
-		public override string SqlForProperty(ColumnProperty property, Column column)
-		{
-			if (property == ColumnProperty.Identity && (column.Type == DbType.Int64 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64))
-				return "bigserial";
-			return base.SqlForProperty(property, column);
-		}
+		//public override string SqlForProperty(ColumnProperty property, Column column)
+		//{
+		//	if (property == ColumnProperty.Identity && (column.Type == DbType.Int64 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64))
+		//		return "bigserial";
+		//	return base.SqlForProperty(property, column);
+		//}
 	}
 }
