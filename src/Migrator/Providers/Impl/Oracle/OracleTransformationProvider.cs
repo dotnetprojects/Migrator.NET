@@ -344,7 +344,8 @@ namespace Migrator.Providers.Oracle
 						column.DefaultValue = ((string)column.DefaultValue).Substring(1, ((string)column.DefaultValue).Length - 2);
 					}
 
-					if (column.DefaultValue != null)
+					if ((column.DefaultValue is string s && !string.IsNullOrEmpty(s)) ||
+						 column.DefaultValue is not string && column.DefaultValue != null)
 					{
 						if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
 							column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
