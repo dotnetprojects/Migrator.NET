@@ -266,11 +266,11 @@ namespace Migrator.Providers.SQLite
 		public override void AddColumn(string table, Column column)
 		{
 			var backUp = column.ColumnProperty;
-			var hasPkFlag = column.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey);
 			column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
+			column.ColumnProperty &= ~ColumnProperty.Identity;
 			base.AddColumn(table, column);
 			column.ColumnProperty = backUp;
-			if (hasPkFlag)
+			if (backUp.HasFlag(ColumnProperty.PrimaryKey) || backUp.HasFlag(ColumnProperty.Identity))
 			{
 				ChangeColumn(table, column);
 			}
