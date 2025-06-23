@@ -263,6 +263,18 @@ namespace Migrator.Providers.SQLite
 				ExecuteQuery(cmd, String.Format("ALTER TABLE {0}_temp RENAME TO {0}", table));
 		}
 
+		public override void AddColumn(string table, Column column)
+		{
+			var backUp = column.ColumnProperty;
+			var hasPkFlag = column.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey);
+			column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
+			base.AddColumn(table, column);
+			column.ColumnProperty = backUp;
+			if (hasPkFlag)
+			{
+				ChangeColumn(table, column);
+			}
+		}
 
 		public override void ChangeColumn(string table, Column column)
 		{
