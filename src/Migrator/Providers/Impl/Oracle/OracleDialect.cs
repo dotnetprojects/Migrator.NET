@@ -26,6 +26,7 @@ namespace Migrator.Providers.Oracle
 			RegisterColumnType(DbType.DateTimeOffset, "TIMESTAMP(4)");
 			RegisterColumnType(DbType.Decimal, "NUMBER(19,5)");
 			RegisterColumnType(DbType.Decimal, 19, "NUMBER(19, $l)");
+			RegisterColumnTypeWithParameters(DbType.Decimal, "NUMBER({precision}, {scale})");
 			// having problems with both ODP and OracleClient from MS not being able
 			// to read values out of a field that is DOUBLE PRECISION
 			RegisterColumnType(DbType.Double, "DOUBLE PRECISION"); //"FLOAT(53)" );
