@@ -266,12 +266,6 @@ namespace Migrator.Providers.SQLite
 
 		public override void ChangeColumn(string table, Column column)
 		{
-			if (!ColumnExists(table, column.Name))
-			{
-				Logger.Warn("Column {0}.{1} does not exist", table, column.Name);
-				return;
-			}
-
 			if (
 					(column.ColumnProperty & ColumnProperty.PrimaryKey) != ColumnProperty.PrimaryKey &&
 					(column.ColumnProperty & ColumnProperty.Unique) != ColumnProperty.Unique &&
@@ -508,12 +502,6 @@ WHERE type = 'index' AND lower(tbl_name) = lower('{0}');";
 
 		public override void AddTable(string name, string engine, params IDbField[] fields)
 		{
-			if (TableExists(name))
-			{
-				Logger.Warn("Table {0} already exists", name);
-				return;
-			}
-
 			var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
 
 			List<string> pks = GetPrimaryKeys(columns);

@@ -44,12 +44,6 @@ namespace Migrator.Providers.Oracle
 		{
 			GuardAgainstMaximumIdentifierLengthForOracle(name);
 
-			if (ConstraintExists(primaryTable, name))
-			{
-				Logger.Warn("Constraint {0} already exists", name);
-				return;
-			}
-
 			primaryTable = QuoteTableNameIfRequired(primaryTable);
 			refTable = QuoteTableNameIfRequired(refTable);
 			string primaryColumnsSql = String.Join(",", primaryColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
@@ -73,12 +67,6 @@ namespace Migrator.Providers.Oracle
 
 		public override void ChangeColumn(string table, Column column)
 		{
-			if (!ColumnExists(table, column.Name))
-			{
-				Logger.Warn("Column {0}.{1} does not exist", table, column.Name);
-				return;
-			}
-
 			var existingColumn = GetColumnByName(table, column.Name);
 
 			if (column.Type == DbType.String)

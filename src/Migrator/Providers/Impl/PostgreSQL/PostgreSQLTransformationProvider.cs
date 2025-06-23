@@ -174,12 +174,6 @@ WHERE  lower(tablenm) = lower('{0}')
 
 			column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
 
-			if (!ColumnExists(table, column.Name))
-			{
-				Logger.Warn("Column {0}.{1} does not exist", table, column.Name);
-				return;
-			}
-
 			ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
 
 			string change1 = string.Format("{0} TYPE {1}", QuoteColumnNameIfRequired(mapper.Name), mapper.type);

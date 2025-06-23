@@ -80,11 +80,6 @@ namespace Migrator.Providers.SqlServer
 		}
 		public override void AddPrimaryKeyNonClustered(string name, string table, params string[] columns)
 		{
-			if (ConstraintExists(table, name))
-			{
-				Logger.Warn("Primary key {0} already exists", name);
-				return;
-			}
 			string nonclusteredString = "NONCLUSTERED";
 			ExecuteNonQuery(
 			String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY {2} ({3}) ", table, name, nonclusteredString,
@@ -92,12 +87,6 @@ namespace Migrator.Providers.SqlServer
 		}
 		public override void AddIndex(string table, Index index)
 		{
-			if (IndexExists(table, index.Name))
-			{
-				Logger.Warn("Index {0} already exists", index.Name);
-				return;
-			}
-
 			var name = QuoteConstraintNameIfRequired(index.Name);
 
 			table = QuoteTableNameIfRequired(table);
