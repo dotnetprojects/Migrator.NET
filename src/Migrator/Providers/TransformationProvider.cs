@@ -343,17 +343,6 @@ namespace Migrator.Providers
 		/// </example>
 		public virtual void AddTable(string name, string engine, params IDbField[] fields)
 		{
-			if (TableExists(name))
-			{
-				Logger.Warn("Table {0} already exists", name);
-				return;
-			}
-
-			if (name.Length > 30)
-			{
-				Logger.Warn("Tablename {0} is bigger then 30 char's This is a Problem if you want to use Oracle!", name);
-			}
-
 			var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
 
 			List<string> pks = GetPrimaryKeys(columns);
@@ -482,12 +471,6 @@ namespace Migrator.Providers
 
 			column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
 
-			if (!ColumnExists(table, column.Name))
-			{
-				Logger.Warn("Column {0}.{1} does not exist", table, column.Name);
-				return;
-			}
-
 			ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
 
 			ChangeColumn(table, mapper.ColumnSql);
@@ -588,17 +571,6 @@ namespace Migrator.Providers
 		public virtual void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property,
 									  object defaultValue)
 		{
-			if (ColumnExists(table, column))
-			{
-				Logger.Warn("Column {0}.{1} already exists", table, column);
-				return;
-			}
-
-			if (column.Length > 30)
-			{
-				Logger.Warn("Columnname {0} is bigger then 30 char's This is a Problem if you want to use Oracle!", column);
-			}
-
 			ColumnPropertiesMapper mapper =
 				_dialect.GetAndMapColumnProperties(new Column(column, type, size, property, defaultValue));
 
@@ -652,12 +624,6 @@ namespace Migrator.Providers
 
 		public virtual void AddColumn(string table, string column, MigratorDbType type, object defaultValue)
 		{
-			if (ColumnExists(table, column))
-			{
-				Logger.Warn("Column {0}.{1} already exists", table, column);
-				return;
-			}
-
 			ColumnPropertiesMapper mapper =
 				_dialect.GetAndMapColumnProperties(new Column(column, type, defaultValue));
 
@@ -712,12 +678,6 @@ namespace Migrator.Providers
 		/// <param name="columns">Primary column names</param>
 		public virtual void AddPrimaryKey(string name, string table, params string[] columns)
 		{
-			if (ConstraintExists(table, name))
-			{
-				Logger.Warn("Primary key {0} already exists", name);
-				return;
-			}
-
 			ExecuteNonQuery(
 				String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY ({2}) ", table, name,
 							  String.Join(",", QuoteColumnNamesIfRequired(columns))));
@@ -728,12 +688,6 @@ namespace Migrator.Providers
 		}
 		public virtual void AddUniqueConstraint(string name, string table, params string[] columns)
 		{
-			if (ConstraintExists(table, name))
-			{
-				Logger.Warn("Constraint {0} already exists", name);
-				return;
-			}
-
 			QuoteColumnNames(columns);
 
 			table = QuoteTableNameIfRequired(table);
@@ -743,12 +697,6 @@ namespace Migrator.Providers
 
 		public virtual void AddCheckConstraint(string name, string table, string checkSql)
 		{
-			if (ConstraintExists(table, name))
-			{
-				Logger.Warn("Constraint {0} already exists", name);
-				return;
-			}
-
 			table = QuoteTableNameIfRequired(table);
 
 			ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} CHECK ({2}) ", table, name, checkSql));
@@ -830,12 +778,6 @@ namespace Migrator.Providers
 		public virtual void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,
 										  string[] refColumns, ForeignKeyConstraintType constraint)
 		{
-			if (ConstraintExists(primaryTable, name))
-			{
-				Logger.Warn("Constraint {0} already exists", name);
-				return;
-			}
-
 			refTable = QuoteTableNameIfRequired(refTable);
 			primaryTable = QuoteTableNameIfRequired(primaryTable);
 			QuoteColumnNames(primaryColumns);
@@ -1969,12 +1911,6 @@ namespace Migrator.Providers
 
 		public virtual void AddIndex(string name, string table, params string[] columns)
 		{
-			if (IndexExists(table, name))
-			{
-				Logger.Warn("Index {0} already exists", name);
-				return;
-			}
-
 			name = QuoteConstraintNameIfRequired(name);
 
 			table = QuoteTableNameIfRequired(table);
