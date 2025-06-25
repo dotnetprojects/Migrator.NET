@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DotNetProjects.Migrator.Framework;
+using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 
 namespace Migrator.Framework
 {

@@ -1,8 +1,8 @@
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 using Migrator.Framework;
 using Migrator.Framework.SchemaBuilder;
 using NUnit.Framework;
-using ForeignKeyConstraint = Migrator.Framework.ForeignKeyConstraint;
 
 namespace Migrator.Tests
 {

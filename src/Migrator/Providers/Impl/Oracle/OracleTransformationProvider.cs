@@ -1,3 +1,4 @@
+using DotNetProjects.Migrator.Framework;
 using Migrator.Framework;
 using System;
 using System.Collections.Generic;

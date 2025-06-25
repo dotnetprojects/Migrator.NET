@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using DotNetProjects.Migrator.Framework;
 using Migrator.Framework;
 using NUnit.Framework;
 using Rhino.Mocks;

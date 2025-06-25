@@ -1,4 +1,4 @@
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
 namespace Migrator.Providers
 {

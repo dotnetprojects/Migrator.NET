@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using Migrator.Framework;
 
-namespace Migrator.Framework
-{
+namespace DotNetProjects.Migrator.Framework;
+
     public class ForeignKeyConstraint : IDbField
     {
         public ForeignKeyConstraint()
@@ -12,11 +9,11 @@ namespace Migrator.Framework
 
         public ForeignKeyConstraint(string name, string table, string[] columns, string pkTable, string[] pkColumns)
         {
-            this.Name = name;
-            this.Table = table;
-            this.Columns = columns;
-            this.PkTable = pkTable;
-            this.PkColumns = pkColumns;
+            Name = name;
+            Table = table;
+            Columns = columns;
+            PkTable = pkTable;
+            PkColumns = pkColumns;
         }
 
         public string Name { get; set; }
@@ -25,4 +22,3 @@ namespace Migrator.Framework
         public string PkTable { get; set; }
         public string[] PkColumns { get; set; }        
     }
-}

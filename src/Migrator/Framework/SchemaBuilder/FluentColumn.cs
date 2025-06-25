@@ -12,6 +12,7 @@
 #endregion
 
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 
 namespace Migrator.Framework.SchemaBuilder
 {

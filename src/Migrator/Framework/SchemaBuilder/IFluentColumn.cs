@@ -11,6 +11,8 @@
 
 #endregion
 
+using DotNetProjects.Migrator.Framework;
+
 namespace Migrator.Framework.SchemaBuilder
 {
 	public interface IFluentColumn : IColumn

@@ -23,8 +23,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using ForeignKeyConstraint = Migrator.Framework.ForeignKeyConstraint;
-using ForeignKeyConstraintType = Migrator.Framework.ForeignKeyConstraintType;
+using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
+using ForeignKeyConstraintType = DotNetProjects.Migrator.Framework.ForeignKeyConstraintType;
 using Index = Migrator.Framework.Index;
 
 namespace Migrator.Providers
@@ -456,7 +456,10 @@ namespace Migrator.Providers
 			try
 			{
 				if (ignoreCase)
+				{
 					return GetColumns(table).Any(col => col.Name.ToLower() == column.ToLower());
+				}
+
 				return GetColumns(table).Any(col => col.Name == column);
 			}
 			catch (Exception)

@@ -2,6 +2,7 @@
 using System.Data;
 using System.Linq;
 using System.Text;
+using DotNetProjects.Migrator.Framework;
 using Migrator.Framework.Support;
 
 namespace Migrator.Framework

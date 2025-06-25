@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 using Migrator.Framework;
 using Migrator.Framework.SchemaBuilder;
 
-using ForeignKeyConstraint = Migrator.Framework.ForeignKeyConstraint;
+using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = Migrator.Framework.Index;
 
 namespace Migrator.Providers

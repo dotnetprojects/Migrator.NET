@@ -14,6 +14,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 
 namespace Migrator.Framework.SchemaBuilder
 {

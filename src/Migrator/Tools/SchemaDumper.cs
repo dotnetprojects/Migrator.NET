@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using DotNetProjects.Migrator.Framework;
 using Migrator.Framework;
 using Migrator.Providers;
 using Index = Migrator.Framework.Index;
