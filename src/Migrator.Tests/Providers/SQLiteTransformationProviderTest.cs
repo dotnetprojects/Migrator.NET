@@ -13,6 +13,7 @@
 
 using Migrator.Framework;
 using Migrator.Providers.SQLite;
+using Migrator.Tests.Settings;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers
@@ -21,8 +22,6 @@ namespace Migrator.Tests.Providers
 	[Category("SQLite")]
 	public class SQLiteTransformationProviderTest : TransformationProviderBase
 	{
-		#region Setup/Teardown
-
 		[SetUp]
 		public void SetUp()
 		{
@@ -35,8 +34,6 @@ namespace Migrator.Tests.Providers
 
 			AddDefaultTable();
 		}
-
-		#endregion
 
 		[Test]
 		public void AddForeignKey()
