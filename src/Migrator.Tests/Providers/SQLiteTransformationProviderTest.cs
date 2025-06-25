@@ -11,6 +11,7 @@
 
 #endregion
 
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Framework;
 using Migrator.Providers.SQLite;
 using Migrator.Tests.Settings;
