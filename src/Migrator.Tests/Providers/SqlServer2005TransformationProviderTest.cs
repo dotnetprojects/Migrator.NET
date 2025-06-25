@@ -19,26 +19,27 @@ using Migrator.Providers.Utility;
 
 namespace Migrator.Tests.Providers
 {
-	[TestFixture]
-	[Category("SqlServer2005")]
-	public class SqlServer2005TransformationProviderTest : TransformationProviderConstraintBase
-	{
-		#region Setup/Teardown
+    [TestFixture]
+    [Category("SqlServer2005")]
+    public class SqlServer2005TransformationProviderTest : TransformationProviderConstraintBase
+    {
+        #region Setup/Teardown
 
-		[SetUp]
-		public void SetUp()
-		{
+        [SetUp]
+        public void SetUp()
+        {
             string constr = ConfigurationManager.AppSettings["SqlServer2005ConnectionString"];
-			
+
+
             if (constr == null)
-				throw new ArgumentNullException("SqlServer2005ConnectionString", "No config file");
+                throw new ArgumentNullException("SqlServer2005ConnectionString", "No config file");
 
             _provider = new SqlServerTransformationProvider(new SqlServer2005Dialect(), constr, null, "default", null);
-			_provider.BeginTransaction();
+            _provider.BeginTransaction();
 
-			AddDefaultTable();
-		}
+            AddDefaultTable();
+        }
 
-		#endregion
-	}
+        #endregion
+    }
 }

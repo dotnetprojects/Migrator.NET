@@ -19,26 +19,26 @@ using NUnit.Framework;
 
 namespace Migrator.Tests.Tools
 {
-	[TestFixture]
-	[Category("MySql")]
-	public class SchemaDumperTest
-	{
-		[Test]
-		public void Dump()
-		{
-			string constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
+    [TestFixture]
+    [Category("MySql")]
+    public class SchemaDumperTest
+    {
+        [Test]
+        public void Dump()
+        {
+            string constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
 
-			if (constr == null)
-			{
-				throw new ArgumentNullException("MySqlConnectionString", "No config file");
-			}
+            if (constr == null)
+            {
+                throw new ArgumentNullException("MySqlConnectionString", "No config file");
+            }
 
-			var dumper = new SchemaDumper(ProviderTypes.Mysql, constr, null);
-			string output = dumper.GetDump();
+            var dumper = new SchemaDumper(ProviderTypes.Mysql, constr, null);
+            string output = dumper.GetDump();
 
-			Assert.That(output, Is.Not.Null);
-		}
-	}
+            Assert.That(output, Is.Not.Null);
+        }
+    }
     [TestFixture, Category("SqlServer2005")]
     public class SchemaDumperSqlServerTest
     {
@@ -48,12 +48,12 @@ namespace Migrator.Tests.Tools
             string constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
 
             if (constr == null)
-			{
-				throw new ArgumentNullException("SqlServerConnectionString", "No config file");
-			}
+            {
+                throw new ArgumentNullException("SqlServerConnectionString", "No config file");
+            }
 
-			SchemaDumper dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
-			string output = dumper.GetDump();
+            SchemaDumper dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
+            string output = dumper.GetDump();
 
             Assert.That(output, Is.Not.Null);
         }

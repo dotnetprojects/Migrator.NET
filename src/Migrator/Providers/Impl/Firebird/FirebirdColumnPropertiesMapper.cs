@@ -4,42 +4,42 @@ using Migrator.Framework;
 
 namespace Migrator.Providers.Impl.Firebird
 {
-	public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
-	{
-		public FirebirdColumnPropertiesMapper(Dialect dialect, string type)
-			: base(dialect, type)
-		{
-		}
+    public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
+    {
+        public FirebirdColumnPropertiesMapper(Dialect dialect, string type)
+            : base(dialect, type)
+        {
+        }
 
-		public override void MapColumnProperties(Column column)
-		{
-			Name = column.Name;
+        public override void MapColumnProperties(Column column)
+        {
+            Name = column.Name;
 
-			indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+            indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
 
-			var vals = new List<string>();
+            var vals = new List<string>();
 
-			AddName(vals);
+            AddName(vals);
 
-			AddType(vals);
+            AddType(vals);
 
-			AddIdentity(column, vals);
+            AddIdentity(column, vals);
 
-			AddPrimaryKey(column, vals);
+            AddPrimaryKey(column, vals);
 
-			AddIdentityAgain(column, vals);
+            AddIdentityAgain(column, vals);
 
-			AddUnique(column, vals);
+            AddUnique(column, vals);
 
-			AddForeignKey(column, vals);
+            AddForeignKey(column, vals);
 
-			AddDefaultValue(column, vals);
+            AddDefaultValue(column, vals);
 
-			AddNotNull(column, vals);
+            AddNotNull(column, vals);
 
-			AddNull(column, vals);
+            AddNull(column, vals);
 
-			columnSql = String.Join(" ", vals.ToArray());
-		}
-	}
+            columnSql = String.Join(" ", vals.ToArray());
+        }
+    }
 }

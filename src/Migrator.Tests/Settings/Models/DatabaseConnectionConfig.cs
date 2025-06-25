@@ -7,5 +7,5 @@ public class DatabaseConnectionConfig
     /// <summary>
     /// Gets or sets the connection identifier.
     /// </summary>
-    public  string Id { get; set; }
+    public string Id { get; set; }
 }

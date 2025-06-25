@@ -33,9 +33,9 @@ namespace Migrator.Framework
         {
             Version = version;
         }
-        public MigrationAttribute(int year, int month, int day, int hour, int minute,int second)
+        public MigrationAttribute(int year, int month, int day, int hour, int minute, int second)
         {
-            var combined = String.Format("{0:D4}{1:D2}{2:D2}{3:D2}{4:D2}{5:D2}", year, month, day, hour, minute,second);
+            var combined = String.Format("{0:D4}{1:D2}{2:D2}{3:D2}{4:D2}{5:D2}", year, month, day, hour, minute, second);
             Version = long.Parse(combined);
         }
         /// <summary>

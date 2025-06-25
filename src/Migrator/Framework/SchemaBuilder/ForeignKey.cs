@@ -13,16 +13,16 @@
 
 namespace Migrator.Framework.SchemaBuilder
 {
-	public class ForeignKey
-	{
-		public ForeignKey(string primaryTable, string primaryKey)
-		{
-			PrimaryTable = primaryTable;
-			PrimaryKey = primaryKey;
-		}
+    public class ForeignKey
+    {
+        public ForeignKey(string primaryTable, string primaryKey)
+        {
+            PrimaryTable = primaryTable;
+            PrimaryKey = primaryKey;
+        }
 
-		public string PrimaryTable { get; set; }
+        public string PrimaryTable { get; set; }
 
-		public string PrimaryKey { get; set; }
-	}
+        public string PrimaryKey { get; set; }
+    }
 }

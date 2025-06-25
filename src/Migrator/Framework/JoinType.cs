@@ -1,8 +1,8 @@
 ﻿namespace Migrator.Framework
 {
-	public enum JoinType
-	{
-		Join,
-		LeftJoin
-	}
+    public enum JoinType
+    {
+        Join,
+        LeftJoin
+    }
 }
