@@ -22,7 +22,7 @@ namespace Migrator.Tests
 		public void Can_AddTable()
 		{
 			_schemaBuilder.AddTable("MyUserTable");
-			//Assert.AreEqual("MyUserTable", _schemaBuilder.Expressions.ElementAt(0));
+			//Assert.That("MyUserTable", _schemaBuilder.Expressions.ElementAt(0));
 		}
 
 		[Test]
@@ -34,7 +34,7 @@ namespace Migrator.Tests
 				.AddColumn(columnName);
 
 			//Assert.IsTrue(_schemaBuilder.Columns.Count == 1);
-			//Assert.AreEqual(columnName, _schemaBuilder.Columns[0].Name);
+			//Assert.That(columnName, _schemaBuilder.Columns[0].Name);
 		}
 
 		[Test]
@@ -44,7 +44,7 @@ namespace Migrator.Tests
 				.AddColumn("SomeColumn")
 				.OfType(DbType.Int32);
 
-			//Assert.AreEqual(DbType.Int32, _schemaBuilder.Columns[0].Type, "Column.Type was not as expected");
+			//Assert.That(DbType.Int32, _schemaBuilder.Columns[0].Type, "Column.Type was not as expected");
 		}
 
 		[Test]
@@ -65,7 +65,7 @@ namespace Migrator.Tests
 				.AddColumn("column")
 				.WithSize(100);
 
-			//Assert.AreEqual(100, _schemaBuilder.Columns[0].Size);
+			//Assert.That(100, _schemaBuilder.Columns[0].Size);
 		}
 
 		[Test]
@@ -76,7 +76,7 @@ namespace Migrator.Tests
 				.OfType(DbType.Int32)
 				.WithDefaultValue("default value");
 
-			//Assert.AreEqual("default value", _schemaBuilder.Columns[0].DefaultValue);
+			//Assert.That("default value", _schemaBuilder.Columns[0].DefaultValue);
 		}
 
 		[Test]

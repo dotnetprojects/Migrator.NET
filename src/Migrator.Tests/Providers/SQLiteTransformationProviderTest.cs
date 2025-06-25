@@ -11,8 +11,7 @@
 
 #endregion
 
-using System;
-using System.Configuration;
+using Migrator.Framework;
 using Migrator.Providers.SQLite;
 using NUnit.Framework;
 
@@ -27,11 +26,11 @@ namespace Migrator.Tests.Providers
 		[SetUp]
 		public void SetUp()
 		{
-			string constr = ConfigurationManager.AppSettings["SQLiteConnectionString"];
-			if (constr == null)
-				throw new ArgumentNullException("SQLiteConnectionString", "No config file");
+			var configReader = new ConfigurationReader();
+			var connectionString = configReader.GetDatabaseConnectionConfigById("SQLiteConnectionString")
+				.ConnectionString;
 
-            _provider = new SQLiteTransformationProvider(new SQLiteDialect(), constr, "default", null);
+            _provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);
 			_provider.BeginTransaction();
 
 			AddDefaultTable();
@@ -40,12 +39,20 @@ namespace Migrator.Tests.Providers
 		#endregion
 
 		[Test]
+		public void AddForeignKey()
+		{
+			AddTableWithPrimaryKey();
+			_provider.AddForeignKey("Will not be used by SQLite", "Test", "Id", "TestTwo", "TestId", ForeignKeyConstraintType.SetDefault);
+		}
+
+
+		[Test]
 		public void CanParseColumnDefForName()
 		{
 			//const string nullString = "bar TEXT";
 			//const string notNullString = "baz INTEGER NOT NULL";
-			//Assert.AreEqual("bar", ((SQLiteTransformationProvider) _provider).ExtractNameFromColumnDef(nullString));
-			//Assert.AreEqual("baz", ((SQLiteTransformationProvider) _provider).ExtractNameFromColumnDef(notNullString));
+			//Assert.That("bar", ((SQLiteTransformationProvider) _provider).ExtractNameFromColumnDef(nullString));
+			//Assert.That("baz", ((SQLiteTransformationProvider) _provider).ExtractNameFromColumnDef(notNullString));
 		}
 
 		[Test]
@@ -53,8 +60,8 @@ namespace Migrator.Tests.Providers
 		{
 			const string nullString = "bar TEXT";
 			const string notNullString = "baz INTEGER NOT NULL";
-			Assert.IsTrue(((SQLiteTransformationProvider) _provider).IsNullable(nullString));
-			Assert.IsFalse(((SQLiteTransformationProvider) _provider).IsNullable(notNullString));
+			Assert.That(((SQLiteTransformationProvider) _provider).IsNullable(nullString), Is.True);
+			Assert.That(((SQLiteTransformationProvider) _provider).IsNullable(notNullString), Is.False);
 		}
 
 		[Test]
@@ -63,10 +70,10 @@ namespace Migrator.Tests.Providers
             //const string testSql = "CREATE TABLE bar ( id INTEGER PRIMARY KEY AUTOINCREMENT, bar TEXT, baz INTEGER NOT NULL )";
             //string[] columns = ((SQLiteTransformationProvider) _provider).ParseSqlColumnDefs(testSql);
             //Assert.IsNotNull(columns);
-            //Assert.AreEqual(3, columns.Length);
-            //Assert.AreEqual("id INTEGER PRIMARY KEY AUTOINCREMENT", columns[0]);
-            //Assert.AreEqual("bar TEXT", columns[1]);
-            //Assert.AreEqual("baz INTEGER NOT NULL", columns[2]);
+            //Assert.That(3, columns.Length);
+            //Assert.That("id INTEGER PRIMARY KEY AUTOINCREMENT", columns[0]);
+            //Assert.That("bar TEXT", columns[1]);
+            //Assert.That("baz INTEGER NOT NULL", columns[2]);
 		}
 
 		[Test]
@@ -75,10 +82,10 @@ namespace Migrator.Tests.Providers
             //const string testSql = "CREATE TABLE bar ( id INTEGER PRIMARY KEY AUTOINCREMENT, bar TEXT, baz INTEGER NOT NULL )";
             //string[] columns = ((SQLiteTransformationProvider) _provider).ParseSqlForColumnNames(testSql);
             //Assert.IsNotNull(columns);
-            //Assert.AreEqual(3, columns.Length);
-            //Assert.AreEqual("id", columns[0]);
-            //Assert.AreEqual("bar", columns[1]);
-            //Assert.AreEqual("baz", columns[2]);
+            //Assert.That(3, columns.Length);
+            //Assert.That("id", columns[0]);
+            //Assert.That("bar", columns[1]);
+            //Assert.That("baz", columns[2]);
 		}
 	}
 }

@@ -55,20 +55,20 @@ namespace Migrator.Tests
 		[Test]
 		public void LastVersion()
 		{
-			Assert.AreEqual(7, _migrationLoader.LastVersion);
+			Assert.That(7, Is.EqualTo(_migrationLoader.LastVersion));
 		}
 
 		[Test]
 		public void NullIfNoMigrationForVersion()
 		{
-			Assert.IsNull(_migrationLoader.GetMigration(99999999));
+			Assert.That(_migrationLoader.GetMigration(99999999), Is.Null);
 		}
 
 		[Test]
 		public void ZeroIfNoMigrations()
 		{
 			_migrationLoader.MigrationsTypes.Clear();
-			Assert.AreEqual(0, _migrationLoader.LastVersion);
+			Assert.That(0, Is.EqualTo(_migrationLoader.LastVersion));
 		}
 	}
 }

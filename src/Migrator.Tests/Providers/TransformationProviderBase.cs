@@ -82,16 +82,16 @@ namespace Migrator.Tests.Providers
 		[Test]
 		public void TableExistsWorks()
 		{
-			Assert.IsFalse(_provider.TableExists("gadadadadseeqwe"));
-			Assert.IsTrue(_provider.TableExists("TestTwo"));
+			Assert.That(_provider.TableExists("gadadadadseeqwe"), Is.False);
+			Assert.That(_provider.TableExists("TestTwo"), Is.True);
 		}
 
 		[Test]
 		public void ColumnExistsWorks()
 		{
-			Assert.IsFalse(_provider.ColumnExists("gadadadadseeqwe", "eqweqeq"));
-			Assert.IsFalse(_provider.ColumnExists("TestTwo", "eqweqeq"));
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "Id"));
+			Assert.That(_provider.ColumnExists("gadadadadseeqwe", "eqweqeq"), Is.False);
+			Assert.That(_provider.ColumnExists("TestTwo", "eqweqeq"), Is.False);
+			Assert.That(_provider.ColumnExists("TestTwo", "Id"),Is.True );
 		}
 
 		[Test]
@@ -104,7 +104,7 @@ namespace Migrator.Tests.Providers
 		public void TableCanBeAdded()
 		{
 			AddTable();
-			Assert.IsTrue(_provider.TableExists("Test"));
+			Assert.That(_provider.TableExists("Test"), Is.True);
 		}
 
 		[Test]
@@ -114,9 +114,9 @@ namespace Migrator.Tests.Providers
 			{
 				_provider.Logger.Log("Table: {0}", name);
 			}
-			Assert.AreEqual(1, _provider.GetTables().Length);
+			Assert.That(1, Is.EqualTo(_provider.GetTables().Length));
 			AddTable();
-			Assert.AreEqual(2, _provider.GetTables().Length);
+			Assert.That(2, Is.EqualTo(_provider.GetTables().Length));
 		}
 
 		[Test]
@@ -124,8 +124,9 @@ namespace Migrator.Tests.Providers
 		{
 			AddTable();
 			Column[] cols = _provider.GetColumns("Test");
-			Assert.IsNotNull(cols);
-			Assert.AreEqual(6, cols.Length);
+
+			Assert.That(cols, Is.Not.Null);
+			Assert.That(6, Is.EqualTo(cols.Length));
 		}
 
 		[Test]
@@ -133,13 +134,16 @@ namespace Migrator.Tests.Providers
 		{
 			AddTableWithPrimaryKey();
 			Column[] cols = _provider.GetColumns("Test");
-			Assert.IsNotNull(cols);
+			Assert.That(cols, Is.Not.Null);
+
 			foreach (Column column in cols)
 			{
 				if (column.Name == "name")
-					Assert.IsTrue((column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull);
+					Assert.That((column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull, Is.True);
 				else if (column.Name == "Title")
-					Assert.IsTrue((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null);
+				{
+					Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
+				}
 			}
 		}
 
@@ -147,7 +151,7 @@ namespace Migrator.Tests.Providers
 		public void CanAddTableWithPrimaryKey()
 		{
 			AddTableWithPrimaryKey();
-			Assert.IsTrue(_provider.TableExists("Test"));
+			Assert.That(_provider.TableExists("Test"), Is.True);
 		}
 
 		[Test]
@@ -155,7 +159,7 @@ namespace Migrator.Tests.Providers
 		{
 			AddTable();
 			_provider.RemoveTable("Test");
-			Assert.IsFalse(_provider.TableExists("Test"));
+			Assert.That(_provider.TableExists("Test"), Is.False);
 		}
 
 		[Test]
@@ -164,8 +168,8 @@ namespace Migrator.Tests.Providers
 			AddTable();
 			_provider.RenameTable("Test", "Test_Rename");
 
-			Assert.IsTrue(_provider.TableExists("Test_Rename"));
-			Assert.IsFalse(_provider.TableExists("Test"));
+			Assert.That(_provider.TableExists("Test_Rename"), Is.True);
+			Assert.That(_provider.TableExists("Test"), Is.False);
 			_provider.RemoveTable("Test_Rename");
 		}
 
@@ -185,8 +189,8 @@ namespace Migrator.Tests.Providers
 			AddTable();
 			_provider.RenameColumn("Test", "name", "name_rename");
 
-			Assert.IsTrue(_provider.ColumnExists("Test", "name_rename"));
-			Assert.IsFalse(_provider.ColumnExists("Test", "name"));
+			Assert.That(_provider.ColumnExists("Test", "name_rename"), Is.True);
+			Assert.That(_provider.ColumnExists("Test", "name"), Is.False);
 		}
 
 		[Test]
@@ -209,14 +213,14 @@ namespace Migrator.Tests.Providers
 		public void AddColumn()
 		{
 			_provider.AddColumn("TestTwo", "Test", DbType.String, 50);
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "Test"));
+			Assert.That(_provider.ColumnExists("TestTwo", "Test"), Is.True);
 		}
 
 		[Test]
 		public void ChangeColumn()
 		{
 			_provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50));
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "TestId"));
+			Assert.That(_provider.ColumnExists("TestTwo", "TestId"), Is.True);
 			_provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 1, "Not an Int val." });
 		}
 
@@ -233,31 +237,31 @@ namespace Migrator.Tests.Providers
 		public void AddDecimalColumn()
 		{
 			_provider.AddColumn("TestTwo", "TestDecimal", DbType.Decimal, 38);
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "TestDecimal"));
+			Assert.That(_provider.ColumnExists("TestTwo", "TestDecimal"), Is.True);
 		}
 
 		[Test]
 		public void AddColumnWithDefault()
 		{
 			_provider.AddColumn("TestTwo", "TestWithDefault", DbType.Int32, 50, 0, 10);
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "TestWithDefault"));
+			Assert.That(_provider.ColumnExists("TestTwo", "TestWithDefault"), Is.True);
 		}
 
 		[Test]
 		public void AddColumnWithDefaultButNoSize()
 		{
 			_provider.AddColumn("TestTwo", "TestWithDefault", DbType.Int32, 10);
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "TestWithDefault"));
+			Assert.That(_provider.ColumnExists("TestTwo", "TestWithDefault"), Is.True);
 
 			_provider.AddColumn("TestTwo", "TestWithDefaultString", DbType.String, "'foo'");
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "TestWithDefaultString"));
+			Assert.That(_provider.ColumnExists("TestTwo", "TestWithDefaultString"), Is.True);
 		}
 
 		[Test]
 		public void AddBooleanColumnWithDefault()
 		{
 			_provider.AddColumn("TestTwo", "TestBoolean", DbType.Boolean, 0, 0, false);
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "TestBoolean"));
+			Assert.That(_provider.ColumnExists("TestTwo", "TestBoolean"), Is.True);
 		}
 
 		[Test]
@@ -265,11 +269,12 @@ namespace Migrator.Tests.Providers
 		{
 			_provider.AddColumn("TestTwo", "NullableColumn", DbType.String, 30, ColumnProperty.Null);
 			Column[] columns = _provider.GetColumns("TestTwo");
+
 			foreach (Column column in columns)
 			{
 				if (column.Name == "NullableColumn")
 				{
-					Assert.IsTrue((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null);
+					Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
 				}
 			}
 		}
@@ -279,7 +284,7 @@ namespace Migrator.Tests.Providers
 		{
 			AddColumn();
 			_provider.RemoveColumn("TestTwo", "Test");
-			Assert.IsFalse(_provider.ColumnExists("TestTwo", "Test"));
+			Assert.That(_provider.ColumnExists("TestTwo", "Test"), Is.False);
 		}
 
 		[Test]
@@ -287,7 +292,7 @@ namespace Migrator.Tests.Providers
 		{
 			AddColumnWithDefault();
 			_provider.RemoveColumn("TestTwo", "TestWithDefault");
-			Assert.IsFalse(_provider.ColumnExists("TestTwo", "TestWithDefault"));
+			Assert.That(_provider.ColumnExists("TestTwo", "TestWithDefault"), Is.False);
 		}
 
 		[Test]
@@ -306,44 +311,44 @@ namespace Migrator.Tests.Providers
 		{
 			AddTable();
 			_provider.AddColumn("Test", "Inactif", DbType.Boolean);
-			Assert.IsTrue(_provider.ColumnExists("Test", "Inactif"));
+			Assert.That(_provider.ColumnExists("Test", "Inactif"), Is.True);
 
 			_provider.RemoveColumn("Test", "Inactif");
-			Assert.IsFalse(_provider.ColumnExists("Test", "Inactif"));
+			Assert.That(_provider.ColumnExists("Test", "Inactif"), Is.False);
 		}
 
 		[Test]
 		public void HasColumn()
 		{
 			AddColumn();
-			Assert.IsTrue(_provider.ColumnExists("TestTwo", "Test"));
-			Assert.IsFalse(_provider.ColumnExists("TestTwo", "TestPasLa"));
+			Assert.That(_provider.ColumnExists("TestTwo", "Test"), Is.True);
+			Assert.That(_provider.ColumnExists("TestTwo", "TestPasLa"), Is.False);
 		}
 
 		[Test]
 		public void HasTable()
 		{
-			Assert.IsTrue(_provider.TableExists("TestTwo"));
+			Assert.That(_provider.TableExists("TestTwo"), Is.True);
 		}
 
 		[Test]
 		public void AppliedMigrations()
 		{
-			Assert.IsFalse(_provider.TableExists("SchemaInfo"));
+			Assert.That(_provider.TableExists("SchemaInfo"), Is.False);
 
 			// Check that a "get" call works on the first run.
-			Assert.AreEqual(0, _provider.AppliedMigrations.Count);
-			Assert.IsTrue(_provider.TableExists("SchemaInfo"), "No SchemaInfo table created");
+			Assert.That(0,Is.EqualTo( _provider.AppliedMigrations.Count));
+			Assert.That(_provider.TableExists("SchemaInfo"),Is.True, "No SchemaInfo table created");
 
 			// Check that a "set" called after the first run works.
 			_provider.MigrationApplied(1, null);
-			Assert.AreEqual(1, _provider.AppliedMigrations[0]);
+			Assert.That(1, Is.EqualTo(_provider.AppliedMigrations[0]));
 
 			_provider.RemoveTable("SchemaInfo");
 			// Check that a "set" call works on the first run.
 			_provider.MigrationApplied(1, null);
-			Assert.AreEqual(1, _provider.AppliedMigrations[0]);
-			Assert.IsTrue(_provider.TableExists("SchemaInfo"), "No SchemaInfo table created");
+			Assert.That(1, Is.EqualTo(_provider.AppliedMigrations[0]));
+			Assert.That(_provider.TableExists("SchemaInfo"), Is.True, "No SchemaInfo table created");
 		}
 
 		/// <summary>
@@ -354,7 +359,7 @@ namespace Migrator.Tests.Providers
 		public void CommitTwice()
 		{
 			_provider.Commit();
-			Assert.AreEqual(0, _provider.AppliedMigrations.Count);
+			Assert.That(0, Is.EqualTo(_provider.AppliedMigrations.Count));
 			_provider.Commit();
 		}
 
@@ -363,13 +368,14 @@ namespace Migrator.Tests.Providers
 		{
 			_provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 1, "1" });
 			_provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 2, "2" });
+
 			using (var cmd = _provider.CreateCommand())
 			using (IDataReader reader = _provider.Select(cmd, "TestId", "TestTwo"))
 			{
 				int[] vals = GetVals(reader);
 
-				Assert.IsTrue(Array.Exists(vals, delegate (int val) { return val == 1; }));
-				Assert.IsTrue(Array.Exists(vals, delegate (int val) { return val == 2; }));
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.True);
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.True);
 			}
 		}
 
@@ -377,15 +383,17 @@ namespace Migrator.Tests.Providers
 		public void CanInsertNullData()
 		{
 			AddTable();
+
 			_provider.Insert("Test", new[] { "Id", "Title" }, new[] { "1", "foo" });
 			_provider.Insert("Test", new[] { "Id", "Title" }, new[] { "2", null });
+
 			using (var cmd = _provider.CreateCommand())
 			using (IDataReader reader = _provider.Select(cmd, "Title", "Test"))
 			{
 				string[] vals = GetStringVals(reader);
 
-				Assert.IsTrue(Array.Exists(vals, delegate (string val) { return val == "foo"; }));
-				Assert.IsTrue(Array.Exists(vals, delegate (string val) { return val == null; }));
+				Assert.That(Array.Exists(vals, delegate (string val) { return val == "foo"; }), Is.True);
+				Assert.That(Array.Exists(vals, delegate (string val) { return val == null; }), Is.True);
 			}
 		}
 
@@ -397,9 +405,9 @@ namespace Migrator.Tests.Providers
 			using (var cmd = _provider.CreateCommand())
 			using (IDataReader reader = _provider.Select(cmd, "Title", "Test"))
 			{
-				Assert.IsTrue(reader.Read());
-				Assert.AreEqual("Muad'Dib", reader.GetString(0));
-				Assert.IsFalse(reader.Read());
+				Assert.That(reader.Read(), Is.True);
+				Assert.That("Muad'Dib", Is.EqualTo(reader.GetString(0)));
+				Assert.That(reader.Read(), Is.False);
 			}
 		}
 
@@ -411,9 +419,9 @@ namespace Migrator.Tests.Providers
 			using (var cmd = _provider.CreateCommand())
 			using (IDataReader reader = _provider.Select(cmd, "TestId", "TestTwo"))
 			{
-				Assert.IsTrue(reader.Read());
-				Assert.AreEqual(2, Convert.ToInt32(reader[0]));
-				Assert.IsFalse(reader.Read());
+				Assert.That(reader.Read(), Is.True);
+				Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
+				Assert.That(reader.Read(), Is.False);
 			}
 		}
 
@@ -425,9 +433,9 @@ namespace Migrator.Tests.Providers
 			using (var cmd = _provider.CreateCommand())
 			using (IDataReader reader = _provider.Select(cmd, "TestId", "TestTwo"))
 			{
-				Assert.IsTrue(reader.Read());
-				Assert.AreEqual(2, Convert.ToInt32(reader[0]));
-				Assert.IsFalse(reader.Read());
+				Assert.That(reader.Read(),  Is.True);
+				Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
+				Assert.That(reader.Read(), Is.False);
 			}
 		}
 
@@ -443,9 +451,9 @@ namespace Migrator.Tests.Providers
 			{
 				int[] vals = GetVals(reader);
 
-				Assert.IsTrue(Array.Exists(vals, delegate (int val) { return val == 3; }));
-				Assert.IsFalse(Array.Exists(vals, delegate (int val) { return val == 1; }));
-				Assert.IsFalse(Array.Exists(vals, delegate (int val) { return val == 2; }));
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 3; }), Is.True);
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.False);
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.False);
 			}
 		}
 
@@ -462,8 +470,8 @@ namespace Migrator.Tests.Providers
 			{
 				string[] vals = GetStringVals(reader);
 
-				Assert.IsNull(vals[0]);
-				Assert.IsNull(vals[1]);
+				Assert.That(vals[0], Is.Null);
+				Assert.That(vals[1], Is.Null);
 			}
 		}
 
@@ -479,9 +487,9 @@ namespace Migrator.Tests.Providers
 			{
 				int[] vals = GetVals(reader);
 
-				Assert.IsTrue(Array.Exists(vals, delegate (int val) { return val == 3; }));
-				Assert.IsTrue(Array.Exists(vals, delegate (int val) { return val == 2; }));
-				Assert.IsFalse(Array.Exists(vals, delegate (int val) { return val == 1; }));
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 3; }), Is.True);
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.True);
+				Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.False);
 			}
 		}
 
@@ -490,9 +498,9 @@ namespace Migrator.Tests.Providers
 		{
 			string indexName = "test_index";
 
-			Assert.IsFalse(_provider.IndexExists("TestTwo", indexName));
+			Assert.That(_provider.IndexExists("TestTwo", indexName), Is.False);
 			_provider.AddIndex(indexName, "TestTwo", "Id", "TestId");
-			Assert.IsTrue(_provider.IndexExists("TestTwo", indexName));
+			Assert.That(_provider.IndexExists("TestTwo", indexName), Is.True);
 		}
 
 		[Test]
@@ -500,19 +508,19 @@ namespace Migrator.Tests.Providers
 		{
 			string indexName = "test_index";
 
-			Assert.IsFalse(_provider.IndexExists("TestTwo", indexName));
+			Assert.That(_provider.IndexExists("TestTwo", indexName), Is.False);
 			_provider.AddIndex(indexName, "TestTwo", "Id", "TestId");
 			_provider.RemoveIndex("TestTwo", indexName);
-			Assert.IsFalse(_provider.IndexExists("TestTwo", indexName));
+			Assert.That(_provider.IndexExists("TestTwo", indexName), Is.False);
 		}
 
 
 		int[] GetVals(IDataReader reader)
 		{
 			var vals = new int[2];
-			Assert.IsTrue(reader.Read());
+			Assert.That(reader.Read(), Is.True);
 			vals[0] = Convert.ToInt32(reader[0]);
-			Assert.IsTrue(reader.Read());
+			Assert.That(reader.Read(), Is.True);
 			vals[1] = Convert.ToInt32(reader[0]);
 			return vals;
 		}
@@ -520,9 +528,9 @@ namespace Migrator.Tests.Providers
 		string[] GetStringVals(IDataReader reader)
 		{
 			var vals = new string[2];
-			Assert.IsTrue(reader.Read());
+			Assert.That(reader.Read(), Is.True);
 			vals[0] = reader[0] as string;
-			Assert.IsTrue(reader.Read());
+			Assert.That(reader.Read(), Is.True);
 			vals[1] = reader[0] as string;
 			return vals;
 		}

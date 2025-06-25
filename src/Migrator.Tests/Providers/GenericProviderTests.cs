@@ -14,7 +14,7 @@ namespace Migrator.Tests.Providers
 			var provider = new GenericTransformationProvider();
 			string result = provider.JoinColumnsAndValues(new[] {"foo", "bar"}, new[] {"123", "456"});
 
-			Assert.AreEqual("foo='123', bar='456'", result);
+			Assert.That("foo='123', bar='456'", Is.EqualTo(result));
 		}
 	}
 

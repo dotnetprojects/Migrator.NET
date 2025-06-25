@@ -76,7 +76,7 @@ namespace Migrator.Tests
 
 			for (int i = 0; i < 3; i++)
 			{
-				Assert.AreSame(_types[i], list[i]);
+				Assert.That(_types[i], Is.SameAs( list[i]));
 			}
 		}
 
@@ -93,7 +93,7 @@ namespace Migrator.Tests
 
 			for (int i = 0; i < 3; i++)
 			{
-				Assert.AreSame(_types[2 - i], list[i]);
+				Assert.That(_types[2 - i], Is.SameAs( list[i]));
 			}
 		}
 	}

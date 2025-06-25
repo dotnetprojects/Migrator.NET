@@ -68,7 +68,7 @@ namespace Migrator.Tests
 
 			_migrator = new Migrator((ITransformationProvider) providerMock.MockInstance, Assembly.GetExecutingAssembly(), false);
 
-			// Enlève toutes les migrations trouvée automatiquement
+			
 			_migrator.MigrationsTypes.Clear();
 			_upCalled.Clear();
 			_downCalled.Clear();
@@ -146,11 +146,11 @@ namespace Migrator.Tests
 			SetUpCurrentVersion(3);
 			_migrator.MigrateTo(1);
 
-			Assert.AreEqual(0, _upCalled.Count);
-			Assert.AreEqual(2, _downCalled.Count);
+			Assert.That(0, Is.EqualTo(_upCalled.Count));
+			Assert.That(2, Is.EqualTo(_downCalled.Count));
 
-			Assert.AreEqual(3, _downCalled[0]);
-			Assert.AreEqual(2, _downCalled[1]);
+			Assert.That(3, Is.EqualTo(_downCalled[0]));
+			Assert.That(2, Is.EqualTo(_downCalled[1]));
 		}
 
 		[Test]
@@ -167,10 +167,10 @@ namespace Migrator.Tests
 			{
 			}
 
-			Assert.AreEqual(0, _upCalled.Count);
-			Assert.AreEqual(1, _downCalled.Count);
+			Assert.That(0,Is.EqualTo( _upCalled.Count));
+			Assert.That(1, Is.EqualTo(_downCalled.Count));
 
-			Assert.AreEqual(6, _downCalled[0]);
+			Assert.That(6, Is.EqualTo(_downCalled[0]));
 		}
 
 		[Test]
@@ -180,8 +180,8 @@ namespace Migrator.Tests
 
 			_migrator.MigrateTo(3);
 
-			Assert.AreEqual(0, _upCalled.Count);
-			Assert.AreEqual(0, _downCalled.Count);
+			Assert.That(0, Is.EqualTo(_upCalled.Count));
+			Assert.That(0, Is.EqualTo(_downCalled.Count));
 		}
 
 		[Test]
@@ -191,8 +191,8 @@ namespace Migrator.Tests
 
 			_migrator.MigrateToLastVersion();
 
-			Assert.AreEqual(2, _upCalled.Count);
-			Assert.AreEqual(0, _downCalled.Count);
+			Assert.That(2, Is.EqualTo(_upCalled.Count));
+			Assert.That(0, Is.EqualTo(_downCalled.Count));
 		}
 
 		[Test]
@@ -201,11 +201,11 @@ namespace Migrator.Tests
 			SetUpCurrentVersion(1);
 			_migrator.MigrateTo(3);
 
-			Assert.AreEqual(2, _upCalled.Count);
-			Assert.AreEqual(0, _downCalled.Count);
+			Assert.That(2, Is.EqualTo(_upCalled.Count));
+			Assert.That(0, Is.EqualTo(_downCalled.Count));
 
-			Assert.AreEqual(2, _upCalled[0]);
-			Assert.AreEqual(3, _upCalled[1]);
+			Assert.That(2, Is.EqualTo(_upCalled[0]));
+			Assert.That(3, Is.EqualTo(_upCalled[1]));
 		}
 
 		[Test]
@@ -213,12 +213,12 @@ namespace Migrator.Tests
 		{
 			_migrator.MigrateTo(3);
 
-			Assert.AreEqual(3, _upCalled.Count);
-			Assert.AreEqual(0, _downCalled.Count);
+			Assert.That(3, Is.EqualTo(_upCalled.Count));
+			Assert.That(0,Is.EqualTo( _downCalled.Count));
 
-			Assert.AreEqual(1, _upCalled[0]);
-			Assert.AreEqual(2, _upCalled[1]);
-			Assert.AreEqual(3, _upCalled[2]);
+			Assert.That(1, Is.EqualTo(_upCalled[0]));
+			Assert.That(2,Is.EqualTo( _upCalled[1]));
+			Assert.That(3, Is.EqualTo(_upCalled[2]));
 		}
 
 		[Test]
@@ -235,16 +235,16 @@ namespace Migrator.Tests
 			{
 			}
 
-			Assert.AreEqual(1, _upCalled.Count);
-			Assert.AreEqual(0, _downCalled.Count);
+			Assert.That(1, Is.EqualTo(_upCalled.Count));
+			Assert.That(0, Is.EqualTo(_downCalled.Count));
 
-			Assert.AreEqual(4, _upCalled[0]);
+			Assert.That(4, Is.EqualTo(_upCalled[0]));
 		}
 
 		[Test]
 		public void ToHumanName()
 		{
-			Assert.AreEqual("Create a table", StringUtils.ToHumanName("CreateATable"));
+			Assert.That("Create a table", Is.EqualTo( StringUtils.ToHumanName("CreateATable")));
 		}
 	}
 }

@@ -1,3 +1,4 @@
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Framework;
 
 namespace Migrator.Providers.SQLite

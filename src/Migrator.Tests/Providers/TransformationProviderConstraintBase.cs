@@ -40,7 +40,7 @@ namespace Migrator.Tests.Providers
 		public void CanAddPrimaryKey()
 		{
 			AddPrimaryKey();
-			Assert.IsTrue(_provider.PrimaryKeyExists("Test", "PK_Test"));
+			Assert.That(_provider.PrimaryKeyExists("Test", "PK_Test"), Is.True);
 		}
 
 		[Test]
@@ -59,28 +59,28 @@ namespace Migrator.Tests.Providers
 		public void CanAddForeignKey()
 		{
 			AddForeignKey();
-			Assert.IsTrue(_provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"), Is.True);
 		}
 
 		[Test]
 		public virtual void CanAddUniqueConstraint()
 		{
 			AddUniqueConstraint();
-			Assert.IsTrue(_provider.ConstraintExists("TestTwo", "UN_Test_TestTwo"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "UN_Test_TestTwo"), Is.True);
 		}
 
 		[Test]
 		public virtual void CanAddMultipleUniqueConstraint()
 		{
 			AddMultipleUniqueConstraint();
-			Assert.IsTrue(_provider.ConstraintExists("TestTwo", "UN_Test_TestTwo"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "UN_Test_TestTwo"), Is.True);
 		}
 
 		[Test]
 		public virtual void CanAddCheckConstraint()
 		{
 			AddCheckConstraint();
-			Assert.IsTrue(_provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"), Is.True);
 		}
 
 		[Test]
@@ -88,7 +88,7 @@ namespace Migrator.Tests.Providers
 		{
 			AddForeignKey();
 			_provider.RemoveForeignKey("TestTwo", "FK_Test_TestTwo");
-			Assert.IsFalse(_provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"), Is.False);
 		}
 
 		[Test]
@@ -96,7 +96,7 @@ namespace Migrator.Tests.Providers
 		{
 			AddUniqueConstraint();
 			_provider.RemoveConstraint("TestTwo", "UN_Test_TestTwo");
-			Assert.IsFalse(_provider.ConstraintExists("TestTwo", "UN_Test_TestTwo"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "UN_Test_TestTwo"), Is.False);
 		}
 
 		[Test]
@@ -104,7 +104,7 @@ namespace Migrator.Tests.Providers
 		{
 			AddCheckConstraint();
 			_provider.RemoveConstraint("TestTwo", "CK_TestTwo_TestId");
-			Assert.IsFalse(_provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"), Is.False);
 		}
 
 		[Test]
@@ -120,8 +120,8 @@ namespace Migrator.Tests.Providers
 		public void ConstraintExist()
 		{
 			AddForeignKey();
-			Assert.IsTrue(_provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"));
-			Assert.IsFalse(_provider.ConstraintExists("abc", "abc"));
+			Assert.That(_provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"), Is.True);
+			Assert.That(_provider.ConstraintExists("abc", "abc"), Is.False);
 		}
 
 		[Test]
@@ -130,9 +130,10 @@ namespace Migrator.Tests.Providers
 			_provider.AddTable("Test",
 			                   new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
 			                   new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
-				);
-			Assert.IsTrue(_provider.TableExists("Test"), "Table doesn't exist");
-			Assert.IsTrue(_provider.PrimaryKeyExists("Test", "PK_Test"), "Constraint doesn't exist");
+			);
+
+			Assert.That(_provider.TableExists("Test"), Is.True, "Table doesn't exist");
+			Assert.That(_provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
 		}
 
 		[Test]
@@ -143,12 +144,12 @@ namespace Migrator.Tests.Providers
 			                   new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey),
 			                   new Column("Name", DbType.String, 30, ColumnProperty.Null)
 				);
-			Assert.IsTrue(_provider.TableExists("Test"), "Table doesn't exist");
-			Assert.IsTrue(_provider.PrimaryKeyExists("Test", "PK_Test"), "Constraint doesn't exist");
+			Assert.That(_provider.TableExists("Test"), Is.True, "Table doesn't exist");
+			Assert.That(_provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
 
 			Column column = _provider.GetColumnByName("Test", "Name");
-			Assert.IsNotNull(column);
-			Assert.IsTrue((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null);
+			Assert.That(column, Is.Not.Null);
+			Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
 		}
 	}
 }

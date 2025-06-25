@@ -33,7 +33,7 @@ namespace Migrator.Tests
 		{
 			_migrator = new Migrator(TransformationProvider, MigrationAssembly, true);
 
-			Assert.IsTrue(_migrator.MigrationsTypes.Count > 0, "No migrations in assembly " + MigrationAssembly.Location);
+			Assert.That(_migrator.MigrationsTypes.Count > 0, Is.True, "No migrations in assembly " + MigrationAssembly.Location);
 
 			_migrator.MigrateTo(0);
 		}

@@ -13,7 +13,6 @@
 
 using System;
 using System.Configuration;
-
 using Migrator.Providers;
 using Migrator.Tools;
 using NUnit.Framework;
@@ -30,12 +29,14 @@ namespace Migrator.Tests.Tools
 			string constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
 
 			if (constr == null)
+			{
 				throw new ArgumentNullException("MySqlConnectionString", "No config file");
+			}
 
-            var dumper = new SchemaDumper(ProviderTypes.Mysql, constr, null);
+			var dumper = new SchemaDumper(ProviderTypes.Mysql, constr, null);
 			string output = dumper.GetDump();
 
-			Assert.IsNotNull(output);
+			Assert.That(output, Is.Not.Null);
 		}
 	}
     [TestFixture, Category("SqlServer2005")]
@@ -44,16 +45,17 @@ namespace Migrator.Tests.Tools
         [Test]
         public void Dump()
         {
-
             string constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
 
             if (constr == null)
-                throw new ArgumentNullException("SqlServerConnectionString", "No config file");
+			{
+				throw new ArgumentNullException("SqlServerConnectionString", "No config file");
+			}
 
-            SchemaDumper dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
+			SchemaDumper dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
 			string output = dumper.GetDump();
 
-            Assert.IsNotNull(output);
+            Assert.That(output, Is.Not.Null);
         }
     }
 }

@@ -44,14 +44,14 @@ namespace Migrator.Tests.Tools
 			_logger.Exception(123L, "baz", new Exception());
 			_logger.Finished(appliedVersions, 123L);
 
-			Assert.AreEqual("some_change" + Environment.NewLine, _sb.ToString());
+			Assert.That("some_change" + Environment.NewLine, Is.EqualTo(_sb.ToString()));
 		}
 
 		[Test]
 		public void CanWriteSql()
 		{
 			_logger.ApplyingDBChange("some_change");
-			Assert.AreEqual("some_change" + Environment.NewLine, _sb.ToString());
+			Assert.That("some_change" + Environment.NewLine, Is.EqualTo(_sb.ToString()));
 		}
 	}
 }
