@@ -11,6 +11,7 @@
 
 #endregion
 
+using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Providers.SQLite;
@@ -43,11 +44,20 @@ namespace Migrator.Tests.Providers
             AddTableWithPrimaryKey();
 
             // Act
-            _provider.AddForeignKey("FK name is not supported by SQLite", foreignTable: "Test", foreignColumn: "Id", primaryTable: "TestTwo", primaryColumn: "TestId", ForeignKeyConstraintType.Cascade);
+            _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
             // Assert
-            var foreignKeyConstraints = ((SQLiteTransformationProvider)_provider).GetForeignKeyConstraints("Test");
-            var tableSQLCreateScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript("Test");
+            var foreignKeyConstraints = ((SQLiteTransformationProvider)_provider).GetForeignKeyConstraints("TestTwo");
+            var tableSQLCreateScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript("TestTwo");
+
+            Assert.That(foreignKeyConstraints.Single().Name, Is.Null);
+            Assert.That(foreignKeyConstraints.Single().ChildTable, Is.EqualTo("TestTwo"));
+            Assert.That(foreignKeyConstraints.Single().ParentTable, Is.EqualTo("Test"));
+            Assert.That(foreignKeyConstraints.Single().ChildColumns.Single(), Is.EqualTo("TestId"));
+            Assert.That(foreignKeyConstraints.Single().ParentColumns.Single(), Is.EqualTo("Id"));
+
+            Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
+            Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(Id))"));
         }
 
 

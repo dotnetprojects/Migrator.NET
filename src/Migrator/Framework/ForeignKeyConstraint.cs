@@ -7,13 +7,13 @@ public class ForeignKeyConstraint : IDbField
     public ForeignKeyConstraint()
     { }
 
-    public ForeignKeyConstraint(string name, string table, string[] columns, string pkTable, string[] pkColumns)
+    public ForeignKeyConstraint(string name, string parentTable, string[] parentcolumns, string childTable, string[] childColumns)
     {
         Name = name;
-        Table = table;
-        Columns = columns;
-        PkTable = pkTable;
-        PkColumns = pkColumns;
+        ParentTable = parentTable;
+        ParentColumns = parentcolumns;
+        ChildTable = childTable;
+        ChildColumns = childColumns;
     }
 
     /// <summary>
@@ -22,10 +22,10 @@ public class ForeignKeyConstraint : IDbField
     /// </summary>
     public int? Id { get; set; }
     public string Name { get; set; }
-    public string Table { get; set; }
-    public string[] Columns { get; set; }
-    public string PkTable { get; set; }
-    public string[] PkColumns { get; set; }
+    public string ParentTable { get; set; }
+    public string[] ParentColumns { get; set; }
+    public string ChildTable { get; set; }
+    public string[] ChildColumns { get; set; }
 
     /// <summary>
     /// Gets or sets the on update text. Currently only used for SQLite.

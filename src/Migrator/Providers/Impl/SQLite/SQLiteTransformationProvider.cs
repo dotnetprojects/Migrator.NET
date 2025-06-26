@@ -44,19 +44,24 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             _connection.Open();
         }
 
-        public override void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,
-                                           string[] refColumns, ForeignKeyConstraintType constraint)
+        public override void AddForeignKey(
+            string name,
+            string parentTable,
+            string[] parentColumns,
+            string childTable,
+            string[] childColumns,
+            ForeignKeyConstraintType constraint)
         {
-            var sqliteTableInfo = GetTableData(primaryTable);
+            var sqliteTableInfo = GetTableData(childTable);
 
             var foreignKey = new ForeignKeyConstraint
             {
                 // SQLite does not support FK names
                 Name = null,
-                Table = primaryTable,
-                PkTable = refTable,
-                Columns = primaryColumns,
-                PkColumns = refColumns
+                ParentTable = parentTable,
+                ChildTable = childTable,
+                ParentColumns = parentColumns,
+                ChildColumns = childColumns
             };
 
             sqliteTableInfo.ForeignKeys.Add(foreignKey);
@@ -99,10 +104,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                     Id = group.First().Id,
                     // SQLite does not support FK names.
                     Name = null,
-                    Table = tableName,
-                    Columns = group.OrderBy(x => x.Seq).Select(x => x.From).ToArray(),
-                    PkColumns = group.OrderBy(x => x.Seq).Select(x => x.To).ToArray(),
-                    PkTable = group.First().Table,
+                    ParentTable = group.First().Table,
+                    ParentColumns = group.OrderBy(x => x.Seq).Select(x => x.To).ToArray(),
+                    ChildColumns = group.OrderBy(x => x.Seq).Select(x => x.From).ToArray(),
+                    ChildTable = tableName,
                     OnDelete = group.First().OnDelete,
                     OnUpdate = group.First().OnUpdate,
                     Match = group.First().Match
@@ -778,11 +783,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 // but not being stored in any way hence not being retrievable using foreign_key_list
                 // we leave it out in the following string.
 
-                var sourceColumnNamesQuotedString = string.Join(", ", fk.Columns.Select(QuoteColumnNameIfRequired));
-                var foreignColumnNamesQuotedString = string.Join(", ", fk.PkColumns.Select(QuoteColumnNameIfRequired));
-                var targetTableNameQuoted = QuoteTableNameIfRequired(fk.PkTable);
+                var sourceColumnNamesQuotedString = string.Join(", ", fk.ChildColumns.Select(QuoteColumnNameIfRequired));
+                var parentColumnNamesQuotedString = string.Join(", ", fk.ParentColumns.Select(QuoteColumnNameIfRequired));
+                var parentTableNameQuoted = QuoteTableNameIfRequired(fk.ParentTable);
 
-                var foreignKeyString = $", FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {targetTableNameQuoted}({foreignColumnNamesQuotedString})";
+                var foreignKeyString = $", FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})";
 
                 stringBuilder.Append(foreignKeyString);
             }

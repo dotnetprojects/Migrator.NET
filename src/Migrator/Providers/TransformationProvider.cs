@@ -140,9 +140,12 @@ namespace Migrator.Providers
         public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
         {
             var constraints = new List<ForeignKeyConstraint>();
-            using (IDbCommand cmd = CreateCommand())
+            using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
+                    // TODO: 
+                    // In this statement the naming of alias PK is misleading since INFORMATION_SCHEMA.TABLE_CONSTRAINTS (alias PK) is the child
+                    // while INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (alias C) is the parent
                     ExecuteQuery(
                         cmd, String.Format("SELECT K_Table = FK.TABLE_NAME, FK_Column = CU.COLUMN_NAME, PK_Table = PK.TABLE_NAME, PK_Column = PT.COLUMN_NAME, Constraint_Name = C.CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS C INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS FK ON C.CONSTRAINT_NAME = FK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS PK ON C.UNIQUE_CONSTRAINT_NAME = PK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE CU ON C.CONSTRAINT_NAME = CU.CONSTRAINT_NAME INNER JOIN ( SELECT i1.TABLE_NAME, i2.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS i1 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE i2 ON i1.CONSTRAINT_NAME = i2.CONSTRAINT_NAME WHERE i1.CONSTRAINT_TYPE = 'PRIMARY KEY' ) PT ON PT.TABLE_NAME = PK.TABLE_NAME  WHERE FK.table_name = '{0}'", table)))
             {
@@ -151,10 +154,10 @@ namespace Migrator.Providers
                     var constraint = new ForeignKeyConstraint
                     {
                         Name = reader.GetString(4),
-                        Table = reader.GetString(0),
-                        Columns = new[] { reader.GetString(1) },
-                        PkTable = reader.GetString(2),
-                        PkColumns = new[] { reader.GetString(3) }
+                        ParentTable = reader.GetString(0),
+                        ParentColumns = [reader.GetString(1)],
+                        ChildTable = reader.GetString(2),
+                        ChildColumns = [reader.GetString(3)]
                     };
 
                     constraints.Add(constraint);
@@ -748,18 +751,18 @@ namespace Migrator.Providers
 
         public virtual void AddForeignKey(string table, ForeignKeyConstraint fk)
         {
-            AddForeignKey(fk.Name, table, fk.Columns, fk.PkTable, fk.PkColumns);
+            AddForeignKey(fk.Name, table, fk.ParentColumns, fk.ChildTable, fk.ChildColumns);
         }
 
-        public virtual void AddForeignKey(string name, string primaryTable, string primaryColumn, string refTable, string refColumn)
+        public virtual void AddForeignKey(string name, string parentTable, string parentColumn, string childTable, string childColumn)
         {
             try
             {
-                AddForeignKey(name, primaryTable, new[] { primaryColumn }, refTable, new[] { refColumn });
+                AddForeignKey(name, parentTable, [parentColumn], childTable, [childColumn]);
             }
             catch (Exception ex)
             {
-                throw new Exception(string.Format("Error occured while adding foreign key: \"{0}\" between table: \"{1}\" and table: \"{2}\" - see inner exception for details", name, primaryTable, refTable), ex);
+                throw new Exception(string.Format("Error occured while adding foreign key: \"{0}\" between table: \"{1}\" and table: \"{2}\" - see inner exception for details", name, parentTable, childTable), ex);
             }
         }
 
@@ -768,32 +771,32 @@ namespace Migrator.Providers
         /// AddForeignKey(string, string, string, string, string)
         /// </see>
         /// </summary>
-        public virtual void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable, string[] refColumns)
+        public virtual void AddForeignKey(string name, string parentTable, string[] parentColumns, string childTable, string[] childColumns)
         {
-            AddForeignKey(name, primaryTable, primaryColumns, refTable, refColumns, ForeignKeyConstraintType.NoAction);
+            AddForeignKey(name, parentTable, parentColumns, childTable, childColumns, ForeignKeyConstraintType.NoAction);
         }
 
-        public virtual void AddForeignKey(string name, string primaryTable, string primaryColumn, string refTable, string refColumn, ForeignKeyConstraintType constraint)
+        public virtual void AddForeignKey(string name, string parentTable, string parentColumn, string childTable, string childColumn, ForeignKeyConstraintType constraint)
         {
-            AddForeignKey(name, primaryTable, new[] { primaryColumn }, refTable, new[] { refColumn },
+            AddForeignKey(name, parentTable, new[] { parentColumn }, childTable, new[] { childColumn },
                           constraint);
         }
 
-        public virtual void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,
-                                          string[] refColumns, ForeignKeyConstraintType constraint)
+        public virtual void AddForeignKey(string name, string parentTable, string[] parentColumns, string childTable,
+                                          string[] childColumns, ForeignKeyConstraintType constraint)
         {
-            refTable = QuoteTableNameIfRequired(refTable);
-            primaryTable = QuoteTableNameIfRequired(primaryTable);
-            QuoteColumnNames(primaryColumns);
-            QuoteColumnNames(refColumns);
+            childTable = QuoteTableNameIfRequired(childTable);
+            parentTable = QuoteTableNameIfRequired(parentTable);
+            QuoteColumnNames(parentColumns);
+            QuoteColumnNames(childColumns);
 
             string constraintResolved = constraintMapper.SqlForConstraint(constraint);
 
             ExecuteNonQuery(
                 String.Format(
                     "ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4}) ON UPDATE {5} ON DELETE {6}",
-                    primaryTable, name, String.Join(",", primaryColumns),
-                    refTable, String.Join(",", refColumns), constraintResolved, constraintResolved));
+                    parentTable, name, String.Join(",", parentColumns),
+                    childTable, String.Join(",", childColumns), constraintResolved, constraintResolved));
         }
 
         /// <summary>

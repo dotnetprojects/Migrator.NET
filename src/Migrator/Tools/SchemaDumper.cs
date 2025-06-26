@@ -77,13 +77,17 @@ namespace Migrator.Tools
             }
             return $"new []{String.Format("{{{0}}}", String.Join(",", list))}";
         }
+
         private void addForeignKeys(StringWriter writer)
         {
             foreach (var fk in this.foreignKeys)
             {
-                string[] fkCols = fk.Columns;
+                var fkCols = fk.ParentColumns;
+
                 foreach (var col in fkCols)
-                    writer.WriteLine($"\t\tDatabase.AddForeignKey(\"{fk.Name}\", \"{fk.Table}\", {this.GetListString(fk.Columns)}, \"{fk.PkTable}\", {this.GetListString(fk.PkColumns)});");
+                {
+                    writer.WriteLine($"\t\tDatabase.AddForeignKey(\"{fk.Name}\", \"{fk.ParentTable}\", {this.GetListString(fk.ParentColumns)}, \"{fk.ChildTable}\", {this.GetListString(fk.ChildColumns)});");
+                }
                 //this._provider.AddForeignKey(name, fktable, fkcols, pktable, primaryCols);
             }
         }
