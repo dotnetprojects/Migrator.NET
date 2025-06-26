@@ -39,8 +39,15 @@ namespace Migrator.Tests.Providers
         [Test]
         public void AddForeignKey()
         {
+            // Arrange
             AddTableWithPrimaryKey();
-            _provider.AddForeignKey("Will not be used by SQLite", "Test", "Id", "TestTwo", "TestId", ForeignKeyConstraintType.SetDefault);
+
+            // Act
+            _provider.AddForeignKey("FK name is not supported by SQLite", foreignTable: "Test", foreignColumn: "Id", primaryTable: "TestTwo", primaryColumn: "TestId", ForeignKeyConstraintType.Cascade);
+
+            // Assert
+            var foreignKeyConstraints = ((SQLiteTransformationProvider)_provider).GetForeignKeyConstraints("Test");
+            var tableSQLCreateScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript("Test");
         }
 
 

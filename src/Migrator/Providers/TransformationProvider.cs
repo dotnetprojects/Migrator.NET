@@ -137,7 +137,7 @@ namespace Migrator.Providers
             return columns.ToArray();
         }
 
-        public ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
+        public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
         {
             var constraints = new List<ForeignKeyConstraint>();
             using (IDbCommand cmd = CreateCommand())
@@ -148,12 +148,14 @@ namespace Migrator.Providers
             {
                 while (reader.Read())
                 {
-                    var constraint = new ForeignKeyConstraint();
-                    constraint.Name = reader.GetString(4);
-                    constraint.Table = reader.GetString(0);
-                    constraint.Columns = new[] { reader.GetString(1) };
-                    constraint.PkTable = reader.GetString(2);
-                    constraint.PkColumns = new[] { reader.GetString(3) };
+                    var constraint = new ForeignKeyConstraint
+                    {
+                        Name = reader.GetString(4),
+                        Table = reader.GetString(0),
+                        Columns = new[] { reader.GetString(1) },
+                        PkTable = reader.GetString(2),
+                        PkColumns = new[] { reader.GetString(3) }
+                    };
 
                     constraints.Add(constraint);
                 }
@@ -760,7 +762,6 @@ namespace Migrator.Providers
                 throw new Exception(string.Format("Error occured while adding foreign key: \"{0}\" between table: \"{1}\" and table: \"{2}\" - see inner exception for details", name, primaryTable, refTable), ex);
             }
         }
-
 
         /// <summary>
         /// <see cref="ITransformationProvider.AddForeignKey(string, string, string, string, string)">

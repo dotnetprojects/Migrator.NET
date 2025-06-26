@@ -1,4 +1,5 @@
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Impl.SQLite.Models;
 using Migrator.Framework;
 using Migrator.Providers;
 using System;
@@ -6,6 +7,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = Migrator.Framework.Index;
 
@@ -16,6 +18,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
     /// </summary>
     public class SQLiteTransformationProvider : TransformationProvider
     {
+        private const string IntermediateTableSuffix = "Temp";
+
         public SQLiteTransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
             : base(dialect, connectionString, null, scope)
         {
@@ -43,26 +47,99 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         public override void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,
                                            string[] refColumns, ForeignKeyConstraintType constraint)
         {
+            var sqliteTableInfo = GetTableData(primaryTable);
+
+            var foreignKey = new ForeignKeyConstraint
+            {
+                // SQLite does not support FK names
+                Name = null,
+                Table = primaryTable,
+                PkTable = refTable,
+                Columns = primaryColumns,
+                PkColumns = refColumns
+            };
+
+            sqliteTableInfo.ForeignKeys.Add(foreignKey);
+
+            RecreateTable(sqliteTableInfo);
         }
 
         public string[] GetColumnDefs(string table, out string compositeDefSql)
         {
-            return ParseSqlColumnDefs(GetSqlDefString(table), out compositeDefSql);
+            return ParseSqlColumnDefs(GetSqlCreateTableScript(table), out compositeDefSql);
         }
 
-        public string GetSqlDefString(string table)
+        public string GetSqlCreateTableScript(string table)
         {
-            string sqldef = null;
+            string sqlCreateTableScript = null;
 
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, string.Format("SELECT sql FROM sqlite_master WHERE type='table' AND lower(name)=lower('{0}')", table)))
+            using (var reader = ExecuteQuery(cmd, string.Format("SELECT sql FROM sqlite_master WHERE type='table' AND lower(name)=lower('{0}')", table)))
             {
                 if (reader.Read())
                 {
-                    sqldef = (string)reader[0];
+                    sqlCreateTableScript = (string)reader[0];
                 }
             }
-            return sqldef;
+
+            return sqlCreateTableScript;
+        }
+
+        public override ForeignKeyConstraint[] GetForeignKeyConstraints(string tableName)
+        {
+            List<ForeignKeyConstraint> foreignKeyConstraints = [];
+
+            var pragmaForeignKeyListItems = GetForeignKeyListItems(tableName);
+            var groups = pragmaForeignKeyListItems.GroupBy(x => x.Id);
+
+            foreach (var group in groups)
+            {
+                var foreignKeyConstraint = new ForeignKeyConstraint
+                {
+                    Id = group.First().Id,
+                    // SQLite does not support FK names.
+                    Name = null,
+                    Table = tableName,
+                    Columns = group.OrderBy(x => x.Seq).Select(x => x.From).ToArray(),
+                    PkColumns = group.OrderBy(x => x.Seq).Select(x => x.To).ToArray(),
+                    PkTable = group.First().Table,
+                    OnDelete = group.First().OnDelete,
+                    OnUpdate = group.First().OnUpdate,
+                    Match = group.First().Match
+                };
+
+                foreignKeyConstraints.Add(foreignKeyConstraint);
+            }
+
+            return foreignKeyConstraints.ToArray();
+        }
+
+        private List<PragmaForeignKeyListItem> GetForeignKeyListItems(string tableNameNotQuoted)
+        {
+            List<PragmaForeignKeyListItem> pragmaForeignKeyListItems = [];
+
+            using (var cmd = CreateCommand())
+            using (var reader = ExecuteQuery(cmd, $"PRAGMA foreign_key_list('{QuoteTableNameIfRequired(tableNameNotQuoted)}')"))
+            {
+                while (reader.Read())
+                {
+                    var pragmaForeignKeyListItem = new PragmaForeignKeyListItem
+                    {
+                        Id = reader.GetInt32(reader.GetOrdinal("id")),
+                        Seq = reader.GetInt32(reader.GetOrdinal("seq")),
+                        Table = reader.GetString(reader.GetOrdinal("table")),
+                        From = reader.GetString(reader.GetOrdinal("from")),
+                        To = reader.GetString(reader.GetOrdinal("to")),
+                        OnUpdate = reader.GetString(reader.GetOrdinal("on_update")),
+                        OnDelete = reader.GetString(reader.GetOrdinal("on_delete")),
+                        Match = reader.GetString(reader.GetOrdinal("match")),
+                    };
+
+                    pragmaForeignKeyListItems.Add(pragmaForeignKeyListItem);
+                }
+            }
+
+            return pragmaForeignKeyListItems;
         }
 
         public string[] ParseSqlColumnDefs(string sqldef, out string compositeDefSql)
@@ -75,10 +152,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
             sqldef = sqldef.Replace(Environment.NewLine, " ");
-            int start = sqldef.IndexOf("(");
+            var start = sqldef.IndexOf("(");
 
             // Code to handle composite primary keys /mol
-            int compositeDefIndex = sqldef.IndexOf("PRIMARY KEY ("); // Not ideal to search for a string like this but I'm lazy
+            var compositeDefIndex = sqldef.IndexOf("PRIMARY KEY ("); // Not ideal to search for a string like this but I'm lazy
 
             if (compositeDefIndex > -1)
             {
@@ -90,14 +167,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 compositeDefSql = null;
             }
 
-            int end = sqldef.LastIndexOf(")"); // Changed from 'IndexOf' to 'LastIndexOf' to handle foreign key definitions /mol
+            var end = sqldef.LastIndexOf(")"); // Changed from 'IndexOf' to 'LastIndexOf' to handle foreign key definitions /mol
 
             sqldef = sqldef.Substring(0, end);
             sqldef = sqldef.Substring(start + 1);
 
-            string[] cols = sqldef.Split([',']);
+            var cols = sqldef.Split([',']);
 
-            for (int i = 0; i < cols.Length; i++)
+            for (var i = 0; i < cols.Length; i++)
             {
                 cols[i] = cols[i].Trim();
             }
@@ -110,7 +187,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         /// </summary>
         public string[] ParseSqlForColumnNames(string sqldef, out string compositeDefSql)
         {
-            string[] parts = ParseSqlColumnDefs(sqldef, out compositeDefSql);
+            var parts = ParseSqlColumnDefs(sqldef, out compositeDefSql);
 
             return ParseSqlForColumnNames(parts);
         }
@@ -122,7 +199,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 return null;
             }
 
-            for (int i = 0; i < parts.Length; i++)
+            for (var i = 0; i < parts.Length; i++)
             {
                 parts[i] = ExtractNameFromColumnDef(parts[i]);
             }
@@ -137,7 +214,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         /// <returns></returns>
         public static string ExtractNameFromColumnDef(string columnDef)
         {
-            int idx = columnDef.IndexOf(" ");
+            var idx = columnDef.IndexOf(" ");
 
             if (idx > 0)
             {
@@ -148,7 +225,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public DbType ExtractTypeFromColumnDef(string columnDef)
         {
-            int idx = columnDef.IndexOf(" ") + 1;
+            var idx = columnDef.IndexOf(" ") + 1;
 
             if (idx > 0)
             {
@@ -180,7 +257,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var sqlStrings = new List<string>();
 
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, string.Format("SELECT sql FROM sqlite_master WHERE type='index' AND sql NOT NULL AND lower(tbl_name)=lower('{0}')", table)))
+            using (var reader = ExecuteQuery(cmd, string.Format("SELECT sql FROM sqlite_master WHERE type='index' AND sql NOT NULL AND lower(tbl_name)=lower('{0}')", table)))
             {
                 while (reader.Read())
                 {
@@ -203,7 +280,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 // First remove original index, because names have to be unique
                 var createIndexDef = " INDEX ";
                 var indexNameStart = indexSql.IndexOf(createIndexDef, StringComparison.OrdinalIgnoreCase) + createIndexDef.Length;
-                ExecuteNonQuery("DROP INDEX " + indexSql[indexNameStart..(origTableStart - 4)]);
+                ExecuteNonQuery("DROP INDEX " + indexSql.Substring(indexNameStart, origTableStart - 4 - indexNameStart));
 
                 // Create index on new table
                 ExecuteNonQuery(indexSql.Substring(0, origTableStart) + newTable + " " + indexSql.Substring(origTableEnd));
@@ -275,6 +352,67 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             ChangeColumnInternal(table: table, old: [], columns: [uniqueConstraint]);
         }
 
+        public SQLiteTableInfo GetTableData(string tableName)
+        {
+            var sqliteTable = new SQLiteTableInfo
+            {
+                TableNameMapping = new MappingInfo { OldName = tableName, NewName = tableName },
+                Columns = GetColumns(tableName).ToList(),
+                ForeignKeys = GetForeignKeyConstraints(tableName).ToList(),
+                Indexes = GetIndexes(tableName).ToList()
+            };
+
+            sqliteTable.ColumnMappings = sqliteTable.Columns
+                .Select(x =>
+                    new MappingInfo
+                    {
+                        OldName = x.Name,
+                        NewName = x.Name
+                    })
+                .ToList();
+
+            return sqliteTable;
+        }
+
+        private void RecreateTable(SQLiteTableInfo sqliteTableInfo)
+        {
+            var sourceTableQuoted = QuoteTableNameIfRequired(sqliteTableInfo.TableNameMapping.OldName);
+            var targetIntermediateTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}{IntermediateTableSuffix}");
+            var targetTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}");
+
+            var columns = sqliteTableInfo.Columns.Cast<IDbField>();
+            var foreignKeys = sqliteTableInfo.ForeignKeys.Cast<IDbField>();
+            var indexes = sqliteTableInfo.Indexes.Cast<IDbField>();
+
+            var dbFields = columns.Concat(foreignKeys)
+                .Concat(indexes)
+                .ToArray();
+
+            AddTable(targetIntermediateTableQuoted, null, dbFields);
+
+            var columnMappings = sqliteTableInfo.ColumnMappings
+                .OrderBy(x => x.OldName)
+                .ToList();
+
+            var sourceColumnsQuotedString = string.Join(", ", columnMappings.Select(x => QuoteColumnNameIfRequired(x.OldName)));
+            var targetColumnsQuotedString = string.Join(", ", columnMappings.Select(x => QuoteColumnNameIfRequired(x.NewName)));
+
+            using (var cmd = CreateCommand())
+            {
+                var sql = $"INSERT INTO {targetIntermediateTableQuoted} ({targetColumnsQuotedString}) SELECT {sourceColumnsQuotedString} FROM {sourceTableQuoted}";
+                ExecuteQuery(cmd, sql);
+            }
+
+            RemoveTable(sourceTableQuoted);
+
+            using (var cmd = CreateCommand())
+            {
+                var sql = $"ALTER TABLE {targetIntermediateTableQuoted} RENAME TO {targetTableQuoted}";
+                ExecuteQuery(cmd, sql);
+            }
+        }
+
+
         private void ChangeColumnInternal(string table, string[] old, IDbField[] columns)
         {
             var newColumns = GetColumns(table).Where(x => !old.Any(y => x.Name.Equals(y, StringComparison.InvariantCultureIgnoreCase))).ToList();
@@ -287,7 +425,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             AddTable(table + "_temp", null, [.. newFieldsPlusUnique]);
             var colNamesNewSql = string.Join(", ", newColumns.Select(x => x.Name).Select(QuoteColumnNameIfRequired));
-            var colNamesSql = string.Join(", ", oldColumnNames.Select(x => QuoteColumnNameIfRequired(x)));
+            var colNamesSql = string.Join(", ", oldColumnNames.Select(QuoteColumnNameIfRequired));
 
             using (var cmd = CreateCommand())
             {
@@ -302,11 +440,6 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
         }
 
-        private void RecreateTable(string tableName, IDbField[] dbFields)
-        {
-
-        }
-
         public override void AddColumn(string table, Column column)
         {
             var backUp = column.ColumnProperty;
@@ -314,6 +447,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             column.ColumnProperty &= ~ColumnProperty.Identity;
             base.AddColumn(table, column);
             column.ColumnProperty = backUp;
+
             if (backUp.HasFlag(ColumnProperty.PrimaryKey) || backUp.HasFlag(ColumnProperty.Identity))
             {
                 ChangeColumn(table, column);
@@ -329,7 +463,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                     (column.DefaultValue == null || column.DefaultValue.ToString() != "'CURRENT_TIME'" && column.DefaultValue.ToString() != "'CURRENT_DATE'" && column.DefaultValue.ToString() != "'CURRENT_TIMESTAMP'")
                 )
             {
-                string tempColumn = "temp_" + column.Name;
+                var tempColumn = "temp_" + column.Name;
                 RenameColumn(table, column.Name, tempColumn);
                 AddColumn(table, column);
 
@@ -344,7 +478,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             {
                 var newColumns = GetColumns(table).ToArray();
 
-                for (int i = 0; i < newColumns.Count(); i++)
+                for (var i = 0; i < newColumns.Count(); i++)
                 {
                     if (newColumns[i].Name == column.Name)
                     {
@@ -379,7 +513,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         public override bool TableExists(string table)
         {
             using var cmd = CreateCommand();
-            using IDataReader reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='table' and lower(name)=lower('{0}')", table));
+            using var reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='table' and lower(name)=lower('{0}')", table));
 
             return reader.Read();
         }
@@ -387,7 +521,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         public override bool ViewExists(string view)
         {
             using var cmd = CreateCommand();
-            using IDataReader reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='view' and lower(name)=lower('{0}')", view));
+            using var reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='view' and lower(name)=lower('{0}')", view));
 
             return reader.Read();
         }
@@ -412,7 +546,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var tables = new List<string>();
 
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, "SELECT name FROM sqlite_master WHERE type='table' AND name <> 'sqlite_sequence' ORDER BY name"))
+            using (var reader = ExecuteQuery(cmd, "SELECT name FROM sqlite_master WHERE type='table' AND name <> 'sqlite_sequence' ORDER BY name"))
             {
                 while (reader.Read())
                 {
@@ -428,7 +562,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var columns = new List<Column>();
 
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, string.Format("PRAGMA table_info('{0}')", table)))
+            using (var reader = ExecuteQuery(cmd, string.Format("PRAGMA table_info('{0}')", table)))
             {
                 while (reader.Read())
                 {
@@ -450,7 +584,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                     if (defValue is string v && v.StartsWith("'") && v.EndsWith("'"))
                     {
-                        column.DefaultValue = v[1..^1];
+                        column.DefaultValue = v.Substring(1, v.Length - 2);
                     }
                     else
                     {
@@ -533,14 +667,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         public override bool IndexExists(string table, string name)
         {
             using var cmd = CreateCommand();
-            using IDataReader reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='index' and lower(name)=lower('{0}')", name));
+            using var reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='index' and lower(name)=lower('{0}')", name));
 
             return reader.Read();
         }
 
         public override Index[] GetIndexes(string table)
         {
-            var retVal = new List<Index>();
+            var indexes = new List<Index>();
 
             var sql = @"SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type = 'index' AND lower(tbl_name) = lower('{0}');";
 
@@ -550,8 +684,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 while (reader.Read())
                 {
                     string idxSql = null;
+
                     if (!reader.IsDBNull(3))
+                    {
                         idxSql = reader.GetString(3);
+                    }
 
                     var idx = new Index
                     {
@@ -560,11 +697,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                     idx.PrimaryKey = idx.Name.StartsWith("sqlite_autoindex_");
                     idx.Unique = idx.Name.StartsWith("sqlite_autoindex_") || idxSql != null && idxSql.Contains("UNIQUE");
-                    retVal.Add(idx);
+
+                    indexes.Add(idx);
                 }
             }
 
-            foreach (var idx in retVal)
+            foreach (var idx in indexes)
             {
                 sql = "PRAGMA index_info(\"" + idx.Name + "\")";
                 using var cmd = CreateCommand();
@@ -580,19 +718,19 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 idx.KeyColumns = columns.ToArray();
             }
 
-            return [.. retVal];
+            return [.. indexes];
         }
 
         public override void AddTable(string name, string engine, params IDbField[] fields)
         {
             var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
 
-            List<string> pks = GetPrimaryKeys(columns);
-            bool compoundPrimaryKey = pks.Count > 1;
+            var pks = GetPrimaryKeys(columns);
+            var compoundPrimaryKey = pks.Count > 1;
 
             var columnProviders = new List<ColumnPropertiesMapper>(columns.Length);
 
-            foreach (Column column in columns)
+            foreach (var column in columns)
             {
                 // Remove the primary key notation if compound primary key because we'll add it back later
                 if (compoundPrimaryKey && column.IsPrimaryKey)
@@ -601,20 +739,20 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                     column.ColumnProperty |= ColumnProperty.NotNull; // PK is always not-null
                 }
 
-                ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
+                var mapper = _dialect.GetAndMapColumnProperties(column);
                 columnProviders.Add(mapper);
             }
 
-            string columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
+            var columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
 
             var table = _dialect.TableNameNeedsQuote ? _dialect.Quote(name) : QuoteTableNameIfRequired(name);
-            string sqlCreate;
+            StringBuilder stringBuilder = new();
 
-            sqlCreate = string.Format("CREATE TABLE {0} ({1}", table, columnsAndIndexes);
+            stringBuilder.Append(string.Format("CREATE TABLE {0} ({1}", table, columnsAndIndexes));
 
             if (compoundPrimaryKey)
             {
-                sqlCreate += string.Format(", PRIMARY KEY ({0}) ", string.Join(",", pks.ToArray()));
+                stringBuilder.Append(string.Format(", PRIMARY KEY ({0}) ", string.Join(",", pks.ToArray())));
             }
 
             var uniques = fields.Where(x => x is Unique).Cast<Unique>().ToArray();
@@ -628,26 +766,30 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                     nm = string.Format(" CONSTRAINT {0}", u.Name);
                 }
 
-                sqlCreate += string.Format(",{0} UNIQUE ({1})", nm, string.Join(",", u.KeyColumns));
+                stringBuilder.Append(string.Format(",{0} UNIQUE ({1})", nm, string.Join(",", u.KeyColumns)));
             }
 
             var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
 
             foreach (var fk in foreignKeys)
             {
-                var nm = "";
+                // Since in SQLite the foreign key name can be given as 
+                // CONSTRAINT <FK name>
+                // but not being stored in any way hence not being retrievable using foreign_key_list
+                // we leave it out in the following string.
 
-                if (!string.IsNullOrEmpty(fk.Name))
-                {
-                    nm = string.Format(" CONSTRAINT {0}", fk.Name);
-                }
+                var sourceColumnNamesQuotedString = string.Join(", ", fk.Columns.Select(QuoteColumnNameIfRequired));
+                var foreignColumnNamesQuotedString = string.Join(", ", fk.PkColumns.Select(QuoteColumnNameIfRequired));
+                var targetTableNameQuoted = QuoteTableNameIfRequired(fk.PkTable);
 
-                sqlCreate += string.Format(",{0} FOREIGN KEY ({1}) REFERENCES {2}({3})", nm, string.Join(",", fk.Columns), fk.PkTable, string.Join(",", fk.PkColumns));
+                var foreignKeyString = $", FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {targetTableNameQuoted}({foreignColumnNamesQuotedString})";
+
+                stringBuilder.Append(foreignKeyString);
             }
 
-            sqlCreate += ")";
+            stringBuilder.Append(")");
 
-            ExecuteNonQuery(sqlCreate);
+            ExecuteNonQuery(stringBuilder.ToString());
 
             var indexes = fields.Where(x => x is Index)
                 .Cast<Index>()
