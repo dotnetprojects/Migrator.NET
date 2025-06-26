@@ -310,6 +310,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
         {
+            // Due to old .Net versions we cannot use ThrowIfNullOrWhitespace
+            if (string.IsNullOrWhiteSpace(newColumnName))
+            {
+                throw new Exception("New column name is null or empty");
+            }
+
             if (ColumnExists(tableName, newColumnName))
             {
                 throw new MigrationException(string.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
@@ -317,10 +323,21 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             if (ColumnExists(tableName, oldColumnName))
             {
-                var columnDef = GetColumns(tableName).First(x => x.Name == oldColumnName);
+                var sqliteTableInfo = GetTableData(tableName);
+                var columnMapping = sqliteTableInfo.ColumnMappings.First(x => x.OldName == oldColumnName);
+                columnMapping.NewName = newColumnName;
 
-                columnDef.Name = newColumnName;
-                ChangeColumnInternal(tableName, [oldColumnName], [columnDef]);
+                var column = sqliteTableInfo.Columns.First(x => x.Name == newColumnName);
+                column.Name = newColumnName;
+
+                var affectedForeignKeys = sqliteTableInfo.ForeignKeys.Where(x => x.ChildColumns.Contains(oldColumnName)).ToList();
+
+                foreach (var foreignKey in affectedForeignKeys)
+                {
+                    foreignKey.ChildColumns = foreignKey.ChildColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
+                }
+
+                RecreateTable(sqliteTableInfo);
             }
             else
             {
@@ -379,18 +396,34 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             return sqliteTable;
         }
 
+        public bool CheckForeignKeyIntegrity()
+        {
+            ExecuteNonQuery("PRAGMA foreign_keys = ON");
+
+            using (var cmd = CreateCommand())
+            using (var reader = ExecuteQuery(cmd, "PRAGMA foreign_key_check"))
+            {
+                if (reader.Read())
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
         private void RecreateTable(SQLiteTableInfo sqliteTableInfo)
         {
             var sourceTableQuoted = QuoteTableNameIfRequired(sqliteTableInfo.TableNameMapping.OldName);
             var targetIntermediateTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}{IntermediateTableSuffix}");
             var targetTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}");
 
-            var columns = sqliteTableInfo.Columns.Cast<IDbField>();
-            var foreignKeys = sqliteTableInfo.ForeignKeys.Cast<IDbField>();
-            var indexes = sqliteTableInfo.Indexes.Cast<IDbField>();
+            var columnDbFields = sqliteTableInfo.Columns.Cast<IDbField>();
+            var foreignKeyDbFields = sqliteTableInfo.ForeignKeys.Cast<IDbField>();
+            var indexDbFields = sqliteTableInfo.Indexes.Cast<IDbField>();
 
-            var dbFields = columns.Concat(foreignKeys)
-                .Concat(indexes)
+            var dbFields = columnDbFields.Concat(foreignKeyDbFields)
+                .Concat(indexDbFields)
                 .ToArray();
 
             AddTable(targetIntermediateTableQuoted, null, dbFields);

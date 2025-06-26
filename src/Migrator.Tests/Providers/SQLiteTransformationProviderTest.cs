@@ -11,7 +11,6 @@
 
 #endregion
 
-using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Providers.SQLite;
@@ -38,28 +37,36 @@ namespace Migrator.Tests.Providers
         }
 
         [Test]
-        public void AddForeignKey()
+        public void CheckForeignKeyIntegrity_IntegrityViolated_ReturnsFalse()
         {
             // Arrange
             AddTableWithPrimaryKey();
-
-            // Act
+            _provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
+            _provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (44444)");
             _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
+            // Act
+            var result = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+
             // Assert
-            var foreignKeyConstraints = ((SQLiteTransformationProvider)_provider).GetForeignKeyConstraints("TestTwo");
-            var tableSQLCreateScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript("TestTwo");
-
-            Assert.That(foreignKeyConstraints.Single().Name, Is.Null);
-            Assert.That(foreignKeyConstraints.Single().ChildTable, Is.EqualTo("TestTwo"));
-            Assert.That(foreignKeyConstraints.Single().ParentTable, Is.EqualTo("Test"));
-            Assert.That(foreignKeyConstraints.Single().ChildColumns.Single(), Is.EqualTo("TestId"));
-            Assert.That(foreignKeyConstraints.Single().ParentColumns.Single(), Is.EqualTo("Id"));
-
-            Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
-            Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(Id))"));
+            Assert.That(result, Is.False);
         }
 
+        [Test]
+        public void CheckForeignKeyIntegrity_IntegrityOk_ReturnsTrue()
+        {
+            // Arrange
+            AddTableWithPrimaryKey();
+            _provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
+            _provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
+            _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
+
+            // Act
+            var result = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+
+            // Assert
+            Assert.That(result, Is.True);
+        }
 
         [Test]
         public void CanParseColumnDefForName()
