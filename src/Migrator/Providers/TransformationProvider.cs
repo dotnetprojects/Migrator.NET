@@ -1603,9 +1603,9 @@ namespace Migrator.Providers
 			return name;
 		}
 
-		public virtual string Encode(Guid guid)
+		public virtual object Encode(Guid guid)
 		{
-			return guid.ToString();
+			return guid;
 		}
 
 		public virtual string[] QuoteColumnNamesIfRequired(params string[] columnNames)
