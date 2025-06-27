@@ -479,7 +479,7 @@ namespace Migrator.Providers
 
             column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
 
-            ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
+            var mapper = _dialect.GetAndMapColumnProperties(column);
 
             ChangeColumn(table, mapper.ColumnSql);
 

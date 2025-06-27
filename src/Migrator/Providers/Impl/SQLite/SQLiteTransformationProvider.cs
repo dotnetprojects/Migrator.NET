@@ -491,7 +491,6 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
         }
 
-
         private void ChangeColumnInternal(string table, string[] old, IDbField[] columns)
         {
             var newColumns = GetColumns(table).Where(x => !old.Any(y => x.Name.Equals(y, StringComparison.InvariantCultureIgnoreCase))).ToList();
