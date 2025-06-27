@@ -423,7 +423,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 TableNameMapping = new MappingInfo { OldName = tableName, NewName = tableName },
                 Columns = GetColumns(tableName).ToList(),
                 ForeignKeys = GetForeignKeyConstraints(tableName).ToList(),
-                Indexes = GetIndexes(tableName).ToList()
+                Indexes = GetIndexes(tableName).ToList(),
+                Uniques = GetUniques(tableName).ToList()
             };
 
             sqliteTable.ColumnMappings = sqliteTable.Columns
@@ -635,12 +636,15 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             return [.. tables];
         }
 
-        public override Column[] GetColumns(string table)
+        public override Column[] GetColumns(string tableName)
         {
+            var pragmaTableInfoItems = GetPragmaTableInfoItems(tableName);
+
+
             var columns = new List<Column>();
 
             using (var cmd = CreateCommand())
-            using (var reader = ExecuteQuery(cmd, string.Format("PRAGMA table_info('{0}')", table)))
+            using (var reader = ExecuteQuery(cmd, string.Format("PRAGMA table_info('{0}')", tableName)))
             {
                 while (reader.Read())
                 {
@@ -920,6 +924,111 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
             ChangeColumnInternal(table, [.. columnDefs.Select(x => x.Name)], columnDefs);
+        }
+
+        public List<Unique> GetUniques(string tableName)
+        {
+            List<Unique> uniques = [];
+
+            var pragmaIndexListItems = GetPragmaIndexListItems(tableName);
+
+            var uniqueConstraints = pragmaIndexListItems.Where(x => x.Unique && x.Origin == "u")
+                .ToList();
+
+            foreach (var uniqueConstraint in uniqueConstraints)
+            {
+                var indexInfos = GetPragmaIndexInfo(uniqueConstraint.Name);
+
+                var columns = indexInfos.OrderBy(x => x.SeqNo)
+                    .Select(x => x.Name)
+                    .ToArray();
+
+                var unique = new Unique
+                {
+                    Name = uniqueConstraint.Name,
+                    KeyColumns = columns
+                };
+
+                uniques.Add(unique);
+            }
+
+            return uniques;
+        }
+
+        public List<PragmaIndexInfoItem> GetPragmaIndexInfo(string indexNameNotQuoted)
+        {
+            List<PragmaIndexInfoItem> pragmaIndexInfoItems = [];
+
+            var quotedIndexName = QuoteTableNameIfRequired(indexNameNotQuoted);
+
+            using (var cmd = CreateCommand())
+            using (var reader = ExecuteQuery(cmd, $"PRAGMA index_info({quotedIndexName})"))
+            {
+                while (reader.Read())
+                {
+                    var pragmaIndexInfoItem = new PragmaIndexInfoItem
+                    {
+                        SeqNo = reader.GetInt32(reader.GetOrdinal("seqno")),
+                        Cid = reader.GetInt32(reader.GetOrdinal("cid")),
+                        Name = reader.GetString(reader.GetOrdinal("name")),
+                    };
+
+                    pragmaIndexInfoItems.Add(pragmaIndexInfoItem);
+                }
+            }
+
+            return pragmaIndexInfoItems;
+        }
+
+        public List<PragmaIndexListItem> GetPragmaIndexListItems(string tableNameNotQuoted)
+        {
+            List<PragmaIndexListItem> pragmaIndexListItems = [];
+
+            using (var cmd = CreateCommand())
+            using (var reader = ExecuteQuery(cmd, $"PRAGMA index_list({QuoteTableNameIfRequired(tableNameNotQuoted)})"))
+            {
+                while (reader.Read())
+                {
+                    var pragmaIndexListItem = new PragmaIndexListItem
+                    {
+                        Seq = reader.GetInt32(reader.GetOrdinal("seq")),
+                        Name = reader.GetString(reader.GetOrdinal("name")),
+                        Unique = reader.GetInt32(reader.GetOrdinal("unique")) == 1,
+                        Origin = reader.GetString(reader.GetOrdinal("origin")),
+                        Partial = reader.GetInt32(reader.GetOrdinal("partial")) == 1
+                    };
+
+                    pragmaIndexListItems.Add(pragmaIndexListItem);
+                }
+            }
+
+            return pragmaIndexListItems;
+        }
+
+        public List<PragmaTableInfoItem> GetPragmaTableInfoItems(string tableNameNotQuoted)
+        {
+            List<PragmaTableInfoItem> pragmaTableInfoItems = [];
+
+            using (var cmd = CreateCommand())
+            using (var reader = ExecuteQuery(cmd, $"PRAGMA table_info({QuoteTableNameIfRequired(tableNameNotQuoted)})"))
+            {
+                while (reader.Read())
+                {
+                    var pragmaTableInfoItem = new PragmaTableInfoItem
+                    {
+                        Cid = reader.GetInt32(reader.GetOrdinal("cid")),
+                        Name = reader.GetString(reader.GetOrdinal("name")),
+                        Type = reader.GetString(reader.GetOrdinal("type")),
+                        NotNull = reader.GetInt32(reader.GetOrdinal("notnull")) == 1,
+                        DfltValue = reader.GetString(reader.GetOrdinal("dflt_value")),
+                        Pk = reader.GetInt32(reader.GetOrdinal("pk")),
+                    };
+
+                    pragmaTableInfoItems.Add(pragmaTableInfoItem);
+                }
+            }
+
+            return pragmaTableInfoItems;
         }
 
         protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)

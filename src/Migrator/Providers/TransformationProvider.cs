@@ -531,7 +531,7 @@ namespace Migrator.Providers
         public bool DatabaseExists(string name)
         {
 #if NETSTANDARD
-			return GetDatabases().Any(c => string.Equals(name, c, StringComparison.CurrentCultureIgnoreCase));
+            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.CurrentCultureIgnoreCase));
 #else
             return GetDatabases().Any(c => string.Equals(name, c, StringComparison.InvariantCultureIgnoreCase));
 #endif
@@ -897,7 +897,7 @@ namespace Migrator.Providers
             if (CurrentMigration != null)
             {
 #if NETSTANDARD
-				var assembly = CurrentMigration.GetType().GetTypeInfo().Assembly;
+                var assembly = CurrentMigration.GetType().GetTypeInfo().Assembly;
 #else
                 var assembly = CurrentMigration.GetType().Assembly;
 #endif
@@ -916,7 +916,7 @@ namespace Migrator.Providers
             if (CurrentMigration != null)
             {
 #if NETSTANDARD
-				var assembly = CurrentMigration.GetType().GetTypeInfo().Assembly;
+                var assembly = CurrentMigration.GetType().GetTypeInfo().Assembly;
 #else
                 var assembly = CurrentMigration.GetType().Assembly;
 #endif
@@ -1684,24 +1684,29 @@ namespace Migrator.Providers
         protected virtual string JoinIndexes(IEnumerable<ColumnPropertiesMapper> columns)
         {
             var indexes = new List<string>();
-            foreach (ColumnPropertiesMapper column in columns)
+            foreach (var column in columns)
             {
-                string indexSql = column.IndexSql;
+                var indexSql = column.IndexSql;
+
                 if (indexSql != null)
+                {
                     indexes.Add(indexSql);
+                }
             }
 
             if (indexes.Count == 0)
+            {
                 return null;
+            }
 
-            return String.Join(", ", indexes.ToArray());
+            return string.Join(", ", [.. indexes]);
         }
 
         protected virtual string JoinColumns(IEnumerable<ColumnPropertiesMapper> columns)
         {
             var columnStrings = new List<string>();
 
-            foreach (ColumnPropertiesMapper column in columns)
+            foreach (var column in columns)
             {
                 columnStrings.Add(column.ColumnSql);
             }
@@ -1712,12 +1717,15 @@ namespace Migrator.Providers
         public IDbCommand CreateCommand()
         {
             EnsureHasConnection();
-            IDbCommand cmd = _connection.CreateCommand();
+            var cmd = _connection.CreateCommand();
 
             if (CommandTimeout.HasValue)
+            {
                 cmd.CommandTimeout = CommandTimeout.Value;
+            }
 
             cmd.CommandType = CommandType.Text;
+
             if (_transaction != null)
             {
                 cmd.Transaction = _transaction;

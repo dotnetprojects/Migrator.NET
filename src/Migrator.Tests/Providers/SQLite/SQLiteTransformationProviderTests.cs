@@ -91,10 +91,8 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
     }
 
     [Test]
-    public void AddUnique_Success()
+    public void AddTable_AddingColumnPropertyUnique_AddsUniqe()
     {
-        // TODO 
-
         // Arrange
         var testTableName = "MyDefaultTestTable";
 
@@ -104,7 +102,10 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
 
         var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
 
-        // // Act
+        // Act
+
+        // TODO In progress
+
         // _provider.AddPrimaryKey("MyPrimaryKeyName", testTableName, "Id", "Color");
 
         // // Assert
