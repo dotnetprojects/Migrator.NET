@@ -4,22 +4,22 @@ branches:
   only:
     - master
 
-image: Visual Studio 2019
+image: Visual Studio 2022
 
 dotnet_csproj:
   patch: true
   file: '**\*.csproj'
-  version: '{version}'
-  package_version: '{version}'
-  assembly_version: '{version}'
-  file_version: '{version}'
-  informational_version: '{version}'
+  version: "{version}"
+  package_version: "{version}"
+  assembly_version: "{version}"
+  file_version: "{version}"
+  informational_version: "{version}"
 
 configuration: Release
 
 before_build:
   - nuget restore
-  
+
 build:
   project: Migrator.sln
 
@@ -34,6 +34,3 @@ deploy:
   api_key:
     secure: 0Qv2/98lIbQR+I0wbscvZfg6pVvT6E+JHtcqjtg04sSJdFg5dJ/6/QQkJEYV3NKB
   artifact: /.*DotNetProjects\.Migrator.*nupkg/
-  
-  
-  

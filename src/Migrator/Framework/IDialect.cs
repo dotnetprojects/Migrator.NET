@@ -5,8 +5,8 @@ using System.Data.Common;
 
 namespace Migrator.Framework
 {
-	public interface IDialect
-	{
+    public interface IDialect
+    {
         int MaxKeyLength { get; }
         int MaxFieldNameLength { get; }
         bool ColumnNameNeedsQuote { get; }
@@ -57,7 +57,7 @@ namespace Migrator.Framework
         string SqlForProperty(ColumnProperty property, Column column);
         string Quote(string value);
         string Default(object defaultValue);
-       
+
         /// <summary>
         /// Determine if a particular database type has an unsigned variant
         /// </summary>

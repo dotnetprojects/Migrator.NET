@@ -24,9 +24,9 @@ namespace Migrator
     [Serializable]
 #endif
     public class IrreversibleMigrationException : Exception
-	{
-		public IrreversibleMigrationException() : base("Irreversible migration")
-		{
-		}
-	}
+    {
+        public IrreversibleMigrationException() : base("Irreversible migration")
+        {
+        }
+    }
 }

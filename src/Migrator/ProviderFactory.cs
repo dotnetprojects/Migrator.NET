@@ -30,13 +30,13 @@ using Migrator.Providers.SqlServer;
 
 namespace Migrator
 {
-	/// <summary>
-	/// Handles loading Provider implementations
-	/// </summary>
-	public class ProviderFactory
-	{
-		static ProviderFactory()
-		{ }       
+    /// <summary>
+    /// Handles loading Provider implementations
+    /// </summary>
+    public class ProviderFactory
+    {
+        static ProviderFactory()
+        { }
 
         /// <summary>
         /// 
@@ -51,7 +51,7 @@ namespace Migrator
         {
             Dialect dialectInstance = DialectForProvider(providerType);
 
-            return dialectInstance.NewProviderForDialect(connectionString, defaultSchema, scope, providerName);            
+            return dialectInstance.NewProviderForDialect(connectionString, defaultSchema, scope, providerName);
         }
 
         public static ITransformationProvider Create(ProviderTypes providerType, IDbConnection connection, string defaultSchema, string scope = "default", string providerName = "")
@@ -100,6 +100,6 @@ namespace Migrator
             }
 
             return null;
-        }              
-	}
+        }
+    }
 }

@@ -20,44 +20,44 @@ using NUnit.Framework;
 
 namespace Migrator.Tests.Providers
 {
-	[TestFixture]
-	[Category("MySql")]
-	public class MySqlTransformationProviderTest : TransformationProviderConstraintBase
-	{
-		#region Setup/Teardown
+    [TestFixture]
+    [Category("MySql")]
+    public class MySqlTransformationProviderTest : TransformationProviderConstraintBase
+    {
+        #region Setup/Teardown
 
-		[SetUp]
-		public void SetUp()
-		{
-			string constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
-			if (constr == null)
-				throw new ArgumentNullException("MySqlConnectionString", "No config file");
+        [SetUp]
+        public void SetUp()
+        {
+            string constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
+            if (constr == null)
+                throw new ArgumentNullException("MySqlConnectionString", "No config file");
             _provider = new MySqlTransformationProvider(new MysqlDialect(), constr, "default", null);
-			// _provider.Logger = new Logger(true, new ConsoleWriter());
+            // _provider.Logger = new Logger(true, new ConsoleWriter());
 
-			AddDefaultTable();
-		}
+            AddDefaultTable();
+        }
 
-		[TearDown]
-		public override void TearDown()
-		{
-			DropTestTables();
-		}
+        [TearDown]
+        public override void TearDown()
+        {
+            DropTestTables();
+        }
 
-		#endregion
+        #endregion
 
-		// [Test,Ignore("MySql doesn't support check constraints")]
-		public override void CanAddCheckConstraint()
-		{
-		}
+        // [Test,Ignore("MySql doesn't support check constraints")]
+        public override void CanAddCheckConstraint()
+        {
+        }
 
-		[Test]
-		public void AddTableWithMyISAMEngine()
-		{
-			_provider.AddTable("Test", "MyISAM",
-			                   new Column("Id", DbType.Int32, ColumnProperty.NotNull),
-			                   new Column("name", DbType.String, 50)
-				);
-		}
-	}
+        [Test]
+        public void AddTableWithMyISAMEngine()
+        {
+            _provider.AddTable("Test", "MyISAM",
+                               new Column("Id", DbType.Int32, ColumnProperty.NotNull),
+                               new Column("name", DbType.String, 50)
+                );
+        }
+    }
 }

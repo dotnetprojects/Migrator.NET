@@ -1,27 +1,45 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.5" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.6" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Npgsql" Version="4.1.4" />
-    <PackageReference Include="NUnit" Version="3.12.0" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="NUnit.ConsoleRunner" Version="3.20.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="NUnit.Mocks" Version="2.6.4" />
     <PackageReference Include="RhinoMocks" Version="3.6.1" />
   </ItemGroup>
 
-	<ItemGroup>
-		<Reference Include="System.Configuration" />
-		<Reference Include="System.Data.SqlServerCe, Version=3.5.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
-			<HintPath>..\..\lib\System.Data.SqlServerCe.dll</HintPath>
-			<SpecificVersion>False</SpecificVersion>
-		</Reference>
-	</ItemGroup>
-	
+  <ItemGroup>
+    <Reference Include="System.Configuration" />
+    <Reference
+      Include="System.Data.SqlServerCe, Version=3.5.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
+      <HintPath>..\..\lib\System.Data.SqlServerCe.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Migrator\DotNetProjects.Migrator.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

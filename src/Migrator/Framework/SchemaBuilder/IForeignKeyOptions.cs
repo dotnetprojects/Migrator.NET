@@ -13,8 +13,8 @@
 
 namespace Migrator.Framework.SchemaBuilder
 {
-	public interface IForeignKeyOptions
-	{
-		SchemaBuilder ReferencedTo(string primaryKeyTable, string primaryKeyColumn);
-	}
+    public interface IForeignKeyOptions
+    {
+        SchemaBuilder ReferencedTo(string primaryKeyTable, string primaryKeyColumn);
+    }
 }

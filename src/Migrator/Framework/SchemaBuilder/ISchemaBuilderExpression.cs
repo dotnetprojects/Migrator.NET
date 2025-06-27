@@ -13,8 +13,8 @@
 
 namespace Migrator.Framework.SchemaBuilder
 {
-	public interface ISchemaBuilderExpression
-	{
-		void Create(ITransformationProvider provider);
-	}
+    public interface ISchemaBuilderExpression
+    {
+        void Create(ITransformationProvider provider);
+    }
 }
