@@ -1,42 +1,15 @@
-#region License
-
-//The contents of this file are subject to the Mozilla Public License
-//Version 1.1 (the "License"); you may not use this file except in
-//compliance with the License. You may obtain a copy of the License at
-//http://www.mozilla.org/MPL/
-//Software distributed under the License is distributed on an "AS IS"
-//basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
-//License for the specific language governing rights and limitations
-//under the License.
-
-#endregion
-
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Providers.SQLite;
-using Migrator.Tests.Settings;
+using Migrator.Tests.Providers.SQLite.Base;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]
-public class SQLiteTransformationProviderAddForeignKeyTests : TransformationProviderBase
+public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformationProviderTestBase
 {
-    [SetUp]
-    public void SetUp()
-    {
-        var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById("SQLiteConnectionString")
-            .ConnectionString;
-
-        _provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);
-        _provider.BeginTransaction();
-
-        AddDefaultTable();
-    }
-
     [Test]
     public void AddForeignKey()
     {
@@ -76,6 +49,7 @@ public class SQLiteTransformationProviderAddForeignKeyTests : TransformationProv
         _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
         // Act
+        // Rename column in parent
         _provider.RenameColumn("Test", "Id", "IdNew");
 
         // Assert
@@ -83,7 +57,8 @@ public class SQLiteTransformationProviderAddForeignKeyTests : TransformationProv
         var tableSQLCreateScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript("TestTwo");
 
         Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
-        Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(Id))"));
+        Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(IdNew))"));
+        Assert.That(foreignKeyConstraints.Single().ParentColumns.Single(), Is.EqualTo("IdNew"));
 
         var result = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
         Assert.That(result, Is.True);

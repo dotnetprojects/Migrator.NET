@@ -74,7 +74,6 @@ namespace Migrator.Tests
 
             _migrator = new Migrator((ITransformationProvider)providerMock.MockInstance, Assembly.GetExecutingAssembly(), false);
 
-            // Enl�ve toutes les migrations trouv�e automatiquement
             _migrator.MigrationsTypes.Clear();
             _upCalled.Clear();
             _downCalled.Clear();

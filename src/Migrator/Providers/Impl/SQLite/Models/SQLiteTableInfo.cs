@@ -30,4 +30,9 @@ public class SQLiteTableInfo
     /// Gets or sets the column mappings.
     /// </summary>
     public List<MappingInfo> ColumnMappings { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the unique definitions.
+    /// </summary>
+    public List<Unique> Uniques { get; set; } = [];
 }

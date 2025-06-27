@@ -52,7 +52,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             string[] childColumns,
             ForeignKeyConstraintType constraint)
         {
-            var sqliteTableInfo = GetTableData(childTable);
+            var sqliteTableInfo = GetSQLiteTableInfo(childTable);
 
             var foreignKey = new ForeignKeyConstraint
             {
@@ -323,11 +323,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             if (ColumnExists(tableName, oldColumnName))
             {
-                var sqliteTableInfo = GetTableData(tableName);
+                var sqliteTableInfo = GetSQLiteTableInfo(tableName);
                 var columnMapping = sqliteTableInfo.ColumnMappings.First(x => x.OldName == oldColumnName);
                 columnMapping.NewName = newColumnName;
 
-                var column = sqliteTableInfo.Columns.First(x => x.Name == newColumnName);
+                var column = sqliteTableInfo.Columns.First(x => x.Name == oldColumnName);
                 column.Name = newColumnName;
 
                 var affectedForeignKeys = sqliteTableInfo.ForeignKeys.Where(x => x.ChildColumns.Contains(oldColumnName)).ToList();
@@ -338,6 +338,30 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 }
 
                 RecreateTable(sqliteTableInfo);
+
+                var allTables = GetTables();
+
+                foreach (var allTablesItem in allTables)
+                {
+                    if (allTablesItem == tableName)
+                    {
+                        continue;
+                    }
+
+                    var sqliteTableInfoOther = GetSQLiteTableInfo(allTablesItem);
+
+                    foreach (var foreignKey in sqliteTableInfoOther.ForeignKeys)
+                    {
+                        if (foreignKey.ParentTable != tableName)
+                        {
+                            continue;
+                        }
+
+                        foreignKey.ParentColumns = foreignKey.ParentColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
+                    }
+
+                    RecreateTable(sqliteTableInfoOther);
+                }
             }
             else
             {
@@ -345,26 +369,44 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
         }
 
-        public override void RemoveColumnDefaultValue(string table, string column)
+        public override void RemoveColumnDefaultValue(string tableName, string columnName)
         {
-            var columnDef = GetColumns(table).First(x => x.Name == column);
-            columnDef.DefaultValue = null;
-
-            ChangeColumnInternal(table, [column], [columnDef]);
-        }
-
-        public override void AddPrimaryKey(string name, string table, params string[] columns)
-        {
-            List<Column> newCol = [];
-
-            foreach (var column in columns)
+            if (!TableExists(tableName))
             {
-                var columnDef = GetColumns(table).First(x => x.Name == column);
-                columnDef.ColumnProperty |= ColumnProperty.PrimaryKey;
-                newCol.Add(columnDef);
+                throw new Exception("Table does not exist");
             }
 
-            ChangeColumnInternal(table: table, old: columns, columns: [.. newCol]);
+            if (!ColumnExists(table: tableName, column: columnName))
+            {
+                throw new Exception("Column does not exist");
+            }
+
+            var sqliteTableInfo = GetSQLiteTableInfo(tableName);
+
+            var column = sqliteTableInfo.Columns.First(x => x.Name == columnName);
+            column.DefaultValue = null;
+
+            RecreateTable(sqliteTableInfo);
+        }
+
+        public override void AddPrimaryKey(string name, string tableName, params string[] columnNames)
+        {
+            if (!TableExists(tableName))
+            {
+                throw new Exception("Table does not exist");
+            }
+
+            var sqliteTableInfo = GetSQLiteTableInfo(tableName);
+
+            foreach (var column in sqliteTableInfo.Columns)
+            {
+                if (columnNames.Contains(column.Name))
+                {
+                    column.ColumnProperty |= ColumnProperty.PrimaryKey;
+                }
+            }
+
+            RecreateTable(sqliteTableInfo);
         }
 
         public override void AddUniqueConstraint(string name, string table, params string[] columns)
@@ -374,7 +416,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             ChangeColumnInternal(table: table, old: [], columns: [uniqueConstraint]);
         }
 
-        public SQLiteTableInfo GetTableData(string tableName)
+        public SQLiteTableInfo GetSQLiteTableInfo(string tableName)
         {
             var sqliteTable = new SQLiteTableInfo
             {
@@ -400,16 +442,15 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         {
             ExecuteNonQuery("PRAGMA foreign_keys = ON");
 
-            using (var cmd = CreateCommand())
-            using (var reader = ExecuteQuery(cmd, "PRAGMA foreign_key_check"))
-            {
-                if (reader.Read())
-                {
-                    return false;
-                }
+            using var cmd = CreateCommand();
+            using var reader = ExecuteQuery(cmd, "PRAGMA foreign_key_check");
 
-                return true;
+            if (reader.Read())
+            {
+                return false;
             }
+
+            return true;
         }
 
         private void RecreateTable(SQLiteTableInfo sqliteTableInfo)
@@ -584,7 +625,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var tables = new List<string>();
 
             using (var cmd = CreateCommand())
-            using (var reader = ExecuteQuery(cmd, "SELECT name FROM sqlite_master WHERE type='table' AND name <> 'sqlite_sequence' ORDER BY name"))
+            using (var reader = ExecuteQuery(cmd, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"))
             {
                 while (reader.Read())
                 {

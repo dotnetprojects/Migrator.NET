@@ -485,7 +485,7 @@ namespace Migrator.Providers
 
             if (isUniqueSet)
             {
-                AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, new string[] { column.Name });
+                AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, [column.Name]);
             }
         }
 
@@ -579,7 +579,7 @@ namespace Migrator.Providers
         public virtual void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property,
                                       object defaultValue)
         {
-            ColumnPropertiesMapper mapper =
+            var mapper =
                 _dialect.GetAndMapColumnProperties(new Column(column, type, size, property, defaultValue));
 
             AddColumn(table, mapper.ColumnSql);
@@ -632,7 +632,7 @@ namespace Migrator.Providers
 
         public virtual void AddColumn(string table, string column, MigratorDbType type, object defaultValue)
         {
-            ColumnPropertiesMapper mapper =
+            var mapper =
                 _dialect.GetAndMapColumnProperties(new Column(column, type, defaultValue));
 
             AddColumn(table, mapper.ColumnSql);
@@ -687,8 +687,8 @@ namespace Migrator.Providers
         public virtual void AddPrimaryKey(string name, string table, params string[] columns)
         {
             ExecuteNonQuery(
-                String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY ({2}) ", table, name,
-                              String.Join(",", QuoteColumnNamesIfRequired(columns))));
+                string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY ({2}) ", table, name,
+                              string.Join(",", QuoteColumnNamesIfRequired(columns))));
         }
         public virtual void AddPrimaryKeyNonClustered(string name, string table, params string[] columns)
         {
@@ -700,14 +700,14 @@ namespace Migrator.Providers
 
             table = QuoteTableNameIfRequired(table);
 
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} UNIQUE({2}) ", table, name, string.Join(", ", columns)));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} UNIQUE({2}) ", table, name, string.Join(", ", columns)));
         }
 
         public virtual void AddCheckConstraint(string name, string table, string checkSql)
         {
             table = QuoteTableNameIfRequired(table);
 
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} CHECK ({2}) ", table, name, checkSql));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} CHECK ({2}) ", table, name, checkSql));
         }
 
         /// <summary>
