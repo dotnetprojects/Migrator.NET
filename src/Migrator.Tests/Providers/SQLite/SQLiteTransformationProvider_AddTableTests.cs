@@ -22,7 +22,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript(tableName);
-        Assert.That("CREATE TABLE MyTableName (MyColumn INTEGER UNIQUE)", Is.EqualTo(createScript));
+        Assert.That("CREATE TABLE MyTableName (MyColumnName INTEGER UNIQUE)", Is.EqualTo(createScript));
 
         var sqliteInfo = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(tableName);
         Assert.That(sqliteInfo.Uniques.Single().KeyColumns.Single(), Is.EqualTo(columnName));

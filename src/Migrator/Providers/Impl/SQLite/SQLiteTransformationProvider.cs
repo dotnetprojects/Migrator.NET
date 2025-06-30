@@ -519,12 +519,13 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 throw new Exception("Table does not exist.");
             }
 
-            if (ColumnExists(table, column.Name))
+            var sqliteInfo = GetSQLiteTableInfo(table);
+            if (sqliteInfo.ColumnMappings.Select(x => x.OldName).ToList().Contains(column.Name))
             {
                 throw new Exception("Column already exists.");
             }
 
-            var sqliteInfo = GetSQLiteTableInfo(table);
+            sqliteInfo.ColumnMappings.Add(new MappingInfo { OldName = column.Name, NewName = column.Name });
 
             sqliteInfo.Columns.Add(column);
         }
@@ -536,12 +537,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 throw new Exception("Table does not exist.");
             }
 
-            if (!ColumnExists(table, column.Name))
+            var sqliteInfo = GetSQLiteTableInfo(table);
+            if (!sqliteInfo.ColumnMappings.Select(x => x.OldName).ToList().Contains(column.Name))
             {
                 throw new Exception("Column does not exists.");
             }
-
-            var sqliteInfo = GetSQLiteTableInfo(table);
 
             sqliteInfo.Columns.Where(x => !x.Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase));
 
