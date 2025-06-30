@@ -292,25 +292,24 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
         }
 
-        public override void RemoveColumn(string table, string column)
+        public override void RemoveColumn(string tableName, string column)
         {
-            if (!TableExists(table))
+            if (!TableExists(tableName))
             {
                 throw new Exception("Table does not exist");
             }
 
-            if (!ColumnExists(table, column))
+            if (!ColumnExists(tableName, column))
             {
                 throw new Exception("Column does not exist");
             }
 
-            var newColumns = GetColumns(table).Where(x => x.Name != column).ToArray();
+            var sqliteInfo = GetSQLiteTableInfo(tableName);
 
-            AddTable(table + "_temp", null, newColumns);
-            var colNamesSql = string.Join(", ", newColumns.Select(x => QuoteColumnNameIfRequired(x.Name)));
-            ExecuteNonQuery(string.Format("INSERT INTO {0}_temp SELECT {1} FROM {0}", table, colNamesSql));
-            RemoveTable(table);
-            ExecuteNonQuery(string.Format("ALTER TABLE {0}_temp RENAME TO {0}", table));
+            sqliteInfo.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+            sqliteInfo.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+
+            RecreateTable(sqliteInfo);
         }
 
         public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
