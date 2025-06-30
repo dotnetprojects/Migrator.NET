@@ -515,67 +515,38 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void AddColumn(string table, Column column)
         {
-            var backUp = column.ColumnProperty;
-            column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
-            column.ColumnProperty &= ~ColumnProperty.Identity;
-            base.AddColumn(table, column);
-            column.ColumnProperty = backUp;
-
-            if (backUp.HasFlag(ColumnProperty.PrimaryKey) || backUp.HasFlag(ColumnProperty.Identity))
+            if (!TableExists(table))
             {
-                ChangeColumn(table, column);
+                throw new Exception("Table does not exist.");
             }
+
+            if (ColumnExists(table, column.Name))
+            {
+                throw new Exception("Column already exists.");
+            }
+
+            var sqliteInfo = GetSQLiteTableInfo(table);
+
+            sqliteInfo.Columns.Add(column);
         }
 
         public override void ChangeColumn(string table, Column column)
         {
-            if (
-                    (column.ColumnProperty & ColumnProperty.PrimaryKey) != ColumnProperty.PrimaryKey &&
-                    (column.ColumnProperty & ColumnProperty.Unique) != ColumnProperty.Unique &&
-                    ((column.ColumnProperty & ColumnProperty.NotNull) != ColumnProperty.NotNull || column.DefaultValue != null) &&
-                    (column.DefaultValue == null || column.DefaultValue.ToString() != "'CURRENT_TIME'" && column.DefaultValue.ToString() != "'CURRENT_DATE'" && column.DefaultValue.ToString() != "'CURRENT_TIMESTAMP'")
-                )
+            if (!TableExists(table))
             {
-                var tempColumn = "temp_" + column.Name;
-                RenameColumn(table, column.Name, tempColumn);
-                AddColumn(table, column);
-
-                using (var cmd = CreateCommand())
-                {
-                    ExecuteQuery(cmd, string.Format("UPDATE {0} SET {1}={2}", table, column.Name, tempColumn));
-                }
-
-                RemoveColumn(table, tempColumn);
+                throw new Exception("Table does not exist.");
             }
-            else
+
+            if (!ColumnExists(table, column.Name))
             {
-                var newColumns = GetColumns(table).ToArray();
-
-                for (var i = 0; i < newColumns.Count(); i++)
-                {
-                    if (newColumns[i].Name == column.Name)
-                    {
-                        newColumns[i] = column;
-                        break;
-                    }
-                }
-
-                AddTable(table + "_temp", null, newColumns);
-
-                var colNamesSql = string.Join(", ", newColumns.Select(x => x.Name).Select(x => QuoteColumnNameIfRequired(x)));
-
-                using (var cmd = CreateCommand())
-                {
-                    ExecuteQuery(cmd, string.Format("INSERT INTO {0}_temp SELECT {1} FROM {0}", table, colNamesSql));
-                }
-
-                RemoveTable(table);
-
-                using (var cmd = CreateCommand())
-                {
-                    ExecuteQuery(cmd, string.Format("ALTER TABLE {0}_temp RENAME TO {0}", table));
-                }
+                throw new Exception("Column does not exists.");
             }
+
+            var sqliteInfo = GetSQLiteTableInfo(table);
+
+            sqliteInfo.Columns.Where(x => !x.Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase));
+
+            sqliteInfo.Columns.Add(column);
         }
 
         public override int TruncateTable(string table)
@@ -733,11 +704,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                 var indexListItems = GetPragmaIndexListItems(tableName);
                 var uniqueConstraints = indexListItems.Where(x => x.Unique && x.Origin == "u");
+
                 foreach (var uniqueConstraint in uniqueConstraints)
                 {
                     var indexInfos = GetPragmaIndexInfo(uniqueConstraint.Name);
 
-                    if (indexInfos.Count() == 1 && indexInfos.First().Name == column.Name)
+                    if (indexInfos.Count() == 1 && indexInfos.First().Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase))
                     {
                         column.ColumnProperty |= ColumnProperty.Unique;
 
