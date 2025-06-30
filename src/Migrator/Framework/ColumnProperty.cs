@@ -41,6 +41,7 @@ namespace Migrator.Framework
         Unsigned = 32,
 
         CaseSensitive = 64,
+
         /// <summary>
         /// Foreign Key
         /// </summary>

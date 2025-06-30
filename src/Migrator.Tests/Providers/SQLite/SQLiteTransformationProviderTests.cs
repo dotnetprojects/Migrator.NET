@@ -31,7 +31,7 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
     }
 
     [Test]
-    public void RemoveDefaultValue_Success()
+    public void RemoveDefaultValue_Succeeds()
     {
         // Arrange
         var testTableName = "MyDefaultTestTable";
@@ -59,7 +59,7 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
     }
 
     [Test]
-    public void AddPrimaryKey_CompositePrimaryKey_Success()
+    public void AddPrimaryKey_CompositePrimaryKey_Succeeds()
     {
         // Arrange
         var testTableName = "MyDefaultTestTable";
@@ -92,7 +92,7 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
     }
 
     [Test]
-    public void AddTable_AddingColumnPropertyUnique_AddsUniqe()
+    public void AddPrimaryKey_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
     {
         // Arrange
         var testTableName = "MyDefaultTestTable";
@@ -114,15 +114,107 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         ((SQLiteTransformationProvider)_provider).AddPrimaryKey("MyPrimaryKeyName", testTableName, [propertyName1]);
 
         // Assert
+        using var command = _provider.GetCommand();
+        using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
+        reader.Read();
+        var count = reader.GetInt32(reader.GetOrdinal("Count"));
+        Assert.That(count, Is.EqualTo(1));
+
         var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
 
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+
         Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
         Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
 
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
         CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
+    }
+
+    [Test]
+    public void RemovePrimaryKey_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
+    {
+        // Arrange
+        var testTableName = "MyDefaultTestTable";
+        var propertyName1 = "Color1";
+        var propertyName2 = "Color2";
+        var indexName = "MyIndexName";
+
+        _provider.AddTable(testTableName,
+            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique)
+        );
+
+        _provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
+        var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+
+        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
+
+        // Act
+        ((SQLiteTransformationProvider)_provider).RemovePrimaryKey(tableName: testTableName);
+
+        // Assert
+        using var command = _provider.GetCommand();
+        using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
+        reader.Read();
+        var count = reader.GetInt32(reader.GetOrdinal("Count"));
+        Assert.That(count, Is.EqualTo(1));
+
+        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+
+        var indexAfter = tableInfoAfter.Indexes.Single();
+        Assert.That(indexAfter.Name, Is.EqualTo(indexName));
+        CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
+    }
+
+    [Test]
+    public void RemoveAllIndexes_HavingIndexAndUnique_RebuildSucceeds()
+    {
+        // Arrange
+        var testTableName = "MyDefaultTestTable";
+        var propertyName1 = "Color1";
+        var propertyName2 = "Color2";
+        var indexName = "MyIndexName";
+
+        _provider.AddTable(testTableName,
+            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(propertyName2, DbType.Int32)
+        );
+
+        _provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
+        _provider.AddUniqueConstraint("MyConstraint", testTableName, [propertyName1, propertyName2]);
+        var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+
+        _provider.AddUniqueConstraint("MyUniqueConstraintName", testTableName, [propertyName1, propertyName2]);
+
+        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
+
+        // Act
+        ((SQLiteTransformationProvider)_provider).RemoveAllIndexes(tableName: testTableName);
+
+        // Assert
+        using var command = _provider.GetCommand();
+        using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
+        reader.Read();
+        var count = reader.GetInt32(reader.GetOrdinal("Count"));
+        Assert.That(count, Is.EqualTo(1));
+
+        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
+
+        Assert.That(tableInfoBefore.Uniques, Is.Not.Empty);
+        Assert.That(tableInfoBefore.Indexes, Is.Not.Empty);
+        Assert.That(tableInfoAfter.Uniques, Is.Empty);
+        Assert.That(tableInfoAfter.Indexes, Is.Empty);
     }
 }

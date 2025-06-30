@@ -103,7 +103,9 @@ namespace Migrator.Providers
             get
             {
                 if (null != provider && IsThisProvider(provider))
+                {
                     return this;
+                }
 
                 return NoOpTransformationProvider.Instance;
             }
@@ -117,9 +119,9 @@ namespace Migrator.Providers
         public virtual Column[] GetColumns(string table)
         {
             var columns = new List<Column>();
-            using (IDbCommand cmd = CreateCommand())
+            using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(
                         cmd, String.Format("select COLUMN_NAME, IS_NULLABLE from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
             {
@@ -1970,12 +1972,19 @@ namespace Migrator.Providers
 
             foreach (var index in indexes)
             {
-                if (index.Name == null || !IndexExists(table, index.Name)) continue;
+                if (index.Name == null || !IndexExists(table, index.Name))
+                {
+                    continue;
+                }
 
                 if (index.PrimaryKey || index.UniqueConstraint)
+                {
                     RemoveConstraint(table, index.Name);
+                }
                 else
+                {
                     RemoveIndex(table, index.Name);
+                }
             }
         }
 

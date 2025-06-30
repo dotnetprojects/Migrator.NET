@@ -265,8 +265,16 @@ FROM    sys.[indexes] Ind
                             Unique = reader.GetBoolean(4),
                             UniqueConstraint = reader.GetBoolean(5),
                         };
-                        if (!reader.IsDBNull(6)) idx.KeyColumns = (reader.GetString(6).Split(','));
-                        if (!reader.IsDBNull(7)) idx.IncludeColumns = (reader.GetString(7).Split(','));
+
+                        if (!reader.IsDBNull(6))
+                        {
+                            idx.KeyColumns = (reader.GetString(6).Split(','));
+                        }
+                        if (!reader.IsDBNull(7))
+                        {
+                            idx.IncludeColumns = (reader.GetString(7).Split(','));
+                        }
+
                         retVal.Add(idx);
                     }
                 }

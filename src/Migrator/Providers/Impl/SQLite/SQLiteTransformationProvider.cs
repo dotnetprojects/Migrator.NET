@@ -513,33 +513,6 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
         }
 
-        private void ChangeColumnInternal(string table, string[] old, IDbField[] columns)
-        {
-            var newColumns = GetColumns(table).Where(x => !old.Any(y => x.Name.Equals(y, StringComparison.InvariantCultureIgnoreCase))).ToList();
-            var oldColumnNames = newColumns.Select(x => x.Name).ToList();
-            newColumns.AddRange(columns.Where(x => x is Column).Cast<Column>());
-            oldColumnNames.AddRange(old);
-
-            var newFieldsPlusUnique = newColumns.Cast<IDbField>().ToList();
-            newFieldsPlusUnique.AddRange(columns.Where(x => x is Unique));
-
-            AddTable(table + "_temp", null, [.. newFieldsPlusUnique]);
-            var colNamesNewSql = string.Join(", ", newColumns.Select(x => x.Name).Select(QuoteColumnNameIfRequired));
-            var colNamesSql = string.Join(", ", oldColumnNames.Select(QuoteColumnNameIfRequired));
-
-            using (var cmd = CreateCommand())
-            {
-                ExecuteQuery(cmd, string.Format("INSERT INTO {1}_temp ({0}) SELECT {2} FROM {1}", colNamesNewSql, table, colNamesSql));
-            }
-
-            RemoveTable(table);
-
-            using (var cmd = CreateCommand())
-            {
-                ExecuteQuery(cmd, string.Format("ALTER TABLE {0}_temp RENAME TO {0}", table));
-            }
-        }
-
         public override void AddColumn(string table, Column column)
         {
             var backUp = column.ColumnProperty;
@@ -920,42 +893,40 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             throw new NotImplementedException();
         }
 
-        public override void RemovePrimaryKey(string table)
+        public override void RemovePrimaryKey(string tableName)
         {
-            if (!TableExists(table))
+            if (!TableExists(tableName))
             {
                 return;
             }
 
-            var columnDefs = GetColumns(table);
+            var sqliteInfoTable = GetSQLiteTableInfo(tableName);
 
-            foreach (var columnDef in columnDefs.Where(columnDef => columnDef.IsPrimaryKey))
+            foreach (var column in sqliteInfoTable.Columns)
             {
-                columnDef.ColumnProperty = columnDef.ColumnProperty.Clear(ColumnProperty.PrimaryKey);
-                columnDef.ColumnProperty = columnDef.ColumnProperty.Clear(ColumnProperty.PrimaryKeyWithIdentity);
+                if (column.IsPrimaryKey)
+                {
+                    column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.PrimaryKey);
+                    column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.PrimaryKeyWithIdentity);
+                }
             }
 
-            ChangeColumnInternal(table, [.. columnDefs.Select(x => x.Name)], columnDefs);
+            RecreateTable(sqliteInfoTable);
         }
 
-        public override void RemoveAllIndexes(string table)
+        public override void RemoveAllIndexes(string tableName)
         {
-            if (!TableExists(table))
+            if (!TableExists(tableName))
             {
                 return;
             }
 
-            var columnDefs = GetColumns(table);
+            var sqliteInfoTable = GetSQLiteTableInfo(tableName);
 
-            foreach (var columnDef in columnDefs.Where(columnDef => columnDef.IsPrimaryKey))
-            {
-                columnDef.ColumnProperty = columnDef.ColumnProperty.Clear(ColumnProperty.PrimaryKey);
-                columnDef.ColumnProperty = columnDef.ColumnProperty.Clear(ColumnProperty.PrimaryKeyWithIdentity);
-                columnDef.ColumnProperty = columnDef.ColumnProperty.Clear(ColumnProperty.Unique);
-                columnDef.ColumnProperty = columnDef.ColumnProperty.Clear(ColumnProperty.Indexed);
-            }
+            sqliteInfoTable.Uniques = [];
+            sqliteInfoTable.Indexes = [];
 
-            ChangeColumnInternal(table, [.. columnDefs.Select(x => x.Name)], columnDefs);
+            RecreateTable(sqliteInfoTable);
         }
 
         public List<Unique> GetUniques(string tableName)
