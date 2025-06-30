@@ -294,9 +294,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void RemoveColumn(string table, string column)
         {
-            if (!(TableExists(table) && ColumnExists(table, column)))
+            if (!TableExists(table))
             {
-                return;
+                throw new Exception("Table does not exist");
+            }
+
+            if (!ColumnExists(table, column))
+            {
+                throw new Exception("Column does not exist");
             }
 
             var newColumns = GetColumns(table).Where(x => x.Name != column).ToArray();
@@ -324,6 +329,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             if (ColumnExists(tableName, oldColumnName))
             {
                 var sqliteTableInfo = GetSQLiteTableInfo(tableName);
+
                 var columnMapping = sqliteTableInfo.ColumnMappings.First(x => x.OldName == oldColumnName);
                 columnMapping.NewName = newColumnName;
 
@@ -341,6 +347,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                 var allTables = GetTables();
 
+                // Rename in foreign keys of depending tables
                 foreach (var allTablesItem in allTables)
                 {
                     if (allTablesItem == tableName)
@@ -361,6 +368,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                     }
 
                     RecreateTable(sqliteTableInfoOther);
+                }
+
+                // Rename column in index
+                foreach (var index in sqliteTableInfo.Indexes)
+                {
+                    index.KeyColumns = index.KeyColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
                 }
             }
             else
@@ -411,9 +424,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void AddUniqueConstraint(string name, string table, params string[] columns)
         {
+            var sqliteTableInfo = GetSQLiteTableInfo(table);
             var uniqueConstraint = new Unique() { KeyColumns = columns, Name = name };
+            sqliteTableInfo.Uniques.Add(uniqueConstraint);
 
-            ChangeColumnInternal(table: table, old: [], columns: [uniqueConstraint]);
+            RecreateTable(sqliteTableInfo);
         }
 
         public SQLiteTableInfo GetSQLiteTableInfo(string tableName)
@@ -463,9 +478,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var columnDbFields = sqliteTableInfo.Columns.Cast<IDbField>();
             var foreignKeyDbFields = sqliteTableInfo.ForeignKeys.Cast<IDbField>();
             var indexDbFields = sqliteTableInfo.Indexes.Cast<IDbField>();
+            var uniqueDbFields = sqliteTableInfo.Uniques.Cast<IDbField>();
 
             var dbFields = columnDbFields.Concat(foreignKeyDbFields)
-                .Concat(indexDbFields)
+                .Concat(uniqueDbFields)
                 .ToArray();
 
             AddTable(targetIntermediateTableQuoted, null, dbFields);
@@ -489,6 +505,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             {
                 var sql = $"ALTER TABLE {targetIntermediateTableQuoted} RENAME TO {targetTableQuoted}";
                 ExecuteQuery(cmd, sql);
+            }
+
+            foreach (var index in sqliteTableInfo.Indexes)
+            {
+                AddIndex(sqliteTableInfo.TableNameMapping.NewName, index);
             }
         }
 
@@ -640,98 +661,120 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         {
             var pragmaTableInfoItems = GetPragmaTableInfoItems(tableName);
 
+            // Column provides no way to store the primary key sequence number and we do not want to change the class for all database types for now
+            // so we sort the columns.
+            var tableInfoPrimaryKeys = pragmaTableInfoItems.Where(x => x.Pk > 0)
+                .OrderBy(x => x.Pk)
+                .ToList();
+
+            var tableInfoNonPrimaryKeys = pragmaTableInfoItems.Where(x => x.Pk < 1)
+                .OrderBy(x => x.Cid)
+                .ToList();
+
+            var pragmaTableInfoItemsSorted = tableInfoPrimaryKeys.Concat(tableInfoNonPrimaryKeys).ToList();
+
 
             var columns = new List<Column>();
 
-            using (var cmd = CreateCommand())
-            using (var reader = ExecuteQuery(cmd, string.Format("PRAGMA table_info('{0}')", tableName)))
+            foreach (var pragmaTableInfoItem in pragmaTableInfoItemsSorted)
             {
-                while (reader.Read())
+                var column = new Column(pragmaTableInfoItem.Name)
                 {
-                    var column = new Column((string)reader[1])
-                    {
-                        Type = _dialect.GetDbTypeFromString((string)reader[2])
-                    };
+                    Type = _dialect.GetDbTypeFromString(pragmaTableInfoItem.Type)
+                };
 
-                    if (Convert.ToBoolean(reader[3]))
-                    {
-                        column.ColumnProperty |= ColumnProperty.NotNull;
-                    }
-                    else
-                    {
-                        column.ColumnProperty |= ColumnProperty.Null;
-                    }
-
-                    var defValue = reader[4] == DBNull.Value ? null : reader[4];
-
-                    if (defValue is string v && v.StartsWith("'") && v.EndsWith("'"))
-                    {
-                        column.DefaultValue = v.Substring(1, v.Length - 2);
-                    }
-                    else
-                    {
-                        column.DefaultValue = defValue;
-                    }
-
-                    if (column.DefaultValue != null)
-                    {
-                        if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
-                        {
-                            column.DefaultValue = long.Parse(column.DefaultValue.ToString());
-                        }
-                        else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
-                        {
-                            column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
-                        }
-                        else if (column.Type == DbType.Double || column.Type == DbType.Single)
-                        {
-                            column.DefaultValue = double.Parse(column.DefaultValue.ToString());
-                        }
-                        else if (column.Type == DbType.Boolean)
-                        {
-                            column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
-                        }
-                        else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
-                        {
-                            if (column.DefaultValue is string defVal)
-                            {
-                                var dt = defVal;
-
-                                if (defVal.StartsWith("'"))
-                                {
-                                    dt = defVal.Substring(1, defVal.Length - 2);
-                                }
-
-                                var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                                column.DefaultValue = d;
-                            }
-                        }
-                        else if (column.Type == DbType.Guid)
-                        {
-                            if (column.DefaultValue is string defVal)
-                            {
-                                var dt = defVal;
-
-                                if (defVal.StartsWith("'"))
-                                {
-                                    dt = defVal.Substring(1, defVal.Length - 2);
-                                }
-
-                                var d = Guid.Parse(dt);
-                                column.DefaultValue = d;
-                            }
-                        }
-                    }
-
-                    if (Convert.ToBoolean(reader[5]))
-                    {
-                        column.ColumnProperty |= ColumnProperty.PrimaryKey;
-                    }
-
-                    columns.Add(column);
-
+                if (pragmaTableInfoItem.NotNull)
+                {
+                    column.ColumnProperty |= ColumnProperty.NotNull;
                 }
+                else
+                {
+                    column.ColumnProperty |= ColumnProperty.Null;
+                }
+
+                var defValue = pragmaTableInfoItem.DfltValue == DBNull.Value ? null : pragmaTableInfoItem.DfltValue;
+
+                if (defValue is string v && v.StartsWith("'") && v.EndsWith("'"))
+                {
+                    column.DefaultValue = v.Substring(1, v.Length - 2);
+                }
+                else
+                {
+                    column.DefaultValue = defValue;
+                }
+
+                if (column.DefaultValue != null)
+                {
+                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    {
+                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
+                    }
+                    else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                    {
+                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
+                    }
+                    else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                    {
+                        column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                    }
+                    else if (column.Type == DbType.Boolean)
+                    {
+                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
+                    }
+                    else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
+                    {
+                        if (column.DefaultValue is string defVal)
+                        {
+                            var dt = defVal;
+
+                            if (defVal.StartsWith("'"))
+                            {
+                                dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
+                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                            column.DefaultValue = d;
+                        }
+                    }
+                    else if (column.Type == DbType.Guid)
+                    {
+                        if (column.DefaultValue is string defVal)
+                        {
+                            var dt = defVal;
+
+                            if (defVal.StartsWith("'"))
+                            {
+                                dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
+                            var d = Guid.Parse(dt);
+                            column.DefaultValue = d;
+                        }
+                    }
+                }
+
+                if (pragmaTableInfoItem.Pk > 0)
+                {
+                    column.ColumnProperty |= ColumnProperty.PrimaryKey;
+                }
+
+                var indexListItems = GetPragmaIndexListItems(tableName);
+                var uniqueConstraints = indexListItems.Where(x => x.Unique && x.Origin == "u");
+                foreach (var uniqueConstraint in uniqueConstraints)
+                {
+                    var indexInfos = GetPragmaIndexInfo(uniqueConstraint.Name);
+
+                    if (indexInfos.Count() == 1 && indexInfos.First().Name == column.Name)
+                    {
+                        column.ColumnProperty |= ColumnProperty.Unique;
+
+                        break;
+                    }
+                }
+
+                columns.Add(column);
             }
+
 
             return [.. columns];
         }
@@ -756,48 +799,37 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override Index[] GetIndexes(string table)
         {
-            var indexes = new List<Index>();
+            List<Index> indexes = [];
 
-            var sql = @"SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type = 'index' AND lower(tbl_name) = lower('{0}');";
+            var pragmaIndexListItems = GetPragmaIndexListItems(table);
 
-            using (var cmd = CreateCommand())
-            using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
+            // Since unique indexes are supported but only by using unique constraints or primary keys we filter them out here. See "GetUniques()" for unique constraints.
+            var pragmaIndexListItemsFiltered = pragmaIndexListItems.Where(x => !x.Unique).ToList();
+
+            foreach (var pragmaIndexListItemFiltered in pragmaIndexListItemsFiltered)
             {
-                while (reader.Read())
+                var indexInfos = GetPragmaIndexInfo(pragmaIndexListItemFiltered.Name);
+
+                var columnNames = indexInfos.OrderBy(x => x.SeqNo)
+                    .Select(x => x.Name)
+                    .ToArray();
+
+                var index = new Index
                 {
-                    string idxSql = null;
+                    // At this moment in time the migrator does not support clustered indexes for SQLITE
+                    // Since SQLite 3.8.2 WITHOUT ROWID is supported but not in this migrator
+                    Clustered = false,
 
-                    if (!reader.IsDBNull(3))
-                    {
-                        idxSql = reader.GetString(3);
-                    }
+                    // SQLite does not support include colums
+                    IncludeColumns = [],
+                    KeyColumns = columnNames,
+                    Name = pragmaIndexListItemFiltered.Name,
 
-                    var idx = new Index
-                    {
-                        Name = reader.GetString(1)
-                    };
+                    // See GetUniques()
+                    Unique = false,
+                };
 
-                    idx.PrimaryKey = idx.Name.StartsWith("sqlite_autoindex_");
-                    idx.Unique = idx.Name.StartsWith("sqlite_autoindex_") || idxSql != null && idxSql.Contains("UNIQUE");
-
-                    indexes.Add(idx);
-                }
-            }
-
-            foreach (var idx in indexes)
-            {
-                sql = "PRAGMA index_info(\"" + idx.Name + "\")";
-                using var cmd = CreateCommand();
-                using var reader = ExecuteQuery(cmd, sql);
-
-                var columns = new List<string>();
-
-                while (reader.Read())
-                {
-                    columns.Add(reader.GetString(2));
-                }
-
-                idx.KeyColumns = columns.ToArray();
+                indexes.Add(index);
             }
 
             return [.. indexes];
@@ -841,14 +873,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             foreach (var u in uniques)
             {
-                var nm = "";
+                // var nm = "";
 
-                if (!string.IsNullOrEmpty(u.Name))
-                {
-                    nm = string.Format(" CONSTRAINT {0}", u.Name);
-                }
-
-                stringBuilder.Append(string.Format(",{0} UNIQUE ({1})", nm, string.Join(",", u.KeyColumns)));
+                // if (!string.IsNullOrEmpty(u.Name))
+                // {
+                //     nm = string.Format(" CONSTRAINT {0}", u.Name);
+                // }
+                var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns);
+                stringBuilder.Append($", UNIQUE ({uniqueColumnsCommaSeparated})");
             }
 
             var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
@@ -932,6 +964,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             var pragmaIndexListItems = GetPragmaIndexListItems(tableName);
 
+            // Here we filter for origin u and unique while in "GetIndexes()" we exclude them.
+            // If pk is set then it was added by using a primary key. If so this is handled by "GetColumns()".
+            // If c is set it was created by using CREATE INDEX. At this moment in time this migrator does not support UNIQUE indexes but only normal indexes
+            // so u should never be set 30.06.2025).
             var uniqueConstraints = pragmaIndexListItems.Where(x => x.Unique && x.Origin == "u")
                 .ToList();
 
@@ -1017,11 +1053,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                     var pragmaTableInfoItem = new PragmaTableInfoItem
                     {
                         Cid = reader.GetInt32(reader.GetOrdinal("cid")),
+                        DfltValue = reader[reader.GetOrdinal("dflt_value")],
                         Name = reader.GetString(reader.GetOrdinal("name")),
-                        Type = reader.GetString(reader.GetOrdinal("type")),
                         NotNull = reader.GetInt32(reader.GetOrdinal("notnull")) == 1,
-                        DfltValue = reader.GetString(reader.GetOrdinal("dflt_value")),
                         Pk = reader.GetInt32(reader.GetOrdinal("pk")),
+                        Type = reader.GetString(reader.GetOrdinal("type")),
                     };
 
                     pragmaTableInfoItems.Add(pragmaTableInfoItem);

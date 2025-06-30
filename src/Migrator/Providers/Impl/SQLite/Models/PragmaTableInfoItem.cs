@@ -23,9 +23,9 @@ public class PragmaTableInfoItem
     public bool NotNull { get; set; }
 
     /// <summary>
-    /// Gets or sets the default value as SQL or NULL
+    /// Gets or sets the default value or NULL
     /// </summary>
-    public string DfltValue { get; set; }
+    public object DfltValue { get; set; }
 
     /// <summary>
     /// Gets or set the position in the primary key (1-based) 0 if not part of the primary key.

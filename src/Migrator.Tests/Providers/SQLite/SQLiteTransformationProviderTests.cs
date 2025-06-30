@@ -4,6 +4,7 @@ using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Framework;
 using Migrator.Tests.Providers.SQLite.Base;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace Migrator.Tests.Providers.SQLite;
 
@@ -95,32 +96,33 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
     {
         // Arrange
         var testTableName = "MyDefaultTestTable";
+        var propertyName1 = "Color1";
+        var propertyName2 = "Color2";
+        var indexName = "MyIndexName";
 
         _provider.AddTable(testTableName,
-            new Column("Color", DbType.Int32, ColumnProperty.Unique)
+            new Column(propertyName1, DbType.Int32, ColumnProperty.Unique),
+            new Column(propertyName2, DbType.Int32)
         );
 
+        _provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
 
+        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
+
         // Act
+        ((SQLiteTransformationProvider)_provider).AddPrimaryKey("MyPrimaryKeyName", testTableName, [propertyName1]);
 
-        // TODO In progress
+        // Assert
+        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
 
-        // _provider.AddPrimaryKey("MyPrimaryKeyName", testTableName, "Id", "Color");
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
 
-        // // Assert
-        // Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "Id").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-        // Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "Color").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-        // Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "NotAPrimaryKey").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-
-        // var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
-        // var tableNames = ((SQLiteTransformationProvider)_provider).GetTables();
-
-        // Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "Id").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        // Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "Color").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        // Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "NotAPrimaryKey").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-
-        // // Check for intermediate table residues.
-        // Assert.That(tableNames.Where(x => x.Contains(testTableName)), Has.Exactly(1).Items);
+        var indexAfter = tableInfoAfter.Indexes.Single();
+        Assert.That(indexAfter.Name, Is.EqualTo(indexName));
+        CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
     }
 }
