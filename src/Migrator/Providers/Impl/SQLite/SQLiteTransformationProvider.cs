@@ -486,6 +486,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             AddTable(targetIntermediateTableQuoted, null, dbFields);
 
             var columnMappings = sqliteTableInfo.ColumnMappings
+                .Where(x => x.OldName != null)
                 .OrderBy(x => x.OldName)
                 .ToList();
 
@@ -525,9 +526,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 throw new Exception("Column already exists.");
             }
 
-            sqliteInfo.ColumnMappings.Add(new MappingInfo { OldName = column.Name, NewName = column.Name });
-
+            sqliteInfo.ColumnMappings.Add(new MappingInfo { OldName = null, NewName = column.Name });
             sqliteInfo.Columns.Add(column);
+
+            RecreateTable(sqliteInfo);
         }
 
         public override void ChangeColumn(string table, Column column)
@@ -544,8 +546,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
             sqliteInfo.Columns.Where(x => !x.Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase));
-
             sqliteInfo.Columns.Add(column);
+
+            RecreateTable(sqliteInfo);
         }
 
         public override int TruncateTable(string table)
