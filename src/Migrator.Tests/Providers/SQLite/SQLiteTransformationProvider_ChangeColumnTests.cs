@@ -14,7 +14,7 @@ namespace Migrator.Tests.Providers.SQLite;
 public class SQLiteTransformationProvider_ChangeTests : SQLiteTransformationProviderTestBase
 {
     [Test]
-    public void AddColumn_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
+    public void ChangeColumn_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
     {
         // Arrange
         var testTableName = "MyDefaultTestTable";
