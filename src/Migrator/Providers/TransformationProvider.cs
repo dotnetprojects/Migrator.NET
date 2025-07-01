@@ -172,11 +172,11 @@ namespace Migrator.Providers
         public virtual string[] GetConstraints(string table)
         {
             var constraints = new List<string>();
-            using (IDbCommand cmd = CreateCommand())
+            using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(
-                        cmd, String.Format("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE LOWER(TABLE_NAME) = LOWER('{0}')", table)))
+                        cmd, string.Format("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE LOWER(TABLE_NAME) = LOWER('{0}')", table)))
             {
                 while (reader.Read())
                 {
@@ -195,18 +195,21 @@ namespace Migrator.Providers
 
         public virtual int GetColumnContentSize(string table, string columnName)
         {
-            object result = this.ExecuteScalar("SELECT MAX(LENGTH(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
+            var result = this.ExecuteScalar("SELECT MAX(LENGTH(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
 
             if (result == DBNull.Value)
+            {
                 return 0;
+            }
+
             return Convert.ToInt32(result);
         }
 
         public virtual string[] GetTables()
         {
             var tables = new List<string>();
-            using (IDbCommand cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, "SELECT table_name FROM INFORMATION_SCHEMA.TABLES"))
+            using (var cmd = CreateCommand())
+            using (var reader = ExecuteQuery(cmd, "SELECT table_name FROM INFORMATION_SCHEMA.TABLES"))
             {
                 while (reader.Read())
                 {
@@ -225,7 +228,7 @@ namespace Migrator.Providers
         {
             if (TableExists(table) && ConstraintExists(table, name))
             {
-                ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
+                ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
             }
         }
 
@@ -233,7 +236,7 @@ namespace Migrator.Providers
         {
             foreach (var constraint in GetConstraints(table))
             {
-                this.RemoveConstraint(table, constraint);
+                RemoveConstraint(table, constraint);
             }
         }
 
@@ -244,8 +247,9 @@ namespace Migrator.Providers
                     .Select(x => x.ColumnName)
                     .ToList();
 
-            int nr = 0;
-            string joins = "";
+            var nr = 0;
+            var joins = "";
+
             foreach (var joinTable in fields.Where(x => !string.IsNullOrEmpty(x.TableName) && x.TableName != tableName).GroupBy(x => x.TableName))
             {
                 foreach (var viewField in joinTable)
@@ -352,11 +356,12 @@ namespace Migrator.Providers
         {
             var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
 
-            List<string> pks = GetPrimaryKeys(columns);
-            bool compoundPrimaryKey = pks.Count > 1;
+            var pks = GetPrimaryKeys(columns);
+            var compoundPrimaryKey = pks.Count > 1;
 
-            var columnProviders = new List<ColumnPropertiesMapper>(columns.Count());
-            foreach (Column column in columns)
+            var columnProviders = new List<ColumnPropertiesMapper>(columns.Length);
+
+            foreach (var column in columns)
             {
                 // Remove the primary key notation if compound primary key because we'll add it back later
                 if (compoundPrimaryKey && column.IsPrimaryKey)
@@ -365,11 +370,11 @@ namespace Migrator.Providers
                     column.ColumnProperty = column.ColumnProperty | ColumnProperty.NotNull; // PK is always not-null
                 }
 
-                ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
+                var mapper = _dialect.GetAndMapColumnProperties(column);
                 columnProviders.Add(mapper);
             }
 
-            string columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
+            var columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
             AddTable(name, engine, columnsAndIndexes);
 
             if (compoundPrimaryKey)
@@ -398,10 +403,10 @@ namespace Migrator.Providers
         {
             if (!TableExists(name))
             {
-                throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", name));
+                throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", name));
             }
 
-            ExecuteNonQuery(String.Format("DROP TABLE {0}", name));
+            ExecuteNonQuery(string.Format("DROP TABLE {0}", name));
         }
 
         public virtual void RenameTable(string oldName, string newName)
@@ -411,22 +416,22 @@ namespace Migrator.Providers
 
             if (TableExists(newName))
             {
-                throw new MigrationException(String.Format("Table with name '{0}' already exists", newName));
+                throw new MigrationException(string.Format("Table with name '{0}' already exists", newName));
             }
 
             if (!TableExists(oldName))
             {
-                throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", oldName));
+                throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", oldName));
             }
 
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
         }
 
         public virtual void RenameColumn(string tableName, string oldColumnName, string newColumnName)
         {
             if (ColumnExists(tableName, newColumnName))
             {
-                throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+                throw new MigrationException(string.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
             }
 
             if (!ColumnExists(tableName, oldColumnName))
@@ -438,7 +443,7 @@ namespace Migrator.Providers
 
             var quotedNewColumnName = QuoteColumnNameIfRequired(newColumnName);
 
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, Dialect.Quote(column.Name), quotedNewColumnName));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, Dialect.Quote(column.Name), quotedNewColumnName));
         }
 
         public virtual void RemoveColumn(string table, string column)
@@ -450,7 +455,7 @@ namespace Migrator.Providers
 
             var existingColumn = GetColumnByName(table, column);
 
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP COLUMN {1} ", table, Dialect.Quote(existingColumn.Name)));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP COLUMN {1} ", table, Dialect.Quote(existingColumn.Name)));
         }
 
         public virtual bool ColumnExists(string table, string column)
@@ -464,7 +469,7 @@ namespace Migrator.Providers
             {
                 if (ignoreCase)
                 {
-                    return GetColumns(table).Any(col => col.Name.ToLower() == column.ToLower());
+                    return GetColumns(table).Any(col => col.Name.Equals(column, StringComparison.InvariantCultureIgnoreCase));
                 }
 
                 return GetColumns(table).Any(col => col.Name == column);
@@ -546,7 +551,7 @@ namespace Migrator.Providers
 
         public virtual void KillDatabaseConnections(string databaseName)
         {
-            //todo, implement this for each DB, no default implementation possible!!!
+            // TODO, implement this for each DB, no default implementation possible!!!
         }
 
         public virtual void DropDatabases(string databaseName)
@@ -780,7 +785,7 @@ namespace Migrator.Providers
 
         public virtual void AddForeignKey(string name, string parentTable, string parentColumn, string childTable, string childColumn, ForeignKeyConstraintType constraint)
         {
-            AddForeignKey(name, parentTable, new[] { parentColumn }, childTable, new[] { childColumn },
+            AddForeignKey(name, parentTable, [parentColumn], childTable, [childColumn],
                           constraint);
         }
 
@@ -792,13 +797,13 @@ namespace Migrator.Providers
             QuoteColumnNames(parentColumns);
             QuoteColumnNames(childColumns);
 
-            string constraintResolved = constraintMapper.SqlForConstraint(constraint);
+            var constraintResolved = constraintMapper.SqlForConstraint(constraint);
 
             ExecuteNonQuery(
-                String.Format(
+                string.Format(
                     "ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4}) ON UPDATE {5} ON DELETE {6}",
-                    parentTable, name, String.Join(",", parentColumns),
-                    childTable, String.Join(",", childColumns), constraintResolved, constraintResolved));
+                    parentTable, name, string.Join(",", parentColumns),
+                    childTable, string.Join(",", childColumns), constraintResolved, constraintResolved));
         }
 
         /// <summary>
@@ -837,7 +842,7 @@ namespace Migrator.Providers
                 Logger.ApplyingDBChange(string.Format(sql, args));
             }
 
-            using (IDbCommand cmd = BuildCommand(sql))
+            using (var cmd = BuildCommand(sql))
             {
                 try
                 {
@@ -845,11 +850,11 @@ namespace Migrator.Providers
 
                     if (args != null)
                     {
-                        int index = 0;
+                        var index = 0;
                         foreach (object obj in args)
                         {
-                            IDbDataParameter parameter = cmd.CreateParameter();
-                            this.ConfigureParameterWithValue(parameter, index, obj);
+                            var parameter = cmd.CreateParameter();
+                            ConfigureParameterWithValue(parameter, index, obj);
                             parameter.ParameterName = this.GenerateParameterNameParameter(index);
                             cmd.Parameters.Add((object)parameter);
                             ++index;
@@ -959,7 +964,7 @@ namespace Migrator.Providers
         public virtual object ExecuteScalar(string sql)
         {
             Logger.Trace(sql);
-            using (IDbCommand cmd = BuildCommand(sql))
+            using (var cmd = BuildCommand(sql))
             {
                 try
                 {
@@ -980,7 +985,7 @@ namespace Migrator.Providers
 
         public virtual IDataReader Select(IDbCommand cmd, string what, string from, string where)
         {
-            return ExecuteQuery(cmd, String.Format("SELECT {0} FROM {1} WHERE {2}", what, from, where));
+            return ExecuteQuery(cmd, string.Format("SELECT {0} FROM {1} WHERE {2}", what, from, where));
         }
 
         public virtual IDataReader Select(IDbCommand cmd, string table, string[] columns, string[] whereColumns = null, object[] whereValues = null)
@@ -991,29 +996,40 @@ namespace Migrator.Providers
         public virtual IDataReader SelectComplex(IDbCommand cmd, string table, string[] columns, string[] whereColumns = null,
             object[] whereValues = null, string[] nullWhereColumns = null, string[] notNullWhereColumns = null)
         {
-            if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-            if (columns == null) throw new ArgumentNullException("columns");
+            if (string.IsNullOrEmpty(table))
+            {
+                throw new ArgumentNullException("table");
+            }
+
+            if (columns == null)
+            {
+                throw new ArgumentNullException("columns");
+            }
 
             table = QuoteTableNameIfRequired(table);
 
             var builder = new StringBuilder();
-            for (int i = 0; i < columns.Length; i++)
+            for (var i = 0; i < columns.Length; i++)
             {
-                if (builder.Length > 0) builder.Append(", ");
+                if (builder.Length > 0)
+                {
+                    builder.Append(", ");
+                }
+
                 builder.Append(QuoteColumnNameIfRequired(columns[i]));
             }
 
 
             cmd.Transaction = _transaction;
 
-            var query = String.Format("SELECT {0} FROM {1}", builder.ToString(), table);
+            var query = string.Format("SELECT {0} FROM {1}", builder.ToString(), table);
 
             if (whereColumns != null || nullWhereColumns != null || notNullWhereColumns != null)
             {
-                query = String.Format("SELECT {0} FROM {1} WHERE ", builder.ToString(), table);
+                query = string.Format("SELECT {0} FROM {1} WHERE ", builder.ToString(), table);
             }
 
-            bool andNeeded = false;
+            var andNeeded = false;
             if (whereColumns != null)
             {
                 query += GetWhereString(whereColumns, whereValues);
@@ -1022,14 +1038,20 @@ namespace Migrator.Providers
             if (nullWhereColumns != null)
             {
                 if (andNeeded)
+                {
                     query += " AND ";
+                }
+
                 query += GetWhereStringIsNull(nullWhereColumns);
                 andNeeded = true;
             }
             if (notNullWhereColumns != null)
             {
                 if (andNeeded)
+                {
                     query += " AND ";
+                }
+
                 query += GetWhereStringIsNotNull(notNullWhereColumns);
                 andNeeded = true;
             }
@@ -1037,13 +1059,13 @@ namespace Migrator.Providers
             cmd.CommandText = query;
             cmd.CommandType = CommandType.Text;
 
-            int paramCount = 0;
+            var paramCount = 0;
 
             if (whereColumns != null)
             {
-                foreach (object value in whereValues)
+                foreach (var value in whereValues)
                 {
-                    IDbDataParameter parameter = cmd.CreateParameter();
+                    var parameter = cmd.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1072,7 +1094,7 @@ namespace Migrator.Providers
 
         public virtual object SelectScalar(string what, string from, string[] whereColumns, object[] whereValues)
         {
-            using (IDbCommand command = _connection.CreateCommand())
+            using (var command = _connection.CreateCommand())
             {
                 if (CommandTimeout.HasValue)
                     command.CommandTimeout = CommandTimeout.Value;
@@ -1084,11 +1106,11 @@ namespace Migrator.Providers
                 command.CommandText = query;
                 command.CommandType = CommandType.Text;
 
-                int paramCount = 0;
+                var paramCount = 0;
 
-                foreach (object value in whereValues)
+                foreach (var value in whereValues)
                 {
-                    IDbDataParameter parameter = command.CreateParameter();
+                    var parameter = command.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1111,23 +1133,42 @@ namespace Migrator.Providers
 
         public virtual int Update(string table, string[] columns, object[] values, string where)
         {
-            if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-            if (columns == null) throw new ArgumentNullException("columns");
-            if (values == null) throw new ArgumentNullException("values");
-            if (columns.Length != values.Length) throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+            if (string.IsNullOrEmpty(table))
+            {
+                throw new ArgumentNullException("table");
+            }
+
+            if (columns == null)
+            {
+                throw new ArgumentNullException("columns");
+            }
+
+            if (values == null)
+            {
+                throw new ArgumentNullException("values");
+            }
+
+            if (columns.Length != values.Length)
+            {
+                throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+            }
 
             table = QuoteTableNameIfRequired(table);
 
             var builder = new StringBuilder();
-            for (int i = 0; i < values.Length; i++)
+            for (var i = 0; i < values.Length; i++)
             {
-                if (builder.Length > 0) builder.Append(", ");
+                if (builder.Length > 0)
+                {
+                    builder.Append(", ");
+                }
+
                 builder.Append(QuoteColumnNameIfRequired(columns[i]));
                 builder.Append(" = ");
                 builder.Append(GenerateParameterName(i));
             }
 
-            using (IDbCommand command = _connection.CreateCommand())
+            using (var command = _connection.CreateCommand())
             {
                 if (CommandTimeout.HasValue)
                     command.CommandTimeout = CommandTimeout.Value;
