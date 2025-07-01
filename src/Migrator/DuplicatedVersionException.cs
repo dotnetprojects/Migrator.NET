@@ -22,11 +22,11 @@ namespace Migrator
 #else
     [Serializable]
 #endif
-	public class DuplicatedVersionException : Exception
-	{
-		public DuplicatedVersionException(long version)
-			: base(String.Format("Migration version #{0} is duplicated", version))
-		{
-		}
-	}
+    public class DuplicatedVersionException : Exception
+    {
+        public DuplicatedVersionException(long version)
+            : base(String.Format("Migration version #{0} is duplicated", version))
+        {
+        }
+    }
 }

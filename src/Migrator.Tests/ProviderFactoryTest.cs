@@ -1,94 +1,87 @@
 using System;
 using System.Configuration;
 using System.Linq;
-using Migrator.Framework;
 using Migrator.Providers;
 
 using NUnit.Framework;
 
 namespace Migrator.Tests
 {
-	[TestFixture]
-	public class ProviderFactoryTest
-	{
-		[Test]
-		public void CanGetDialectsForProvider()
-		{
-			foreach (ProviderTypes provider in Enum.GetValues(typeof(ProviderTypes)).Cast<ProviderTypes>().Where(x=>x!=ProviderTypes.none))
+    [TestFixture]
+    public class ProviderFactoryTest
+    {
+        [Test]
+        public void CanGetDialectsForProvider()
+        {
+            foreach (var provider in Enum.GetValues(typeof(ProviderTypes)).Cast<ProviderTypes>().Where(x => x != ProviderTypes.none))
             {
-                Assert.IsNotNull(ProviderFactory.DialectForProvider(provider));
+                Assert.That(ProviderFactory.DialectForProvider(provider), Is.Not.Null);
             }
-			Assert.IsNull(ProviderFactory.DialectForProvider(ProviderTypes.none));			
-		}
 
-		[Test]
-		[Category("MySql")]
-		public void CanLoad_MySqlProvider()
-		{
-            ITransformationProvider provider = ProviderFactory.Create(ProviderTypes.Mysql,
-			                                                          ConfigurationManager.AppSettings[
-			                                                          	"MySqlConnectionString"], null);
-			Assert.IsNotNull(provider);
-		}
+            Assert.That(ProviderFactory.DialectForProvider(ProviderTypes.none), Is.Null);
+        }
 
-		[Test]
-		[Category("Oracle")]
-		public void CanLoad_OracleProvider()
-		{
-            ITransformationProvider provider = ProviderFactory.Create(ProviderTypes.Oracle,
-			                                                          ConfigurationManager.AppSettings[
-																																	"OracleConnectionString"], null);
-			Assert.IsNotNull(provider);
-		}
+        [Test]
+        [Category("MySql")]
+        public void CanLoad_MySqlProvider()
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.Mysql, ConfigurationManager.AppSettings["MySqlConnectionString"], null);
 
-		[Test]
-		[Category("Postgre")]
-		public void CanLoad_PostgreSQLProvider()
-		{
-            ITransformationProvider provider = ProviderFactory.Create(ProviderTypes.PostgreSQL,
-			                                                          ConfigurationManager.AppSettings[
-																																	"NpgsqlConnectionString"], null);
-			Assert.IsNotNull(provider);
-		}
+            Assert.That(provider, Is.Not.Null);
+        }
 
-		[Test]
-		[Category("SQLite")]
-		public void CanLoad_SQLiteProvider()
-		{
-            ITransformationProvider provider = ProviderFactory.Create(ProviderTypes.SQLite,
-			                                                          ConfigurationManager.AppSettings[
-																																	"SQLiteConnectionString"], null);
-			Assert.IsNotNull(provider);
-		}
+        [Test]
+        [Category("Oracle")]
+        public void CanLoad_OracleProvider()
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.Oracle, ConfigurationManager.AppSettings["OracleConnectionString"], null);
 
-		[Test]
-		[Category("SqlServer2005")]
-		public void CanLoad_SqlServer2005Provider()
-		{
-            ITransformationProvider provider = ProviderFactory.Create(ProviderTypes.SqlServer2005,
-			                                                          ConfigurationManager.AppSettings[
-																																	"SqlServer2005ConnectionString"], null);
-			Assert.IsNotNull(provider);
-		}
+            Assert.That(provider, Is.Not.Null);
+        }
 
-		[Test]
-		[Category("SqlServerCe")]
-		public void CanLoad_SqlServerCeProvider()
-		{
-            ITransformationProvider provider = ProviderFactory.Create(ProviderTypes.SqlServerCe,
-			                                                          ConfigurationManager.AppSettings[
-																																	"SqlServerCeConnectionString"], null);
-			Assert.IsNotNull(provider);
-		}
+        [Test]
+        [Category("Postgre")]
+        public void CanLoad_PostgreSQLProvider()
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.PostgreSQL, ConfigurationManager.AppSettings["NpgsqlConnectionString"], null);
 
-		[Test]
-		[Category("SqlServer")]
-		public void CanLoad_SqlServerProvider()
-		{
-            ITransformationProvider provider = ProviderFactory.Create(ProviderTypes.SqlServer,
-			                                                          ConfigurationManager.AppSettings[
-																																	"SqlServerConnectionString"], null);
-			Assert.IsNotNull(provider);
-		}
-	}
+            Assert.That(provider, Is.Not.Null);
+        }
+
+        [Test]
+        [Category("SQLite")]
+        public void CanLoad_SQLiteProvider()
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.SQLite, ConfigurationManager.AppSettings["SQLiteConnectionString"], null);
+
+            Assert.That(provider, Is.Not.Null);
+        }
+
+        [Test]
+        [Category("SqlServer2005")]
+        public void CanLoad_SqlServer2005Provider()
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.SqlServer2005, ConfigurationManager.AppSettings["SqlServer2005ConnectionString"], null);
+
+            Assert.That(provider, Is.Not.Null);
+        }
+
+        [Test]
+        [Category("SqlServerCe")]
+        public void CanLoad_SqlServerCeProvider()
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.SqlServerCe, ConfigurationManager.AppSettings["SqlServerCeConnectionString"], null);
+
+            Assert.That(provider, Is.Not.Null);
+        }
+
+        [Test]
+        [Category("SqlServer")]
+        public void CanLoad_SqlServerProvider()
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.SqlServer, ConfigurationManager.AppSettings["SqlServerConnectionString"], null);
+
+            Assert.That(provider, Is.Not.Null);
+        }
+    }
 }

@@ -11,12 +11,14 @@
 
 #endregion
 
+using DotNetProjects.Migrator.Framework;
+
 namespace Migrator.Framework.SchemaBuilder
 {
-	public interface IFluentColumn : IColumn
-	{
-		ForeignKeyConstraintType Constraint { get; set; }
+    public interface IFluentColumn : IColumn
+    {
+        ForeignKeyConstraintType Constraint { get; set; }
 
-		ForeignKey ForeignKey { get; set; }
-	}
+        ForeignKey ForeignKey { get; set; }
+    }
 }

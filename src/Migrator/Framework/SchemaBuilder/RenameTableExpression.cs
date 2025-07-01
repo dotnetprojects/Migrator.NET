@@ -13,20 +13,20 @@
 
 namespace Migrator.Framework.SchemaBuilder
 {
-	public class RenameTableExpression : ISchemaBuilderExpression
-	{
-		readonly string _newName;
-		readonly string _oldName;
+    public class RenameTableExpression : ISchemaBuilderExpression
+    {
+        readonly string _newName;
+        readonly string _oldName;
 
-		public RenameTableExpression(string oldName, string newName)
-		{
-			_oldName = oldName;
-			_newName = newName;
-		}
+        public RenameTableExpression(string oldName, string newName)
+        {
+            _oldName = oldName;
+            _newName = newName;
+        }
 
-		public void Create(ITransformationProvider provider)
-		{
-			provider.RenameTable(_oldName, _newName);
-		}
-	}
+        public void Create(ITransformationProvider provider)
+        {
+            provider.RenameTable(_oldName, _newName);
+        }
+    }
 }
