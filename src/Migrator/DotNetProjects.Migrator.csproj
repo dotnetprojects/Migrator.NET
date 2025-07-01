@@ -20,7 +20,7 @@
 		<PackageLicenseExpression>MPL-1.1</PackageLicenseExpression>
 		<AssemblyVersion>7.0.0.0</AssemblyVersion>
 		<FileVersion>7.0.0.0</FileVersion>
-		<Version>7.0.0</Version>
+		<Version>8.0.0</Version>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
