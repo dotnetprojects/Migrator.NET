@@ -294,6 +294,17 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void RemoveColumn(string tableName, string column)
         {
+            // In SQLite we need to recreate the table even if we only want to add, alter or drop a foreign key. So we not only recreate the table given 
+            // as parameter but also the tables with FKs pointing to the column you want to remove.
+            // In order to perform it smoothly, the PRAGMA foreign keys should be set off.
+
+            var isPragmaForeignKeysOn = IsPragmaForeignKeysOn();
+
+            if (isPragmaForeignKeysOn)
+            {
+                throw new Exception($"{nameof(RemoveColumn)} requires foreign keys off.");
+            }
+
             if (!TableExists(tableName))
             {
                 throw new Exception("Table does not exist");
@@ -304,9 +315,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 throw new Exception("Column does not exist");
             }
 
-            var sqliteInfo = GetSQLiteTableInfo(tableName);
+            var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
 
-            if (!sqliteInfo.ColumnMappings.Any(x => x.OldName == column))
+            if (!sqliteInfoMainTable.ColumnMappings.Any(x => x.OldName == column))
             {
                 throw new Exception("Column not found");
             }
@@ -315,26 +326,49 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             //   - the unique constraint is a composite constraint (more than one column)
             //   - the column to be removed is part of the constraint
             // In case of single constraint we remove it silently as it is not needed any more
-            var isColumnInUniqueConstraint = sqliteInfo.Uniques
+            var isColumnInUniqueConstraint = sqliteInfoMainTable.Uniques
                 .Where(x => x.KeyColumns.Length > 1)
                 .SelectMany(x => x.KeyColumns)
                 .Distinct()
-                .Any(x => x == column);
+                .Any(x => x.Equals(column, StringComparison.InvariantCultureIgnoreCase));
 
             if (isColumnInUniqueConstraint)
             {
-                throw new Exception("Found composite unique constraint where the column that you want to remove is part of. Remove it first before you remove the column. Other unique constraints (if exists) that contains only the column to be removed are dropped silently.");
+                StringBuilder stringBuilder = new();
+                stringBuilder.Append("Found composite unique constraint where the column that you want to remove is part of. Remove the unique constraints first before you remove the column.");
+                stringBuilder.Append("Other unique constraints(if exists) that contains only the column to be removed are dropped silently.");
+
+                throw new Exception(stringBuilder.ToString());
             }
 
-            var isColumnInIndex = sqliteInfo.Indexes
+            var isColumnInIndex = sqliteInfoMainTable.Indexes
                 .Where(x => x.KeyColumns.Length > 1)
                 .SelectMany(x => x.KeyColumns)
                 .Distinct()
-                .Any(x => x == column);
+                .Any(x => x.Equals(column, StringComparison.InvariantCultureIgnoreCase));
 
             if (isColumnInIndex)
             {
-                throw new Exception("Found composite index where the column that you want to remove is part of. Remove it first before you remove the column. Other indexes (if exists) that contains only the column to be removed are dropped silently.");
+                StringBuilder stringBuilder = new();
+                stringBuilder.Append("Found composite index where the column that you want to remove is part of. Remove the indexes first before you remove the column.");
+                stringBuilder.Append("Other indexes(if exists) that contains only the column to be removed are dropped silently.");
+
+                throw new Exception(stringBuilder.ToString());
+            }
+
+            var isColumnInForeignKey = sqliteInfoMainTable.ForeignKeys
+                .Where(x => x.ChildColumns.Length > 1)
+                .SelectMany(x => x.ChildColumns)
+                .Distinct()
+                .Any(x => x.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+
+            if (isColumnInForeignKey)
+            {
+                var stringBuilder = new StringBuilder();
+                stringBuilder.Append("Found foreign key with more than two columns with one column is the column you want to remove. Remove the foreign key before you ");
+                stringBuilder.Append("remove the column. Other foreign keys (if exists) that contain only the column to be removed are dropped silently.");
+
+                throw new Exception(stringBuilder.ToString());
             }
 
             var allTableNames = GetTables();
@@ -375,12 +409,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 }
             }
 
-            sqliteInfo.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
-            sqliteInfo.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.InvariantCultureIgnoreCase));
-            sqliteInfo.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.InvariantCultureIgnoreCase));
-            sqliteInfo.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
+            sqliteInfoMainTable.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
+            sqliteInfoMainTable.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+            sqliteInfoMainTable.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+            sqliteInfoMainTable.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
 
-            RecreateTable(sqliteInfo);
+            RecreateTable(sqliteInfoMainTable);
         }
 
         public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)

@@ -1,7 +1,6 @@
 using System;
 using System.Data;
 using System.Linq;
-using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Framework;
 using Migrator.Tests.Providers.SQLite.Base;
@@ -64,16 +63,12 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
     public void RemoveColumn_HavingASingleForeignKeyPointingToTheTargetColumn_SingleColumnForeignKeyIsRemoved()
     {
         // Arrange
-        var isPragmaForeignKeysOn = ((SQLiteTransformationProvider)_provider).IsPragmaForeignKeysOn();
-        Assert.That(isPragmaForeignKeysOn, Is.True, "This test requires foreign keys=true - Add it to your connection string");
-
         var testTableName = "Color";
         var propertyName1 = "Id";
         var propertyName2 = "OtherProperty";
         var childTestTableName = "ChildTable";
+        var childTestTableName2 = "ChildTable2";
         var propertyChildTableName1 = "ColorId";
-
-        _provider.ExecuteNonQuery("PRAGMA foreign_keys = ON");
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
@@ -84,19 +79,21 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         _provider.AddForeignKey("Not used in SQLite", testTableName, propertyName1, childTestTableName, propertyChildTableName1);
         var script = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript(childTestTableName);
 
+        _provider.AddTable(childTestTableName2, new Column(propertyChildTableName1, DbType.Int32));
+        _provider.AddForeignKey("Not used in SQLite", testTableName, propertyName2, childTestTableName2, propertyChildTableName1);
+
         var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
         var tableInfoChildBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(childTestTableName);
 
         _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
         _provider.ExecuteNonQuery($"INSERT INTO {childTestTableName} ({propertyChildTableName1}) VALUES (1)");
-        Assert.Throws<Exception>(() => _provider.ExecuteNonQuery($"INSERT INTO {childTestTableName} ({propertyChildTableName1}) VALUES (99999)"));
+        _provider.ExecuteNonQuery($"INSERT INTO {childTestTableName2} ({propertyChildTableName1}) VALUES (2)");
 
         // Act
-        _provider.RemoveColumn(testTableName, propertyName2);
-        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}) VALUES (2)");
-        _provider.ExecuteNonQuery($"INSERT INTO {childTestTableName} ({propertyChildTableName1}) VALUES (99999)");
+        _provider.RemoveColumn(testTableName, propertyName1);
 
         // Assert
+        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName2}) VALUES (3)");
         using var command = _provider.GetCommand();
         using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
         reader.Read();
@@ -108,7 +105,11 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
+        Assert.That(tableInfoAfter.Columns.FirstOrDefault(x => x.Name == propertyName1), Is.Null);
+        Assert.That(tableInfoAfter.ForeignKeys, Is.Empty);
+
+        var valid = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+        Assert.That(valid, Is.True);
     }
 
     /// <summary>
