@@ -306,8 +306,79 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             var sqliteInfo = GetSQLiteTableInfo(tableName);
 
+            if (!sqliteInfo.ColumnMappings.Any(x => x.OldName == column))
+            {
+                throw new Exception("Column not found");
+            }
+
+            // We throw if all of the conditions are fulfilled:
+            //   - the unique constraint is a composite constraint (more than one column)
+            //   - the column to be removed is part of the constraint
+            // In case of single constraint we remove it silently as it is not needed any more
+            var isColumnInUniqueConstraint = sqliteInfo.Uniques
+            .Where(x => x.KeyColumns.Length > 1)
+            .SelectMany(x => x.KeyColumns)
+            .Distinct()
+            .Any(x => x == column);
+
+            if (isColumnInUniqueConstraint)
+            {
+                throw new Exception("Found composite unique constraint where the column that you want to remove is part of. Remove it first before you remove the column. Other unique constraints (if exists) that contains only the column to be removed are dropped silently.");
+            }
+
+            var isColumnInIndex = sqliteInfo.Indexes
+                .Where(x => x.KeyColumns.Length > 1)
+                .SelectMany(x => x.KeyColumns)
+                .Distinct()
+                .Any(x => x == column);
+
+            if (isColumnInIndex)
+            {
+                throw new Exception("Found composite index where the column that you want to remove is part of. Remove it first before you remove the column. Other indexes (if exists) that contains only the column to be removed are dropped silently.");
+            }
+
+            var allTableNames = GetTables();
+
+            // Remove foreign keys with single parent column pointing to the column to be removed.
+            foreach (var allTableName in allTableNames)
+            {
+                if (allTableName == tableName)
+                {
+                    continue;
+                }
+
+                var sqliteTableInfoOther = GetSQLiteTableInfo(allTableName);
+                var recreateOtherTable = false;
+
+                for (var i = sqliteTableInfoOther.ForeignKeys.Count - 1; i >= 0; i++)
+                {
+                    if (!sqliteTableInfoOther.ForeignKeys[i].ParentTable.Equals(tableName, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Contains(column) && sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Length > 1)
+                    {
+                        throw new Exception($"You need to delete/adjust the FK in table {allTableName} pointing to {tableName}. Other foreign key if exists with just one parent column we adjust silently.");
+                    }
+
+                    if (sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Contains(column) && sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Length == 1)
+                    {
+                        recreateOtherTable = true;
+                        sqliteTableInfoOther.ForeignKeys.RemoveAt(i);
+                    }
+                }
+
+                if (recreateOtherTable)
+                {
+                    RecreateTable(sqliteTableInfoOther);
+                }
+            }
+
+            sqliteInfo.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
             sqliteInfo.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.InvariantCultureIgnoreCase));
             sqliteInfo.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+            sqliteInfo.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
 
             RecreateTable(sqliteInfo);
         }
@@ -482,6 +553,29 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var dbFields = columnDbFields.Concat(foreignKeyDbFields)
                 .Concat(uniqueDbFields)
                 .ToArray();
+
+            var uniqueColumnNames = sqliteTableInfo.Uniques
+                .SelectMany(x => x.KeyColumns)
+                .Distinct()
+                .ToHashSet();
+
+            var columnNames = sqliteTableInfo.Columns
+                .Select(x => x.Name)
+                .ToHashSet();
+
+            var newColumnNamesInMapping = sqliteTableInfo.ColumnMappings
+                .Select(x => x.NewName)
+                .ToHashSet();
+
+            if (!columnNames.SetEquals(newColumnNamesInMapping))
+            {
+                throw new Exception($"{nameof(columnNames)} and {nameof(newColumnNamesInMapping)} are not equal regarding length and content");
+            }
+
+            if (uniqueColumnNames.Except(columnNames).Any())
+            {
+                throw new Exception($"Detected missing column names OR unique key columns that do not exist in the column list/column mapping");
+            }
 
             AddTable(targetIntermediateTableQuoted, null, dbFields);
 
