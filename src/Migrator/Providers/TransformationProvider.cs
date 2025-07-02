@@ -394,6 +394,7 @@ namespace Migrator.Providers
         {
             return "PK_" + tableName;
         }
+
         public virtual void RemoveTable(string name)
         {
             if (!TableExists(name))

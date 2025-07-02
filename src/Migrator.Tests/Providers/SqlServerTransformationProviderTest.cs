@@ -14,74 +14,76 @@
 using System;
 using System.Configuration;
 using System.Data;
-using Migrator.Framework;
 using Migrator.Providers;
 using Migrator.Providers.SqlServer;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers
+namespace Migrator.Tests.Providers;
+
+[TestFixture]
+[Category("SqlServer")]
+public class SqlServerTransformationProviderTest : TransformationProviderConstraintBase
 {
-    [TestFixture]
-    [Category("SqlServer")]
-    public class SqlServerTransformationProviderTest : TransformationProviderConstraintBase
+    #region Setup/Teardown
+
+    [SetUp]
+    public void SetUp()
     {
-        #region Setup/Teardown
+        var constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
 
-        [SetUp]
-        public void SetUp()
+        if (constr == null)
         {
-            string constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
-            if (constr == null)
-                throw new ArgumentNullException("SqlServerConnectionString", "No config file");
-
-            _provider = new SqlServerTransformationProvider(new SqlServerDialect(), constr, null, "default", null);
-            _provider.BeginTransaction();
-
-            AddDefaultTable();
+            throw new ArgumentNullException("SqlServerConnectionString", "No config file");
         }
 
-        #endregion
+        Provider = new SqlServerTransformationProvider(new SqlServerDialect(), constr, null, "default", null);
+        Provider.BeginTransaction();
 
-        [Test]
-        public void ByteColumnWillBeCreatedAsBlob()
-        {
-            _provider.AddColumn("TestTwo", "BlobColumn", DbType.Byte);
-            Assert.That(_provider.ColumnExists("TestTwo", "BlobColumn"), Is.True);
-        }
+        AddDefaultTable();
+    }
 
-        [Test]
-        public void InstanceForProvider()
-        {
-            ITransformationProvider localProv = _provider["sqlserver"];
-            Assert.That(localProv is SqlServerTransformationProvider, Is.True);
+    #endregion
 
-            ITransformationProvider localProv2 = _provider["foo"];
-            Assert.That(localProv2 is NoOpTransformationProvider, Is.True);
-        }
+    [Test]
+    public void ByteColumnWillBeCreatedAsBlob()
+    {
+        Provider.AddColumn("TestTwo", "BlobColumn", DbType.Byte);
+        Assert.That(Provider.ColumnExists("TestTwo", "BlobColumn"), Is.True);
+    }
 
-        [Test]
-        public void QuoteCreatesProperFormat()
-        {
-            Dialect dialect = new SqlServerDialect();
-            Assert.That("[foo]", Is.EqualTo(dialect.Quote("foo")));
-        }
+    [Test]
+    public void InstanceForProvider()
+    {
+        var localProv = Provider["sqlserver"];
+        Assert.That(localProv is SqlServerTransformationProvider, Is.True);
 
-        [Test]
-        public void TableExistsShouldWorkWithBracketsAndSchemaNameAndTableName()
-        {
-            Assert.That(_provider.TableExists("[dbo].[TestTwo]"), Is.True);
-        }
+        var localProv2 = Provider["foo"];
+        Assert.That(localProv2 is NoOpTransformationProvider, Is.True);
+    }
 
-        [Test]
-        public void TableExistsShouldWorkWithSchemaNameAndTableName()
-        {
-            Assert.That(_provider.TableExists("dbo.TestTwo"), Is.True);
-        }
+    [Test]
+    public void QuoteCreatesProperFormat()
+    {
+        var dialect = new SqlServerDialect();
 
-        [Test]
-        public void TableExistsShouldWorkWithTableNamesWithBracket()
-        {
-            Assert.That(_provider.TableExists("[TestTwo]"), Is.True);
-        }
+        Assert.That("[foo]", Is.EqualTo(dialect.Quote("foo")));
+    }
+
+    [Test]
+    public void TableExistsShouldWorkWithBracketsAndSchemaNameAndTableName()
+    {
+        Assert.That(Provider.TableExists("[dbo].[TestTwo]"), Is.True);
+    }
+
+    [Test]
+    public void TableExistsShouldWorkWithSchemaNameAndTableName()
+    {
+        Assert.That(Provider.TableExists("dbo.TestTwo"), Is.True);
+    }
+
+    [Test]
+    public void TableExistsShouldWorkWithTableNamesWithBracket()
+    {
+        Assert.That(Provider.TableExists("[TestTwo]"), Is.True);
     }
 }

@@ -15,7 +15,7 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
     [Test]
     public void GetTables()
     {
-        var tables = _provider.GetTables();
+        var tables = Provider.GetTables();
 
         Assert.That("TestTwo", Is.EqualTo(tables.Single()));
     }
@@ -26,8 +26,8 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         const string nullString = "bar TEXT";
         const string notNullString = "baz INTEGER NOT NULL";
 
-        Assert.That(((SQLiteTransformationProvider)_provider).IsNullable(nullString), Is.True);
-        Assert.That(((SQLiteTransformationProvider)_provider).IsNullable(notNullString), Is.False);
+        Assert.That(((SQLiteTransformationProvider)Provider).IsNullable(nullString), Is.True);
+        Assert.That(((SQLiteTransformationProvider)Provider).IsNullable(notNullString), Is.False);
     }
 
     [Test]
@@ -37,17 +37,17 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var testTableName = "MyDefaultTestTable";
         var columnName = "Bla";
 
-        _provider.AddTable(testTableName, new Column(columnName, DbType.Int32, (object)55));
-        var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
-        var createScriptBefore = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript(testTableName);
+        Provider.AddTable(testTableName, new Column(columnName, DbType.Int32, (object)55));
+        var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
+        var createScriptBefore = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
 
         // Act
-        _provider.RemoveColumnDefaultValue(testTableName, columnName);
+        Provider.RemoveColumnDefaultValue(testTableName, columnName);
 
         // Assert
-        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
-        var createScriptAfter = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript(testTableName);
-        var tableNames = ((SQLiteTransformationProvider)_provider).GetTables();
+        var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
+        var createScriptAfter = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
+        var tableNames = ((SQLiteTransformationProvider)Provider).GetTables();
 
         Assert.That(tableInfoBefore.Columns.Single().DefaultValue, Is.EqualTo(55));
         Assert.That(tableInfoAfter.Columns.Single().DefaultValue, Is.Null);
@@ -64,24 +64,24 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         // Arrange
         var testTableName = "MyDefaultTestTable";
 
-        _provider.AddTable(testTableName,
+        Provider.AddTable(testTableName,
             new Column("Id", DbType.Int32),
             new Column("Color", DbType.Int32),
             new Column("NotAPrimaryKey", DbType.Int32)
         );
 
-        var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+        var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
         // Act
-        _provider.AddPrimaryKey("MyPrimaryKeyName", testTableName, "Id", "Color");
+        Provider.AddPrimaryKey("MyPrimaryKeyName", testTableName, "Id", "Color");
 
         // Assert
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "Id").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "Color").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "NotAPrimaryKey").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
 
-        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
-        var tableNames = ((SQLiteTransformationProvider)_provider).GetTables();
+        var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
+        var tableNames = ((SQLiteTransformationProvider)Provider).GetTables();
 
         Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "Id").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
         Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "Color").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
@@ -100,27 +100,27 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var propertyName2 = "Color2";
         var indexName = "MyIndexName";
 
-        _provider.AddTable(testTableName,
+        Provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.Unique),
             new Column(propertyName2, DbType.Int32)
         );
 
-        _provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
-        var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+        Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
+        var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
+        Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
 
         // Act
-        ((SQLiteTransformationProvider)_provider).AddPrimaryKey("MyPrimaryKeyName", testTableName, [propertyName1]);
+        ((SQLiteTransformationProvider)Provider).AddPrimaryKey("MyPrimaryKeyName", testTableName, [propertyName1]);
 
         // Assert
-        using var command = _provider.GetCommand();
-        using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
+        using var command = Provider.GetCommand();
+        using var reader = Provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
         reader.Read();
         var count = reader.GetInt32(reader.GetOrdinal("Count"));
         Assert.That(count, Is.EqualTo(1));
 
-        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+        var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
@@ -142,27 +142,27 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var propertyName2 = "Color2";
         var indexName = "MyIndexName";
 
-        _provider.AddTable(testTableName,
+        Provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
             new Column(propertyName2, DbType.Int32, ColumnProperty.Unique)
         );
 
-        _provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
-        var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+        Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
+        var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
+        Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
 
         // Act
-        ((SQLiteTransformationProvider)_provider).RemovePrimaryKey(tableName: testTableName);
+        ((SQLiteTransformationProvider)Provider).RemovePrimaryKey(tableName: testTableName);
 
         // Assert
-        using var command = _provider.GetCommand();
-        using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
+        using var command = Provider.GetCommand();
+        using var reader = Provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
         reader.Read();
         var count = reader.GetInt32(reader.GetOrdinal("Count"));
         Assert.That(count, Is.EqualTo(1));
 
-        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+        var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
@@ -184,30 +184,30 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var propertyName2 = "Color2";
         var indexName = "MyIndexName";
 
-        _provider.AddTable(testTableName,
+        Provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
             new Column(propertyName2, DbType.Int32)
         );
 
-        _provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
-        _provider.AddUniqueConstraint("MyConstraint", testTableName, [propertyName1, propertyName2]);
-        var tableInfoBefore = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+        Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
+        Provider.AddUniqueConstraint("MyConstraint", testTableName, [propertyName1, propertyName2]);
+        var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        _provider.AddUniqueConstraint("MyUniqueConstraintName", testTableName, [propertyName1, propertyName2]);
+        Provider.AddUniqueConstraint("MyUniqueConstraintName", testTableName, [propertyName1, propertyName2]);
 
-        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
+        Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
 
         // Act
-        ((SQLiteTransformationProvider)_provider).RemoveAllIndexes(tableName: testTableName);
+        ((SQLiteTransformationProvider)Provider).RemoveAllIndexes(tableName: testTableName);
 
         // Assert
-        using var command = _provider.GetCommand();
-        using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
+        using var command = Provider.GetCommand();
+        using var reader = Provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
         reader.Read();
         var count = reader.GetInt32(reader.GetOrdinal("Count"));
         Assert.That(count, Is.EqualTo(1));
 
-        var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
+        var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
         Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);

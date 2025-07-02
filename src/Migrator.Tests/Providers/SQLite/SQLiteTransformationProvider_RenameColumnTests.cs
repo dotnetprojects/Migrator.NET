@@ -24,45 +24,45 @@ public class SQLiteTransformationProvider_RenameColumnTests : SQLiteTransformati
         const string propertyLevel1IdRenamed = "Level1IdRenamed";
         const string propertyLevel2Id = "Level2Id";
 
-        _provider.AddTable(tableNameLevel1, new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableNameLevel1, new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey));
 
-        _provider.AddTable(tableNameLevel2,
+        Provider.AddTable(tableNameLevel2,
             new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey),
             new Column(propertyLevel1Id, DbType.Int32, ColumnProperty.Unique)
         );
 
-        _provider.AddTable(tableNameLevel3,
+        Provider.AddTable(tableNameLevel3,
             new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey),
             new Column(propertyLevel2Id, DbType.Int32)
         );
 
-        _provider.AddForeignKey("Level2ToLevel1", tableNameLevel1, propertyId, tableNameLevel2, propertyLevel1Id);
-        _provider.AddForeignKey("Level3ToLevel2", tableNameLevel2, propertyId, tableNameLevel3, propertyLevel2Id);
+        Provider.AddForeignKey("Level2ToLevel1", tableNameLevel1, propertyId, tableNameLevel2, propertyLevel1Id);
+        Provider.AddForeignKey("Level3ToLevel2", tableNameLevel2, propertyId, tableNameLevel3, propertyLevel2Id);
 
-        var script = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript(tableNameLevel2);
+        var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableNameLevel2);
 
-        var tableInfoLevel2Before = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(tableNameLevel2);
-        var tableInfoLevel3Before = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(tableNameLevel3);
+        var tableInfoLevel2Before = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableNameLevel2);
+        var tableInfoLevel3Before = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableNameLevel3);
 
-        _provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel1} ({propertyId}) VALUES (1)");
-        _provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel1} ({propertyId}) VALUES (2)");
-        _provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel2} ({propertyId}, {propertyLevel1Id}) VALUES (1, 1)");
-        _provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel3} ({propertyId}, {propertyLevel2Id}) VALUES (1, 1)");
+        Provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel1} ({propertyId}) VALUES (1)");
+        Provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel1} ({propertyId}) VALUES (2)");
+        Provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel2} ({propertyId}, {propertyLevel1Id}) VALUES (1, 1)");
+        Provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel3} ({propertyId}, {propertyLevel2Id}) VALUES (1, 1)");
 
         // Act
-        _provider.RenameColumn(tableNameLevel2, propertyId, propertyIdRenamed);
-        _provider.RenameColumn(tableNameLevel2, propertyLevel1Id, propertyLevel1IdRenamed);
+        Provider.RenameColumn(tableNameLevel2, propertyId, propertyIdRenamed);
+        Provider.RenameColumn(tableNameLevel2, propertyLevel1Id, propertyLevel1IdRenamed);
 
         // Assert
-        _provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel2} ({propertyIdRenamed}, {propertyLevel1IdRenamed}) VALUES (2,2)");
-        using var command = _provider.GetCommand();
+        Provider.ExecuteNonQuery($"INSERT INTO {tableNameLevel2} ({propertyIdRenamed}, {propertyLevel1IdRenamed}) VALUES (2,2)");
+        using var command = Provider.GetCommand();
 
-        using var reader = _provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {tableNameLevel2}");
+        using var reader = Provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {tableNameLevel2}");
         reader.Read();
         var count = reader.GetInt32(reader.GetOrdinal("Count"));
         Assert.That(count, Is.EqualTo(2));
 
-        var tableInfoLevel2After = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(tableNameLevel2);
+        var tableInfoLevel2After = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableNameLevel2);
 
         Assert.That(tableInfoLevel2Before.Columns.Single(x => x.Name == propertyId).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
         Assert.That(tableInfoLevel2Before.Columns.Single(x => x.Name == propertyLevel1Id).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
@@ -74,7 +74,7 @@ public class SQLiteTransformationProvider_RenameColumnTests : SQLiteTransformati
         Assert.That(tableInfoLevel2After.Columns.FirstOrDefault(x => x.Name == propertyLevel1IdRenamed), Is.Not.Null);
         Assert.That(tableInfoLevel2After.ForeignKeys.Single().ChildColumns.Single(), Is.EqualTo(propertyLevel1IdRenamed));
 
-        var valid = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+        var valid = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
         Assert.That(valid, Is.True);
     }
 }

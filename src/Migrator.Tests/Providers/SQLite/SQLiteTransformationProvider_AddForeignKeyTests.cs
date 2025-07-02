@@ -15,15 +15,15 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
     {
         // Arrange
         AddTableWithPrimaryKey();
-        _provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
-        _provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
+        Provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
+        Provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
 
         // Act
-        _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
+        Provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
         // Assert
-        var foreignKeyConstraints = ((SQLiteTransformationProvider)_provider).GetForeignKeyConstraints("TestTwo");
-        var tableSQLCreateScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript("TestTwo");
+        var foreignKeyConstraints = ((SQLiteTransformationProvider)Provider).GetForeignKeyConstraints("TestTwo");
+        var tableSQLCreateScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("TestTwo");
 
         Assert.That(foreignKeyConstraints.Single().Name, Is.Null);
         Assert.That(foreignKeyConstraints.Single().ChildTable, Is.EqualTo("TestTwo"));
@@ -35,7 +35,7 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
         Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(Id))"));
 
-        var result = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+        var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
         Assert.That(result, Is.True);
     }
 
@@ -44,24 +44,24 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
     {
         // Arrange
         AddTableWithPrimaryKey();
-        _provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
-        _provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
+        Provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
+        Provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
 
         // Act
-        _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
+        Provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
         // Rename column in parent
-        _provider.RenameColumn("Test", "Id", "IdNew");
+        Provider.RenameColumn("Test", "Id", "IdNew");
 
         // Assert
-        var foreignKeyConstraints = ((SQLiteTransformationProvider)_provider).GetForeignKeyConstraints("TestTwo");
-        var tableSQLCreateScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript("TestTwo");
+        var foreignKeyConstraints = ((SQLiteTransformationProvider)Provider).GetForeignKeyConstraints("TestTwo");
+        var tableSQLCreateScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("TestTwo");
 
         Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
         Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(IdNew))"));
         Assert.That(foreignKeyConstraints.Single().ParentColumns.Single(), Is.EqualTo("IdNew"));
 
-        var result = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+        var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
         Assert.That(result, Is.True);
     }
 }
