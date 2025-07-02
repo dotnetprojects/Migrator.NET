@@ -46,9 +46,10 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         AddTableWithPrimaryKey();
         _provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
         _provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
-        _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
         // Act
+        _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
+
         // Rename column in parent
         _provider.RenameColumn("Test", "Id", "IdNew");
 

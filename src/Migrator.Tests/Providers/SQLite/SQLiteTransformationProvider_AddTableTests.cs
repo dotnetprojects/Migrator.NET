@@ -14,8 +14,8 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
     [Test]
     public void AddForeignKey()
     {
-        var tableName = "MyTableName";
-        var columnName = "MyColumnName";
+        const string tableName = "MyTableName";
+        const string columnName = "MyColumnName";
 
         // Arrange/Act
         _provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32, ColumnProperty.Unique));

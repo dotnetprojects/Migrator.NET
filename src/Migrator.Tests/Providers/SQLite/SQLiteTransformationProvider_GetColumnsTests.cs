@@ -104,7 +104,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
         const string tableName = "GetColumnsTest";
         _provider.AddTable(tableName, new Column("Bla1", System.Data.DbType.Int32), new Column("Bla2", System.Data.DbType.Int32));
 
-        _provider.AddUniqueConstraint("Index name not used in SQLite", tableName, "Bla1, Bla2");
+        _provider.AddUniqueConstraint("Index name not used in SQLite", tableName, "Bla1", "Bla2");
 
         // Act
         var columns = _provider.GetColumns(tableName);

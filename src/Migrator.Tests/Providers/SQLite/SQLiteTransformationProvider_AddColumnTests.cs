@@ -21,11 +21,11 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
     public void AddColumn_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
     {
         // Arrange
-        var testTableName = "MyDefaultTestTable";
-        var propertyName1 = "Color1";
-        var propertyName2 = "Color2";
-        var newColumn = "NewColumn";
-        var indexName = "MyIndexName";
+        const string testTableName = "MyDefaultTestTable";
+        const string propertyName1 = "Color1";
+        const string propertyName2 = "Color2";
+        const string newColumn = "NewColumn";
+        const string indexName = "MyIndexName";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
@@ -61,15 +61,3 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-

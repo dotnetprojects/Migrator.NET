@@ -16,10 +16,10 @@ public class SQLiteTransformationProvider_ChangeColumnTests : SQLiteTransformati
     public void ChangeColumn_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
     {
         // Arrange
-        var testTableName = "MyDefaultTestTable";
-        var propertyName1 = "Color1";
-        var propertyName2 = "Color2";
-        var indexName = "MyIndexName";
+        const string testTableName = "MyDefaultTestTable";
+        const string propertyName1 = "Color1";
+        const string propertyName2 = "Color2";
+        const string indexName = "MyIndexName";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),

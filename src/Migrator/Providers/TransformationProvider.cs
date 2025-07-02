@@ -533,9 +533,9 @@ namespace Migrator.Providers
         public bool DatabaseExists(string name)
         {
 #if NETSTANDARD
-            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.CurrentCultureIgnoreCase));
+            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.OrdinalIgnoreCase));
 #else
-            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.InvariantCultureIgnoreCase));
+            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.OrdinalIgnoreCase));
 #endif
         }
 

@@ -17,11 +17,11 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
     public void RemoveColumn_HavingNoCompositeIndexAndNoCompositeUniqueConstraint_Succeeds()
     {
         // Arrange
-        var testTableName = "MyDefaultTestTable";
-        var propertyName1 = "Color1";
-        var propertyName2 = "Color2";
-        var propertyName3 = "Color3";
-        var indexName = "MyIndexName";
+        const string testTableName = "MyDefaultTestTable";
+        const string propertyName1 = "Color1";
+        const string propertyName2 = "Color2";
+        const string propertyName3 = "Color3";
+        const string indexName = "MyIndexName";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
@@ -63,12 +63,12 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
     public void RemoveColumn_HavingASingleForeignKeyPointingToTheTargetColumn_SingleColumnForeignKeyIsRemoved()
     {
         // Arrange
-        var testTableName = "Color";
-        var propertyName1 = "Id";
-        var propertyName2 = "OtherProperty";
-        var childTestTableName = "ChildTable";
-        var childTestTableName2 = "ChildTable2";
-        var propertyChildTableName1 = "ColorId";
+        const string testTableName = "Color";
+        const string propertyName1 = "Id";
+        const string propertyName2 = "OtherProperty";
+        const string childTestTableName = "ChildTable";
+        const string childTestTableName2 = "ChildTable2";
+        const string propertyChildTableName1 = "ColorId";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
@@ -116,14 +116,14 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
     /// If there is a composite index (more than one key columns) that contains the target column it should throw.
     /// </summary>
     [Test]
-    public void RemoveColumn_HavingIndexWithTwoColumnsOneOfThemTargetColumn_Throws()
+    public void RemoveColumn_HavingIndexWithTwoColumnsOneOfThemIsTheTargetColumn_Throws()
     {
         // Arrange
-        var testTableName = "MyDefaultTestTable";
-        var propertyName1 = "Color1";
-        var propertyName2 = "Color2";
-        var propertyName3 = "Color3";
-        var indexName = "MyIndexName";
+        const string testTableName = "MyDefaultTestTable";
+        const string propertyName1 = "Color1";
+        const string propertyName2 = "Color2";
+        const string propertyName3 = "Color3";
+        const string indexName = "MyIndexName";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
@@ -149,11 +149,11 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
     public void RemoveColumn_HavingUniqueConstraintWithTwoColumnsOneOfThemTargetColumn_Throws()
     {
         // Arrange
-        var testTableName = "MyDefaultTestTable";
-        var propertyName1 = "Color1";
-        var propertyName2 = "Color2";
-        var propertyName3 = "Color3";
-        var indexName = "MyIndexName";
+        const string testTableName = "MyDefaultTestTable";
+        const string propertyName1 = "Color1";
+        const string propertyName2 = "Color2";
+        const string propertyName3 = "Color3";
+        const string indexName = "MyIndexName";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
@@ -181,10 +181,10 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
     public void RemoveColumn_HavingMultipleSingleUniques_Succeeds()
     {
         // Arrange
-        var testTableName = "MyDefaultTestTable";
-        var propertyName1 = "Color1";
-        var propertyName2 = "Color2";
-        var propertyName3 = "Color3";
+        const string testTableName = "MyDefaultTestTable";
+        const string propertyName1 = "Color1";
+        const string propertyName2 = "Color2";
+        const string propertyName3 = "Color3";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),

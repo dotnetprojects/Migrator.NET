@@ -330,7 +330,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 .Where(x => x.KeyColumns.Length > 1)
                 .SelectMany(x => x.KeyColumns)
                 .Distinct()
-                .Any(x => x.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+                .Any(x => x.Equals(column, StringComparison.OrdinalIgnoreCase));
 
             if (isColumnInUniqueConstraint)
             {
@@ -345,7 +345,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 .Where(x => x.KeyColumns.Length > 1)
                 .SelectMany(x => x.KeyColumns)
                 .Distinct()
-                .Any(x => x.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+                .Any(x => x.Equals(column, StringComparison.OrdinalIgnoreCase));
 
             if (isColumnInIndex)
             {
@@ -360,11 +360,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 .Where(x => x.ChildColumns.Length > 1)
                 .SelectMany(x => x.ChildColumns)
                 .Distinct()
-                .Any(x => x.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+                .Any(x => x.Equals(column, StringComparison.OrdinalIgnoreCase));
 
             if (isColumnInForeignKey)
             {
-                var stringBuilder = new StringBuilder();
+                StringBuilder stringBuilder = new();
                 stringBuilder.Append("Found foreign key with more than two columns with one column is the column you want to remove. Remove the foreign key before you ");
                 stringBuilder.Append("remove the column. Other foreign keys (if exists) that contain only the column to be removed are dropped silently.");
 
@@ -386,14 +386,18 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                 for (var i = sqliteTableInfoOther.ForeignKeys.Count - 1; i >= 0; i--)
                 {
-                    if (!sqliteTableInfoOther.ForeignKeys[i].ParentTable.Equals(tableName, StringComparison.InvariantCultureIgnoreCase))
+                    if (!sqliteTableInfoOther.ForeignKeys[i].ParentTable.Equals(tableName, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
 
                     if (sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Contains(column) && sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Length > 1)
                     {
-                        throw new Exception($"You need to delete/adjust the FK in table {allTableName} pointing to {tableName}. Other foreign key if exists with just one parent column we adjust silently.");
+                        StringBuilder stringBuilder = new();
+                        stringBuilder.Append($"You need to delete/adjust the FK in table {allTableName} pointing to {tableName}.");
+                        stringBuilder.Append("Other foreign key if exists with just one parent column we adjust silently.");
+
+                        throw new Exception(stringBuilder.ToString());
                     }
 
                     if (sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Contains(column) && sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Length == 1)
@@ -410,8 +414,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
             sqliteInfoMainTable.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
-            sqliteInfoMainTable.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.InvariantCultureIgnoreCase));
-            sqliteInfoMainTable.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.InvariantCultureIgnoreCase));
+            sqliteInfoMainTable.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.OrdinalIgnoreCase));
+            sqliteInfoMainTable.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
             sqliteInfoMainTable.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
 
             RecreateTable(sqliteInfoMainTable);
@@ -419,6 +423,13 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
         {
+            var isPragmaForeignKeysOn = IsPragmaForeignKeysOn();
+
+            if (isPragmaForeignKeysOn)
+            {
+                throw new Exception($"{nameof(RenameColumn)} requires foreign keys off.");
+            }
+
             // Due to old .Net versions we cannot use ThrowIfNullOrWhitespace
             if (string.IsNullOrWhiteSpace(newColumnName))
             {
@@ -434,17 +445,25 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             {
                 var sqliteTableInfo = GetSQLiteTableInfo(tableName);
 
-                var columnMapping = sqliteTableInfo.ColumnMappings.First(x => x.OldName == oldColumnName);
+                var columnMapping = sqliteTableInfo.ColumnMappings.First(x => x.OldName.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase));
                 columnMapping.NewName = newColumnName;
 
-                var column = sqliteTableInfo.Columns.First(x => x.Name == oldColumnName);
+                var column = sqliteTableInfo.Columns.First(x => x.Name.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase));
                 column.Name = newColumnName;
 
-                var affectedForeignKeys = sqliteTableInfo.ForeignKeys.Where(x => x.ChildColumns.Contains(oldColumnName)).ToList();
-
-                foreach (var foreignKey in affectedForeignKeys)
+                foreach (var foreignKey in sqliteTableInfo.ForeignKeys)
                 {
-                    foreignKey.ChildColumns = foreignKey.ChildColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
+                    foreignKey.ChildColumns = [.. foreignKey.ChildColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
+                }
+
+                foreach (var index in sqliteTableInfo.Indexes)
+                {
+                    index.KeyColumns = [.. index.KeyColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
+                }
+
+                foreach (var unique in sqliteTableInfo.Uniques)
+                {
+                    unique.KeyColumns = [.. unique.KeyColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
                 }
 
                 RecreateTable(sqliteTableInfo);
@@ -621,7 +640,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             if (uniqueColumnNames.Except(columnNames).Any())
             {
-                throw new Exception($"Detected missing column names OR unique key columns that do not exist in the column list/column mapping");
+                var firstMissing = uniqueColumnNames.Except(columnNames).First();
+                throw new Exception($"Detected missing column names OR unique key columns that do not exist in the column list/column mapping. E.g. {firstMissing}");
             }
 
             AddTable(targetIntermediateTableQuoted, null, dbFields);
@@ -688,7 +708,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
             sqliteInfo.Columns = sqliteInfo.Columns
-                .Where(x => !x.Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase))
+                .Where(x => !x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             sqliteInfo.Columns.Add(column);
@@ -856,7 +876,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 {
                     var indexInfos = GetPragmaIndexInfo(uniqueConstraint.Name);
 
-                    if (indexInfos.Count() == 1 && indexInfos.First().Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase))
+                    if (indexInfos.Count == 1 && indexInfos.First().Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         column.ColumnProperty |= ColumnProperty.Unique;
 
