@@ -540,12 +540,16 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
             var sqliteInfo = GetSQLiteTableInfo(table);
+
             if (!sqliteInfo.ColumnMappings.Select(x => x.OldName).ToList().Contains(column.Name))
             {
                 throw new Exception("Column does not exists.");
             }
 
-            sqliteInfo.Columns.Where(x => !x.Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase));
+            sqliteInfo.Columns = sqliteInfo.Columns
+                .Where(x => !x.Name.Equals(column.Name, StringComparison.InvariantCultureIgnoreCase))
+                .ToList();
+
             sqliteInfo.Columns.Add(column);
 
             RecreateTable(sqliteInfo);

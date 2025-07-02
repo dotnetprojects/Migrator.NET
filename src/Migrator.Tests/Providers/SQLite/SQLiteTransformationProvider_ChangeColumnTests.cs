@@ -11,25 +11,20 @@ namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]
-public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationProviderTestBase
+public class SQLiteTransformationProvider_ChangeTests : SQLiteTransformationProviderTestBase
 {
-
-    /// <summary>
-    /// We use a NULL column as new column here. NOT NULL will fail as expected. The user should handle that on his own.
-    /// </summary>
     [Test]
-    public void AddColumn_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
+    public void ChangeColumn_HavingColumnPropertyUniqueAndIndex_RebuildSucceeds()
     {
         // Arrange
         var testTableName = "MyDefaultTestTable";
         var propertyName1 = "Color1";
         var propertyName2 = "Color2";
-        var newColumn = "NewColumn";
         var indexName = "MyIndexName";
 
         _provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique)
+            new Column(propertyName2, DbType.Int32, ColumnProperty.NotNull)
         );
 
         _provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
@@ -38,8 +33,8 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
 
         // Act
-        _provider.AddColumn(table: testTableName, new Column(newColumn, DbType.String, ColumnProperty.Null));
-        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}, {newColumn}) VALUES (2, 3, 'Hello')");
+        _provider.ChangeColumn(table: testTableName, new Column(propertyName2, DbType.String, ColumnProperty.Unique | ColumnProperty.Null));
+        _provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (2, 3)");
 
         // Assert
         using var command = _provider.GetCommand();
@@ -51,10 +46,14 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         var tableInfoAfter = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(testTableName);
 
         Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.False);
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Null), Is.False);
 
         Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
         Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.False);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Null), Is.True);
 
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
