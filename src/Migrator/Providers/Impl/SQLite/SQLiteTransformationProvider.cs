@@ -316,10 +316,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             //   - the column to be removed is part of the constraint
             // In case of single constraint we remove it silently as it is not needed any more
             var isColumnInUniqueConstraint = sqliteInfo.Uniques
-            .Where(x => x.KeyColumns.Length > 1)
-            .SelectMany(x => x.KeyColumns)
-            .Distinct()
-            .Any(x => x == column);
+                .Where(x => x.KeyColumns.Length > 1)
+                .SelectMany(x => x.KeyColumns)
+                .Distinct()
+                .Any(x => x == column);
 
             if (isColumnInUniqueConstraint)
             {
@@ -350,7 +350,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 var sqliteTableInfoOther = GetSQLiteTableInfo(allTableName);
                 var recreateOtherTable = false;
 
-                for (var i = sqliteTableInfoOther.ForeignKeys.Count - 1; i >= 0; i++)
+                for (var i = sqliteTableInfoOther.ForeignKeys.Count - 1; i >= 0; i--)
                 {
                     if (!sqliteTableInfoOther.ForeignKeys[i].ParentTable.Equals(tableName, StringComparison.InvariantCultureIgnoreCase))
                     {
@@ -539,6 +539,16 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             return true;
         }
 
+        public bool IsPragmaForeignKeysOn()
+        {
+            using var cmd = CreateCommand();
+            using var reader = ExecuteQuery(cmd, "PRAGMA foreign_keys");
+            reader.Read();
+            var isOn = reader.GetInt32(0) == 1;
+
+            return isOn;
+        }
+
         private void RecreateTable(SQLiteTableInfo sqliteTableInfo)
         {
             var sourceTableQuoted = QuoteTableNameIfRequired(sqliteTableInfo.TableNameMapping.OldName);
@@ -554,18 +564,21 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 .Concat(uniqueDbFields)
                 .ToArray();
 
-            var uniqueColumnNames = sqliteTableInfo.Uniques
+            // ToHashSet() not available in older .NET versions so we create it old-fashioned.
+            var uniqueColumnNames = new HashSet<string>(sqliteTableInfo.Uniques
                 .SelectMany(x => x.KeyColumns)
                 .Distinct()
-                .ToHashSet();
+             );
 
-            var columnNames = sqliteTableInfo.Columns
+            // ToHashSet() not available in older .NET versions so we create it old-fashioned.
+            var columnNames = new HashSet<string>(sqliteTableInfo.Columns
                 .Select(x => x.Name)
-                .ToHashSet();
+            );
 
-            var newColumnNamesInMapping = sqliteTableInfo.ColumnMappings
+            // ToHashSet() not available in older .NET versions so we create it old-fashioned.
+            var newColumnNamesInMapping = new HashSet<string>(sqliteTableInfo.ColumnMappings
                 .Select(x => x.NewName)
-                .ToHashSet();
+            );
 
             if (!columnNames.SetEquals(newColumnNamesInMapping))
             {
