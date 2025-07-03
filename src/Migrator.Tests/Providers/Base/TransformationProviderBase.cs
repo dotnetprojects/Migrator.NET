@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using Migrator.Framework;
+using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers;
@@ -8,77 +9,8 @@ namespace Migrator.Tests.Providers;
 /// <summary>
 /// Base class for Provider tests for all non-constraint oriented tests.
 /// </summary>
-public class TransformationProviderBase
+public abstract class TransformationProviderBase : TransformationProviderSimpleBase
 {
-    protected ITransformationProvider Provider;
-
-    [TearDown]
-    public virtual void TearDown()
-    {
-        DropTestTables();
-
-        Provider.Rollback();
-    }
-
-    protected void DropTestTables()
-    {
-        // Because MySql doesn't support schema transaction
-        // we got to remove the tables manually... sad...
-        try
-        {
-            Provider.RemoveTable("TestTwo");
-        }
-        catch (Exception)
-        {
-        }
-        try
-        {
-            Provider.RemoveTable("Test");
-        }
-        catch (Exception)
-        {
-        }
-        try
-        {
-            Provider.RemoveTable("SchemaInfo");
-        }
-        catch (Exception)
-        {
-        }
-    }
-
-    public void AddDefaultTable()
-    {
-        Provider.AddTable("TestTwo",
-            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("TestId", DbType.Int32, ColumnProperty.ForeignKey)
-        );
-    }
-
-    public void AddTable()
-    {
-        Provider.AddTable("Test",
-            new Column("Id", DbType.Int32, ColumnProperty.NotNull),
-            new Column("Title", DbType.String, 100, ColumnProperty.Null),
-            new Column("name", DbType.String, 50, ColumnProperty.Null),
-            new Column("blobVal", DbType.Binary, ColumnProperty.Null),
-            new Column("boolVal", DbType.Boolean, ColumnProperty.Null),
-            new Column("bigstring", DbType.String, 50000, ColumnProperty.Null)
-        );
-    }
-
-    public void AddTableWithPrimaryKey()
-    {
-        Provider.AddTable("Test",
-            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
-            new Column("Title", DbType.String, 100, ColumnProperty.Null),
-            new Column("name", DbType.String, 50, ColumnProperty.NotNull),
-            new Column("blobVal", DbType.Binary),
-            new Column("boolVal", DbType.Boolean),
-            new Column("bigstring", DbType.String, 50000)
-        );
-    }
-
     [Test]
     public void TableExistsWorks()
     {
@@ -209,7 +141,10 @@ public class TransformationProviderBase
     [Test]
     public void RemoveUnexistingTable()
     {
-        Provider.RemoveTable("abc");
+        var exception = Assert.Catch(() => Provider.RemoveTable("abc"));
+        var expectedMessage = "Table with name 'abc' does not exist to rename";
+
+        Assert.That(exception.Message, Is.EqualTo(expectedMessage));
     }
 
     [Test]
@@ -301,8 +236,11 @@ public class TransformationProviderBase
     [Test]
     public void RemoveUnexistingColumn()
     {
-        Provider.RemoveColumn("TestTwo", "abc");
-        Provider.RemoveColumn("abc", "abc");
+        var exception1 = Assert.Throws<Exception>(() => Provider.RemoveColumn("TestTwo", "abc"));
+        var exception2 = Assert.Throws<Exception>(() => Provider.RemoveColumn("abc", "abc"));
+
+        Assert.That(exception1.Message, Is.EqualTo("Column does not exist"));
+        Assert.That(exception2.Message, Is.EqualTo("Table does not exist"));
     }
 
     /// <summary>
