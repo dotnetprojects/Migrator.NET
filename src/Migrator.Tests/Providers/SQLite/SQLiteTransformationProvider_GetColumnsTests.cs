@@ -15,10 +15,10 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        _provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.Unique));
+        Provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.Unique));
 
         // Act
-        var columns = _provider.GetColumns(tableName);
+        var columns = Provider.GetColumns(tableName);
 
         // Assert
         Assert.That(columns.Single().ColumnProperty, Is.EqualTo(ColumnProperty.Null | ColumnProperty.Unique));
@@ -29,10 +29,10 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        _provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.Unique | ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.Unique | ColumnProperty.PrimaryKey));
 
         // Act
-        var columns = _provider.GetColumns(tableName);
+        var columns = Provider.GetColumns(tableName);
 
         // Assert
         Assert.That(columns.Single().ColumnProperty, Is.EqualTo(
@@ -46,11 +46,11 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        _provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.PrimaryKey));
-        _provider.GetColumns(tableName);
+        Provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.GetColumns(tableName);
 
         // Act
-        var columns = _provider.GetColumns(tableName);
+        var columns = Provider.GetColumns(tableName);
 
         // Assert
         Assert.That(columns.Single().ColumnProperty, Is.EqualTo(
@@ -63,12 +63,12 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        _provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.PrimaryKey));
 
-        _provider.GetColumns(tableName);
+        Provider.GetColumns(tableName);
 
         // Act
-        var columns = _provider.GetColumns(tableName);
+        var columns = Provider.GetColumns(tableName);
 
         // Assert
         Assert.That(columns.Single().ColumnProperty, Is.EqualTo(
@@ -82,15 +82,15 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
         // Arrange
         const string tableName = "GetColumnsTest";
 
-        _provider.AddTable(tableName,
+        Provider.AddTable(tableName,
             new Column("Id", System.Data.DbType.Int32, ColumnProperty.PrimaryKey),
             new Column("Id2", System.Data.DbType.Int32, ColumnProperty.PrimaryKey)
         );
 
-        _provider.GetColumns(tableName);
+        Provider.GetColumns(tableName);
 
         // Act
-        var columns = _provider.GetColumns(tableName);
+        var columns = Provider.GetColumns(tableName);
 
         // Assert
         Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.NotNull));
@@ -102,12 +102,12 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        _provider.AddTable(tableName, new Column("Bla1", System.Data.DbType.Int32), new Column("Bla2", System.Data.DbType.Int32));
+        Provider.AddTable(tableName, new Column("Bla1", System.Data.DbType.Int32), new Column("Bla2", System.Data.DbType.Int32));
 
-        _provider.AddUniqueConstraint("Index name not used in SQLite", tableName, "Bla1, Bla2");
+        Provider.AddUniqueConstraint("Index name not used in SQLite", tableName, "Bla1", "Bla2");
 
         // Act
-        var columns = _provider.GetColumns(tableName);
+        var columns = Provider.GetColumns(tableName);
 
         // Assert
         Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.Null));
@@ -118,11 +118,11 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        _provider.AddTable(tableName, new Column("Bla1", System.Data.DbType.Int32), new Column("Bla2", System.Data.DbType.Int32));
-        _provider.AddIndex("IndexName", tableName, ["Bla1", "Bla2"]);
+        Provider.AddTable(tableName, new Column("Bla1", System.Data.DbType.Int32), new Column("Bla2", System.Data.DbType.Int32));
+        Provider.AddIndex("IndexName", tableName, ["Bla1", "Bla2"]);
 
         // Act
-        var sqliteInfo = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(tableName);
+        var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
 
         // Assert
         Assert.That(sqliteInfo.Columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.Null));

@@ -1,6 +1,5 @@
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Providers.SQLite;
-using Migrator.Tests.Providers.Base;
 using Migrator.Tests.Settings;
 using NUnit.Framework;
 
@@ -8,7 +7,7 @@ namespace Migrator.Tests.Providers.SQLite.Base;
 
 [TestFixture]
 [Category("SQLite")]
-public abstract class SQLiteTransformationProviderTestBase : TransformationProviderSimpleBase
+public class SQLiteTransformationProviderGenericTests : TransformationProviderBase
 {
     [SetUp]
     public void SetUp()

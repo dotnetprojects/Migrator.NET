@@ -5,36 +5,35 @@ using Migrator.Framework;
 using Migrator.Providers.Oracle;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers
+namespace Migrator.Tests.Providers;
+
+[TestFixture]
+[Category("Oracle")]
+public class OracleTransformationProviderTest : TransformationProviderConstraintBase
 {
-    [TestFixture]
-    [Category("Oracle")]
-    public class OracleTransformationProviderTest : TransformationProviderConstraintBase
+    #region Setup/Teardown
+
+    [SetUp]
+    public void SetUp()
     {
-        #region Setup/Teardown
+        string constr = ConfigurationManager.AppSettings["OracleConnectionString"];
+        if (constr == null)
+            throw new ArgumentNullException("OracleConnectionString", "No config file");
+        Provider = new OracleTransformationProvider(new OracleDialect(), constr, null, "default", null);
+        Provider.BeginTransaction();
 
-        [SetUp]
-        public void SetUp()
-        {
-            string constr = ConfigurationManager.AppSettings["OracleConnectionString"];
-            if (constr == null)
-                throw new ArgumentNullException("OracleConnectionString", "No config file");
-            _provider = new OracleTransformationProvider(new OracleDialect(), constr, null, "default", null);
-            _provider.BeginTransaction();
+        AddDefaultTable();
+    }
 
-            AddDefaultTable();
-        }
+    #endregion
 
-        #endregion
-
-        [Test]
-        public void ChangeColumn_FromNotNullToNotNull()
-        {
-            _provider.ExecuteNonQuery("DELETE FROM TestTwo");
-            _provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
-            _provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 3, "Not an Int val." });
-            _provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
-            _provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
-        }
+    [Test]
+    public void ChangeColumn_FromNotNullToNotNull()
+    {
+        Provider.ExecuteNonQuery("DELETE FROM TestTwo");
+        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
+        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 3, "Not an Int val." });
+        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
+        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
     }
 }

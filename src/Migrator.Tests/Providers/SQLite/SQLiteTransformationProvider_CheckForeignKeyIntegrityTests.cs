@@ -14,12 +14,12 @@ public class SQLiteTransformationProvider_CheckForeignKeyIntegrityTests : SQLite
     {
         // Arrange
         AddTableWithPrimaryKey();
-        _provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
-        _provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (44444)");
-        _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
+        Provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
+        Provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (44444)");
+        Provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
         // Act
-        var result = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+        var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
 
         // Assert
         Assert.That(result, Is.False);
@@ -30,12 +30,12 @@ public class SQLiteTransformationProvider_CheckForeignKeyIntegrityTests : SQLite
     {
         // Arrange
         AddTableWithPrimaryKey();
-        _provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
-        _provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
-        _provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
+        Provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
+        Provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
+        Provider.AddForeignKey("FK name is not supported by SQLite", parentTable: "Test", parentColumn: "Id", childTable: "TestTwo", childColumn: "TestId", ForeignKeyConstraintType.Cascade);
 
         // Act
-        var result = ((SQLiteTransformationProvider)_provider).CheckForeignKeyIntegrity();
+        var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
 
         // Assert
         Assert.That(result, Is.True);

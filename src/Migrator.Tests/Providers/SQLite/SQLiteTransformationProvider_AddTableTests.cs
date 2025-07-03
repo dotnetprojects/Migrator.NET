@@ -14,17 +14,17 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
     [Test]
     public void AddForeignKey()
     {
-        var tableName = "MyTableName";
-        var columnName = "MyColumnName";
+        const string tableName = "MyTableName";
+        const string columnName = "MyColumnName";
 
         // Arrange/Act
-        _provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32, ColumnProperty.Unique));
+        Provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32, ColumnProperty.Unique));
 
         // Assert
-        var createScript = ((SQLiteTransformationProvider)_provider).GetSqlCreateTableScript(tableName);
+        var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
         Assert.That("CREATE TABLE MyTableName (MyColumnName INTEGER UNIQUE)", Is.EqualTo(createScript));
 
-        var sqliteInfo = ((SQLiteTransformationProvider)_provider).GetSQLiteTableInfo(tableName);
+        var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
         Assert.That(sqliteInfo.Uniques.Single().KeyColumns.Single(), Is.EqualTo(columnName));
     }
 }

@@ -394,6 +394,7 @@ namespace Migrator.Providers
         {
             return "PK_" + tableName;
         }
+
         public virtual void RemoveTable(string name)
         {
             if (!TableExists(name))
@@ -532,11 +533,7 @@ namespace Migrator.Providers
 
         public bool DatabaseExists(string name)
         {
-#if NETSTANDARD
-            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.CurrentCultureIgnoreCase));
-#else
-            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.InvariantCultureIgnoreCase));
-#endif
+            return GetDatabases().Any(c => string.Equals(name, c, StringComparison.OrdinalIgnoreCase));
         }
 
         public virtual void CreateDatabases(string databaseName)
