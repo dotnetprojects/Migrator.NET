@@ -36,8 +36,8 @@ public class SQLiteTransformationProvider_RenameColumnTests : SQLiteTransformati
             new Column(propertyLevel2Id, DbType.Int32)
         );
 
-        Provider.AddForeignKey("Level2ToLevel1", tableNameLevel1, propertyId, tableNameLevel2, propertyLevel1Id);
-        Provider.AddForeignKey("Level3ToLevel2", tableNameLevel2, propertyId, tableNameLevel3, propertyLevel2Id);
+        Provider.AddForeignKey("Level2ToLevel1", tableNameLevel2, propertyLevel1Id, tableNameLevel1, propertyId);
+        Provider.AddForeignKey("Level3ToLevel2", tableNameLevel3, propertyLevel2Id, tableNameLevel2, propertyId);
 
         var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableNameLevel2);
 

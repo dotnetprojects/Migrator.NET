@@ -31,13 +31,13 @@ namespace Migrator.Providers.Mysql
         {
             if (ForeignKeyExists(table, name))
             {
-                ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP FOREIGN KEY {1}", table, _dialect.Quote(name)));
+                ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP FOREIGN KEY {1}", table, _dialect.Quote(name)));
             }
         }
 
         public override void RemoveAllIndexes(string table)
         {
-            string qry = string.Format(@"SELECT k.TABLE_NAME, i.CONSTRAINT_NAME, i.CONSTRAINT_TYPE
+            var qry = string.Format(@"SELECT k.TABLE_NAME, i.CONSTRAINT_NAME, i.CONSTRAINT_TYPE
                                                     FROM information_schema.KEY_COLUMN_USAGE k 
                                                     INNER JOIN information_schema.TABLE_CONSTRAINTS i 
                                                     ON i.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND i.TABLE_NAME = k.TABLE_NAME 

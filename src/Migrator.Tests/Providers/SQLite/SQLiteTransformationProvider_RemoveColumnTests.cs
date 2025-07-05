@@ -76,11 +76,11 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         );
 
         Provider.AddTable(childTestTableName, new Column(propertyChildTableName1, DbType.Int32));
-        Provider.AddForeignKey("Not used in SQLite", testTableName, propertyName1, childTestTableName, propertyChildTableName1);
+        Provider.AddForeignKey("Not used in SQLite", childTestTableName, propertyChildTableName1, testTableName, propertyName1);
         var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(childTestTableName);
 
         Provider.AddTable(childTestTableName2, new Column(propertyChildTableName1, DbType.Int32));
-        Provider.AddForeignKey("Not used in SQLite", testTableName, propertyName2, childTestTableName2, propertyChildTableName1);
+        Provider.AddForeignKey(name: "Not used in SQLite", childTable: childTestTableName2, childColumn: propertyChildTableName1, parentTable: testTableName, parentColumn: propertyName2);
 
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
         var tableInfoChildBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(childTestTableName);
