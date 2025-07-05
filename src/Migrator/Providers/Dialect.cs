@@ -201,11 +201,17 @@ namespace Migrator.Providers
 
         public virtual ColumnPropertiesMapper GetColumnMapper(Column column)
         {
-            string type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
+            var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
+
             if (column.Precision.HasValue || column.Scale.HasValue)
+            {
                 type = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 0, column.Scale ?? 0);
+            }
+
             if (!IdentityNeedsType && column.IsIdentity)
+            {
                 type = String.Empty;
+            }
 
             return new ColumnPropertiesMapper(this, type);
         }
@@ -222,7 +228,8 @@ namespace Migrator.Providers
         /// <returns>The database type name used by ddl.</returns>
         public virtual string GetTypeName(DbType type)
         {
-            string result = typeNames.Get(type);
+            var result = typeNames.Get(type);
+
             if (result == null)
             {
                 throw new Exception(string.Format("No default type mapping for DbType {0}", type));

@@ -59,15 +59,3 @@ public class SQLiteTransformationProvider_ChangeColumnTests : SQLiteTransformati
         CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-

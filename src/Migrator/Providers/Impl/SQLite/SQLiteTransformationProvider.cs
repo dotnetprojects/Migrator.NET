@@ -46,10 +46,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void AddForeignKey(
             string name,
-            string parentTable,
-            string[] parentColumns,
             string childTable,
             string[] childColumns,
+            string parentTable,
+            string[] parentColumns,
             ForeignKeyConstraintType constraint)
         {
             var sqliteTableInfo = GetSQLiteTableInfo(childTable);
@@ -57,14 +57,15 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var foreignKey = new ForeignKeyConstraint
             {
                 // SQLite does not support FK names
-                Name = null,
-                ParentTable = parentTable,
+                ChildColumns = childColumns,
                 ChildTable = childTable,
+                Name = null,
                 ParentColumns = parentColumns,
-                ChildColumns = childColumns
+                ParentTable = parentTable,
             };
 
-            sqliteTableInfo.ForeignKeys.Add(foreignKey);
+            sqliteTableInfo.ForeignKeys
+                .Add(foreignKey);
 
             RecreateTable(sqliteTableInfo);
         }
@@ -103,14 +104,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 {
                     Id = group.First().Id,
                     // SQLite does not support FK names.
-                    Name = null,
-                    ParentTable = group.First().Table,
-                    ParentColumns = group.OrderBy(x => x.Seq).Select(x => x.To).ToArray(),
                     ChildColumns = group.OrderBy(x => x.Seq).Select(x => x.From).ToArray(),
                     ChildTable = tableName,
+                    Match = group.First().Match,
+                    Name = null,
                     OnDelete = group.First().OnDelete,
                     OnUpdate = group.First().OnUpdate,
-                    Match = group.First().Match
+                    ParentColumns = group.OrderBy(x => x.Seq).Select(x => x.To).ToArray(),
+                    ParentTable = group.First().Table,
                 };
 
                 foreignKeyConstraints.Add(foreignKeyConstraint);
@@ -600,6 +601,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             var isOn = reader.GetInt32(0) == 1;
 
             return isOn;
+        }
+
+        public void SetPragmaForeignKeys(bool isOn)
+        {
+            var onOffString = isOn ? "ON" : "OFF";
+
+            using var cmd = CreateCommand();
+            ExecuteQuery(cmd, $"PRAGMA foreign_keys = {onOffString}");
         }
 
         private void RecreateTable(SQLiteTableInfo sqliteTableInfo)

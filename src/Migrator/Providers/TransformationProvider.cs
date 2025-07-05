@@ -658,7 +658,7 @@ namespace Migrator.Providers
         }
 
         /// <summary>
-        /// <see cref="TransformationProvider.AddColumn(string, string, DbType, int, ColumnProperty, object)">
+        /// <see cref="AddColumn(string, string, DbType, int, ColumnProperty, object)">
         /// AddColumn(string, string, Type, int, ColumnProperty, object)
         /// </see>
         /// </summary>
@@ -668,7 +668,7 @@ namespace Migrator.Providers
         }
 
         /// <summary>
-        /// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
+        /// <see cref="AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
         /// AddColumn(string, string, Type, int, ColumnProperty, object)
         /// </see>
         /// </summary>
@@ -710,42 +710,51 @@ namespace Migrator.Providers
         }
 
         /// <summary>
-        /// Guesses the name of the foreign key and add it
+        /// Guesses the name of the foreign key and adds it
         /// </summary>
-        public virtual void GenerateForeignKey(string primaryTable, string primaryColumn, string refTable, string refColumn)
+        public virtual void GenerateForeignKey(string childTable, string childColumn, string parentTable, string parentColumn)
         {
-            AddForeignKey("FK_" + primaryTable + "_" + refTable, primaryTable, primaryColumn, refTable, refColumn);
+            AddForeignKey("FK_" + childTable + "_" + parentTable, childTable, childColumn, parentTable, parentColumn);
+        }
+
+        /// <summary>
+        /// Guesses the name of the foreign key and adds it
+        /// </see>
+        /// </summary>
+        public virtual void GenerateForeignKey(
+            string childTable,
+            string[] childColumns,
+            string parentTable,
+            string[] parentColumns)
+        {
+            AddForeignKey("FK_" + childTable + "_" + parentTable, childTable, childColumns, parentTable, parentColumns);
+        }
+
+        /// <summary>
+        /// Guesses the name of the foreign key and adds it
+        /// </summary>
+        public virtual void GenerateForeignKey(
+            string childTable,
+            string childColumn,
+            string parentTable,
+            string parentColumn,
+            ForeignKeyConstraintType constraint)
+        {
+            AddForeignKey("FK_" + childTable + "_" + parentTable, childTable, childColumn, parentTable, parentColumn, constraint);
         }
 
         /// <summary>
         /// Guesses the name of the foreign key and add it
         /// </see>
         /// </summary>
-        public virtual void GenerateForeignKey(string primaryTable, string[] primaryColumns, string refTable,
-                                               string[] refColumns)
+        public virtual void GenerateForeignKey(
+            string childTable,
+            string[] childColumns,
+            string parentTable,
+            string[] parentColumns,
+            ForeignKeyConstraintType constraint)
         {
-            AddForeignKey("FK_" + primaryTable + "_" + refTable, primaryTable, primaryColumns, refTable, refColumns);
-        }
-
-        /// <summary>
-        /// Guesses the name of the foreign key and add it
-        /// </summary>
-        public virtual void GenerateForeignKey(string primaryTable, string primaryColumn, string refTable,
-                                               string refColumn, ForeignKeyConstraintType constraint)
-        {
-            AddForeignKey("FK_" + primaryTable + "_" + refTable, primaryTable, primaryColumn, refTable, refColumn,
-                          constraint);
-        }
-
-        /// <summary>
-        /// Guesses the name of the foreign key and add it
-        /// </see>
-        /// </summary>
-        public virtual void GenerateForeignKey(string primaryTable, string[] primaryColumns, string refTable,
-                                               string[] refColumns, ForeignKeyConstraintType constraint)
-        {
-            AddForeignKey("FK_" + primaryTable + "_" + refTable, primaryTable, primaryColumns, refTable, refColumns,
-                          constraint);
+            AddForeignKey("FK_" + childTable + "_" + parentTable, childTable, childColumns, parentTable, parentColumns, constraint);
         }
 
         public virtual void AddForeignKey(string table, ForeignKeyConstraint fk)
@@ -753,11 +762,11 @@ namespace Migrator.Providers
             AddForeignKey(fk.Name, table, fk.ParentColumns, fk.ChildTable, fk.ChildColumns);
         }
 
-        public virtual void AddForeignKey(string name, string parentTable, string parentColumn, string childTable, string childColumn)
+        public virtual void AddForeignKey(string name, string childTable, string childColumn, string parentTable, string parentColumn)
         {
             try
             {
-                AddForeignKey(name, parentTable, [parentColumn], childTable, [childColumn]);
+                AddForeignKey(name, childTable, [childColumn], parentTable, [parentColumn]);
             }
             catch (Exception ex)
             {
@@ -765,37 +774,40 @@ namespace Migrator.Providers
             }
         }
 
-        /// <summary>
-        /// <see cref="ITransformationProvider.AddForeignKey(string, string, string, string, string)">
-        /// AddForeignKey(string, string, string, string, string)
-        /// </see>
-        /// </summary>
-        public virtual void AddForeignKey(string name, string parentTable, string[] parentColumns, string childTable, string[] childColumns)
+        public virtual void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns)
         {
-            AddForeignKey(name, parentTable, parentColumns, childTable, childColumns, ForeignKeyConstraintType.NoAction);
+            AddForeignKey(name, childTable, childColumns, parentTable, parentColumns, ForeignKeyConstraintType.NoAction);
         }
 
-        public virtual void AddForeignKey(string name, string parentTable, string parentColumn, string childTable, string childColumn, ForeignKeyConstraintType constraint)
+        public virtual void AddForeignKey(string name, string childTable, string childColumn, string parentTable, string parentColumn, ForeignKeyConstraintType constraint)
         {
-            AddForeignKey(name, parentTable, new[] { parentColumn }, childTable, new[] { childColumn },
-                          constraint);
+            AddForeignKey(name, childTable, [childColumn], parentTable, [parentColumn], constraint);
         }
 
-        public virtual void AddForeignKey(string name, string parentTable, string[] parentColumns, string childTable,
-                                          string[] childColumns, ForeignKeyConstraintType constraint)
+        public virtual void AddForeignKey(
+            string name,
+            string childTable,
+            string[] childColumns,
+            string parentTable,
+            string[] parentColumns,
+            ForeignKeyConstraintType constraint)
         {
             childTable = QuoteTableNameIfRequired(childTable);
             parentTable = QuoteTableNameIfRequired(parentTable);
             QuoteColumnNames(parentColumns);
             QuoteColumnNames(childColumns);
 
-            string constraintResolved = constraintMapper.SqlForConstraint(constraint);
+            var constraintResolved = constraintMapper.SqlForConstraint(constraint);
 
-            ExecuteNonQuery(
-                String.Format(
-                    "ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4}) ON UPDATE {5} ON DELETE {6}",
-                    parentTable, name, String.Join(",", parentColumns),
-                    childTable, String.Join(",", childColumns), constraintResolved, constraintResolved));
+            // TODO Issue #52 still unresolved
+            var childColumnsString = string.Join(", ", childColumns);
+            var parentColumnsString = string.Join(", ", parentColumns);
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.Append($"ALTER TABLE {childTable} ADD CONSTRAINT {name} FOREIGN KEY ({childColumnsString}) REFERENCES {parentTable} ({parentColumnsString})");
+            stringBuilder.Append($"ON UPDATE {constraintResolved} ON DELETE {constraintResolved}");
+
+            ExecuteNonQuery(stringBuilder.ToString());
         }
 
         /// <summary>
@@ -813,7 +825,7 @@ namespace Migrator.Providers
 
         public virtual int ExecuteNonQuery(string sql)
         {
-            return ExecuteNonQuery(sql, this.CommandTimeout.HasValue ? this.CommandTimeout.Value : 30);
+            return ExecuteNonQuery(sql, CommandTimeout ?? 30);
         }
 
         public virtual int ExecuteNonQuery(string sql, int timeout)
@@ -834,7 +846,7 @@ namespace Migrator.Providers
                 Logger.ApplyingDBChange(string.Format(sql, args));
             }
 
-            using (IDbCommand cmd = BuildCommand(sql))
+            using (var cmd = BuildCommand(sql))
             {
                 try
                 {
@@ -842,13 +854,14 @@ namespace Migrator.Providers
 
                     if (args != null)
                     {
-                        int index = 0;
+                        var index = 0;
+
                         foreach (object obj in args)
                         {
                             IDbDataParameter parameter = cmd.CreateParameter();
-                            this.ConfigureParameterWithValue(parameter, index, obj);
-                            parameter.ParameterName = this.GenerateParameterNameParameter(index);
-                            cmd.Parameters.Add((object)parameter);
+                            ConfigureParameterWithValue(parameter, index, obj);
+                            parameter.ParameterName = GenerateParameterNameParameter(index);
+                            cmd.Parameters.Add(parameter);
                             ++index;
                         }
                     }
@@ -902,7 +915,7 @@ namespace Migrator.Providers
 #endif
 
                 string sqlText;
-                string file = (new System.Uri(assembly.CodeBase)).AbsolutePath;
+                var file = (new System.Uri(assembly.CodeBase)).AbsolutePath;
                 using (var reader = File.OpenText(file))
                     sqlText = reader.ReadToEnd();
 
@@ -921,7 +934,7 @@ namespace Migrator.Providers
 #endif
 
                 string sqlText;
-                string embeddedResourceName = TransformationProviderUtility.GetQualifiedResourcePath(assembly, resourceName);
+                var embeddedResourceName = TransformationProviderUtility.GetQualifiedResourcePath(assembly, resourceName);
 
                 using (var stream = assembly.GetManifestResourceStream(embeddedResourceName))
                 using (var reader = new StreamReader(stream))
@@ -956,7 +969,7 @@ namespace Migrator.Providers
         public virtual object ExecuteScalar(string sql)
         {
             Logger.Trace(sql);
-            using (IDbCommand cmd = BuildCommand(sql))
+            using (var cmd = BuildCommand(sql))
             {
                 try
                 {
@@ -988,8 +1001,15 @@ namespace Migrator.Providers
         public virtual IDataReader SelectComplex(IDbCommand cmd, string table, string[] columns, string[] whereColumns = null,
             object[] whereValues = null, string[] nullWhereColumns = null, string[] notNullWhereColumns = null)
         {
-            if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-            if (columns == null) throw new ArgumentNullException("columns");
+            if (string.IsNullOrEmpty(table))
+            {
+                throw new ArgumentNullException("table");
+            }
+
+            if (columns == null)
+            {
+                throw new ArgumentNullException("columns");
+            }
 
             table = QuoteTableNameIfRequired(table);
 
