@@ -186,7 +186,10 @@ namespace Migrator.Providers
         {
             if (!PropertySelected(column.ColumnProperty, ColumnProperty.PrimaryKey))
             {
-                if (dialect.NeedsNullForNullableWhenAlteringTable) AddValueIfSelected(column, ColumnProperty.Null, vals);
+                if (dialect.NeedsNullForNullableWhenAlteringTable)
+                {
+                    AddValueIfSelected(column, ColumnProperty.Null, vals);
+                }
             }
         }
 
@@ -223,7 +226,9 @@ namespace Migrator.Providers
         protected virtual void AddValueIfSelected(Column column, ColumnProperty property, ICollection<string> vals)
         {
             if (PropertySelected(column.ColumnProperty, property))
+            {
                 vals.Add(dialect.SqlForProperty(property, column));
+            }
         }
 
         public static bool PropertySelected(ColumnProperty source, ColumnProperty comparison)
