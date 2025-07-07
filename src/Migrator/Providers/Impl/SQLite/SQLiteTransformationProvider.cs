@@ -414,10 +414,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 }
             }
 
-            sqliteInfoMainTable.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
+            sqliteInfoMainTable.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
             sqliteInfoMainTable.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.OrdinalIgnoreCase));
             sqliteInfoMainTable.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
-            sqliteInfoMainTable.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0] == column);
+            sqliteInfoMainTable.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
+            sqliteInfoMainTable.ForeignKeys.RemoveAll(x => x.ChildColumns.Length == 1 && x.ChildColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
 
             RecreateTable(sqliteInfoMainTable);
         }
