@@ -19,13 +19,13 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         Provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
 
         // Act
-        Provider.AddForeignKey(name: "FK name is not supported by SQLite", childTable: "TestTwo", childColumn: "TestId", parentTable: "Test", parentColumn: "Id", constraint: ForeignKeyConstraintType.Cascade);
+        Provider.AddForeignKey(name: "FKName", childTable: "TestTwo", childColumn: "TestId", parentTable: "Test", parentColumn: "Id", constraint: ForeignKeyConstraintType.Cascade);
 
         // Assert
         var foreignKeyConstraints = ((SQLiteTransformationProvider)Provider).GetForeignKeyConstraints("TestTwo");
         var tableSQLCreateScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("TestTwo");
 
-        Assert.That(foreignKeyConstraints.Single().Name, Is.Null);
+        Assert.That(foreignKeyConstraints.Single().Name, Is.EqualTo("FKName"));
         Assert.That(foreignKeyConstraints.Single().ChildTable, Is.EqualTo("TestTwo"));
         Assert.That(foreignKeyConstraints.Single().ParentTable, Is.EqualTo("Test"));
         Assert.That(foreignKeyConstraints.Single().ChildColumns.Single(), Is.EqualTo("TestId"));
@@ -33,7 +33,7 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         // Cascade is not supported
 
         Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
-        Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(Id))"));
+        Assert.That(tableSQLCreateScript, Does.Contain(", CONSTRAINT FKName FOREIGN KEY (TestId) REFERENCES Test(Id))"));
 
         var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
         Assert.That(result, Is.True);
@@ -48,7 +48,7 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         Provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
 
         // Act
-        Provider.AddForeignKey(name: "FK name is not supported by SQLite", childTable: "TestTwo", childColumn: "TestId", parentTable: "Test", parentColumn: "Id", constraint: ForeignKeyConstraintType.Cascade);
+        Provider.AddForeignKey(name: "FKName", childTable: "TestTwo", childColumn: "TestId", parentTable: "Test", parentColumn: "Id", constraint: ForeignKeyConstraintType.Cascade);
 
         // Rename column in parent
         Provider.RenameColumn("Test", "Id", "IdNew");
@@ -58,7 +58,7 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         var tableSQLCreateScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("TestTwo");
 
         Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
-        Assert.That(tableSQLCreateScript, Does.Contain(", FOREIGN KEY (TestId) REFERENCES Test(IdNew))"));
+        Assert.That(tableSQLCreateScript, Does.Contain(", CONSTRAINT FKName FOREIGN KEY (TestId) REFERENCES Test(IdNew))"));
         Assert.That(foreignKeyConstraints.Single().ParentColumns.Single(), Is.EqualTo("IdNew"));
 
         var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
