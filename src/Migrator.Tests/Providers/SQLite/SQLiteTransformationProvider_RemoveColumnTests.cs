@@ -76,11 +76,11 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         );
 
         Provider.AddTable(childTestTableName, new Column(propertyChildTableName1, DbType.Int32));
-        Provider.AddForeignKey("Not used in SQLite", childTestTableName, propertyChildTableName1, parentTableName, propertyName1);
+        Provider.AddForeignKey("FKName1", childTestTableName, propertyChildTableName1, parentTableName, propertyName1);
         var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(childTestTableName);
 
         Provider.AddTable(childTestTableName2, new Column(propertyChildTableName1, DbType.Int32));
-        Provider.AddForeignKey(name: "Not used in SQLite", childTable: childTestTableName2, childColumn: propertyChildTableName1, parentTable: parentTableName, parentColumn: propertyName2);
+        Provider.AddForeignKey(name: "FKName2", childTable: childTestTableName2, childColumn: propertyChildTableName1, parentTable: parentTableName, parentColumn: propertyName2);
 
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(parentTableName);
         var tableInfoChildBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(childTestTableName);
@@ -161,7 +161,7 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
             new Column(propertyName3, DbType.Int32, ColumnProperty.Unique)
         );
 
-        Provider.AddUniqueConstraint("Not used in SQLite", testTableName, [propertyName2, propertyName3]);
+        Provider.AddUniqueConstraint("UniqueConstraintName", testTableName, [propertyName2, propertyName3]);
 
         Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
