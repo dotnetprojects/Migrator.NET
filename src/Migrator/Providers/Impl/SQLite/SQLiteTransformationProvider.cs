@@ -8,6 +8,7 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = Migrator.Framework.Index;
 
@@ -16,7 +17,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
     /// <summary>
     /// Summary description for SQLiteTransformationProvider.
     /// </summary>
-    public class SQLiteTransformationProvider : TransformationProvider
+    public partial class SQLiteTransformationProvider : TransformationProvider
     {
         private const string IntermediateTableSuffix = "Temp";
 
@@ -59,7 +60,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 // SQLite does not support FK names
                 ChildColumns = childColumns,
                 ChildTable = childTable,
-                Name = null,
+                Name = name,
                 ParentColumns = parentColumns,
                 ParentTable = parentTable,
             };
@@ -116,6 +117,23 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                 foreignKeyConstraints.Add(foreignKeyConstraint);
             }
+
+            var createTableScript = GetSqlCreateTableScript(tableName);
+            var regEx = ForeignKeyRegex();
+            var matchesCollection = regEx.Matches(createTableScript);
+            var matches = matchesCollection.Cast<Match>().ToList().Where(x => x.Success).Select(x => x.Value).ToList();
+
+            if (matches.Count != foreignKeyConstraints.Count)
+            {
+                throw new Exception($"Cannot extract all foreign keys out of the create table script in SQLite. Did you use a name as foreign key constraint for all constraints in table {tableName}?");
+            }
+
+            foreach (var foreignKeyConstraint in foreignKeyConstraints)
+            {
+                var regexParenthesis = ForeignKeyParenthesisRegex();
+                regexParenthesis.Matches()
+            }
+
 
             return foreignKeyConstraints.ToArray();
         }
@@ -749,7 +767,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override List<string> GetDatabases()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("SQLite is a file-based database. You cannot list other databases.");
         }
 
         public override bool ConstraintExists(string table, string name)
@@ -995,33 +1013,39 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             foreach (var u in uniques)
             {
-                // var nm = "";
+                if (!string.IsNullOrEmpty(u.Name))
+                {
+                    stringBuilder.Append($" CONSTRAINT {u.Name}");
+                }
 
-                // if (!string.IsNullOrEmpty(u.Name))
-                // {
-                //     nm = string.Format(" CONSTRAINT {0}", u.Name);
-                // }
                 var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns);
                 stringBuilder.Append($", UNIQUE ({uniqueColumnsCommaSeparated})");
             }
 
             var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
 
+            List<string> foreignKeyStrings = [];
+
             foreach (var fk in foreignKeys)
             {
-                // Since in SQLite the foreign key name can be given as 
-                // CONSTRAINT <FK name>
-                // but not being stored in any way hence not being retrievable using foreign_key_list
-                // we leave it out in the following string.
-
                 var sourceColumnNamesQuotedString = string.Join(", ", fk.ChildColumns.Select(QuoteColumnNameIfRequired));
                 var parentColumnNamesQuotedString = string.Join(", ", fk.ParentColumns.Select(QuoteColumnNameIfRequired));
                 var parentTableNameQuoted = QuoteTableNameIfRequired(fk.ParentTable);
 
-                var foreignKeyString = $", FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})";
+                if (string.IsNullOrWhiteSpace(fk.Name))
+                {
+                    throw new Exception("No foreign key constraint name given");
+                }
 
-                stringBuilder.Append(foreignKeyString);
+                foreignKeyStrings.Add($"CONSTRAINT {fk.Name} FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})");
             }
+
+            if (foreignKeyStrings.Count != 0)
+            {
+                stringBuilder.Append(", ");
+                stringBuilder.Append(string.Join(", ", foreignKeyStrings));
+            }
+
 
             stringBuilder.Append(")");
 
@@ -1230,5 +1254,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 base.ConfigureParameterWithValue(parameter, index, value);
             }
         }
+
+        [GeneratedRegex(@"CONSTRAINT\s+\w+\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+\w+\s*\([^)]+\)")]
+        private static partial Regex ForeignKeyRegex();
+        [GeneratedRegex(@"\(([^)]+)\)")]
+        private static partial Regex ForeignKeyParenthesisRegex();
     }
 }
