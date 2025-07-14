@@ -124,7 +124,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
             var createTableScript = GetSqlCreateTableScript(tableName);
-            var regEx = ForeignKeyRegex();
+            // GeneratedRegex
+            var regEx = new Regex(@"CONSTRAINT\s+\w+\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+\w+\s*\([^)]+\)");
             var matchesCollection = regEx.Matches(createTableScript);
             var fkParts = matchesCollection.Cast<Match>().ToList().Where(x => x.Success).Select(x => x.Value).ToList();
 
@@ -137,7 +138,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             foreach (var fkPart in fkParts)
             {
-                var regexParenthesis = ForeignKeyParenthesisRegex();
+                var regexParenthesis = new Regex(@"\(([^)]+)\)");
                 var parenthesisContents = regexParenthesis.Matches(fkPart).Cast<Match>().Select(x => x.Groups[1].Value).ToList();
 
                 if (parenthesisContents.Count != 2)
@@ -147,11 +148,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                 var foreignKeyExtract = new ForeignKeyExtract()
                 {
-                    ChildColumnNames = parenthesisContents[0].Split(",").Select(x => x.Trim()).ToList(),
-                    ParentColumnNames = parenthesisContents[1].Split(",").Select(x => x.Trim()).ToList(),
+                    ChildColumnNames = parenthesisContents[0].Split(',').Select(x => x.Trim()).ToList(),
+                    ParentColumnNames = parenthesisContents[1].Split(',').Select(x => x.Trim()).ToList(),
                 };
 
-                var foreignKeyConstraintNameRegex = ForeignKeyConstraintNameRegex();
+                var foreignKeyConstraintNameRegex = new Regex(@"CONSTRAINT\s+(\w+)\s+FOREIGN\s+KEY");
                 var foreignKeyNameMatch = foreignKeyConstraintNameRegex.Match(fkPart);
 
                 if (!foreignKeyNameMatch.Success)
@@ -1297,12 +1298,5 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 base.ConfigureParameterWithValue(parameter, index, value);
             }
         }
-
-        [GeneratedRegex(@"CONSTRAINT\s+\w+\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+\w+\s*\([^)]+\)")]
-        private static partial Regex ForeignKeyRegex();
-        [GeneratedRegex(@"\(([^)]+)\)")]
-        private static partial Regex ForeignKeyParenthesisRegex();
-        [GeneratedRegex(@"CONSTRAINT\s+(\w+)\s+FOREIGN\s+KEY")]
-        private static partial Regex ForeignKeyConstraintNameRegex();
     }
 }
