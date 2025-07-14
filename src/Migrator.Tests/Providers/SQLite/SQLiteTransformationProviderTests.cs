@@ -101,7 +101,7 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.Unique),
+            new Column(propertyName1, DbType.Int32, ColumnProperty.Unique | ColumnProperty.NotNull),
             new Column(propertyName2, DbType.Int32)
         );
 

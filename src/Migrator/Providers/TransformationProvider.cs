@@ -225,7 +225,7 @@ namespace Migrator.Providers
         {
             if (TableExists(table) && ConstraintExists(table, name))
             {
-                ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
+                ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
             }
         }
 
@@ -233,7 +233,7 @@ namespace Migrator.Providers
         {
             foreach (var constraint in GetConstraints(table))
             {
-                this.RemoveConstraint(table, constraint);
+                RemoveConstraint(table, constraint);
             }
         }
 

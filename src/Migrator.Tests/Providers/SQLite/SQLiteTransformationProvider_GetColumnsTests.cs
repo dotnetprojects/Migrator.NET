@@ -36,7 +36,6 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
 
         // Assert
         Assert.That(columns.Single().ColumnProperty, Is.EqualTo(
-            ColumnProperty.Null |
             ColumnProperty.Unique |
             ColumnProperty.PrimaryKey));
     }
@@ -53,9 +52,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
         var columns = Provider.GetColumns(tableName);
 
         // Assert
-        Assert.That(columns.Single().ColumnProperty, Is.EqualTo(
-            ColumnProperty.Null |
-            ColumnProperty.PrimaryKey));
+        Assert.That(columns.Single().ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey));
     }
 
     [Test]
@@ -71,9 +68,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
         var columns = Provider.GetColumns(tableName);
 
         // Assert
-        Assert.That(columns.Single().ColumnProperty, Is.EqualTo(
-            ColumnProperty.Null |
-            ColumnProperty.PrimaryKey));
+        Assert.That(columns.Single().ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey));
     }
 
     [Test]
