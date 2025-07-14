@@ -118,22 +118,65 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 foreignKeyConstraints.Add(foreignKeyConstraint);
             }
 
+            if (foreignKeyConstraints.Count == 0)
+            {
+                return [];
+            }
+
             var createTableScript = GetSqlCreateTableScript(tableName);
             var regEx = ForeignKeyRegex();
             var matchesCollection = regEx.Matches(createTableScript);
-            var matches = matchesCollection.Cast<Match>().ToList().Where(x => x.Success).Select(x => x.Value).ToList();
+            var fkParts = matchesCollection.Cast<Match>().ToList().Where(x => x.Success).Select(x => x.Value).ToList();
 
-            if (matches.Count != foreignKeyConstraints.Count)
+            if (fkParts.Count != foreignKeyConstraints.Count)
             {
-                throw new Exception($"Cannot extract all foreign keys out of the create table script in SQLite. Did you use a name as foreign key constraint for all constraints in table {tableName}?");
+                throw new Exception($"Cannot extract all foreign keys out of the create table script in SQLite. Did you use a name as foreign key constraint for all constraints in table '{tableName}' in this or older migrations?");
+            }
+
+            List<ForeignKeyExtract> foreignKeyExtracts = [];
+
+            foreach (var fkPart in fkParts)
+            {
+                var regexParenthesis = ForeignKeyParenthesisRegex();
+                var parenthesisContents = regexParenthesis.Matches(fkPart).Cast<Match>().Select(x => x.Groups[1].Value).ToList();
+
+                if (parenthesisContents.Count != 2)
+                {
+                    throw new Exception("Cannot extract parenthesis of foreign key constraint");
+                }
+
+                var foreignKeyExtract = new ForeignKeyExtract()
+                {
+                    ChildColumnNames = parenthesisContents[0].Split(",").Select(x => x.Trim()).ToList(),
+                    ParentColumnNames = parenthesisContents[1].Split(",").Select(x => x.Trim()).ToList(),
+                };
+
+                var foreignKeyConstraintNameRegex = ForeignKeyConstraintNameRegex();
+                var foreignKeyNameMatch = foreignKeyConstraintNameRegex.Match(fkPart);
+
+                if (!foreignKeyNameMatch.Success)
+                {
+                    throw new Exception("Could not extract the foreign key constraint name");
+                }
+
+                foreignKeyExtract.ForeignKeyName = foreignKeyNameMatch.Groups[1].Value;
+
+                foreignKeyExtracts.Add(foreignKeyExtract);
             }
 
             foreach (var foreignKeyConstraint in foreignKeyConstraints)
             {
-                var regexParenthesis = ForeignKeyParenthesisRegex();
-                regexParenthesis.Matches()
+                foreach (var foreignKeyExtract in foreignKeyExtracts)
+                {
+                    if (
+                        foreignKeyExtract.ChildColumnNames.SequenceEqual(foreignKeyConstraint.ChildColumns) &&
+                        foreignKeyExtract.ParentColumnNames.SequenceEqual(foreignKeyConstraint.ParentColumns)
+                    )
+                    {
+                        foreignKeyConstraint.Name = foreignKeyExtract.ForeignKeyName;
+                    }
+                }
             }
-
 
             return foreignKeyConstraints.ToArray();
         }
@@ -1259,5 +1302,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         private static partial Regex ForeignKeyRegex();
         [GeneratedRegex(@"\(([^)]+)\)")]
         private static partial Regex ForeignKeyParenthesisRegex();
+        [GeneratedRegex(@"CONSTRAINT\s+(\w+)\s+FOREIGN\s+KEY")]
+        private static partial Regex ForeignKeyConstraintNameRegex();
     }
 }
