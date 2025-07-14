@@ -754,12 +754,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override bool ConstraintExists(string table, string name)
         {
-            return false;
+            throw new NotSupportedException("SQLite does not offer constraint names e.g. for unique, check constraints. You need to use alternative ways.");
         }
 
         public override string[] GetConstraints(string table)
         {
-            return [];
+            throw new NotSupportedException("SQLite does not offer constraint names e.g. for unique, check constraints  You need to drop them using alternative ways.");
         }
 
         public override string[] GetTables()
@@ -1040,6 +1040,27 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
         protected override string GetPrimaryKeyConstraintName(string table)
         {
             throw new NotImplementedException();
+        }
+
+        public override void RemoveAllConstraints(string table)
+        {
+            RemovePrimaryKey(table);
+
+            var sqliteTableInfo = GetSQLiteTableInfo(table);
+
+            // Remove unique constraints
+            sqliteTableInfo.Uniques = [];
+
+            foreach (var column in sqliteTableInfo.Columns)
+            {
+                column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
+                column.ColumnProperty &= ~ColumnProperty.Unique;
+            }
+
+            // TODO CHECK is not implemented yet 
+            // https://github.com/dotnetprojects/Migrator.NET/issues/64
+
+            RecreateTable(sqliteTableInfo);
         }
 
         public override void RemovePrimaryKey(string tableName)
