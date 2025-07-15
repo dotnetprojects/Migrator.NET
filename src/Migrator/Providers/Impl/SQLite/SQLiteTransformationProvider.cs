@@ -53,11 +53,31 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             string[] parentColumns,
             ForeignKeyConstraintType constraint)
         {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new Exception("A FK name is mandatory");
+            }
+
             var sqliteTableInfo = GetSQLiteTableInfo(childTable);
+
+            // Get all unique constraint names if available
+            var uniqueConstraintNames = sqliteTableInfo.Uniques.Select(x => x.Name).ToList();
+
+            // Get all FK constraint names if available
+            var foreignKeyNames = sqliteTableInfo.ForeignKeys.Select(x => x.Name).ToList();
+
+            var names = uniqueConstraintNames.Concat(foreignKeyNames)
+                .Distinct()
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+
+            if (names.Any(x => x.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new Exception($"Constraint name {name} already exists");
+            }
 
             var foreignKey = new ForeignKeyConstraint
             {
-                // SQLite does not support FK names
                 ChildColumns = childColumns,
                 ChildTable = childTable,
                 Name = name,
@@ -149,6 +169,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 var foreignKeyExtract = new ForeignKeyExtract()
                 {
                     ChildColumnNames = parenthesisContents[0].Split(',').Select(x => x.Trim()).ToList(),
+                    ForeignKeyString = fkPart,
                     ParentColumnNames = parenthesisContents[1].Split(',').Select(x => x.Trim()).ToList(),
                 };
 
@@ -816,12 +837,40 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override bool ConstraintExists(string table, string name)
         {
-            throw new NotSupportedException("SQLite does not offer constraint names e.g. for unique, check constraints. You need to use alternative ways.");
+            var constraintNames = GetConstraints(table);
+
+            var exists = constraintNames.Any(x => x.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+            return exists;
         }
 
         public override string[] GetConstraints(string table)
         {
-            throw new NotSupportedException("SQLite does not offer constraint names e.g. for unique, check constraints  You need to drop them using alternative ways.");
+            var sqliteInfo = GetSQLiteTableInfo(table);
+
+            var foreignKeyNames = sqliteInfo.ForeignKeys
+                .Select(x => x.Name)
+                .ToList();
+
+            var uniqueConstraints = sqliteInfo.Uniques
+                .Select(x => x.Name)
+                .ToList();
+
+            // TODO add PK and CHECK
+
+            var names = foreignKeyNames.Concat(uniqueConstraints)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToArray();
+
+            var distinctNames = names.Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (names.Length != distinctNames.Length)
+            {
+                throw new Exception($"There are duplicate constraint names in table {table}'");
+            }
+
+            return distinctNames;
         }
 
         public override string[] GetTables()
@@ -1059,11 +1108,15 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             {
                 if (!string.IsNullOrEmpty(u.Name))
                 {
-                    stringBuilder.Append($" CONSTRAINT {u.Name}");
+                    stringBuilder.Append($", CONSTRAINT {u.Name}");
+                }
+                else
+                {
+                    stringBuilder.Append(", ");
                 }
 
                 var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns);
-                stringBuilder.Append($", UNIQUE ({uniqueColumnsCommaSeparated})");
+                stringBuilder.Append($" UNIQUE ({uniqueColumnsCommaSeparated})");
             }
 
             var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
@@ -1169,14 +1222,18 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public List<Unique> GetUniques(string tableName)
         {
+            var regEx = new Regex(@"(?<=,)\s*(CONSTRAINT\s+\w+\s+)?UNIQUE\s*\(\s*[\w\s,]+\s*\)\s*(?=,|\s*\))");
+            var regExConstraintName = new Regex(@"(?<=CONSTRAINT\s+)\w+(?=\s+)");
+            var regExParenthesis = new Regex(@"(?<=\().+(?=\))");
+
             List<Unique> uniques = [];
 
             var pragmaIndexListItems = GetPragmaIndexListItems(tableName);
 
             // Here we filter for origin u and unique while in "GetIndexes()" we exclude them.
-            // If pk is set then it was added by using a primary key. If so this is handled by "GetColumns()".
-            // If c is set it was created by using CREATE INDEX. At this moment in time this migrator does not support UNIQUE indexes but only normal indexes
-            // so u should never be set 30.06.2025).
+            // If "pk" is set then it was added by using a primary key. If so this is handled by "GetColumns()".
+            // If "c" is set it was created by using CREATE INDEX. At this moment in time this migrator does not support UNIQUE indexes but only normal indexes
+            // so "u" should never be set 30.06.2025).
             var uniqueConstraints = pragmaIndexListItems.Where(x => x.Unique && x.Origin == "u")
                 .ToList();
 
@@ -1195,6 +1252,41 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                 };
 
                 uniques.Add(unique);
+            }
+
+            var createScript = GetSqlCreateTableScript(tableName);
+
+            var matches = regEx.Matches(createScript).Cast<Match>().Where(x => x.Success).Select(x => x.Value.Trim()).ToList();
+
+            // We can only use the ones containing a  starting with CONSTRAINT 
+            var matchesHavingName = matches.Where(x => x.StartsWith("CONSTRAINT")).ToList();
+
+            foreach (var constraintString in matchesHavingName)
+            {
+                var constraintNameMatch = regExConstraintName.Match(constraintString);
+
+                if (!constraintNameMatch.Success)
+                {
+                    throw new Exception("Cannot extract constraint name - severe issue. Please file an issue");
+                }
+
+                var constraintName = constraintNameMatch.Value;
+
+                var parenthesisMatch = regExParenthesis.Match(constraintString);
+
+                if (!parenthesisMatch.Success)
+                {
+                    throw new Exception("Cannot extract parenthesis content for UNIQUE constraint - severe issue. Please file an issue");
+                }
+
+                var columns = parenthesisMatch.Value.Split(',').Select(x => x.Trim()).ToList();
+
+                var unique = uniques.Where(x => x.KeyColumns.SequenceEqual(columns)).SingleOrDefault();
+
+                if (unique != null)
+                {
+                    unique.Name = constraintName;
+                }
             }
 
             return uniques;
