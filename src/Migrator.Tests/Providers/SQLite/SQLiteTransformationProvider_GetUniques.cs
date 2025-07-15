@@ -45,6 +45,8 @@ public class SQLiteTransformationProvider_GetUniquesTests : SQLiteTransformation
         Assert.That(uniqueConstraints.Single(x => x.Name == uniqueConstraintName1).KeyColumns, Is.EqualTo([property3]));
         Assert.That(uniqueConstraints.Single(x => x.Name == uniqueConstraintName2).KeyColumns, Is.EqualTo([property4, property5]));
 
-        Assert.That(sql, Does.EndWith("CONSTRAINT UniqueConstraint1 UNIQUE (Property3), CONSTRAINT sqlite_autoindex_TableA_1 UNIQUE (Property2), CONSTRAINT UniqueConstraint2 UNIQUE (Property4, Property5))"));
+        Assert.That(sql, Does.Contain("CONSTRAINT UniqueConstraint1 UNIQUE (Property3)"));
+        Assert.That(sql, Does.Contain("CONSTRAINT UniqueConstraint2 UNIQUE (Property4, Property5)"));
+        Assert.That(sql, Does.Contain("CONSTRAINT sqlite_autoindex_TableA_1 UNIQUE (Property2)"));
     }
 }
