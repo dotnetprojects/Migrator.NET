@@ -26,8 +26,9 @@ namespace Migrator.Framework
         Identity = 4,
 
         /// <summary>
-        /// Unique Column
+        /// Unique Column. This is marked being obsolete since you cannot add a name for the constraint which makes it difficult to remove the constraint again.
         /// </summary>
+        [Obsolete("Use method 'AddUniqueConstraint' instead. This is marked being obsolete since you cannot add a name for the constraint which makes it difficult to remove the constraint again.")]
         Unique = 8,
 
         /// <summary>

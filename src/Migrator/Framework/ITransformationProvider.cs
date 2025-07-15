@@ -488,29 +488,33 @@ namespace Migrator.Framework
         void RemoveColumn(string table, string column);
 
         /// <summary>
-        /// Remove an existing foreign key constraint
+        /// Remove an existing foreign key constraint.
         /// </summary>
         /// <param name="table">The table that contains the foreign key.</param>
         /// <param name="name">The name of the foreign key to remove</param>
         void RemoveForeignKey(string table, string name);
 
         /// <summary>
-        /// Remove an existing constraint
+        /// Remove an existing constraint.
         /// </summary>
         /// <param name="table">The table that contains the foreign key.</param>
         /// <param name="name">The name of the constraint to remove</param>
         void RemoveConstraint(string table, string name);
 
+        /// <summary>
+        /// Removes PK, FKs, Unique and CHECK constraints.
+        /// </summary>
+        /// <param name="table"></param>
         void RemoveAllConstraints(string table);
 
         /// <summary>
-        /// Remove an existing primary key
+        /// Remove an existing primary key.
         /// </summary>
         /// <param name="table">The table that contains the primary key.</param>        
         void RemovePrimaryKey(string table);
 
         /// <summary>
-        /// Remove an existing table
+        /// Drops an existing table.
         /// </summary>
         /// <param name="tableName">The name of the table</param>
         void RemoveTable(string tableName);
