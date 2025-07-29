@@ -48,7 +48,7 @@ public abstract class TransformationProviderSimpleBase
     {
         Provider.AddTable("TestTwo",
             new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("TestId", DbType.Int32, ColumnProperty.ForeignKey)
+            new Column("TestId", DbType.Int32)
         );
     }
 

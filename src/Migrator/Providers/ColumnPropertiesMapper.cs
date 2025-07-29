@@ -143,7 +143,7 @@ namespace Migrator.Providers
 
             AddForeignKey(column, vals);
 
-            columnSql = String.Join(" ", vals.ToArray());
+            columnSql = string.Join(" ", vals.ToArray());
         }
 
         protected virtual void AddCaseSensitive(Column column, List<string> vals)
@@ -154,11 +154,14 @@ namespace Migrator.Providers
         protected virtual void AddDefaultValue(Column column, List<string> vals)
         {
             if (column.DefaultValue != null)
+            {
                 vals.Add(dialect.Default(column.DefaultValue));
+            }
         }
 
         protected virtual void AddForeignKey(Column column, List<string> vals)
         {
+            // TODO Does that really make sense?
             AddValueIfSelected(column, ColumnProperty.ForeignKey, vals);
         }
 
@@ -204,13 +207,17 @@ namespace Migrator.Providers
         protected virtual void AddUnsigned(Column column, List<string> vals)
         {
             if (dialect.IsUnsignedCompatible(column.Type))
+            {
                 AddValueIfSelected(column, ColumnProperty.Unsigned, vals);
+            }
         }
 
         protected virtual void AddIdentity(Column column, List<string> vals)
         {
             if (!dialect.IdentityNeedsType)
+            {
                 AddValueIfSelected(column, ColumnProperty.Identity, vals);
+            }
         }
 
         protected virtual void AddType(List<string> vals)

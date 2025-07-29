@@ -12,7 +12,6 @@ namespace Migrator.Tests.Providers.SQLite;
 [Category("SQLite")]
 public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationProviderTestBase
 {
-
     /// <summary>
     /// We use a NULL column as new column here. NOT NULL will fail as expected. The user should handle that on his own.
     /// </summary>

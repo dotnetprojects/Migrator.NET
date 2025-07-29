@@ -47,11 +47,18 @@ namespace Migrator.Providers.SqlServer
             _connection.Open();
 
             string collationString = null;
-            var collation = this.ExecuteScalar("SELECT DATABASEPROPERTYEX('" + _connection.Database + "', 'Collation')");
+            var collation = ExecuteScalar("SELECT DATABASEPROPERTYEX('" + _connection.Database + "', 'Collation')");
+
             if (collation != null)
+            {
                 collationString = collation.ToString();
+            }
+
             if (string.IsNullOrWhiteSpace(collationString))
+            {
                 collationString = "Latin1_General_CI_AS";
+            }
+
             this.Dialect.RegisterProperty(ColumnProperty.CaseSensitive, "COLLATE " + collationString.Replace("_CI_", "_CS_"));
         }
 
