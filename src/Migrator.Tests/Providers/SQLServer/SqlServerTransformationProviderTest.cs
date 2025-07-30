@@ -18,7 +18,7 @@ using Migrator.Providers;
 using Migrator.Providers.SqlServer;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
 [Category("SqlServer")]
@@ -29,13 +29,7 @@ public class SqlServerTransformationProviderTest : TransformationProviderConstra
     [SetUp]
     public void SetUp()
     {
-        var constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
-
-        if (constr == null)
-        {
-            throw new ArgumentNullException("SqlServerConnectionString", "No config file");
-        }
-
+        var constr = ConfigurationManager.AppSettings["SqlServerConnectionString"] ?? throw new ArgumentNullException("SqlServerConnectionString", "No config file");
         Provider = new SqlServerTransformationProvider(new SqlServerDialect(), constr, null, "default", null);
         Provider.BeginTransaction();
 

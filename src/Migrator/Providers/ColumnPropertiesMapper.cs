@@ -162,7 +162,7 @@ namespace Migrator.Providers
         protected virtual void AddForeignKey(Column column, List<string> vals)
         {
             // TODO Does that really make sense?
-            AddValueIfSelected(column, ColumnProperty.ForeignKey, vals);
+            // AddValueIfSelected(column, ColumnProperty.ForeignKey, vals);
         }
 
         protected virtual void AddUnique(Column column, List<string> vals)

@@ -1083,7 +1083,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void AddTable(string name, string engine, params IDbField[] fields)
         {
-            var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
+            var columns = fields.Where(x => x is Column)
+                .Cast<Column>()
+                .ToArray();
 
             var pks = GetPrimaryKeys(columns);
             var compoundPrimaryKey = pks.Count > 1;
@@ -1157,7 +1159,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
 
-            stringBuilder.Append(")");
+            stringBuilder.Append(')');
 
             ExecuteNonQuery(stringBuilder.ToString());
 

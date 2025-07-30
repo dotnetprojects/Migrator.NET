@@ -11,6 +11,7 @@
 
 #endregion
 
+using DotNetProjects.Migrator.Framework;
 using Migrator.Framework;
 using Migrator.Framework.Loggers;
 using Migrator.Framework.SchemaBuilder;

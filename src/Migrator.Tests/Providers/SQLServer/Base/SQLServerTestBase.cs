@@ -1,14 +1,13 @@
-using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Providers.SQLite;
+using Migrator.Providers.SqlServer;
 using Migrator.Tests.Providers.Base;
 using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers.SQLite.Base;
+namespace Migrator.Tests.Providers.SQLServer.Base;
 
 [TestFixture]
-[Category("SQLite")]
+[Category("SQLServer")]
 public abstract class SQLiteTransformationProviderTestBase : TransformationProviderSimpleBase
 {
     [SetUp]
@@ -18,7 +17,7 @@ public abstract class SQLiteTransformationProviderTestBase : TransformationProvi
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteConnectionConfigId)
             .ConnectionString;
 
-        Provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);
+        Provider = new SqlServerTransformationProvider(new SqlServerDialect(), connectionString, null, "default", null);
         Provider.BeginTransaction();
 
         AddDefaultTable();

@@ -46,48 +46,25 @@ namespace Migrator.Framework
         /// </summary>
         CaseSensitive = 1 << 6,
 
-        /// <summary>
-        /// Foreign Key
-        /// </summary>
-        [Obsolete("Use method 'AddForeignKey' instead. The flag does not make sense on column level.")]
-        ForeignKey = 1 << 7,
+        // /// <summary>
+        // /// Foreign Key
+        // /// </summary>
+        // [Obsolete("Use method 'AddForeignKey' instead. The flag does not make sense on column level.")]
+        // ForeignKey = 1 << 7,
 
         /// <summary>
-        /// Primary Key
+        /// Primary Key.
         /// </summary>
         PrimaryKey = 1 << 8,
 
         /// <summary>
-        /// Primary key with identity. Will be removed soon.
+        /// Primary key with identity. This is shorthand for <see cref="PrimaryKey"/> and <see cref="Identity"/>
         /// </summary>
         PrimaryKeyWithIdentity = 1 << 9 | PrimaryKey | Identity,
 
         /// <summary>
-        /// Primary key. Will be removed soon.
+        /// Primary key non clustered. 
         /// </summary>
         PrimaryKeyNonClustered = 1 << 10 | PrimaryKey
-    }
-
-    public static class ColumnPropertyExtensions
-    {
-        public static bool IsSet(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return (fruits & flags) == flags;
-        }
-
-        public static bool IsNotSet(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return (fruits & (~flags)) == 0;
-        }
-
-        public static ColumnProperty Set(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return fruits | flags;
-        }
-
-        public static ColumnProperty Clear(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return fruits & (~flags);
-        }
     }
 }
