@@ -396,19 +396,19 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             if (!TableExists(tableName))
             {
-                throw new Exception("Table does not exist");
+                throw new MigrationException($"The table '{tableName}' does not exist");
             }
 
             if (!ColumnExists(tableName, column))
             {
-                throw new Exception("Column does not exist");
+                throw new MigrationException($"The table '{tableName}' does not have a column named '{column}'");
             }
 
             var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
 
             if (!sqliteInfoMainTable.ColumnMappings.Any(x => x.OldName == column))
             {
-                throw new Exception("Column not found");
+                throw new MigrationException("Column not found");
             }
 
             // We throw if all of the conditions are fulfilled:

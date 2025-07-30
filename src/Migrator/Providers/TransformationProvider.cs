@@ -443,16 +443,21 @@ namespace Migrator.Providers
             ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, Dialect.Quote(column.Name), quotedNewColumnName));
         }
 
-        public virtual void RemoveColumn(string table, string column)
+        public virtual void RemoveColumn(string tableName, string column)
         {
-            if (!ColumnExists(table, column, true))
+            if (!TableExists(tableName))
             {
-                throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", table, column));
+                throw new MigrationException($"The table '{tableName}' does not exist");
             }
 
-            var existingColumn = GetColumnByName(table, column);
+            if (!ColumnExists(tableName, column, true))
+            {
+                throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, column));
+            }
 
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP COLUMN {1} ", table, Dialect.Quote(existingColumn.Name)));
+            var existingColumn = GetColumnByName(tableName, column);
+
+            ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP COLUMN {1} ", tableName, Dialect.Quote(existingColumn.Name)));
         }
 
         public virtual bool ColumnExists(string table, string column)

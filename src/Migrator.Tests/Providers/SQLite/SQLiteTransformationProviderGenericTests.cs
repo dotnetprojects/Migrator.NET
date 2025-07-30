@@ -1,6 +1,7 @@
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Providers.SQLite;
 using Migrator.Tests.Settings;
+using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLite.Base;
@@ -13,7 +14,7 @@ public class SQLiteTransformationProviderGenericTests : TransformationProviderBa
     public void SetUp()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById("SQLiteConnectionString")
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteConnectionConfigId)
             .ConnectionString;
 
         Provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);

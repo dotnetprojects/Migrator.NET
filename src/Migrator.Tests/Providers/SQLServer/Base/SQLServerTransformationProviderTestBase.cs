@@ -16,12 +16,13 @@ public abstract class SQLServerTransformationProviderTestBase : TransformationPr
     public void SetUp()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteConnectionConfigId)
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLServerConnectionConfigId)
             .ConnectionString;
+
 
         DbProviderFactories.RegisterFactory("Microsoft.Data.SqlClient", () => Microsoft.Data.SqlClient.SqlClientFactory.Instance);
 
-        Provider = new SqlServerTransformationProvider(new SqlServerDialect(), connectionString, null, "default", null);
+        Provider = new SqlServerTransformationProvider(new SqlServerDialect(), connectionString, "dbo", "default", "Microsoft.Data.SqlClient");
         Provider.BeginTransaction();
 
         AddDefaultTable();

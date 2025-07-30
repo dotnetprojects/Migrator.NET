@@ -90,13 +90,15 @@ namespace Migrator.Providers.SqlServer
             table = _dialect.TableNameNeedsQuote ? _dialect.Quote(table) : table;
             ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
         }
+
         public override void AddPrimaryKeyNonClustered(string name, string table, params string[] columns)
         {
-            string nonclusteredString = "NONCLUSTERED";
+            var nonclusteredString = "NONCLUSTERED";
             ExecuteNonQuery(
-            String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY {2} ({3}) ", table, name, nonclusteredString,
-                          String.Join(",", QuoteColumnNamesIfRequired(columns))));
+            string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY {2} ({3}) ", table, name, nonclusteredString,
+                          string.Join(",", QuoteColumnNamesIfRequired(columns))));
         }
+
         public override void AddIndex(string table, Index index)
         {
             var name = QuoteConstraintNameIfRequired(index.Name);
@@ -108,7 +110,7 @@ namespace Migrator.Providers.SqlServer
             if (index.IncludeColumns != null && index.IncludeColumns.Length > 0)
             {
                 var include = QuoteColumnNamesIfRequired(index.IncludeColumns);
-                ExecuteNonQuery(String.Format("CREATE {0}{1} INDEX {2} ON {3} ({4}) INCLUDE ({5})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns), string.Join(", ", include)));
+                ExecuteNonQuery(string.Format("CREATE {0}{1} INDEX {2} ON {3} ({4}) INCLUDE ({5})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns), string.Join(", ", include)));
             }
             else
             {
@@ -132,7 +134,7 @@ namespace Migrator.Providers.SqlServer
 
                 base.ChangeColumn(table, column);
 
-                ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnPropertiesWithoutDefault(column);
+                var mapper = _dialect.GetAndMapColumnPropertiesWithoutDefault(column);
                 ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} {2} FOR {3}", this.QuoteTableNameIfRequired(table), "DF_" + table + "_" + column.Name, _dialect.Default(def), this.QuoteColumnNameIfRequired(column.Name)));
 
                 if (notNull)
@@ -147,11 +149,14 @@ namespace Migrator.Providers.SqlServer
         public override bool ColumnExists(string table, string column)
         {
             string schema;
+
             if (!TableExists(table))
             {
                 return false;
             }
+
             int firstIndex = table.IndexOf(".");
+
             if (firstIndex >= 0)
             {
                 schema = table.Substring(0, firstIndex);
@@ -161,6 +166,7 @@ namespace Migrator.Providers.SqlServer
             {
                 schema = _defaultSchema;
             }
+
             using (var cmd = CreateCommand())
             using (
                 IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{0}' AND TABLE_NAME='{1}' AND COLUMN_NAME='{2}'", schema, table, column)))
@@ -185,13 +191,16 @@ namespace Migrator.Providers.SqlServer
             int firstIndex = table.IndexOf(".");
             if (firstIndex >= 0)
             {
-                schema = table.Substring(0, firstIndex);
-                table = table.Substring(firstIndex + 1);
+                schema = table.Substring(0, firstIndex).Trim();
+                table = table.Substring(firstIndex + 1).Trim();
             }
             else
             {
                 schema = _defaultSchema;
             }
+
+            schema = schema.StartsWith("[") && schema.EndsWith("]") ? schema.Substring(1, schema.Length - 2) : schema;
+            table = table.StartsWith("[") && table.EndsWith("]") ? table.Substring(1, table.Length - 2) : table;
 
             using (var cmd = CreateCommand())
             using (IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", table, schema)))
@@ -453,6 +462,11 @@ FROM    sys.[indexes] Ind
 
         public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
         {
+            if (!TableExists(tableName))
+            {
+                throw new MigrationException($"The table '{tableName}' does not exist");
+            }
+
             if (ColumnExists(tableName, newColumnName))
                 throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
 

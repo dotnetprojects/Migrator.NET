@@ -236,11 +236,11 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     [Test]
     public void RemoveUnexistingColumn()
     {
-        var exception1 = Assert.Throws<Exception>(() => Provider.RemoveColumn("TestTwo", "abc"));
-        var exception2 = Assert.Throws<Exception>(() => Provider.RemoveColumn("abc", "abc"));
+        var exception1 = Assert.Throws<MigrationException>(() => Provider.RemoveColumn("TestTwo", "abc"));
+        var exception2 = Assert.Throws<MigrationException>(() => Provider.RemoveColumn("abc", "abc"));
 
-        Assert.That(exception1.Message, Is.EqualTo("Column does not exist"));
-        Assert.That(exception2.Message, Is.EqualTo("Table does not exist"));
+        Assert.That(exception1.Message, Is.EqualTo("The table 'TestTwo' does not have a column named 'abc'"));
+        Assert.That(exception2.Message, Is.EqualTo("The table 'abc' does not exist"));
     }
 
     /// <summary>
