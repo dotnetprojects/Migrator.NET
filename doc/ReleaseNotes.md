@@ -8,4 +8,4 @@
 + Removed `ForeignKey` use method `AddForeignKey(...)` instead.
 
 ### Other changes
-Added `ColumnProperty.Clustered` and `ColumnProperty.NonClustered` 
+Several fixes see PRs
