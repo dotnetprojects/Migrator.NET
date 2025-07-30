@@ -1,3 +1,5 @@
+using System.Data.SqlClient;
+using Migrator.Providers;
 using Migrator.Providers.SqlServer;
 using Migrator.Tests.Providers.Base;
 using Migrator.Tests.Settings;
@@ -8,7 +10,7 @@ namespace Migrator.Tests.Providers.SQLServer.Base;
 
 [TestFixture]
 [Category("SQLServer")]
-public abstract class SQLiteTransformationProviderTestBase : TransformationProviderSimpleBase
+public abstract class SQLServerTransformationProviderTestBase : TransformationProviderSimpleBase
 {
     [SetUp]
     public void SetUp()
@@ -16,6 +18,8 @@ public abstract class SQLiteTransformationProviderTestBase : TransformationProvi
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteConnectionConfigId)
             .ConnectionString;
+
+        DbProviderFactories.RegisterFactory("Microsoft.Data.SqlClient", () => Microsoft.Data.SqlClient.SqlClientFactory.Instance);
 
         Provider = new SqlServerTransformationProvider(new SqlServerDialect(), connectionString, null, "default", null);
         Provider.BeginTransaction();

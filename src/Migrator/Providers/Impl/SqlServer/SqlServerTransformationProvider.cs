@@ -16,6 +16,7 @@ using Migrator.Framework;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Globalization;
 using Index = Migrator.Framework.Index;
 
@@ -41,7 +42,10 @@ namespace Migrator.Providers.SqlServer
         protected virtual void CreateConnection(string providerName)
         {
             if (string.IsNullOrEmpty(providerName))
+            {
                 providerName = "System.Data.SqlClient";
+            }
+
             var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
             _connection = fac.CreateConnection(); //  new SqlConnection();
             _connection.ConnectionString = _connectionString;
