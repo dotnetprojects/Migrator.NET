@@ -9,7 +9,11 @@ public class SybaseTransformationProvider : TransformationProvider
     public SybaseTransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
         : base(dialect, connectionString, null, scope)
     {
-        if (string.IsNullOrEmpty(providerName)) providerName = "Sybase.Data.AseClient";
+        if (string.IsNullOrEmpty(providerName))
+        {
+            providerName = "Sybase.Data.AseClient";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
         _connection = fac.CreateConnection();
         _connection.ConnectionString = _connectionString;

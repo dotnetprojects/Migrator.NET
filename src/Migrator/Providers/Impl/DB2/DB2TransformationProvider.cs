@@ -12,7 +12,11 @@ public class DB2TransformationProvider : TransformationProvider
     public DB2TransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
         : base(dialect, connectionString, null, scope)
     {
-        if (string.IsNullOrEmpty(providerName)) providerName = "IBM.Data.DB2";
+        if (string.IsNullOrEmpty(providerName))
+        {
+            providerName = "IBM.Data.DB2";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
         _connection = fac.CreateConnection();
         _connection.ConnectionString = _connectionString;

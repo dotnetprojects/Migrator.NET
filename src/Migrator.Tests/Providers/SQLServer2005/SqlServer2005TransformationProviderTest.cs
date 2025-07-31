@@ -29,7 +29,9 @@ public class SqlServer2005TransformationProviderTest : TransformationProviderCon
 
 
         if (constr == null)
+        {
             throw new ArgumentNullException("SqlServer2005ConnectionString", "No config file");
+        }
 
         Provider = new SqlServerTransformationProvider(new SqlServer2005Dialect(), constr, null, "default", null);
         Provider.BeginTransaction();

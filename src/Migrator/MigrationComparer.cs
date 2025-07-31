@@ -41,8 +41,12 @@ public class MigrationTypeComparer : IComparer<Type>
 #endif
 
         if (_ascending)
+        {
             return attribOfX.Version.CompareTo(attribOfY.Version);
+        }
         else
+        {
             return attribOfY.Version.CompareTo(attribOfX.Version);
+        }
     }
 }

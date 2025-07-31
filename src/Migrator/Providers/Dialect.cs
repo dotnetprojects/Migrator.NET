@@ -85,15 +85,28 @@ public abstract class Dialect : IDialect
 
     protected void AddReservedWords(params string[] words)
     {
-        if (words == null) return;
-        foreach (var word in words) reservedWords.Add(word);
+        if (words == null)
+        {
+            return;
+        }
+
+        foreach (var word in words)
+        {
+            reservedWords.Add(word);
+        }
     }
 
     public virtual bool IsReservedWord(string reservedWord)
     {
-        if (string.IsNullOrEmpty(reservedWord)) throw new ArgumentNullException("reservedWord");
+        if (string.IsNullOrEmpty(reservedWord))
+        {
+            throw new ArgumentNullException("reservedWord");
+        }
 
-        if (reservedWords == null) return false;
+        if (reservedWords == null)
+        {
+            return false;
+        }
 
         var isReserved = reservedWords.Contains(reservedWord.ToUpperInvariant());
 
@@ -261,7 +274,9 @@ public abstract class Dialect : IDialect
     {
         var resultWithLength = typeNames.Get(type, length, precision, scale);
         if (resultWithLength != null)
+        {
             return resultWithLength;
+        }
 
         return GetTypeName(type);
     }
@@ -278,9 +293,12 @@ public abstract class Dialect : IDialect
     {
         var result = typeNames.GetParametrized(type);
         if (result != null)
+        {
             return result.Replace("{length}", length.ToString())
                 .Replace("{precision}", precision.ToString())
                 .Replace("{scale}", scale.ToString());
+        }
+
         return GetTypeName(type, length, precision, scale);
     }
 
@@ -346,7 +364,10 @@ public abstract class Dialect : IDialect
         var mapper = GetColumnMapper(column);
         mapper.MapColumnProperties(column);
         if (column.DefaultValue != null && column.DefaultValue != DBNull.Value)
+        {
             mapper.Default = column.DefaultValue;
+        }
+
         return mapper;
     }
 
@@ -355,7 +376,10 @@ public abstract class Dialect : IDialect
         var mapper = GetColumnMapper(column);
         mapper.MapColumnPropertiesWithoutDefault(column);
         if (column.DefaultValue != null && column.DefaultValue != DBNull.Value)
+        {
             mapper.Default = column.DefaultValue;
+        }
+
         return mapper;
     }
 

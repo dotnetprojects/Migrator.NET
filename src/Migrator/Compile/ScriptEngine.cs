@@ -25,7 +25,10 @@ public class ScriptEngine
     public ScriptEngine(string codeType, string[] extraReferencedAssemblies)
     {
         if (!String.IsNullOrEmpty(codeType))
+        {
             _codeType = codeType;
+        }
+
         this.extraReferencedAssemblies = extraReferencedAssemblies;
 
         // There is currently no way to generically create a CodeDomProvider and have it work with .NET 3.5

@@ -60,15 +60,22 @@ public class TypeNames
         type = type.Trim().ToLower();
         var retval = defaults.Where(x => x.Value.Trim().ToLower().StartsWith(type)).Select(x => x.Key);
         if (retval.Any())
+        {
             return (DbType)retval.First();
+        }
+
         retval = weighted.Where(x => x.Value.Where(y => y.Value.Trim().ToLower().StartsWith(type)).Any()).Select(x => x.Key);
         if (retval.Any())
+        {
             return (DbType)retval.First();
+        }
 
         var alias = aliases.Where(x => x.Key.Trim().ToLower().StartsWith(type));
 
         if (alias.Any())
+        {
             return (DbType)alias.First().Value;
+        }
 
         return DbType.AnsiString;
     }

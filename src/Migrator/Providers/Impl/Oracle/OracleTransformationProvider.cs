@@ -27,7 +27,11 @@ public class OracleTransformationProvider : TransformationProvider
 
     protected virtual void CreateConnection(string providerName)
     {
-        if (string.IsNullOrEmpty(providerName)) providerName = "Oracle.DataAccess.Client";
+        if (string.IsNullOrEmpty(providerName))
+        {
+            providerName = "Oracle.DataAccess.Client";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
         _connection = fac.CreateConnection(); // new OracleConnection();
         _connection.ConnectionString = _connectionString;
@@ -37,7 +41,9 @@ public class OracleTransformationProvider : TransformationProvider
     public override void DropDatabases(string databaseName)
     {
         if (string.IsNullOrEmpty(databaseName))
+        {
             ExecuteNonQuery(string.Format("DROP DATABASE"));
+        }
     }
 
     public override void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,
@@ -91,7 +97,9 @@ public class OracleTransformationProvider : TransformationProvider
             if (isNotNull)
             {
                 using (var cmd = CreateCommand())
+                {
                     ExecuteQuery(cmd, String.Format("ALTER TABLE {0} MODIFY ({1} NOT NULL)", table, columnName));
+                }
             }
         }
         else
@@ -138,7 +146,10 @@ public class OracleTransformationProvider : TransformationProvider
 
     private void GuardAgainstExistingTableWithSameName(string newName, string oldName)
     {
-        if (TableExists(newName)) throw new MigrationException(string.Format("Can not rename table \"{0}\" to \"{1}\", a table with that name already exists", oldName, newName));
+        if (TableExists(newName))
+        {
+            throw new MigrationException(string.Format("Can not rename table \"{0}\" to \"{1}\", a table with that name already exists", oldName, newName));
+        }
     }
 
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
@@ -155,13 +166,23 @@ public class OracleTransformationProvider : TransformationProvider
 
     private void GuardAgainstExistingColumnWithSameName(string newColumnName, string tableName)
     {
-        if (ColumnExists(tableName, newColumnName)) throw new MigrationException(string.Format("A column with the name \"{0}\" already exists in the table \"{1}\"", newColumnName, tableName));
+        if (ColumnExists(tableName, newColumnName))
+        {
+            throw new MigrationException(string.Format("A column with the name \"{0}\" already exists in the table \"{1}\"", newColumnName, tableName));
+        }
     }
 
     public override void ChangeColumn(string table, string sqlColumn)
     {
-        if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-        if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("sqlColumn");
+        if (string.IsNullOrEmpty(table))
+        {
+            throw new ArgumentNullException("table");
+        }
+
+        if (string.IsNullOrEmpty(table))
+        {
+            throw new ArgumentNullException("sqlColumn");
+        }
 
         table = QuoteTableNameIfRequired(table);
         sqlColumn = QuoteColumnNameIfRequired(sqlColumn);
@@ -227,7 +248,9 @@ public class OracleTransformationProvider : TransformationProvider
     public override bool ColumnExists(string table, string column)
     {
         if (!TableExists(table))
+        {
             return false;
+        }
 
         var sql =
             string.Format(
@@ -243,7 +266,9 @@ public class OracleTransformationProvider : TransformationProvider
         var sql = string.Format("SELECT COUNT(table_name) FROM user_tables WHERE lower(table_name) = '{0}'", table.ToLower());
 
         if (_defaultSchema != null)
+        {
             sql = string.Format("SELECT COUNT(table_name) FROM user_tables WHERE lower(owner) = '{0}' and lower(table_name) = '{1}'", _defaultSchema.ToLower(), table.ToLower());
+        }
 
         Logger.Log(sql);
         var count = ExecuteScalar(sql);
@@ -255,7 +280,9 @@ public class OracleTransformationProvider : TransformationProvider
         var sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(view_name) = '{0}'", view.ToLower());
 
         if (_defaultSchema != null)
+        {
             sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(owner) = '{0}' and lower(view_name) = '{1}'", _defaultSchema.ToLower(), view.ToLower());
+        }
 
         Logger.Log(sql);
         var count = ExecuteScalar(sql);
@@ -326,7 +353,9 @@ public class OracleTransformationProvider : TransformationProvider
                 var column = new Column(colName, colType, columnProperties);
 
                 if (defaultValue != null && defaultValue != DBNull.Value)
+                {
                     column.DefaultValue = defaultValue;
+                }
 
                 if (column.DefaultValue is string && ((string)column.DefaultValue).StartsWith("'") && ((string)column.DefaultValue).EndsWith("'"))
                 {
@@ -337,13 +366,21 @@ public class OracleTransformationProvider : TransformationProvider
                      column.DefaultValue is not string && column.DefaultValue != null)
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    {
                         column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                    {
                         column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                    {
                         column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.Boolean)
+                    {
                         column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
+                    }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
                         if (column.DefaultValue is string defValCv && defValCv.StartsWith("TO_TIMESTAMP("))
@@ -356,7 +393,10 @@ public class OracleTransformationProvider : TransformationProvider
                         {
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
+                            {
                                 dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
                             var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
                             column.DefaultValue = d;
                         }
@@ -373,7 +413,10 @@ public class OracleTransformationProvider : TransformationProvider
                         {
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
+                            {
                                 dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
                             var d = Guid.Parse(dt);
                             column.DefaultValue = d;
                         }
@@ -391,8 +434,15 @@ public class OracleTransformationProvider : TransformationProvider
     {
         if (value is string)
         {
-            if ("N" == (string)value) return false;
-            if ("Y" == (string)value) return true;
+            if ("N" == (string)value)
+            {
+                return false;
+            }
+
+            if ("Y" == (string)value)
+            {
+                return true;
+            }
         }
 
         return Convert.ToBoolean(value);
@@ -469,7 +519,9 @@ public class OracleTransformationProvider : TransformationProvider
 
             var seqTName = name.Length > 21 ? name.Substring(0, 21) : name;
             if (seqTName.EndsWith("_"))
+            {
                 seqTName = seqTName.Substring(0, seqTName.Length - 1);
+            }
 
             // Create a sequence for the table
             using (var cmd = CreateCommand())
@@ -479,8 +531,10 @@ public class OracleTransformationProvider : TransformationProvider
 
             // Create identity trigger (This all has to be in one line (no whitespace), I learned the hard way :) )
             using (var cmd = CreateCommand())
+            {
                 ExecuteQuery(cmd, String.Format(
                 @"CREATE OR REPLACE TRIGGER {0}_TRIGGER BEFORE INSERT ON {1} FOR EACH ROW BEGIN SELECT {0}_SEQUENCE.NEXTVAL INTO :NEW.{2} FROM DUAL; END;", seqTName, name, identityColumn.Name));
+            }
         }
     }
     public override void RemoveTable(string name)
@@ -489,7 +543,9 @@ public class OracleTransformationProvider : TransformationProvider
         try
         {
             using (var cmd = CreateCommand())
+            {
                 ExecuteQuery(cmd, String.Format(@"DROP SEQUENCE {0}_SEQUENCE", name));
+            }
         }
         catch (Exception)
         {
@@ -513,7 +569,11 @@ public class OracleTransformationProvider : TransformationProvider
     {
         var bytes = guid.ToByteArray();
         var hex = new StringBuilder(bytes.Length * 2);
-        foreach (var b in bytes) hex.AppendFormat("{0:X2}", b);
+        foreach (var b in bytes)
+        {
+            hex.AppendFormat("{0:X2}", b);
+        }
+
         return hex.ToString();
     }
 
@@ -533,7 +593,10 @@ public class OracleTransformationProvider : TransformationProvider
         get
         {
             if (_defaultSchema == null)
+            {
                 return "SchemaInfo";
+            }
+
             return string.Format("{0}.{1}", _defaultSchema, "SchemaInfo");
         }
     }
@@ -565,7 +628,9 @@ public class OracleTransformationProvider : TransformationProvider
                     index.UniqueConstraint = reader.GetString(1) == "C" ? true : false;
                 }
                 else
+                {
                     index.PrimaryKey = false;
+                }
 
                 index.Clustered = false; //???
 

@@ -61,7 +61,10 @@ public class MigrationLoader
         get
         {
             if (_migrationsTypes.Count == 0)
+            {
                 return 0;
+            }
+
             return GetMigrationVersion(_migrationsTypes[_migrationsTypes.Count - 1]);
         }
     }
@@ -69,7 +72,9 @@ public class MigrationLoader
     public virtual void AddMigrations(Assembly migrationAssembly)
     {
         if (migrationAssembly != null)
+        {
             _migrationsTypes.AddRange(GetMigrationTypes(migrationAssembly));
+        }
     }
 
     /// <summary>
@@ -84,7 +89,9 @@ public class MigrationLoader
             var version = GetMigrationVersion(t);
 
             if (versions.Contains(version))
+            {
                 throw new DuplicatedVersionException(version);
+            }
 
             versions.Add(version);
         }

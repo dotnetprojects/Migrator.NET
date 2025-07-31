@@ -31,7 +31,9 @@ public class SqlServerCeTransformationProviderTest : TransformationProviderConst
     {
         var constr = ConfigurationManager.AppSettings["SqlServerCeConnectionString"];
         if (constr == null)
+        {
             throw new ArgumentNullException("SqlServerCeConnectionString", "No config file");
+        }
 
         EnsureDatabase(constr);
 

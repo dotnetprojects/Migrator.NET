@@ -199,7 +199,10 @@ public abstract class TransformationProvider : ITransformationProvider
         var result = this.ExecuteScalar("SELECT MAX(LENGTH(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
 
         if (result == DBNull.Value)
+        {
             return 0;
+        }
+
         return Convert.ToInt32(result);
     }
 
@@ -923,7 +926,9 @@ public abstract class TransformationProvider : ITransformationProvider
             string sqlText;
             var file = (new System.Uri(assembly.CodeBase)).AbsolutePath;
             using (var reader = File.OpenText(file))
+            {
                 sqlText = reader.ReadToEnd();
+            }
 
             ExecuteNonQuery(sqlText);
         }
@@ -1022,7 +1027,11 @@ public abstract class TransformationProvider : ITransformationProvider
         var builder = new StringBuilder();
         for (var i = 0; i < columns.Length; i++)
         {
-            if (builder.Length > 0) builder.Append(", ");
+            if (builder.Length > 0)
+            {
+                builder.Append(", ");
+            }
+
             builder.Append(QuoteColumnNameIfRequired(columns[i]));
         }
 
@@ -1045,14 +1054,20 @@ public abstract class TransformationProvider : ITransformationProvider
         if (nullWhereColumns != null)
         {
             if (andNeeded)
+            {
                 query += " AND ";
+            }
+
             query += GetWhereStringIsNull(nullWhereColumns);
             andNeeded = true;
         }
         if (notNullWhereColumns != null)
         {
             if (andNeeded)
+            {
                 query += " AND ";
+            }
+
             query += GetWhereStringIsNotNull(notNullWhereColumns);
             andNeeded = true;
         }
@@ -1098,7 +1113,9 @@ public abstract class TransformationProvider : ITransformationProvider
         using (var command = _connection.CreateCommand())
         {
             if (CommandTimeout.HasValue)
+            {
                 command.CommandTimeout = CommandTimeout.Value;
+            }
 
             command.Transaction = _transaction;
 
@@ -1134,17 +1151,36 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual int Update(string table, string[] columns, object[] values, string where)
     {
-        if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-        if (columns == null) throw new ArgumentNullException("columns");
-        if (values == null) throw new ArgumentNullException("values");
-        if (columns.Length != values.Length) throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+        if (string.IsNullOrEmpty(table))
+        {
+            throw new ArgumentNullException("table");
+        }
+
+        if (columns == null)
+        {
+            throw new ArgumentNullException("columns");
+        }
+
+        if (values == null)
+        {
+            throw new ArgumentNullException("values");
+        }
+
+        if (columns.Length != values.Length)
+        {
+            throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+        }
 
         table = QuoteTableNameIfRequired(table);
 
         var builder = new StringBuilder();
         for (var i = 0; i < values.Length; i++)
         {
-            if (builder.Length > 0) builder.Append(", ");
+            if (builder.Length > 0)
+            {
+                builder.Append(", ");
+            }
+
             builder.Append(QuoteColumnNameIfRequired(columns[i]));
             builder.Append(" = ");
             builder.Append(GenerateParameterName(i));
@@ -1153,7 +1189,9 @@ public abstract class TransformationProvider : ITransformationProvider
         using (var command = _connection.CreateCommand())
         {
             if (CommandTimeout.HasValue)
+            {
                 command.CommandTimeout = CommandTimeout.Value;
+            }
 
             command.Transaction = _transaction;
 
@@ -1187,18 +1225,41 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual int Update(string table, string[] columns, object[] values, string[] whereColumns, object[] whereValues)
     {
-        if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-        if (columns == null) throw new ArgumentNullException("columns");
-        if (values == null) throw new ArgumentNullException("values");
-        if (columns.Length != values.Length) throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
-        if (whereColumns.Length != whereValues.Length) throw new Exception(string.Format("The number of whereColumns: {0} does not match the number of supplied whereValues: {1}", whereColumns.Length, whereValues.Length));
+        if (string.IsNullOrEmpty(table))
+        {
+            throw new ArgumentNullException("table");
+        }
+
+        if (columns == null)
+        {
+            throw new ArgumentNullException("columns");
+        }
+
+        if (values == null)
+        {
+            throw new ArgumentNullException("values");
+        }
+
+        if (columns.Length != values.Length)
+        {
+            throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+        }
+
+        if (whereColumns.Length != whereValues.Length)
+        {
+            throw new Exception(string.Format("The number of whereColumns: {0} does not match the number of supplied whereValues: {1}", whereColumns.Length, whereValues.Length));
+        }
 
         table = QuoteTableNameIfRequired(table);
 
         var builder = new StringBuilder();
         for (var i = 0; i < values.Length; i++)
         {
-            if (builder.Length > 0) builder.Append(", ");
+            if (builder.Length > 0)
+            {
+                builder.Append(", ");
+            }
+
             builder.Append(QuoteColumnNameIfRequired(columns[i]));
             builder.Append(" = ");
             builder.Append(GenerateParameterName(i));
@@ -1207,7 +1268,9 @@ public abstract class TransformationProvider : ITransformationProvider
         using (var command = _connection.CreateCommand())
         {
             if (CommandTimeout.HasValue)
+            {
                 command.CommandTimeout = CommandTimeout.Value;
+            }
 
             command.Transaction = _transaction;
 
@@ -1234,7 +1297,9 @@ public abstract class TransformationProvider : ITransformationProvider
             foreach (var value in whereValues)
             {
                 if (value == null || value == DBNull.Value)
+                {
                     continue;
+                }
 
                 var parameter = command.CreateParameter();
 
@@ -1255,10 +1320,25 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual int Insert(string table, string[] columns, object[] values)
     {
-        if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-        if (columns == null) throw new ArgumentNullException("columns");
-        if (values == null) throw new ArgumentNullException("values");
-        if (columns.Length != values.Length) throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+        if (string.IsNullOrEmpty(table))
+        {
+            throw new ArgumentNullException("table");
+        }
+
+        if (columns == null)
+        {
+            throw new ArgumentNullException("columns");
+        }
+
+        if (values == null)
+        {
+            throw new ArgumentNullException("values");
+        }
+
+        if (columns.Length != values.Length)
+        {
+            throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+        }
 
         table = QuoteTableNameIfRequired(table);
 
@@ -1268,7 +1348,11 @@ public abstract class TransformationProvider : ITransformationProvider
 
         for (var i = 0; i < values.Length; i++)
         {
-            if (builder.Length > 0) builder.Append(", ");
+            if (builder.Length > 0)
+            {
+                builder.Append(", ");
+            }
+
             builder.Append(GenerateParameterName(i));
         }
 
@@ -1277,7 +1361,9 @@ public abstract class TransformationProvider : ITransformationProvider
         using (var command = _connection.CreateCommand())
         {
             if (CommandTimeout.HasValue)
+            {
                 command.CommandTimeout = CommandTimeout.Value;
+            }
 
             command.Transaction = _transaction;
 
@@ -1309,7 +1395,11 @@ public abstract class TransformationProvider : ITransformationProvider
         var parCnt = 0;
         for (var i = 0; i < whereColumns.Length; i++)
         {
-            if (builder2.Length > 0) builder2.Append(" AND ");
+            if (builder2.Length > 0)
+            {
+                builder2.Append(" AND ");
+            }
+
             var val = whereValues[i];
             if (val == null || val == DBNull.Value)
             {
@@ -1333,7 +1423,11 @@ public abstract class TransformationProvider : ITransformationProvider
         var builder2 = new StringBuilder();
         for (var i = 0; i < whereColumns.Length; i++)
         {
-            if (builder2.Length > 0) builder2.Append(" AND ");
+            if (builder2.Length > 0)
+            {
+                builder2.Append(" AND ");
+            }
+
             builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
             builder2.Append(" = ");
             builder2.Append(GenerateParameterName(i + parameterStartIndex));
@@ -1347,7 +1441,11 @@ public abstract class TransformationProvider : ITransformationProvider
         var builder2 = new StringBuilder();
         for (var i = 0; i < whereColumns.Length; i++)
         {
-            if (builder2.Length > 0) builder2.Append(" AND ");
+            if (builder2.Length > 0)
+            {
+                builder2.Append(" AND ");
+            }
+
             builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
             builder2.Append(" IS NULL");
         }
@@ -1360,7 +1458,11 @@ public abstract class TransformationProvider : ITransformationProvider
         var builder2 = new StringBuilder();
         for (var i = 0; i < whereColumns.Length; i++)
         {
-            if (builder2.Length > 0) builder2.Append(" AND ");
+            if (builder2.Length > 0)
+            {
+                builder2.Append(" AND ");
+            }
+
             builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
             builder2.Append(" IS NOT NULL");
         }
@@ -1388,8 +1490,10 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual int Delete(string table, string[] whereColumns = null, object[] whereValues = null)
     {
-        if (string.IsNullOrEmpty(table)) throw new ArgumentNullException("table");
-
+        if (string.IsNullOrEmpty(table))
+        {
+            throw new ArgumentNullException("table");
+        }
 
         if (null == whereColumns || null == whereValues)
         {
@@ -1402,7 +1506,9 @@ public abstract class TransformationProvider : ITransformationProvider
             using (var command = _connection.CreateCommand())
             {
                 if (CommandTimeout.HasValue)
+                {
                     command.CommandTimeout = CommandTimeout.Value;
+                }
 
                 command.Transaction = _transaction;
 
@@ -1593,7 +1699,9 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void ExecuteSchemaBuilder(SchemaBuilder builder)
     {
         foreach (var expr in builder.Expressions)
+        {
             expr.Create(this);
+        }
     }
 
     public void Dispose()
@@ -1674,7 +1782,9 @@ public abstract class TransformationProvider : ITransformationProvider
         foreach (var col in columns)
         {
             if (col.IsPrimaryKey)
+            {
                 pks.Add(col.Name);
+            }
         }
         return pks;
     }
@@ -1819,9 +1929,13 @@ public abstract class TransformationProvider : ITransformationProvider
         return values.Select(val =>
         {
             if (null == val)
+            {
                 return "null";
+            }
             else
+            {
                 return String.Format("'{0}'", val.Replace("'", "''"));
+            }
         }).ToArray();
     }
 
@@ -1926,8 +2040,16 @@ public abstract class TransformationProvider : ITransformationProvider
 
     private string FormatValue(object value)
     {
-        if (value == null) return null;
-        if (value is DateTime) return ((DateTime)value).ToString("yyyy-MM-dd HH:mm:ss:fff");
+        if (value == null)
+        {
+            return null;
+        }
+
+        if (value is DateTime)
+        {
+            return ((DateTime)value).ToString("yyyy-MM-dd HH:mm:ss:fff");
+        }
+
         return value.ToString();
     }
 
@@ -1978,18 +2100,27 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual void RemovePrimaryKey(string table)
     {
-        if (!TableExists(table)) return;
+        if (!TableExists(table))
+        {
+            return;
+        }
 
         var primaryKeyConstraintName = GetPrimaryKeyConstraintName(table);
 
-        if (primaryKeyConstraintName == null || !ConstraintExists(table, primaryKeyConstraintName)) return;
+        if (primaryKeyConstraintName == null || !ConstraintExists(table, primaryKeyConstraintName))
+        {
+            return;
+        }
 
         RemoveConstraint(table, primaryKeyConstraintName);
     }
 
     public virtual void RemoveAllIndexes(string table)
     {
-        if (!TableExists(table)) return;
+        if (!TableExists(table))
+        {
+            return;
+        }
 
         var indexes = GetIndexes(table);
 

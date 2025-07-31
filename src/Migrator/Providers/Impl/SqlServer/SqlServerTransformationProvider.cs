@@ -77,11 +77,14 @@ public class SqlServerTransformationProvider : TransformationProvider
         }
 
         if (!retVal)
+        {
             using (var cmd = CreateCommand())
             using (var reader = ExecuteQuery(cmd, string.Format("SELECT TOP 1 * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('{0}') AND name = '{1}'", table, name)))
             {
                 return reader.Read();
             }
+        }
+
         return true;
     }
 
@@ -180,7 +183,9 @@ public class SqlServerTransformationProvider : TransformationProvider
         var sql = string.Format("SELECT name FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('{0}') AND parent_column_id = (SELECT column_id FROM sys.columns WHERE name = '{1}' AND object_id = OBJECT_ID('{0}'))", table, column);
         var constraintName = ExecuteScalar(sql);
         if (constraintName != null)
+        {
             RemoveConstraint(table, constraintName.ToString());
+        }
     }
 
 
@@ -309,7 +314,10 @@ FROM    sys.[indexes] Ind
         var result = this.ExecuteScalar("SELECT MAX(LEN(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
 
         if (result == DBNull.Value)
+        {
             return 0;
+        }
+
         return Convert.ToInt32(result);
     }
 
@@ -356,10 +364,14 @@ FROM    sys.[indexes] Ind
                 var column = new Column(reader.GetString(0), DbType.String);
 
                 if (pkColumns.Contains(column.Name))
+                {
                     column.ColumnProperty |= ColumnProperty.PrimaryKey;
+                }
 
                 if (idtColumns.Contains(column.Name))
+                {
                     column.ColumnProperty |= ColumnProperty.Identity;
+                }
 
                 var nullableStr = reader.GetString(1);
                 var isNullable = nullableStr == "YES";
@@ -377,18 +389,30 @@ FROM    sys.[indexes] Ind
                     column.DefaultValue = reader.GetValue(4);
 
                     if (column.DefaultValue.ToString()[1] == '(' || column.DefaultValue.ToString()[1] == '\'')
+                    {
                         column.DefaultValue = column.DefaultValue.ToString().Substring(2, column.DefaultValue.ToString().Length - 4); // Example "((10))" or "('false')"
+                    }
                     else
+                    {
                         column.DefaultValue = column.DefaultValue.ToString().Substring(1, column.DefaultValue.ToString().Length - 2); // Example "(CONVERT([datetime],'20000101',(112)))"
+                    }
 
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    {
                         column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                    {
                         column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                    {
                         column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.Boolean)
+                    {
                         column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+                    }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
                         if (column.DefaultValue is string defValCv && defValCv.StartsWith("CONVERT("))
@@ -401,7 +425,10 @@ FROM    sys.[indexes] Ind
                         {
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
+                            {
                                 dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
                             var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
                             column.DefaultValue = d;
                         }
@@ -412,7 +439,10 @@ FROM    sys.[indexes] Ind
                         {
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
+                            {
                                 dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
                             var d = Guid.Parse(dt);
                             column.DefaultValue = d;
                         }
@@ -468,13 +498,19 @@ FROM    sys.[indexes] Ind
         }
 
         if (ColumnExists(tableName, newColumnName))
+        {
             throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+        }
 
         if (!ColumnExists(tableName, oldColumnName))
+        {
             throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
+        }
 
         if (ColumnExists(tableName, oldColumnName))
+        {
             ExecuteNonQuery(String.Format("EXEC sp_rename '{0}.{1}', '{2}', 'COLUMN'", tableName, oldColumnName, newColumnName));
+        }
     }
 
     public override void RenameTable(string oldName, string newName)

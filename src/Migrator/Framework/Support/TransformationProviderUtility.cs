@@ -29,7 +29,10 @@ public static class TransformationProviderUtility
             }
         }
 
-        if (adjustedName.Length > totalCharacters) adjustedName = adjustedName.Substring(0, totalCharacters);
+        if (adjustedName.Length > totalCharacters)
+        {
+            adjustedName = adjustedName.Substring(0, totalCharacters);
+        }
 
         if (name != adjustedName)
         {
@@ -71,9 +74,15 @@ public static class TransformationProviderUtility
         //string result = null;
         var foundResources = resources.Where(isNameMatch).ToArray();
 
-        if (foundResources.Length == 0) throw new InvalidOperationException(string.Format("Could not find resource named {0} in assembly {1}", resourceName, assembly.FullName));
+        if (foundResources.Length == 0)
+        {
+            throw new InvalidOperationException(string.Format("Could not find resource named {0} in assembly {1}", resourceName, assembly.FullName));
+        }
 
-        if (foundResources.Length > 1) throw new InvalidOperationException(string.Format(@"Could not find unique resource named {0} in assembly {1}.Possible candidates are: {2}", resourceName, assembly.FullName, string.Join(Environment.NewLine + "\t", foundResources)));
+        if (foundResources.Length > 1)
+        {
+            throw new InvalidOperationException(string.Format(@"Could not find unique resource named {0} in assembly {1}.Possible candidates are: {2}", resourceName, assembly.FullName, string.Join(Environment.NewLine + "\t", foundResources)));
+        }
 
         return foundResources[0];
     }

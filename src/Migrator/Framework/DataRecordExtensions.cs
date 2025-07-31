@@ -16,7 +16,10 @@ public static class DataRecordExtensions
 
         var type = typeof(T);
 
-        if (value == null || value == DBNull.Value) return defaultValue();
+        if (value == null || value == DBNull.Value)
+        {
+            return defaultValue();
+        }
 
         if (type == typeof(DateTime?) || type == typeof(DateTime))
         {
@@ -25,7 +28,11 @@ public static class DataRecordExtensions
 
         if (type == typeof(Guid) || type == typeof(Guid?))
         {
-            if (value is byte[]) return (T)(object)new Guid((byte[])value);
+            if (value is byte[])
+            {
+                return (T)(object)new Guid((byte[])value);
+            }
+
             return (T)((object)new Guid(value.ToString()));
         }
 

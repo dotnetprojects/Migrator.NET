@@ -69,7 +69,10 @@ public class ColumnPropertiesMapper
         get
         {
             if (dialect.SupportsIndex && indexed)
+            {
                 return String.Format("INDEX({0})", dialect.Quote(name));
+            }
+
             return null;
         }
     }
@@ -173,12 +176,16 @@ public class ColumnPropertiesMapper
     protected virtual void AddIdentityAgain(Column column, List<string> vals)
     {
         if (dialect.IdentityNeedsType)
+        {
             AddValueIfSelected(column, ColumnProperty.Identity, vals);
+        }
     }
     protected virtual void AddPrimaryKeyNonClustered(Column column, List<string> vals)
     {
         if (dialect.SupportsNonClustered)
+        {
             AddValueIfSelected(column, ColumnProperty.PrimaryKeyNonClustered, vals);
+        }
     }
     protected virtual void AddPrimaryKey(Column column, List<string> vals)
     {

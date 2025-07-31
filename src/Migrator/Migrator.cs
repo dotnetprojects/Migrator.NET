@@ -168,7 +168,10 @@ public class Migrator
         get
         {
             if (AppliedMigrations.Count() == 0)
+            {
                 return null;
+            }
+
             return AppliedMigrations.Max();
         }
     }

@@ -23,7 +23,10 @@ public class SQLiteMonoTransformationProvider : SQLiteTransformationProvider
     protected override void CreateConnection(string providerName)
     {
         if (string.IsNullOrEmpty(providerName))
+        {
             providerName = "Mono.Data.Sqlite";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, "Mono.Data.Sqlite", "Mono.Data.Sqlite.SQLiteFactory");
         _connection = fac.CreateConnection(); // new SQLiteConnection(_connectionString);
         _connection.ConnectionString = _connectionString;

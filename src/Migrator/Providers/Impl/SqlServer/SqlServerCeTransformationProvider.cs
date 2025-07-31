@@ -34,7 +34,11 @@ public class SqlServerCeTransformationProvider : SqlServerTransformationProvider
 
     protected override void CreateConnection(string providerName)
     {
-        if (string.IsNullOrEmpty(providerName)) providerName = "System.Data.SqlServerCe.3.5";
+        if (string.IsNullOrEmpty(providerName))
+        {
+            providerName = "System.Data.SqlServerCe.3.5";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
         _connection = fac.CreateConnection(); //  new SqlConnection();
         _connection.ConnectionString = _connectionString;
@@ -88,10 +92,14 @@ public class SqlServerCeTransformationProvider : SqlServerTransformationProvider
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
     {
         if (ColumnExists(tableName, newColumnName))
+        {
             throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+        }
 
         if (!ColumnExists(tableName, oldColumnName))
+        {
             throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
+        }
 
         if (ColumnExists(tableName, oldColumnName))
         {

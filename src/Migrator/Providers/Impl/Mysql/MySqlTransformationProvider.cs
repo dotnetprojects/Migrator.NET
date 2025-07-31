@@ -15,7 +15,11 @@ public class MySqlTransformationProvider : TransformationProvider
     public MySqlTransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
         : base(dialect, connectionString, null, scope) // we ignore schemas for MySql (schema == database for MySql)
     {
-        if (string.IsNullOrEmpty(providerName)) providerName = "MySql.Data.MySqlClient";
+        if (string.IsNullOrEmpty(providerName))
+        {
+            providerName = "MySql.Data.MySqlClient";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, "MySql.Data", "MySql.Data.MySqlClient.MySqlClientFactory");
         _connection = fac.CreateConnection(); //new MySqlConnection(_connectionString) {ConnectionString = _connectionString};
         _connection.ConnectionString = _connectionString;
@@ -57,7 +61,9 @@ public class MySqlTransformationProvider : TransformationProvider
         foreach (var tuple in l)
         {
             if (tuple.Item3 == "FOREIGN KEY")
+            {
                 RemoveForeignKey(tuple.Item1, tuple.Item2);
+            }
             else if (tuple.Item3 == "PRIMARY KEY")
             {
                 try
@@ -68,7 +74,9 @@ public class MySqlTransformationProvider : TransformationProvider
                 { }
             }
             else if (tuple.Item3 == "UNIQUE")
+            {
                 RemoveIndex(tuple.Item1, tuple.Item2);
+            }
         }
     }
 
@@ -117,7 +125,9 @@ public class MySqlTransformationProvider : TransformationProvider
     public override bool ConstraintExists(string table, string name)
     {
         if (!TableExists(table))
+        {
             return false;
+        }
 
         var sqlConstraint = string.Format("SHOW KEYS FROM {0}", table);
         using (var cmd = CreateCommand())
@@ -138,7 +148,9 @@ public class MySqlTransformationProvider : TransformationProvider
     public bool ForeignKeyExists(string table, string name)
     {
         if (!TableExists(table))
+        {
             return false;
+        }
 
         var sqlConstraint = string.Format(@"SELECT distinct i.CONSTRAINT_NAME
                                                     FROM information_schema.TABLE_CONSTRAINTS i 
@@ -214,25 +226,38 @@ public class MySqlTransformationProvider : TransformationProvider
                 column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
 
                 if (defaultValue != null && defaultValue != DBNull.Value)
+                {
                     column.DefaultValue = defaultValue;
+                }
 
                 if (column.DefaultValue != null)
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    {
                         column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                    {
                         column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                    {
                         column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                    }
                     else if (column.Type == DbType.Boolean)
+                    {
                         column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+                    }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
                         if (column.DefaultValue is string defVal)
                         {
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
+                            {
                                 dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
                             var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
                             column.DefaultValue = d;
                         }
@@ -243,7 +268,10 @@ public class MySqlTransformationProvider : TransformationProvider
                         {
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
+                            {
                                 dt = defVal.Substring(1, defVal.Length - 2);
+                            }
+
                             var d = Guid.Parse(dt);
                             column.DefaultValue = d;
                         }
@@ -339,11 +367,15 @@ public class MySqlTransformationProvider : TransformationProvider
         if (!String.IsNullOrEmpty(definition))
         {
             if (dropPrimary)
+            {
                 ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP PRIMARY KEY", tableName));
+            }
+
             ExecuteNonQuery(String.Format("ALTER TABLE {0} CHANGE {1} {2} {3}", tableName, QuoteColumnNameIfRequired(oldColumnName), QuoteColumnNameIfRequired(newColumnName), definition));
             if (dropPrimary)
+            {
                 ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD PRIMARY KEY({1});", tableName, QuoteColumnNameIfRequired(newColumnName)));
-
+            }
         }
     }
 

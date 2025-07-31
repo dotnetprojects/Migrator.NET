@@ -14,8 +14,9 @@ public static class DbProviderFactoriesHelper
         {
             var factory = DbProviderFactories.GetFactory(providerName);
             if (factory != null)
+            {
                 return factory;
-
+            }
         }
         catch (Exception)
         { }
@@ -26,7 +27,9 @@ public static class DbProviderFactoriesHelper
         {
             var factory = System.Data.Common.DbProviderFactories.GetFactory(providerName);
             if (factory != null)
+            {
                 return factory;
+            }
         }
         catch (Exception)
         { }

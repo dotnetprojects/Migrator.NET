@@ -41,9 +41,13 @@ public class SchemaDumper
     private void Dump(string tablePrefix, string path)
     {
         if (String.IsNullOrEmpty(tablePrefix))
+        {
             this.tables = this._provider.GetTables();
+        }
         else
+        {
             this.tables = this._provider.GetTables().Where(o => o.ToUpper().StartsWith(tablePrefix.ToUpper())).ToArray();
+        }
 
         foreach (var tab in this.tables)
         {
@@ -70,7 +74,10 @@ public class SchemaDumper
     private string GetListString(string[] list)
     {
         if (list == null)
+        {
             return "new string[]{}";
+        }
+
         for (var i = 0; i < list.Length; i++)
         {
             list[i] = $"\"{list[i]}\"";
@@ -138,7 +145,10 @@ public class SchemaDumper
     {
         var precision = "";
         if (col.Precision != null)
+        {
             precision = $"({col.Precision})";
+        }
+
         var propertyString = this.GetColumnPropertyString(col.ColumnProperty);
 
         if (col.Size != 0 && col.DefaultValue == null && col.ColumnProperty == ColumnProperty.None)
@@ -172,19 +182,47 @@ public class SchemaDumper
     {
         var retVal = "";
         // if ((prp & ColumnProperty.ForeignKey) == ColumnProperty.ForeignKey) retVal += "ColumnProperty.ForeignKey | ";
-        if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity) retVal += "ColumnProperty.Identity | ";
-        if ((prp & ColumnProperty.Indexed) == ColumnProperty.Indexed) retVal += "ColumnProperty.Indexed | ";
-        if ((prp & ColumnProperty.NotNull) == ColumnProperty.NotNull) retVal += "ColumnProperty.NotNull | ";
-        if ((prp & ColumnProperty.Null) == ColumnProperty.Null) retVal += "ColumnProperty.Null | ";
+        if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity)
+        {
+            retVal += "ColumnProperty.Identity | ";
+        }
+
+        if ((prp & ColumnProperty.Indexed) == ColumnProperty.Indexed)
+        {
+            retVal += "ColumnProperty.Indexed | ";
+        }
+
+        if ((prp & ColumnProperty.NotNull) == ColumnProperty.NotNull)
+        {
+            retVal += "ColumnProperty.NotNull | ";
+        }
+
+        if ((prp & ColumnProperty.Null) == ColumnProperty.Null)
+        {
+            retVal += "ColumnProperty.Null | ";
+        }
         //if ((prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey) retVal += "ColumnProperty.PrimaryKey | ";
         //if ((prp & ColumnProperty.PrimaryKeyWithIdentity) == ColumnProperty.PrimaryKeyWithIdentity) retVal += "ColumnProperty.PrimaryKeyWithIdentity | ";
         //if ((prp & ColumnProperty.PrimaryKeyNonClustered) == ColumnProperty.PrimaryKeyNonClustered) retVal += "ColumnProperty.PrimaryKeyNonClustered | ";
-        if ((prp & ColumnProperty.Unique) == ColumnProperty.Unique) retVal += "ColumnProperty.Unique | ";
-        if ((prp & ColumnProperty.Unsigned) == ColumnProperty.Unsigned) retVal += "ColumnProperty.Unsigned | ";
+        if ((prp & ColumnProperty.Unique) == ColumnProperty.Unique)
+        {
+            retVal += "ColumnProperty.Unique | ";
+        }
 
-        if (retVal != "") retVal = retVal.Substring(0, retVal.Length - 3);
+        if ((prp & ColumnProperty.Unsigned) == ColumnProperty.Unsigned)
+        {
+            retVal += "ColumnProperty.Unsigned | ";
+        }
 
-        if (retVal == "") retVal = "ColumnProperty.None";
+        if (retVal != "")
+        {
+            retVal = retVal.Substring(0, retVal.Length - 3);
+        }
+
+        if (retVal == "")
+        {
+            retVal = "ColumnProperty.None";
+        }
 
         return retVal;
     }

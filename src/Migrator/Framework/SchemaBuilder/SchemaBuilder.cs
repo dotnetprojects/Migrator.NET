@@ -44,7 +44,9 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     public SchemaBuilder WithSize(int size)
     {
         if (size == 0)
+        {
             throw new ArgumentNullException("size", "Size must be greater than zero");
+        }
 
         _currentColumn.Size = size;
 
@@ -64,7 +66,9 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     public SchemaBuilder AddTable(string name)
     {
         if (string.IsNullOrEmpty(name))
+        {
             throw new ArgumentNullException("name");
+        }
 
         _exprs.Add(new AddTableExpression(name));
         _currentTable = name;
@@ -75,7 +79,10 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     public IDeleteTableOptions DeleteTable(string name)
     {
         if (string.IsNullOrEmpty(name))
+        {
             throw new ArgumentNullException("name");
+        }
+
         _currentTable = "";
         _currentColumn = null;
 
@@ -92,7 +99,9 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     public SchemaBuilder WithTable(string name)
     {
         if (string.IsNullOrEmpty(name))
+        {
             throw new ArgumentNullException("name");
+        }
 
         _currentTable = name;
 
@@ -114,7 +123,9 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     public SchemaBuilder RenameTable(string newName)
     {
         if (string.IsNullOrEmpty(newName))
+        {
             throw new ArgumentNullException("newName");
+        }
 
         _exprs.Add(new RenameTableExpression(_currentTable, newName));
         _currentTable = newName;
@@ -130,9 +141,14 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     public IColumnOptions AddColumn(string name)
     {
         if (string.IsNullOrEmpty(name))
+        {
             throw new ArgumentNullException("name");
+        }
+
         if (string.IsNullOrEmpty(_currentTable))
+        {
             throw new ArgumentException("missing referenced table");
+        }
 
         IFluentColumn column = new FluentColumn(name);
         _currentColumn = column;
@@ -151,7 +167,9 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     public SchemaBuilder WithDefaultValue(object defaultValue)
     {
         if (defaultValue == null)
+        {
             throw new ArgumentNullException("defaultValue", "DefaultValue cannot be null or empty");
+        }
 
         _currentColumn.DefaultValue = defaultValue;
 

@@ -17,7 +17,11 @@ public class MsOracleTransformationProvider : OracleTransformationProvider
 
     protected override void CreateConnection(string providerName)
     {
-        if (string.IsNullOrEmpty(providerName)) providerName = "System.Data.OracleClient";
+        if (string.IsNullOrEmpty(providerName))
+        {
+            providerName = "System.Data.OracleClient";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
         _connection = fac.CreateConnection(); // new OracleConnection();
         _connection.ConnectionString = _connectionString;

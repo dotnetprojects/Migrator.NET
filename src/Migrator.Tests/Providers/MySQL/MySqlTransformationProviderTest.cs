@@ -29,7 +29,10 @@ public class MySqlTransformationProviderTest : TransformationProviderConstraintB
     {
         var constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
         if (constr == null)
+        {
             throw new ArgumentNullException("MySqlConnectionString", "No config file");
+        }
+
         Provider = new MySqlTransformationProvider(new MysqlDialect(), constr, "default", null);
         // _provider.Logger = new Logger(true, new ConsoleWriter());
 

@@ -14,7 +14,11 @@ public class FirebirdTransformationProvider : TransformationProvider
     public FirebirdTransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
         : base(dialect, connectionString, null, scope)
     {
-        if (string.IsNullOrEmpty(providerName)) providerName = "FirebirdSql.Data.FirebirdClient";
+        if (string.IsNullOrEmpty(providerName))
+        {
+            providerName = "FirebirdSql.Data.FirebirdClient";
+        }
+
         var fac = DbProviderFactoriesHelper.GetFactory(providerName, "FirebirdSql.Data.FirebirdClient", "FirebirdSql.Data.FirebirdClient.FirebirdClientFactory");
         _connection = fac.CreateConnection();
         _connection.ConnectionString = _connectionString;
@@ -35,7 +39,9 @@ public class FirebirdTransformationProvider : TransformationProvider
     public override void DropDatabases(string databaseName)
     {
         if (string.IsNullOrEmpty(databaseName))
+        {
             ExecuteNonQuery(string.Format("DROP DATABASE"));
+        }
     }
 
     /// <summary>
@@ -95,13 +101,20 @@ public class FirebirdTransformationProvider : TransformationProvider
 
             var seqTName = name.Length > 21 ? name.Substring(0, 21) : name;
             if (seqTName.EndsWith("_"))
+            {
                 seqTName = seqTName.Substring(0, seqTName.Length - 1);
+            }
 
             // Create a sequence for the table
             using (var cmd = CreateCommand())
+            {
                 ExecuteQuery(cmd, String.Format("CREATE GENERATOR {0}_SEQUENCE", seqTName));
+            }
+
             using (var cmd = CreateCommand())
+            {
                 ExecuteQuery(cmd, String.Format("SET GENERATOR {0}_SEQUENCE TO 0", seqTName));
+            }
 
             var sql = ""; // "set term !! ;";
             sql += "CREATE TRIGGER {1}_TRIGGER FOR {0}\n";
@@ -112,7 +125,9 @@ public class FirebirdTransformationProvider : TransformationProvider
             sql += "END\n";
 
             using (var cmd = CreateCommand())
+            {
                 ExecuteQuery(cmd, String.Format(sql, name, seqTName, identityColumn.Name));
+            }
         }
     }
 
