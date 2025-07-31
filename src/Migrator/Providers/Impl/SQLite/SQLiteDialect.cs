@@ -96,7 +96,7 @@ namespace Migrator.Providers.SQLite
 
             if (!IdentityNeedsType && column.IsIdentity)
             {
-                type = String.Empty;
+                type = string.Empty;
             }
 
             return new SQLiteColumnPropertiesMapper(this, type);

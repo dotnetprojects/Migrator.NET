@@ -113,6 +113,4 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         Assert.That(sqliteInfo.Columns.First().Name, Is.EqualTo(columnName1));
         Assert.That(sqliteInfo.Columns[1].Name, Is.EqualTo(columnName2));
     }
-
-
 }

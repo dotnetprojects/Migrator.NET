@@ -16,34 +16,15 @@ using System.Configuration;
 using System.Data;
 using Migrator.Providers;
 using Migrator.Providers.SqlServer;
+using Migrator.Tests.Providers.SQLServer.Base;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
 [Category("SqlServer")]
-public class SqlServerTransformationProviderTest : TransformationProviderConstraintBase
+public class SqlServerTransformationProviderTests : SQLServerTransformationProviderTestBase
 {
-    #region Setup/Teardown
-
-    [SetUp]
-    public void SetUp()
-    {
-        var constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
-
-        if (constr == null)
-        {
-            throw new ArgumentNullException("SqlServerConnectionString", "No config file");
-        }
-
-        Provider = new SqlServerTransformationProvider(new SqlServerDialect(), constr, null, "default", null);
-        Provider.BeginTransaction();
-
-        AddDefaultTable();
-    }
-
-    #endregion
-
     [Test]
     public void ByteColumnWillBeCreatedAsBlob()
     {

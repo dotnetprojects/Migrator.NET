@@ -473,7 +473,9 @@ namespace Migrator.Providers.Oracle
 
                 // Create a sequence for the table
                 using (var cmd = CreateCommand())
-                    ExecuteQuery(cmd, String.Format("CREATE SEQUENCE {0}_SEQUENCE NOCACHE", seqTName));
+                {
+                    ExecuteQuery(cmd, string.Format("CREATE SEQUENCE {0}_SEQUENCE NOCACHE", seqTName));
+                }
 
                 // Create identity trigger (This all has to be in one line (no whitespace), I learned the hard way :) )
                 using (var cmd = CreateCommand())

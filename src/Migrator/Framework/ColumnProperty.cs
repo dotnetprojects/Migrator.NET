@@ -13,77 +13,58 @@ namespace Migrator.Framework
         /// <summary>
         /// Null is allowable
         /// </summary>
-        Null = 1,
+        Null = 1 << 0,
 
         /// <summary>
         /// Null is not allowable
         /// </summary>
-        NotNull = 2,
+        NotNull = 1 << 1,
 
         /// <summary>
         /// Identity column, autoinc
         /// </summary>
-        Identity = 4,
+        Identity = 1 << 2,
 
         /// <summary>
         /// Unique Column. This is marked being obsolete since you cannot add a name for the constraint which makes it difficult to remove the constraint again.
         /// </summary>
         [Obsolete("Use method 'AddUniqueConstraint' instead. This is marked being obsolete since you cannot add a name for the constraint which makes it difficult to remove the constraint again.")]
-        Unique = 8,
+        Unique = 1 << 3,
 
         /// <summary>
         /// Indexed Column
         /// </summary>
-        Indexed = 16,
+        Indexed = 1 << 4,
 
         /// <summary>
-        /// Unsigned Column
+        /// Unsigned Column. Not used in SQLite there is only on integer data type INTEGER.
         /// </summary>
-        Unsigned = 32,
-
-        CaseSensitive = 64,
+        Unsigned = 1 << 5,
 
         /// <summary>
-        /// Foreign Key
+        /// CaseSensitive. Currently only used in SQLite, MySQL and SQL Server
         /// </summary>
-        ForeignKey = Unsigned | Null,
+        CaseSensitive = 1 << 6,
+
+        // /// <summary>
+        // /// Foreign Key
+        // /// </summary>
+        // [Obsolete("Use method 'AddForeignKey' instead. The flag does not make sense on column level.")]
+        // ForeignKey = 1 << 7,
 
         /// <summary>
-        /// Primary Key
+        /// Primary Key.
         /// </summary>
-        PrimaryKey = 128 | Unsigned | NotNull,
+        PrimaryKey = 1 << 8,
 
         /// <summary>
-        /// Primary key. Make the column a PrimaryKey and unsigned
+        /// Primary key with identity. This is shorthand for <see cref="PrimaryKey"/> and <see cref="Identity"/>
         /// </summary>
-        PrimaryKeyWithIdentity = PrimaryKey | Identity,
+        PrimaryKeyWithIdentity = 1 << 9 | PrimaryKey | Identity,
 
         /// <summary>
-        /// Primary key. Make the column a PrimaryKey and unsigned
+        /// Primary key non clustered. 
         /// </summary>
-        PrimaryKeyNonClustered = 256 | PrimaryKey
-    }
-
-    public static class ColumnPropertyExtensions
-    {
-        public static bool IsSet(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return (fruits & flags) == flags;
-        }
-
-        public static bool IsNotSet(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return (fruits & (~flags)) == 0;
-        }
-
-        public static ColumnProperty Set(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return fruits | flags;
-        }
-
-        public static ColumnProperty Clear(this ColumnProperty fruits, ColumnProperty flags)
-        {
-            return fruits & (~flags);
-        }
+        PrimaryKeyNonClustered = 1 << 10 | PrimaryKey
     }
 }

@@ -22,8 +22,6 @@ namespace Migrator.Tests.Providers;
 [Category("SqlServer2005")]
 public class SqlServer2005TransformationProviderTest : TransformationProviderConstraintBase
 {
-    #region Setup/Teardown
-
     [SetUp]
     public void SetUp()
     {
@@ -38,6 +36,4 @@ public class SqlServer2005TransformationProviderTest : TransformationProviderCon
 
         AddDefaultTable();
     }
-
-    #endregion
 }

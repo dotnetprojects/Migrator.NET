@@ -30,7 +30,9 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         Assert.That(foreignKeyConstraints.Single().ParentTable, Is.EqualTo("Test"));
         Assert.That(foreignKeyConstraints.Single().ChildColumns.Single(), Is.EqualTo("TestId"));
         Assert.That(foreignKeyConstraints.Single().ParentColumns.Single(), Is.EqualTo("Id"));
-        // Cascade is not supported
+
+        // Cascade is not supported in this migrator see https://github.com/dotnetprojects/Migrator.NET/issues/33
+        // TODO add cascade tests as soon as it is supported.
 
         Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
         Assert.That(tableSQLCreateScript, Does.Contain(", CONSTRAINT FKName FOREIGN KEY (TestId) REFERENCES Test(Id))"));

@@ -31,7 +31,7 @@ public class SQLiteColumnPropertiesMapper : ColumnPropertiesMapper
 
         if (isNullSelected && isPrimaryKeySelected)
         {
-            throw new Exception("This is currently not supported by the migrator see issue #44");
+            throw new Exception("This is currently not supported by the migrator see issue #44. You need to use NOT NULL for a PK column.");
         }
 
         if (isNotNullSelected || isPrimaryKeySelected)

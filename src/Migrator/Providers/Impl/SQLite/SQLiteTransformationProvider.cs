@@ -96,6 +96,11 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             return ParseSqlColumnDefs(GetSqlCreateTableScript(table), out compositeDefSql);
         }
 
+        /// <summary>
+        /// Gets the SQL CREATE TABLE script. Case-insensitive
+        /// </summary>
+        /// <param name="table"></param>
+        /// <returns></returns>
         public string GetSqlCreateTableScript(string table)
         {
             string sqlCreateTableScript = null;
@@ -391,19 +396,19 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             if (!TableExists(tableName))
             {
-                throw new Exception("Table does not exist");
+                throw new MigrationException($"The table '{tableName}' does not exist");
             }
 
             if (!ColumnExists(tableName, column))
             {
-                throw new Exception("Column does not exist");
+                throw new MigrationException($"The table '{tableName}' does not have a column named '{column}'");
             }
 
             var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
 
             if (!sqliteInfoMainTable.ColumnMappings.Any(x => x.OldName == column))
             {
-                throw new Exception("Column not found");
+                throw new MigrationException("Column not found");
             }
 
             // We throw if all of the conditions are fulfilled:
@@ -905,7 +910,6 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
             var pragmaTableInfoItemsSorted = tableInfoPrimaryKeys.Concat(tableInfoNonPrimaryKeys).ToList();
 
-
             var columns = new List<Column>();
 
             foreach (var pragmaTableInfoItem in pragmaTableInfoItemsSorted)
@@ -1005,6 +1009,15 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
                     }
                 }
 
+                var tableScript = GetSqlCreateTableScript(tableName);
+
+                var columnTableInfoItem = pragmaTableInfoItems.First(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (columnTableInfoItem.Type == "INTEGER" && columnTableInfoItem.Pk == 1)
+                {
+                    column.ColumnProperty |= ColumnProperty.Identity;
+                }
+
                 columns.Add(column);
             }
 
@@ -1070,7 +1083,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
         public override void AddTable(string name, string engine, params IDbField[] fields)
         {
-            var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
+            var columns = fields.Where(x => x is Column)
+                .Cast<Column>()
+                .ToArray();
 
             var pks = GetPrimaryKeys(columns);
             var compoundPrimaryKey = pks.Count > 1;
@@ -1144,7 +1159,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
             }
 
 
-            stringBuilder.Append(")");
+            stringBuilder.Append(')');
 
             ExecuteNonQuery(stringBuilder.ToString());
 
@@ -1267,7 +1282,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                 if (!constraintNameMatch.Success)
                 {
-                    throw new Exception("Cannot extract constraint name - severe issue. Please file an issue");
+                    throw new Exception("Cannot extract constraint name. Please file an issue");
                 }
 
                 var constraintName = constraintNameMatch.Value;
@@ -1276,7 +1291,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite
 
                 if (!parenthesisMatch.Success)
                 {
-                    throw new Exception("Cannot extract parenthesis content for UNIQUE constraint - severe issue. Please file an issue");
+                    throw new Exception("Cannot extract parenthesis content for UNIQUE constraint. Please file an issue");
                 }
 
                 var columns = parenthesisMatch.Value.Split(',').Select(x => x.Trim()).ToList();

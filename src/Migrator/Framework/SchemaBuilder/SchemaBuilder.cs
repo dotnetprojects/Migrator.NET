@@ -53,8 +53,6 @@ namespace Migrator.Framework.SchemaBuilder
 
         public IForeignKeyOptions AsForeignKey()
         {
-            _currentColumn.ColumnProperty = ColumnProperty.ForeignKey;
-
             return this;
         }
 
