@@ -114,7 +114,7 @@ public class SqlServerDialect : Dialect
     {
         if (defaultValue.GetType().Equals(typeof(bool)))
         {
-            return String.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
+            return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
         }
         else if (defaultValue.GetType().Equals(typeof(Guid)))
         {

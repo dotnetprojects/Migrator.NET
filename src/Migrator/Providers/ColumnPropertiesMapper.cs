@@ -70,7 +70,7 @@ public class ColumnPropertiesMapper
         {
             if (dialect.SupportsIndex && indexed)
             {
-                return String.Format("INDEX({0})", dialect.Quote(name));
+                return string.Format("INDEX({0})", dialect.Quote(name));
             }
 
             return null;
@@ -111,7 +111,7 @@ public class ColumnPropertiesMapper
 
         AddDefaultValue(column, vals);
 
-        columnSql = String.Join(" ", vals.ToArray());
+        columnSql = string.Join(" ", vals.ToArray());
     }
 
     public virtual void MapColumnPropertiesWithoutDefault(Column column)

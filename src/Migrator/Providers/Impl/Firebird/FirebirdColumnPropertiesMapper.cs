@@ -39,6 +39,6 @@ public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
 
         AddNull(column, vals);
 
-        columnSql = String.Join(" ", vals.ToArray());
+        columnSql = string.Join(" ", vals.ToArray());
     }
 }

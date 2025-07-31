@@ -33,7 +33,7 @@ public class FirebirdTransformationProvider : TransformationProvider
     public override void AddColumn(string table, string sqlColumn)
     {
         table = QuoteTableNameIfRequired(table);
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
     }
 
     public override void DropDatabases(string databaseName)
@@ -73,7 +73,7 @@ public class FirebirdTransformationProvider : TransformationProvider
         using (
             var reader =
                 ExecuteQuery(cmd,
-                    String.Format("select RDB$FIELD_NAME, RDB$NULL_FLAG from RDB$RELATION_FIELDS where RDB$RELATION_NAME = '{0}'", table.ToUpper())))
+                    string.Format("select RDB$FIELD_NAME, RDB$NULL_FLAG from RDB$RELATION_FIELDS where RDB$RELATION_NAME = '{0}'", table.ToUpper())))
         {
             while (reader.Read())
             {
@@ -108,12 +108,12 @@ public class FirebirdTransformationProvider : TransformationProvider
             // Create a sequence for the table
             using (var cmd = CreateCommand())
             {
-                ExecuteQuery(cmd, String.Format("CREATE GENERATOR {0}_SEQUENCE", seqTName));
+                ExecuteQuery(cmd, string.Format("CREATE GENERATOR {0}_SEQUENCE", seqTName));
             }
 
             using (var cmd = CreateCommand())
             {
-                ExecuteQuery(cmd, String.Format("SET GENERATOR {0}_SEQUENCE TO 0", seqTName));
+                ExecuteQuery(cmd, string.Format("SET GENERATOR {0}_SEQUENCE TO 0", seqTName));
             }
 
             var sql = ""; // "set term !! ;";
@@ -126,7 +126,7 @@ public class FirebirdTransformationProvider : TransformationProvider
 
             using (var cmd = CreateCommand())
             {
-                ExecuteQuery(cmd, String.Format(sql, name, seqTName, identityColumn.Name));
+                ExecuteQuery(cmd, string.Format(sql, name, seqTName, identityColumn.Name));
             }
         }
     }

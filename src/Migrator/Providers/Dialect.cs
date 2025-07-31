@@ -223,7 +223,7 @@ public abstract class Dialect : IDialect
 
         if (!IdentityNeedsType && column.IsIdentity)
         {
-            type = String.Empty;
+            type = string.Empty;
         }
 
         return new ColumnPropertiesMapper(this, type);
@@ -328,35 +328,35 @@ public abstract class Dialect : IDialect
         {
             return propertyMap[property];
         }
-        return String.Empty;
+        return string.Empty;
     }
 
     public virtual string Quote(string value)
     {
-        return String.Format(QuoteTemplate, value);
+        return string.Format(QuoteTemplate, value);
     }
 
     public virtual string Default(object defaultValue)
     {
-        if (defaultValue is String && defaultValue.ToString() == String.Empty)
+        if (defaultValue is string && defaultValue.ToString() == string.Empty)
         {
             defaultValue = "''";
         }
         else if (defaultValue is Guid)
         {
-            return String.Format("DEFAULT '{0}'", defaultValue.ToString());
+            return string.Format("DEFAULT '{0}'", defaultValue.ToString());
         }
         else if (defaultValue is DateTime)
         {
-            return String.Format("DEFAULT '{0}'", ((DateTime)defaultValue).ToString("yyyy-MM-dd HH:mm:ss"));
+            return string.Format("DEFAULT '{0}'", ((DateTime)defaultValue).ToString("yyyy-MM-dd HH:mm:ss"));
         }
-        else if (defaultValue is String)
+        else if (defaultValue is string)
         {
-            defaultValue = ((String)defaultValue).Replace("'", "''");
+            defaultValue = ((string)defaultValue).Replace("'", "''");
             defaultValue = "'" + defaultValue + "'";
         }
 
-        return String.Format("DEFAULT {0}", defaultValue);
+        return string.Format("DEFAULT {0}", defaultValue);
     }
 
     public ColumnPropertiesMapper GetAndMapColumnProperties(Column column)

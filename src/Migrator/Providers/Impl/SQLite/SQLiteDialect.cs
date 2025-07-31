@@ -62,7 +62,7 @@ public class SQLiteDialect : Dialect
     {
         if (defaultValue is bool)
         {
-            return String.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
+            return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
         }
 
         return base.Default(defaultValue);
