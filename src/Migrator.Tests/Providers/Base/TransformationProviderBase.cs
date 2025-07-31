@@ -310,14 +310,12 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 1, "1" });
         Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 2, "2" });
 
-        using (var cmd = Provider.CreateCommand())
-        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
-        {
-            var vals = GetVals(reader);
+        using var cmd = Provider.CreateCommand();
+        using var reader = Provider.Select(cmd, "TestId", "TestTwo");
+        var vals = GetVals(reader);
 
-            Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.True);
-            Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.True);
-        }
+        Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.True);
+        Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.True);
     }
 
     [Test]
@@ -328,14 +326,12 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "1", "foo" });
         Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "2", null });
 
-        using (var cmd = Provider.CreateCommand())
-        using (var reader = Provider.Select(cmd, "Title", "Test"))
-        {
-            var vals = GetStringVals(reader);
+        using var cmd = Provider.CreateCommand();
+        using var reader = Provider.Select(cmd, "Title", "Test");
+        var vals = GetStringVals(reader);
 
-            Assert.That(Array.Exists(vals, delegate (string val) { return val == "foo"; }), Is.True);
-            Assert.That(Array.Exists(vals, delegate (string val) { return val == null; }), Is.True);
-        }
+        Assert.That(Array.Exists(vals, delegate (string val) { return val == "foo"; }), Is.True);
+        Assert.That(Array.Exists(vals, delegate (string val) { return val == null; }), Is.True);
     }
 
     [Test]
@@ -343,13 +339,11 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     {
         AddTable();
         Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "1", "Muad'Dib" });
-        using (var cmd = Provider.CreateCommand())
-        using (var reader = Provider.Select(cmd, "Title", "Test"))
-        {
-            Assert.That(reader.Read(), Is.True);
-            Assert.That("Muad'Dib", Is.EqualTo(reader.GetString(0)));
-            Assert.That(reader.Read(), Is.False);
-        }
+        using var cmd = Provider.CreateCommand();
+        using var reader = Provider.Select(cmd, "Title", "Test");
+        Assert.That(reader.Read(), Is.True);
+        Assert.That("Muad'Dib", Is.EqualTo(reader.GetString(0)));
+        Assert.That(reader.Read(), Is.False);
     }
 
     [Test]
@@ -357,13 +351,11 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     {
         InsertData();
         Provider.Delete("TestTwo", "TestId", "1");
-        using (var cmd = Provider.CreateCommand())
-        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
-        {
-            Assert.That(reader.Read(), Is.True);
-            Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
-            Assert.That(reader.Read(), Is.False);
-        }
+        using var cmd = Provider.CreateCommand();
+        using var reader = Provider.Select(cmd, "TestId", "TestTwo");
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
+        Assert.That(reader.Read(), Is.False);
     }
 
     [Test]
@@ -371,13 +363,11 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     {
         InsertData();
         Provider.Delete("TestTwo", new[] { "TestId" }, new[] { "1" });
-        using (var cmd = Provider.CreateCommand())
-        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
-        {
-            Assert.That(reader.Read(), Is.True);
-            Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
-            Assert.That(reader.Read(), Is.False);
-        }
+        using var cmd = Provider.CreateCommand();
+        using var reader = Provider.Select(cmd, "TestId", "TestTwo");
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
+        Assert.That(reader.Read(), Is.False);
     }
 
     [Test]
@@ -387,15 +377,13 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 21, "2" });
 
         Provider.Update("TestTwo", new[] { "TestId" }, new[] { "3" });
-        using (var cmd = Provider.CreateCommand())
-        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
-        {
-            var vals = GetVals(reader);
+        using var cmd = Provider.CreateCommand();
+        using var reader = Provider.Select(cmd, "TestId", "TestTwo");
+        var vals = GetVals(reader);
 
-            Assert.That(Array.Exists(vals, delegate (int val) { return val == 3; }), Is.True);
-            Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.False);
-            Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.False);
-        }
+        Assert.That(Array.Exists(vals, delegate (int val) { return val == 3; }), Is.True);
+        Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.False);
+        Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.False);
     }
 
     [Test]
@@ -406,14 +394,12 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "2", null });
 
         Provider.Update("Test", new[] { "Title" }, new string[] { null });
-        using (var cmd = Provider.CreateCommand())
-        using (var reader = Provider.Select(cmd, "Title", "Test"))
-        {
-            var vals = GetStringVals(reader);
+        using var cmd = Provider.CreateCommand();
+        using var reader = Provider.Select(cmd, "Title", "Test");
+        var vals = GetStringVals(reader);
 
-            Assert.That(vals[0], Is.Null);
-            Assert.That(vals[1], Is.Null);
-        }
+        Assert.That(vals[0], Is.Null);
+        Assert.That(vals[1], Is.Null);
     }
 
     [Test]

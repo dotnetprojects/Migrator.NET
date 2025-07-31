@@ -96,10 +96,8 @@ public class OracleTransformationProvider : TransformationProvider
             // now set the column to not-null
             if (isNotNull)
             {
-                using (var cmd = CreateCommand())
-                {
-                    ExecuteQuery(cmd, String.Format("ALTER TABLE {0} MODIFY ({1} NOT NULL)", table, columnName));
-                }
+                using var cmd = CreateCommand();
+                ExecuteQuery(cmd, String.Format("ALTER TABLE {0} MODIFY ({1} NOT NULL)", table, columnName));
             }
         }
         else
@@ -542,10 +540,8 @@ public class OracleTransformationProvider : TransformationProvider
         base.RemoveTable(name);
         try
         {
-            using (var cmd = CreateCommand())
-            {
-                ExecuteQuery(cmd, String.Format(@"DROP SEQUENCE {0}_SEQUENCE", name));
-            }
+            using var cmd = CreateCommand();
+            ExecuteQuery(cmd, String.Format(@"DROP SEQUENCE {0}_SEQUENCE", name));
         }
         catch (Exception)
         {
@@ -644,16 +640,14 @@ public class OracleTransformationProvider : TransformationProvider
         foreach (var idx in indexes)
         {
             sql = "SELECT column_Name FROM all_ind_columns WHERE lower(table_name) = lower('" + table + "') and lower(index_name) = lower('" + idx.Name + "')";
-            using (var cmd = CreateCommand())
-            using (var reader = ExecuteQuery(cmd, sql))
+            using var cmd = CreateCommand();
+            using var reader = ExecuteQuery(cmd, sql);
+            var columns = new List<string>();
+            while (reader.Read())
             {
-                var columns = new List<string>();
-                while (reader.Read())
-                {
-                    columns.Add(reader.GetString(0));
-                }
-                idx.KeyColumns = columns.ToArray();
+                columns.Add(reader.GetString(0));
             }
+            idx.KeyColumns = columns.ToArray();
         }
 
         return indexes.ToArray();

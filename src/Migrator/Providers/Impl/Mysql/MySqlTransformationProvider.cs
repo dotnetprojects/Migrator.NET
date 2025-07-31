@@ -130,15 +130,15 @@ public class MySqlTransformationProvider : TransformationProvider
         }
 
         var sqlConstraint = string.Format("SHOW KEYS FROM {0}", table);
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, sqlConstraint))
+
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, sqlConstraint);
+
+        while (reader.Read())
         {
-            while (reader.Read())
+            if (reader["Key_name"].ToString().ToLower() == name.ToLower())
             {
-                if (reader["Key_name"].ToString().ToLower() == name.ToLower())
-                {
-                    return true;
-                }
+                return true;
             }
         }
 
@@ -159,15 +159,15 @@ public class MySqlTransformationProvider : TransformationProvider
                                                     WHERE i.CONSTRAINT_TYPE = 'FOREIGN KEY' 
                                                     AND i.TABLE_SCHEMA = '{1}'
                                                     AND i.TABLE_NAME = '{0}';", table, GetDatabase());
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, sqlConstraint))
+
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, sqlConstraint);
+
+        while (reader.Read())
         {
-            while (reader.Read())
+            if (reader["CONSTRAINT_NAME"].ToString().ToLower() == name.ToLower())
             {
-                if (reader["CONSTRAINT_NAME"].ToString().ToLower() == name.ToLower())
-                {
-                    return true;
-                }
+                return true;
             }
         }
 
@@ -179,6 +179,7 @@ public class MySqlTransformationProvider : TransformationProvider
         var retVal = new List<Index>();
 
         var sql = @"SHOW INDEX FROM {0}";
+
         using (var cmd = CreateCommand())
         using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
         {

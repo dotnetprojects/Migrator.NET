@@ -78,11 +78,9 @@ public class SqlServerTransformationProvider : TransformationProvider
 
         if (!retVal)
         {
-            using (var cmd = CreateCommand())
-            using (var reader = ExecuteQuery(cmd, string.Format("SELECT TOP 1 * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('{0}') AND name = '{1}'", table, name)))
-            {
-                return reader.Read();
-            }
+            using var cmd = CreateCommand();
+            using var reader = ExecuteQuery(cmd, string.Format("SELECT TOP 1 * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('{0}') AND name = '{1}'", table, name));
+            return reader.Read();
         }
 
         return true;
@@ -170,12 +168,9 @@ public class SqlServerTransformationProvider : TransformationProvider
             schema = _defaultSchema;
         }
 
-        using (var cmd = CreateCommand())
-        using (
-            var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{0}' AND TABLE_NAME='{1}' AND COLUMN_NAME='{2}'", schema, table, column)))
-        {
-            return reader.Read();
-        }
+        using var cmd = CreateCommand();
+        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{0}' AND TABLE_NAME='{1}' AND COLUMN_NAME='{2}'", schema, table, column));
+        return reader.Read();
     }
 
     public override void RemoveColumnDefaultValue(string table, string column)
@@ -207,11 +202,9 @@ public class SqlServerTransformationProvider : TransformationProvider
         schema = schema.StartsWith("[") && schema.EndsWith("]") ? schema.Substring(1, schema.Length - 2) : schema;
         table = table.StartsWith("[") && table.EndsWith("]") ? table.Substring(1, table.Length - 2) : table;
 
-        using (var cmd = CreateCommand())
-        using (var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", table, schema)))
-        {
-            return reader.Read();
-        }
+        using var cmd = CreateCommand();
+        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", table, schema));
+        return reader.Read();
     }
 
     public override bool ViewExists(string view)
@@ -229,11 +222,9 @@ public class SqlServerTransformationProvider : TransformationProvider
             schema = _defaultSchema;
         }
 
-        using (var cmd = CreateCommand())
-        using (var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", view, schema)))
-        {
-            return reader.Read();
-        }
+        using var cmd = CreateCommand();
+        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", view, schema));
+        return reader.Read();
     }
 
     public override Index[] GetIndexes(string table)
@@ -599,12 +590,10 @@ AND CU.COLUMN_NAME = '{1}'",
 
     public override bool IndexExists(string table, string name)
     {
-        using (var cmd = CreateCommand())
-        using (var reader =
-            ExecuteQuery(cmd, string.Format("SELECT top 1 * FROM sys.indexes WHERE object_id = OBJECT_ID('{0}') AND name = '{1}'", table, name)))
-        {
-            return reader.Read();
-        }
+        using var cmd = CreateCommand();
+        using var reader =
+            ExecuteQuery(cmd, string.Format("SELECT top 1 * FROM sys.indexes WHERE object_id = OBJECT_ID('{0}') AND name = '{1}'", table, name));
+        return reader.Read();
     }
 
     public override void RemoveIndex(string table, string name)
@@ -617,12 +606,10 @@ AND CU.COLUMN_NAME = '{1}'",
 
     protected override string GetPrimaryKeyConstraintName(string table)
     {
-        using (var cmd = CreateCommand())
-        using (var reader =
-            ExecuteQuery(cmd, string.Format("SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('{0}') AND is_primary_key = 1", table)))
-        {
-            return reader.Read() ? reader.GetString(0) : null;
-        }
+        using var cmd = CreateCommand();
+        using var reader =
+            ExecuteQuery(cmd, string.Format("SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('{0}') AND is_primary_key = 1", table));
+        return reader.Read() ? reader.GetString(0) : null;
     }
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)

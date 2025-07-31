@@ -47,12 +47,10 @@ public class SqlServerCeTransformationProvider : SqlServerTransformationProvider
 
     public override bool ConstraintExists(string table, string name)
     {
-        using (var cmd = CreateCommand())
-        using (var reader =
-            ExecuteQuery(cmd, string.Format("SELECT cont.constraint_name FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS cont WHERE cont.Constraint_Name='{0}'", name)))
-        {
-            return reader.Read();
-        }
+        using var cmd = CreateCommand();
+        using var reader =
+            ExecuteQuery(cmd, string.Format("SELECT cont.constraint_name FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS cont WHERE cont.Constraint_Name='{0}'", name));
+        return reader.Read();
     }
 
     protected string GetSchemaName(string longTableName)
@@ -62,11 +60,9 @@ public class SqlServerCeTransformationProvider : SqlServerTransformationProvider
 
     public override bool TableExists(string table)
     {
-        using (var cmd = CreateCommand())
-        using (var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}'", table)))
-        {
-            return reader.Read();
-        }
+        using var cmd = CreateCommand();
+        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}'", table));
+        return reader.Read();
     }
 
     public override bool ColumnExists(string table, string column)
@@ -81,12 +77,9 @@ public class SqlServerCeTransformationProvider : SqlServerTransformationProvider
             table = table.Substring(firstIndex + 1);
         }
 
-        using (var cmd = CreateCommand())
-        using (
-            var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{0}' AND COLUMN_NAME='{1}'", table, column)))
-        {
-            return reader.Read();
-        }
+        using var cmd = CreateCommand();
+        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{0}' AND COLUMN_NAME='{1}'", table, column));
+        return reader.Read();
     }
 
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)

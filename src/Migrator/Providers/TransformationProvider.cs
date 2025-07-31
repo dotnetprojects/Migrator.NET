@@ -855,34 +855,32 @@ public abstract class TransformationProvider : ITransformationProvider
             Logger.ApplyingDBChange(string.Format(sql, args));
         }
 
-        using (var cmd = BuildCommand(sql))
+        using var cmd = BuildCommand(sql);
+        try
         {
-            try
-            {
-                cmd.CommandTimeout = timeout;
+            cmd.CommandTimeout = timeout;
 
-                if (args != null)
+            if (args != null)
+            {
+                var index = 0;
+
+                foreach (var obj in args)
                 {
-                    var index = 0;
-
-                    foreach (var obj in args)
-                    {
-                        var parameter = cmd.CreateParameter();
-                        ConfigureParameterWithValue(parameter, index, obj);
-                        parameter.ParameterName = GenerateParameterNameParameter(index);
-                        cmd.Parameters.Add(parameter);
-                        ++index;
-                    }
+                    var parameter = cmd.CreateParameter();
+                    ConfigureParameterWithValue(parameter, index, obj);
+                    parameter.ParameterName = GenerateParameterNameParameter(index);
+                    cmd.Parameters.Add(parameter);
+                    ++index;
                 }
+            }
 
-                Logger.Trace(cmd.CommandText);
-                return cmd.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-                Logger.Warn(ex.Message);
-                throw new Exception(string.Format("Error occured executing sql: {0}, see inner exception for details, error: " + ex, sql), ex);
-            }
+            Logger.Trace(cmd.CommandText);
+            return cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn(ex.Message);
+            throw new Exception(string.Format("Error occured executing sql: {0}, see inner exception for details, error: " + ex, sql), ex);
         }
     }
 
@@ -892,20 +890,18 @@ public abstract class TransformationProvider : ITransformationProvider
 
         using (var cmd = CreateCommand())
         {
-            using (var reader = ExecuteQuery(cmd, string.Format(sql, args)))
+            using var reader = ExecuteQuery(cmd, string.Format(sql, args));
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    var value = reader[0];
+                var value = reader[0];
 
-                    if (value == null || value == DBNull.Value)
-                    {
-                        values.Add(null);
-                    }
-                    else
-                    {
-                        values.Add(value.ToString());
-                    }
+                if (value == null || value == DBNull.Value)
+                {
+                    values.Add(null);
+                }
+                else
+                {
+                    values.Add(value.ToString());
                 }
             }
         }
@@ -980,17 +976,15 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual object ExecuteScalar(string sql)
     {
         Logger.Trace(sql);
-        using (var cmd = BuildCommand(sql))
+        using var cmd = BuildCommand(sql);
+        try
         {
-            try
-            {
-                return cmd.ExecuteScalar();
-            }
-            catch
-            {
-                Logger.Warn("Query failed: {0}", cmd.CommandText);
-                throw;
-            }
+            return cmd.ExecuteScalar();
+        }
+        catch
+        {
+            Logger.Warn("Query failed: {0}", cmd.CommandText);
+            throw;
         }
     }
 
@@ -1110,38 +1104,36 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual object SelectScalar(string what, string from, string[] whereColumns, object[] whereValues)
     {
-        using (var command = _connection.CreateCommand())
+        using var command = _connection.CreateCommand();
+        if (CommandTimeout.HasValue)
         {
-            if (CommandTimeout.HasValue)
-            {
-                command.CommandTimeout = CommandTimeout.Value;
-            }
-
-            command.Transaction = _transaction;
-
-            var query = String.Format("SELECT {0} FROM {1} WHERE {2}", what, from, GetWhereString(whereColumns, whereValues));
-
-            command.CommandText = query;
-            command.CommandType = CommandType.Text;
-
-            var paramCount = 0;
-
-            foreach (var value in whereValues)
-            {
-                var parameter = command.CreateParameter();
-
-                ConfigureParameterWithValue(parameter, paramCount, value);
-
-                parameter.ParameterName = GenerateParameterNameParameter(paramCount);
-
-                command.Parameters.Add(parameter);
-
-                paramCount++;
-            }
-
-            Logger.Trace(command.CommandText);
-            return command.ExecuteScalar();
+            command.CommandTimeout = CommandTimeout.Value;
         }
+
+        command.Transaction = _transaction;
+
+        var query = String.Format("SELECT {0} FROM {1} WHERE {2}", what, from, GetWhereString(whereColumns, whereValues));
+
+        command.CommandText = query;
+        command.CommandType = CommandType.Text;
+
+        var paramCount = 0;
+
+        foreach (var value in whereValues)
+        {
+            var parameter = command.CreateParameter();
+
+            ConfigureParameterWithValue(parameter, paramCount, value);
+
+            parameter.ParameterName = GenerateParameterNameParameter(paramCount);
+
+            command.Parameters.Add(parameter);
+
+            paramCount++;
+        }
+
+        Logger.Trace(command.CommandText);
+        return command.ExecuteScalar();
     }
 
     public virtual int Update(string table, string[] columns, object[] values)
@@ -1186,41 +1178,39 @@ public abstract class TransformationProvider : ITransformationProvider
             builder.Append(GenerateParameterName(i));
         }
 
-        using (var command = _connection.CreateCommand())
+        using var command = _connection.CreateCommand();
+        if (CommandTimeout.HasValue)
         {
-            if (CommandTimeout.HasValue)
-            {
-                command.CommandTimeout = CommandTimeout.Value;
-            }
-
-            command.Transaction = _transaction;
-
-            var query = String.Format("UPDATE {0} SET {1}", table, builder.ToString());
-            if (!String.IsNullOrEmpty(where))
-            {
-                query += " WHERE " + where;
-            }
-            command.CommandText = query;
-            command.CommandType = CommandType.Text;
-
-            var paramCount = 0;
-
-            foreach (var value in values)
-            {
-                var parameter = command.CreateParameter();
-
-                ConfigureParameterWithValue(parameter, paramCount, value);
-
-                parameter.ParameterName = GenerateParameterNameParameter(paramCount);
-
-                command.Parameters.Add(parameter);
-
-                paramCount++;
-            }
-
-            Logger.Trace(command.CommandText);
-            return command.ExecuteNonQuery();
+            command.CommandTimeout = CommandTimeout.Value;
         }
+
+        command.Transaction = _transaction;
+
+        var query = String.Format("UPDATE {0} SET {1}", table, builder.ToString());
+        if (!String.IsNullOrEmpty(where))
+        {
+            query += " WHERE " + where;
+        }
+        command.CommandText = query;
+        command.CommandType = CommandType.Text;
+
+        var paramCount = 0;
+
+        foreach (var value in values)
+        {
+            var parameter = command.CreateParameter();
+
+            ConfigureParameterWithValue(parameter, paramCount, value);
+
+            parameter.ParameterName = GenerateParameterNameParameter(paramCount);
+
+            command.Parameters.Add(parameter);
+
+            paramCount++;
+        }
+
+        Logger.Trace(command.CommandText);
+        return command.ExecuteNonQuery();
     }
 
     public virtual int Update(string table, string[] columns, object[] values, string[] whereColumns, object[] whereValues)
@@ -1253,6 +1243,7 @@ public abstract class TransformationProvider : ITransformationProvider
         table = QuoteTableNameIfRequired(table);
 
         var builder = new StringBuilder();
+
         for (var i = 0; i < values.Length; i++)
         {
             if (builder.Length > 0)
@@ -1265,57 +1256,55 @@ public abstract class TransformationProvider : ITransformationProvider
             builder.Append(GenerateParameterName(i));
         }
 
-        using (var command = _connection.CreateCommand())
+        using var command = _connection.CreateCommand();
+        if (CommandTimeout.HasValue)
         {
-            if (CommandTimeout.HasValue)
-            {
-                command.CommandTimeout = CommandTimeout.Value;
-            }
-
-            command.Transaction = _transaction;
-
-            var query = String.Format("UPDATE {0} SET {1} WHERE {2}", table, builder.ToString(), GetWhereStringWithNullCheck(whereColumns, whereValues, values.Length));
-
-            command.CommandText = query;
-            command.CommandType = CommandType.Text;
-
-            var paramCount = 0;
-
-            foreach (var value in values)
-            {
-                var parameter = command.CreateParameter();
-
-                ConfigureParameterWithValue(parameter, paramCount, value);
-
-                parameter.ParameterName = GenerateParameterNameParameter(paramCount);
-
-                command.Parameters.Add(parameter);
-
-                paramCount++;
-            }
-
-            foreach (var value in whereValues)
-            {
-                if (value == null || value == DBNull.Value)
-                {
-                    continue;
-                }
-
-                var parameter = command.CreateParameter();
-
-                ConfigureParameterWithValue(parameter, paramCount, value);
-
-                parameter.ParameterName = GenerateParameterNameParameter(paramCount);
-
-                command.Parameters.Add(parameter);
-
-                paramCount++;
-            }
-
-
-            Logger.Trace(command.CommandText);
-            return command.ExecuteNonQuery();
+            command.CommandTimeout = CommandTimeout.Value;
         }
+
+        command.Transaction = _transaction;
+
+        var query = String.Format("UPDATE {0} SET {1} WHERE {2}", table, builder.ToString(), GetWhereStringWithNullCheck(whereColumns, whereValues, values.Length));
+
+        command.CommandText = query;
+        command.CommandType = CommandType.Text;
+
+        var paramCount = 0;
+
+        foreach (var value in values)
+        {
+            var parameter = command.CreateParameter();
+
+            ConfigureParameterWithValue(parameter, paramCount, value);
+
+            parameter.ParameterName = GenerateParameterNameParameter(paramCount);
+
+            command.Parameters.Add(parameter);
+
+            paramCount++;
+        }
+
+        foreach (var value in whereValues)
+        {
+            if (value == null || value == DBNull.Value)
+            {
+                continue;
+            }
+
+            var parameter = command.CreateParameter();
+
+            ConfigureParameterWithValue(parameter, paramCount, value);
+
+            parameter.ParameterName = GenerateParameterNameParameter(paramCount);
+
+            command.Parameters.Add(parameter);
+
+            paramCount++;
+        }
+
+
+        Logger.Trace(command.CommandText);
+        return command.ExecuteNonQuery();
     }
 
     public virtual int Insert(string table, string[] columns, object[] values)
@@ -1358,35 +1347,33 @@ public abstract class TransformationProvider : ITransformationProvider
 
         var parameterNames = builder.ToString();
 
-        using (var command = _connection.CreateCommand())
+        using var command = _connection.CreateCommand();
+        if (CommandTimeout.HasValue)
         {
-            if (CommandTimeout.HasValue)
-            {
-                command.CommandTimeout = CommandTimeout.Value;
-            }
-
-            command.Transaction = _transaction;
-
-            command.CommandText = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", table, columnNames, parameterNames);
-            command.CommandType = CommandType.Text;
-
-            var paramCount = 0;
-
-            foreach (var value in values)
-            {
-                var parameter = command.CreateParameter();
-
-                ConfigureParameterWithValue(parameter, paramCount, value);
-
-                parameter.ParameterName = GenerateParameterNameParameter(paramCount);
-
-                command.Parameters.Add(parameter);
-
-                paramCount++;
-            }
-
-            return command.ExecuteNonQuery();
+            command.CommandTimeout = CommandTimeout.Value;
         }
+
+        command.Transaction = _transaction;
+
+        command.CommandText = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", table, columnNames, parameterNames);
+        command.CommandType = CommandType.Text;
+
+        var paramCount = 0;
+
+        foreach (var value in values)
+        {
+            var parameter = command.CreateParameter();
+
+            ConfigureParameterWithValue(parameter, paramCount, value);
+
+            parameter.ParameterName = GenerateParameterNameParameter(paramCount);
+
+            command.Parameters.Add(parameter);
+
+            paramCount++;
+        }
+
+        return command.ExecuteNonQuery();
     }
 
     protected virtual string GetWhereStringWithNullCheck(string[] whereColumns, object[] whereValues, int parameterStartIndex = 0)
@@ -1472,19 +1459,17 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual int InsertIfNotExists(string table, string[] columns, object[] values, string[] whereColumns, object[] whereValues)
     {
-        using (var cmd = CreateCommand())
-        using (var reader = this.Select(cmd, table, new[] { whereColumns[0] }, whereColumns, whereValues))
+        using var cmd = CreateCommand();
+        using var reader = this.Select(cmd, table, new[] { whereColumns[0] }, whereColumns, whereValues);
+        if (!reader.Read())
         {
-            if (!reader.Read())
-            {
-                reader.Close();
-                return this.Insert(table, columns, values);
-            }
-            else
-            {
-                reader.Close();
-                return 0;
-            }
+            reader.Close();
+            return this.Insert(table, columns, values);
+        }
+        else
+        {
+            reader.Close();
+            return 0;
         }
     }
 
@@ -1503,39 +1488,37 @@ public abstract class TransformationProvider : ITransformationProvider
         {
             table = QuoteTableNameIfRequired(table);
 
-            using (var command = _connection.CreateCommand())
+            using var command = _connection.CreateCommand();
+            if (CommandTimeout.HasValue)
             {
-                if (CommandTimeout.HasValue)
-                {
-                    command.CommandTimeout = CommandTimeout.Value;
-                }
-
-                command.Transaction = _transaction;
-
-                var query = String.Format("DELETE FROM {0} WHERE ({1})", table,
-                    GetWhereString(whereColumns, whereValues));
-
-                command.CommandText = query;
-                command.CommandType = CommandType.Text;
-
-                var paramCount = 0;
-
-                foreach (var value in whereValues)
-                {
-                    var parameter = command.CreateParameter();
-
-                    ConfigureParameterWithValue(parameter, paramCount, value);
-
-                    parameter.ParameterName = GenerateParameterNameParameter(paramCount);
-
-                    command.Parameters.Add(parameter);
-
-                    paramCount++;
-                }
-
-                Logger.Trace(command.CommandText);
-                return command.ExecuteNonQuery();
+                command.CommandTimeout = CommandTimeout.Value;
             }
+
+            command.Transaction = _transaction;
+
+            var query = String.Format("DELETE FROM {0} WHERE ({1})", table,
+                GetWhereString(whereColumns, whereValues));
+
+            command.CommandText = query;
+            command.CommandType = CommandType.Text;
+
+            var paramCount = 0;
+
+            foreach (var value in whereValues)
+            {
+                var parameter = command.CreateParameter();
+
+                ConfigureParameterWithValue(parameter, paramCount, value);
+
+                parameter.ParameterName = GenerateParameterNameParameter(paramCount);
+
+                command.Parameters.Add(parameter);
+
+                paramCount++;
+            }
+
+            Logger.Trace(command.CommandText);
+            return command.ExecuteNonQuery();
         }
     }
 
@@ -1628,19 +1611,17 @@ public abstract class TransformationProvider : ITransformationProvider
                 versionColumn = QuoteColumnNameIfRequired(versionColumn);
                 scopeColumn = QuoteColumnNameIfRequired(scopeColumn);
 
-                using (var cmd = CreateCommand())
-                using (var reader = Select(cmd, versionColumn, _schemaInfotable, string.Format("{0} = '{1}'", scopeColumn, _scope)))
+                using var cmd = CreateCommand();
+                using var reader = Select(cmd, versionColumn, _schemaInfotable, string.Format("{0} = '{1}'", scopeColumn, _scope));
+                while (reader.Read())
                 {
-                    while (reader.Read())
+                    if (reader.GetFieldType(0) == typeof(Decimal))
                     {
-                        if (reader.GetFieldType(0) == typeof(Decimal))
-                        {
-                            _appliedMigrations.Add((long)reader.GetDecimal(0));
-                        }
-                        else
-                        {
-                            _appliedMigrations.Add(reader.GetInt64(0));
-                        }
+                        _appliedMigrations.Add((long)reader.GetDecimal(0));
+                    }
+                    else
+                    {
+                        _appliedMigrations.Add(reader.GetInt64(0));
                     }
                 }
             }
