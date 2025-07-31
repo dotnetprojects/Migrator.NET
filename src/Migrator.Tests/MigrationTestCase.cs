@@ -15,46 +15,45 @@ using System.Reflection;
 using Migrator.Providers;
 using NUnit.Framework;
 
-namespace Migrator.Tests
+namespace Migrator.Tests;
+
+/// <summary>
+/// Extend this classe to test your migrations
+/// </summary>
+public abstract class MigrationsTestCase
 {
-    /// <summary>
-    /// Extend this classe to test your migrations
-    /// </summary>
-    public abstract class MigrationsTestCase
+    private Migrator _migrator;
+
+    protected abstract TransformationProvider TransformationProvider { get; }
+    protected abstract string ConnectionString { get; }
+    protected abstract Assembly MigrationAssembly { get; }
+
+    [SetUp]
+    public void SetUp()
     {
-        private Migrator _migrator;
+        _migrator = new Migrator(TransformationProvider, MigrationAssembly, true);
 
-        protected abstract TransformationProvider TransformationProvider { get; }
-        protected abstract string ConnectionString { get; }
-        protected abstract Assembly MigrationAssembly { get; }
+        Assert.That(_migrator.MigrationsTypes.Count > 0, Is.True, "No migrations in assembly " + MigrationAssembly.Location);
 
-        [SetUp]
-        public void SetUp()
-        {
-            _migrator = new Migrator(TransformationProvider, MigrationAssembly, true);
+        _migrator.MigrateTo(0);
+    }
 
-            Assert.That(_migrator.MigrationsTypes.Count > 0, Is.True, "No migrations in assembly " + MigrationAssembly.Location);
+    [TearDown]
+    public void TearDown()
+    {
+        _migrator.MigrateTo(0);
+    }
 
-            _migrator.MigrateTo(0);
-        }
+    [Test]
+    public void Up()
+    {
+        _migrator.MigrateToLastVersion();
+    }
 
-        [TearDown]
-        public void TearDown()
-        {
-            _migrator.MigrateTo(0);
-        }
-
-        [Test]
-        public void Up()
-        {
-            _migrator.MigrateToLastVersion();
-        }
-
-        [Test]
-        public void Down()
-        {
-            _migrator.MigrateToLastVersion();
-            _migrator.MigrateTo(0);
-        }
+    [Test]
+    public void Down()
+    {
+        _migrator.MigrateToLastVersion();
+        _migrator.MigrateTo(0);
     }
 }

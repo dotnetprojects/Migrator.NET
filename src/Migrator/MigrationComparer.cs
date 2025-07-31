@@ -16,34 +16,33 @@ using System.Collections.Generic;
 using Migrator.Framework;
 using System.Reflection;
 
-namespace Migrator
+namespace Migrator;
+
+/// <summary>
+/// Comparer of Migration by their version attribute.
+/// </summary>
+public class MigrationTypeComparer : IComparer<Type>
 {
-    /// <summary>
-    /// Comparer of Migration by their version attribute.
-    /// </summary>
-    public class MigrationTypeComparer : IComparer<Type>
+    private readonly bool _ascending = true;
+
+    public MigrationTypeComparer(bool ascending)
     {
-        private readonly bool _ascending = true;
+        _ascending = ascending;
+    }
 
-        public MigrationTypeComparer(bool ascending)
-        {
-            _ascending = ascending;
-        }
-
-        public int Compare(Type x, Type y)
-        {
+    public int Compare(Type x, Type y)
+    {
 #if NETSTANDARD
 			var attribOfX = x.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
 			var attribOfY = y.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
 #else
-            var attribOfX = (MigrationAttribute)Attribute.GetCustomAttribute(x, typeof(MigrationAttribute));
-            var attribOfY = (MigrationAttribute)Attribute.GetCustomAttribute(y, typeof(MigrationAttribute));
+        var attribOfX = (MigrationAttribute)Attribute.GetCustomAttribute(x, typeof(MigrationAttribute));
+        var attribOfY = (MigrationAttribute)Attribute.GetCustomAttribute(y, typeof(MigrationAttribute));
 #endif
 
-            if (_ascending)
-                return attribOfX.Version.CompareTo(attribOfY.Version);
-            else
-                return attribOfY.Version.CompareTo(attribOfX.Version);
-        }
+        if (_ascending)
+            return attribOfX.Version.CompareTo(attribOfY.Version);
+        else
+            return attribOfY.Version.CompareTo(attribOfX.Version);
     }
 }

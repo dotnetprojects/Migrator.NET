@@ -11,10 +11,9 @@
 
 #endregion
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public interface IForeignKeyOptions
 {
-    public interface IForeignKeyOptions
-    {
-        SchemaBuilder ReferencedTo(string primaryKeyTable, string primaryKeyColumn);
-    }
+    SchemaBuilder ReferencedTo(string primaryKeyTable, string primaryKeyColumn);
 }

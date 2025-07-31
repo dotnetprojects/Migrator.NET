@@ -1,13 +1,12 @@
 using System.Data;
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public interface IColumnOptions
 {
-    public interface IColumnOptions
-    {
-        SchemaBuilder OfType(DbType dbType);
+    SchemaBuilder OfType(DbType dbType);
 
-        SchemaBuilder WithSize(int size);
+    SchemaBuilder WithSize(int size);
 
-        IForeignKeyOptions AsForeignKey();
-    }
+    IForeignKeyOptions AsForeignKey();
 }

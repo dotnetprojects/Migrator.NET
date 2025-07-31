@@ -13,20 +13,19 @@
 
 using System;
 
-namespace Migrator
-{
-    /// <summary>
-    /// Exception thrown in a migration <c>Down()</c> method
-    /// when changes can't be undone.
-    /// </summary>
+namespace Migrator;
+
+/// <summary>
+/// Exception thrown in a migration <c>Down()</c> method
+/// when changes can't be undone.
+/// </summary>
 #if NETSTANDARD
 #else
-    [Serializable]
+[Serializable]
 #endif
-    public class IrreversibleMigrationException : Exception
+public class IrreversibleMigrationException : Exception
+{
+    public IrreversibleMigrationException() : base("Irreversible migration")
     {
-        public IrreversibleMigrationException() : base("Irreversible migration")
-        {
-        }
     }
 }

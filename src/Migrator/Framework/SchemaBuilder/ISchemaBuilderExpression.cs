@@ -11,10 +11,9 @@
 
 #endregion
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public interface ISchemaBuilderExpression
 {
-    public interface ISchemaBuilderExpression
-    {
-        void Create(ITransformationProvider provider);
-    }
+    void Create(ITransformationProvider provider);
 }

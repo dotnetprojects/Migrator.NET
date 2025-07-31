@@ -13,31 +13,30 @@
 
 using System.Data;
 
-namespace Migrator.Framework
+namespace Migrator.Framework;
+
+/// <summary>
+/// Represents a table column.
+/// </summary>
+public class ViewField : IViewField
 {
-    /// <summary>
-    /// Represents a table column.
-    /// </summary>
-    public class ViewField : IViewField
+    public ViewField(string ColumnName)
     {
-        public ViewField(string ColumnName)
-        {
-            this.ColumnName = ColumnName;
-        }
-
-        public ViewField(string ColumnName, string TableName, string KeyColumnName, string ParentTableName, string ParentKeyColumnName)
-        {
-            this.ColumnName = ColumnName;
-            this.TableName = TableName;
-            this.KeyColumnName = KeyColumnName;
-            this.ParentTableName = ParentTableName;
-            this.ParentKeyColumnName = ParentKeyColumnName;
-        }
-
-        public string TableName { get; set; }
-        public string ColumnName { get; set; }
-        public string KeyColumnName { get; set; }
-        public string ParentTableName { get; set; }
-        public string ParentKeyColumnName { get; set; }
+        this.ColumnName = ColumnName;
     }
+
+    public ViewField(string ColumnName, string TableName, string KeyColumnName, string ParentTableName, string ParentKeyColumnName)
+    {
+        this.ColumnName = ColumnName;
+        this.TableName = TableName;
+        this.KeyColumnName = KeyColumnName;
+        this.ParentTableName = ParentTableName;
+        this.ParentKeyColumnName = ParentKeyColumnName;
+    }
+
+    public string TableName { get; set; }
+    public string ColumnName { get; set; }
+    public string KeyColumnName { get; set; }
+    public string ParentTableName { get; set; }
+    public string ParentKeyColumnName { get; set; }
 }

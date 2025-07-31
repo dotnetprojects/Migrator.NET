@@ -1,34 +1,34 @@
 ﻿using Migrator.Providers.SqlServer;
 using System.Data;
 
-namespace Migrator.Providers.Utility
+namespace Migrator.Providers.Utility;
+
+public static class SqlServerUtility
 {
-    public static class SqlServerUtility
+    public static void RemoveAllTablesFromDefaultDatabase(string connectionString)
     {
-        public static void RemoveAllTablesFromDefaultDatabase(string connectionString)
+        var d = new SqlServerDialect();
+        using (var p = d.NewProviderForDialect(connectionString, null, null, null))
+        using (var connection = p.Connection)
         {
-            var d = new SqlServerDialect();
-            using (var p = d.NewProviderForDialect(connectionString, null, null, null))
-            using (var connection = p.Connection)
-            {
-                connection.Open();
-                RemoveAllForeignKeys(connection);
-                DropAllTables(connection);
-                connection.Close();
-            }
+            connection.Open();
+            RemoveAllForeignKeys(connection);
+            DropAllTables(connection);
+            connection.Close();
         }
+    }
 
-        private static void DropAllTables(IDbConnection connection)
-        {
-            ExecuteForEachTable(connection, "DROP TABLE ?");
-        }
+    private static void DropAllTables(IDbConnection connection)
+    {
+        ExecuteForEachTable(connection, "DROP TABLE ?");
+    }
 
-        private static void RemoveAllForeignKeys(IDbConnection connection)
+    private static void RemoveAllForeignKeys(IDbConnection connection)
+    {
+        using (
+            var dropConstraintsCommand = connection.CreateCommand())
         {
-            using (
-                var dropConstraintsCommand = connection.CreateCommand())
-            {
-                dropConstraintsCommand.CommandText = @"DECLARE @Sql NVARCHAR(500) DECLARE @Cursor CURSOR
+            dropConstraintsCommand.CommandText = @"DECLARE @Sql NVARCHAR(500) DECLARE @Cursor CURSOR
 
 SET @Cursor = CURSOR FAST_FORWARD FOR
 
@@ -51,23 +51,22 @@ FETCH NEXT FROM @Cursor INTO @Sql
 END
 
 CLOSE @Cursor DEALLOCATE @Cursor";
-                dropConstraintsCommand.CommandType = CommandType.Text;
-                dropConstraintsCommand.ExecuteNonQuery();
-            }
+            dropConstraintsCommand.CommandType = CommandType.Text;
+            dropConstraintsCommand.ExecuteNonQuery();
         }
+    }
 
-        private static void ExecuteForEachTable(IDbConnection connection, string command)
+    private static void ExecuteForEachTable(IDbConnection connection, string command)
+    {
+        using (var forEachCommand = connection.CreateCommand())
         {
-            using (var forEachCommand = connection.CreateCommand())
-            {
-                forEachCommand.CommandText = "sp_MSforeachtable";
-                forEachCommand.CommandType = CommandType.StoredProcedure;
-                var par = forEachCommand.CreateParameter();
-                par.ParameterName = "@command1";
-                par.Value = command;
-                forEachCommand.Parameters.Add(par);
-                forEachCommand.ExecuteNonQuery();
-            }
+            forEachCommand.CommandText = "sp_MSforeachtable";
+            forEachCommand.CommandType = CommandType.StoredProcedure;
+            var par = forEachCommand.CreateParameter();
+            par.ParameterName = "@command1";
+            par.Value = command;
+            forEachCommand.Parameters.Add(par);
+            forEachCommand.ExecuteNonQuery();
         }
     }
 }

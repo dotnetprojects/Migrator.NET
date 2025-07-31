@@ -11,18 +11,17 @@
 
 #endregion
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public class ForeignKey
 {
-    public class ForeignKey
+    public ForeignKey(string primaryTable, string primaryKey)
     {
-        public ForeignKey(string primaryTable, string primaryKey)
-        {
-            PrimaryTable = primaryTable;
-            PrimaryKey = primaryKey;
-        }
-
-        public string PrimaryTable { get; set; }
-
-        public string PrimaryKey { get; set; }
+        PrimaryTable = primaryTable;
+        PrimaryKey = primaryKey;
     }
+
+    public string PrimaryTable { get; set; }
+
+    public string PrimaryKey { get; set; }
 }

@@ -13,12 +13,11 @@
 
 using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Framework.SchemaBuilder
-{
-    public interface IFluentColumn : IColumn
-    {
-        ForeignKeyConstraintType Constraint { get; set; }
+namespace Migrator.Framework.SchemaBuilder;
 
-        ForeignKey ForeignKey { get; set; }
-    }
+public interface IFluentColumn : IColumn
+{
+    ForeignKeyConstraintType Constraint { get; set; }
+
+    ForeignKey ForeignKey { get; set; }
 }

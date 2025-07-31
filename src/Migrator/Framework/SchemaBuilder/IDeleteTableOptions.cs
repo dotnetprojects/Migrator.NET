@@ -11,14 +11,13 @@
 
 #endregion
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public interface IDeleteTableOptions
 {
-    public interface IDeleteTableOptions
-    {
-        SchemaBuilder WithTable(string name);
+    SchemaBuilder WithTable(string name);
 
-        SchemaBuilder AddTable(string name);
+    SchemaBuilder AddTable(string name);
 
-        IDeleteTableOptions DeleteTable(string name);
-    }
+    IDeleteTableOptions DeleteTable(string name);
 }

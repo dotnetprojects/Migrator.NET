@@ -13,25 +13,24 @@
 
 using System.Data;
 
-namespace Migrator.Framework
+namespace Migrator.Framework;
+
+public interface IColumn
 {
-    public interface IColumn
-    {
-        ColumnProperty ColumnProperty { get; set; }
+    ColumnProperty ColumnProperty { get; set; }
 
-        string Name { get; set; }
+    string Name { get; set; }
 
-        DbType Type { get; set; }
+    DbType Type { get; set; }
 
-        MigratorDbType MigratorDbType { get; set; }
+    MigratorDbType MigratorDbType { get; set; }
 
-        int Size { get; set; }
+    int Size { get; set; }
 
-        bool IsIdentity { get; }
+    bool IsIdentity { get; }
 
-        bool IsPrimaryKey { get; }
-        bool IsPrimaryKeyNonClustered { get; }
+    bool IsPrimaryKey { get; }
+    bool IsPrimaryKeyNonClustered { get; }
 
-        object DefaultValue { get; set; }
-    }
+    object DefaultValue { get; set; }
 }
