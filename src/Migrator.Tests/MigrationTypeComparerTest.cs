@@ -21,7 +21,7 @@ namespace Migrator.Tests
     [TestFixture]
     public class MigrationTypeComparerTest
     {
-        readonly Type[] _types = {
+        private readonly Type[] _types = {
                                      typeof (Migration1),
                                      typeof (Migration2),
                                      typeof (Migration3)

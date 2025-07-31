@@ -22,7 +22,7 @@ namespace Migrator.Tests
     /// </summary>
     public abstract class MigrationsTestCase
     {
-        Migrator _migrator;
+        private Migrator _migrator;
 
         protected abstract TransformationProvider TransformationProvider { get; }
         protected abstract string ConnectionString { get; }

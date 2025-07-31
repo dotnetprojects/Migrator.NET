@@ -17,7 +17,7 @@ namespace Migrator.Providers
     {
         public static readonly NoOpTransformationProvider Instance = new NoOpTransformationProvider();
 
-        NoOpTransformationProvider()
+        private NoOpTransformationProvider()
         {
         }
 

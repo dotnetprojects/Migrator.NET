@@ -25,10 +25,10 @@ namespace Migrator.Tools
     public class SchemaDumper
     {
         private readonly ITransformationProvider _provider;
-        string[] tables;
-        List<ForeignKeyConstraint> foreignKeys = new List<ForeignKeyConstraint>();
-        List<Column> columns = new List<Column>();
-        string dumpResult;
+        private string[] tables;
+        private List<ForeignKeyConstraint> foreignKeys = new List<ForeignKeyConstraint>();
+        private List<Column> columns = new List<Column>();
+        private string dumpResult;
         public SchemaDumper(ProviderTypes provider, string connectionString, string defaultSchema, string path = null, string tablePrefix = null)
         {
             _provider = ProviderFactory.Create(provider, connectionString, defaultSchema);

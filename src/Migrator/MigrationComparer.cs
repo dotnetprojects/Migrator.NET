@@ -23,7 +23,7 @@ namespace Migrator
     /// </summary>
     public class MigrationTypeComparer : IComparer<Type>
     {
-        readonly bool _ascending = true;
+        private readonly bool _ascending = true;
 
         public MigrationTypeComparer(bool ascending)
         {

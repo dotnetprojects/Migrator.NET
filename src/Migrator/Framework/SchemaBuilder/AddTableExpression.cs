@@ -15,7 +15,7 @@ namespace Migrator.Framework.SchemaBuilder
 {
     public class AddTableExpression : ISchemaBuilderExpression
     {
-        readonly string _newTable;
+        private readonly string _newTable;
 
         public AddTableExpression(string newTable)
         {

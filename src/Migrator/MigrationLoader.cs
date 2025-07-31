@@ -12,8 +12,8 @@ namespace Migrator
     /// </summary>
     public class MigrationLoader
     {
-        readonly List<Type> _migrationsTypes = new List<Type>();
-        readonly ITransformationProvider _provider;
+        private readonly List<Type> _migrationsTypes = new List<Type>();
+        private readonly ITransformationProvider _provider;
 
         public MigrationLoader(ITransformationProvider provider, Assembly migrationAssembly, bool trace)
         {

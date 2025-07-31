@@ -24,7 +24,7 @@ namespace Migrator.Framework
             return AddManyToManyJoiningTable(database, schema, lhsTableName, lhsKey, rhsTableName, rhsKey, joiningTable);
         }
 
-        static string GetNameOfJoiningTable(string lhsTableName, string rhsTableName)
+        private static string GetNameOfJoiningTable(string lhsTableName, string rhsTableName)
         {
             return (Inflector.Singularize(lhsTableName) ?? lhsTableName) + (Inflector.Pluralize(rhsTableName) ?? rhsTableName);
         }
@@ -58,7 +58,7 @@ namespace Migrator.Framework
             return database;
         }
 
-        static string ShortenKeyNameToBeSuitableForOracle(string pkName)
+        private static string ShortenKeyNameToBeSuitableForOracle(string pkName)
         {
             return TransformationProviderUtility.AdjustNameToSize(pkName, TransformationProviderUtility.MaxLengthForForeignKeyInOracle, false);
         }

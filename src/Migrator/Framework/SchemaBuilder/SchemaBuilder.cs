@@ -20,9 +20,9 @@ namespace Migrator.Framework.SchemaBuilder
 {
     public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOptions
     {
-        readonly IList<ISchemaBuilderExpression> _exprs;
-        IFluentColumn _currentColumn;
-        string _currentTable;
+        private readonly IList<ISchemaBuilderExpression> _exprs;
+        private IFluentColumn _currentColumn;
+        private string _currentTable;
 
         public SchemaBuilder()
         {

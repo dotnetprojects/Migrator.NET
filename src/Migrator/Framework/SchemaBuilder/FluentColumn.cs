@@ -18,7 +18,7 @@ namespace Migrator.Framework.SchemaBuilder
 {
     public class FluentColumn : IFluentColumn
     {
-        readonly Column _inner;
+        private readonly Column _inner;
 
         public FluentColumn(string columnName)
         {

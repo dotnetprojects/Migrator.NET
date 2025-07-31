@@ -39,13 +39,13 @@ namespace Migrator.Providers
         private string _scope;
         protected readonly string _connectionString;
         protected readonly string _defaultSchema;
-        readonly ForeignKeyConstraintMapper constraintMapper = new ForeignKeyConstraintMapper();
+        private readonly ForeignKeyConstraintMapper constraintMapper = new ForeignKeyConstraintMapper();
         protected List<long> _appliedMigrations;
         protected IDbConnection _connection;
         protected bool _outsideConnection = false;
         protected Dialect _dialect;
-        ILogger _logger;
-        IDbTransaction _transaction;
+        private ILogger _logger;
+        private IDbTransaction _transaction;
 
         protected TransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope)
         {
@@ -1924,14 +1924,14 @@ namespace Migrator.Providers
             }
         }
 
-        string FormatValue(object value)
+        private string FormatValue(object value)
         {
             if (value == null) return null;
             if (value is DateTime) return ((DateTime)value).ToString("yyyy-MM-dd HH:mm:ss:fff");
             return value.ToString();
         }
 
-        void QuoteColumnNames(string[] primaryColumns)
+        private void QuoteColumnNames(string[] primaryColumns)
         {
             for (var i = 0; i < primaryColumns.Length; i++)
             {

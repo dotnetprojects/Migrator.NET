@@ -50,7 +50,7 @@ public class MigratorTest
         SetUpCurrentVersion(version, assertRollbackIsCalled, true);
     }
 
-    void SetUpCurrentVersion(long version, bool assertRollbackIsCalled, bool includeBad)
+    private void SetUpCurrentVersion(long version, bool assertRollbackIsCalled, bool includeBad)
     {
         var providerMock = new DynamicMock(typeof(ITransformationProvider));
 

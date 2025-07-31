@@ -11,7 +11,7 @@ namespace Migrator
     /// </summary>
     public class MigrateAnywhere : BaseMigrate
     {
-        bool _goForward;
+        private bool _goForward;
 
         public MigrateAnywhere(List<long> availableMigrations, ITransformationProvider provider, ILogger logger)
             : base(availableMigrations, provider, logger)
@@ -81,7 +81,7 @@ namespace Migrator
             }
         }
 
-        void ApplyMigration(IMigration migration, MigrationAttribute attr)
+        private void ApplyMigration(IMigration migration, MigrationAttribute attr)
         {
             // we're adding this one
             _logger.MigrateUp(Current, migration.Name);
@@ -98,7 +98,7 @@ namespace Migrator
             }
         }
 
-        void RemoveMigration(IMigration migration, MigrationAttribute attr)
+        private void RemoveMigration(IMigration migration, MigrationAttribute attr)
         {
             // we're removing this one
             _logger.MigrateDown(Current, migration.Name);

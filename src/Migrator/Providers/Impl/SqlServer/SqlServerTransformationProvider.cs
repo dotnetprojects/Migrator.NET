@@ -494,7 +494,7 @@ FROM    sys.[indexes] Ind
 
         // Deletes all constraints linked to a column. Sql Server
         // doesn't seems to do this.
-        void DeleteColumnConstraints(string table, string column)
+        private void DeleteColumnConstraints(string table, string column)
         {
             var sqlContrainte = FindConstraints(table, column);
             var constraints = new List<string>();
@@ -513,7 +513,7 @@ FROM    sys.[indexes] Ind
             }
         }
 
-        void DeleteColumnIndexes(string table, string column)
+        private void DeleteColumnIndexes(string table, string column)
         {
             var sqlIndex = this.FindIndexes(table, column);
             var indexes = new List<string>();

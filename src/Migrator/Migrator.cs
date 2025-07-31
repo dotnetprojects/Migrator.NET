@@ -26,12 +26,12 @@ namespace Migrator
     /// </summary>
     public class Migrator
     {
-        readonly MigrationLoader _migrationLoader;
-        readonly ITransformationProvider _provider;
+        private readonly MigrationLoader _migrationLoader;
+        private readonly ITransformationProvider _provider;
 
-        string[] _args;
+        private string[] _args;
         protected bool _dryrun;
-        ILogger _logger = new Logger(false);
+        private ILogger _logger = new Logger(false);
 
         public Migrator(ProviderTypes provider, string connectionString, string defaultSchema, Assembly migrationAssembly)
             : this(provider, connectionString, defaultSchema, migrationAssembly, false)

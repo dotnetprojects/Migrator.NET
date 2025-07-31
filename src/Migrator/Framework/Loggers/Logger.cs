@@ -21,8 +21,8 @@ namespace Migrator.Framework.Loggers
     /// </summary>
     public class Logger : IAttachableLogger
     {
-        readonly bool _trace;
-        readonly List<ILogWriter> _writers = new List<ILogWriter>();
+        private readonly bool _trace;
+        private readonly List<ILogWriter> _writers = new List<ILogWriter>();
 
         public Logger(bool trace)
         {
@@ -120,7 +120,7 @@ namespace Migrator.Framework.Loggers
             WriteLine("Current version : {0}.  Target version : {1}", currentVersion, finalVersion);
         }
 
-        void LogExceptionDetails(Exception ex)
+        private void LogExceptionDetails(Exception ex)
         {
             WriteLine("{0}", ex.Message);
             WriteLine("{0}", ex.StackTrace);
@@ -138,7 +138,7 @@ namespace Migrator.Framework.Loggers
             WriteLine("Migrated to version {0}", currentVersion);
         }
 
-        void Write(string message, params object[] args)
+        private void Write(string message, params object[] args)
         {
             foreach (var writer in _writers)
             {
@@ -146,7 +146,7 @@ namespace Migrator.Framework.Loggers
             }
         }
 
-        void WriteLine(string message, params object[] args)
+        private void WriteLine(string message, params object[] args)
         {
             foreach (var writer in _writers)
             {
@@ -159,7 +159,7 @@ namespace Migrator.Framework.Loggers
             return new Logger(false, new ConsoleWriter());
         }
 
-        string LatestVersion(List<long> versions)
+        private string LatestVersion(List<long> versions)
         {
             if (versions.Count > 0)
             {

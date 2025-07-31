@@ -46,13 +46,13 @@ namespace Migrator.Providers
         public const string PrecisionPlaceHolder = "$p";
         public const string ScalePlaceHolder = "$s";
 
-        readonly Dictionary<MigratorDbType, string> defaults = new Dictionary<MigratorDbType, string>();
+        private readonly Dictionary<MigratorDbType, string> defaults = new Dictionary<MigratorDbType, string>();
 
-        readonly Dictionary<MigratorDbType, string> parametrized = new Dictionary<MigratorDbType, string>();
+        private readonly Dictionary<MigratorDbType, string> parametrized = new Dictionary<MigratorDbType, string>();
 
-        readonly Dictionary<string, MigratorDbType> aliases = new Dictionary<string, MigratorDbType>();
+        private readonly Dictionary<string, MigratorDbType> aliases = new Dictionary<string, MigratorDbType>();
 
-        readonly Dictionary<MigratorDbType, SortedList<int, string>> weighted =
+        private readonly Dictionary<MigratorDbType, SortedList<int, string>> weighted =
             new Dictionary<MigratorDbType, SortedList<int, string>>();
 
         public DbType GetDbType(string type)
@@ -132,7 +132,7 @@ namespace Migrator.Providers
             return Get(typecode);
         }
 
-        static string Replace(string type, int size, int precision, int scale)
+        private static string Replace(string type, int size, int precision, int scale)
         {
             type = StringUtils.ReplaceOnce(type, LengthPlaceHolder, size.ToString());
             type = StringUtils.ReplaceOnce(type, ScalePlaceHolder, scale.ToString());

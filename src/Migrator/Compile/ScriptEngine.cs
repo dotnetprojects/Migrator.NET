@@ -9,8 +9,8 @@ namespace Migrator.Compile
 {
     public class ScriptEngine
     {
-        readonly string _codeType = "csharp";
-        readonly CodeDomProvider _provider;
+        private readonly string _codeType = "csharp";
+        private readonly CodeDomProvider _provider;
         public readonly string[] extraReferencedAssemblies;
 
         public ScriptEngine() : this(null, null)
@@ -41,7 +41,7 @@ namespace Migrator.Compile
             return Compile(files);
         }
 
-        string[] GetFilesRecursive(string directory)
+        private string[] GetFilesRecursive(string directory)
         {
             var files = GetFilesRecursive(new DirectoryInfo(directory));
             var fileNames = new string[files.Length];
@@ -52,7 +52,7 @@ namespace Migrator.Compile
             return fileNames;
         }
 
-        FileInfo[] GetFilesRecursive(DirectoryInfo d)
+        private FileInfo[] GetFilesRecursive(DirectoryInfo d)
         {
             var files = new List<FileInfo>();
             files.AddRange(d.GetFiles(String.Format("*.{0}", _provider.FileExtension)));
@@ -83,7 +83,7 @@ namespace Migrator.Compile
             return compileResult.CompiledAssembly;
         }
 
-        CompilerParameters SetupCompilerParams()
+        private CompilerParameters SetupCompilerParams()
         {
             var migrationFrameworkPath = FrameworkAssemblyPath();
             var parms = new CompilerParameters();
@@ -107,7 +107,7 @@ namespace Migrator.Compile
             return parms;
         }
 
-        static string FrameworkAssemblyPath()
+        private static string FrameworkAssemblyPath()
         {
             var path = typeof(MigrationAttribute).Module.FullyQualifiedName;
             Console.Out.WriteLine("Framework DLL: " + path);

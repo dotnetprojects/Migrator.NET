@@ -53,7 +53,7 @@ namespace Migrator.Providers.Oracle
             ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
         }
 
-        void GuardAgainstMaximumIdentifierLengthForOracle(string name)
+        private void GuardAgainstMaximumIdentifierLengthForOracle(string name)
         {
             if (name.Length > 30)
             {
@@ -116,7 +116,7 @@ namespace Migrator.Providers.Oracle
             }
         }
 
-        void CopyDataFromOneColumnToAnother(string table, string fromColumn, string toColumn)
+        private void CopyDataFromOneColumnToAnother(string table, string fromColumn, string toColumn)
         {
             table = QuoteTableNameIfRequired(table);
             fromColumn = QuoteColumnNameIfRequired(fromColumn);
@@ -136,7 +136,7 @@ namespace Migrator.Providers.Oracle
             ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
         }
 
-        void GuardAgainstExistingTableWithSameName(string newName, string oldName)
+        private void GuardAgainstExistingTableWithSameName(string newName, string oldName)
         {
             if (TableExists(newName)) throw new MigrationException(string.Format("Can not rename table \"{0}\" to \"{1}\", a table with that name already exists", oldName, newName));
         }
@@ -153,7 +153,7 @@ namespace Migrator.Providers.Oracle
             ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, oldColumnName, newColumnName));
         }
 
-        void GuardAgainstExistingColumnWithSameName(string newColumnName, string tableName)
+        private void GuardAgainstExistingColumnWithSameName(string newColumnName, string tableName)
         {
             if (ColumnExists(tableName, newColumnName)) throw new MigrationException(string.Format("A column with the name \"{0}\" already exists in the table \"{1}\"", newColumnName, tableName));
         }
@@ -387,7 +387,7 @@ namespace Migrator.Providers.Oracle
             return columns.ToArray();
         }
 
-        bool ParseBoolean(object value)
+        private bool ParseBoolean(object value)
         {
             if (value is string)
             {
@@ -496,7 +496,7 @@ namespace Migrator.Providers.Oracle
                 // swallow this because sequence may not have originally existed.
             }
         }
-        void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
+        private void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
         {
             foreach (var column in columns)
             {

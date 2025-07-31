@@ -10,10 +10,10 @@ namespace Migrator.Providers
     /// </summary>
     public abstract class Dialect : IDialect
     {
-        readonly Dictionary<ColumnProperty, string> propertyMap = [];
-        readonly HashSet<string> reservedWords = [];
-        readonly TypeNames typeNames = new();
-        readonly List<DbType> unsignedCompatibleTypes = [];
+        private readonly Dictionary<ColumnProperty, string> propertyMap = [];
+        private readonly HashSet<string> reservedWords = [];
+        private readonly TypeNames typeNames = new();
+        private readonly List<DbType> unsignedCompatibleTypes = [];
 
         protected Dialect()
         {

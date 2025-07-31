@@ -8,7 +8,7 @@ namespace Migrator.Framework.Support
     {
         public const int MaxLengthForForeignKeyInOracle = 30;
         //static readonly ILog log = LogManager.GetLogger(typeof (TransformationProviderUtility));
-        static readonly string[] CommonWords = new[] { "Test" };
+        private static readonly string[] CommonWords = new[] { "Test" };
 
         public static string CreateForeignKeyName(string tableName, string foreignKeyTableName)
         {
@@ -39,7 +39,7 @@ namespace Migrator.Framework.Support
             return adjustedName;
         }
 
-        static string RemoveCommonWords(string adjustedName)
+        private static string RemoveCommonWords(string adjustedName)
         {
             foreach (var word in CommonWords)
             {

@@ -454,7 +454,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     }
 
 
-    int[] GetVals(IDataReader reader)
+    private int[] GetVals(IDataReader reader)
     {
         var vals = new int[2];
         Assert.That(reader.Read(), Is.True);
@@ -465,7 +465,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         return vals;
     }
 
-    string[] GetStringVals(IDataReader reader)
+    private string[] GetStringVals(IDataReader reader)
     {
         var vals = new string[2];
         Assert.That(reader.Read(), Is.True);

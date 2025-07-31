@@ -18,12 +18,12 @@ namespace Migrator.Providers.Utility
             }
         }
 
-        static void DropAllTables(IDbConnection connection)
+        private static void DropAllTables(IDbConnection connection)
         {
             ExecuteForEachTable(connection, "DROP TABLE ?");
         }
 
-        static void RemoveAllForeignKeys(IDbConnection connection)
+        private static void RemoveAllForeignKeys(IDbConnection connection)
         {
             using (
                 var dropConstraintsCommand = connection.CreateCommand())
@@ -56,7 +56,7 @@ CLOSE @Cursor DEALLOCATE @Cursor";
             }
         }
 
-        static void ExecuteForEachTable(IDbConnection connection, string command)
+        private static void ExecuteForEachTable(IDbConnection connection, string command)
         {
             using (var forEachCommand = connection.CreateCommand())
             {

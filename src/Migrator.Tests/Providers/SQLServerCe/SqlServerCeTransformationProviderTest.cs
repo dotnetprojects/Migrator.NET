@@ -43,7 +43,7 @@ namespace Migrator.Tests.Providers
 
         #endregion
 
-        void EnsureDatabase(string constr)
+        private void EnsureDatabase(string constr)
         {
             var connection = new SqlCeConnection(constr);
             if (!File.Exists(connection.Database))

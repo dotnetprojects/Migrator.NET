@@ -15,7 +15,7 @@ namespace Migrator.Framework.SchemaBuilder
 {
     public class DeleteTableExpression : ISchemaBuilderExpression
     {
-        readonly string _tableName;
+        private readonly string _tableName;
 
         public DeleteTableExpression(string tableName)
         {
