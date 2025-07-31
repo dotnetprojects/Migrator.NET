@@ -18,7 +18,7 @@ using Migrator.Framework;
 using Migrator.Providers.Mysql;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.MySQL;
 
 [TestFixture]
 [Category("MySql")]

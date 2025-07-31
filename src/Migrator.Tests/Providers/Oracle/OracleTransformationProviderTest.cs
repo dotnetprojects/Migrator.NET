@@ -11,8 +11,6 @@ namespace Migrator.Tests.Providers;
 [Category("Oracle")]
 public class OracleTransformationProviderTest : TransformationProviderConstraintBase
 {
-    #region Setup/Teardown
-
     [SetUp]
     public void SetUp()
     {
@@ -24,8 +22,6 @@ public class OracleTransformationProviderTest : TransformationProviderConstraint
 
         AddDefaultTable();
     }
-
-    #endregion
 
     [Test]
     public void ChangeColumn_FromNotNullToNotNull()

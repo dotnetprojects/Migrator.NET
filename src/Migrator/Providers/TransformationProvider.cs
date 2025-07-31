@@ -1262,7 +1262,7 @@ namespace Migrator.Providers
 
             table = QuoteTableNameIfRequired(table);
 
-            string columnNames = string.Join(", ", columns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
+            var columnNames = string.Join(", ", columns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
 
             var builder = new StringBuilder();
 

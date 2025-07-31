@@ -47,7 +47,7 @@ namespace Migrator.Providers.SqlServer
             }
 
             var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
-            _connection = fac.CreateConnection(); //  new SqlConnection();
+            _connection = fac.CreateConnection();
             _connection.ConnectionString = _connectionString;
             _connection.Open();
 

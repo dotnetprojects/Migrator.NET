@@ -29,7 +29,11 @@ namespace Migrator.Providers.PostgreSQL
         public PostgreSQLTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
             : base(dialect, connectionString, defaultSchema, scope)
         {
-            if (string.IsNullOrEmpty(providerName)) providerName = "Npgsql";
+            if (string.IsNullOrEmpty(providerName))
+            {
+                providerName = "Npgsql";
+            }
+
             var fac = DbProviderFactoriesHelper.GetFactory(providerName, "Npgsql", "Npgsql.NpgsqlFactory");
             _connection = fac.CreateConnection(); //new NpgsqlConnection();
             _connection.ConnectionString = _connectionString;
@@ -43,12 +47,10 @@ namespace Migrator.Providers.PostgreSQL
 
         protected override string GetPrimaryKeyConstraintName(string table)
         {
-            using (var cmd = CreateCommand())
-            using (IDataReader reader =
-                ExecuteQuery(cmd, string.Format("SELECT conname FROM pg_constraint WHERE contype = 'p' AND conrelid = (SELECT oid FROM pg_class WHERE relname = lower('{0}'));", table)))
-            {
-                return reader.Read() ? reader.GetString(0) : null;
-            }
+            using var cmd = CreateCommand();
+            using var reader =
+                ExecuteQuery(cmd, string.Format("SELECT conname FROM pg_constraint WHERE contype = 'p' AND conrelid = (SELECT oid FROM pg_class WHERE relname = lower('{0}'));", table));
+            return reader.Read() ? reader.GetString(0) : null;
         }
 
         public override Index[] GetIndexes(string table)
@@ -120,45 +122,41 @@ WHERE  lower(tablenm) = lower('{0}')
 
         public override bool ConstraintExists(string table, string name)
         {
-            using (var cmd = CreateCommand())
-            using (IDataReader reader =
-                ExecuteQuery(cmd, string.Format("SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND constraint_name = lower('{0}')", name)))
-            {
-                return reader.Read();
-            }
+            using var cmd = CreateCommand();
+            using var reader =
+                ExecuteQuery(cmd, string.Format("SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND constraint_name = lower('{0}')", name));
+
+            return reader.Read();
         }
 
         public override bool ColumnExists(string table, string column)
         {
             if (!TableExists(table))
-                return false;
-
-            using (var cmd = CreateCommand())
-            using (IDataReader reader =
-                ExecuteQuery(cmd, String.Format("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = lower('{0}') AND (column_name = lower('{1}') OR column_name = '{1}')", table, column)))
             {
-                return reader.Read();
+                return false;
             }
+
+            using var cmd = CreateCommand();
+            using var reader =
+                ExecuteQuery(cmd, String.Format("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = lower('{0}') AND (column_name = lower('{1}') OR column_name = '{1}')", table, column));
+            return reader.Read();
         }
 
         public override bool TableExists(string table)
         {
-            using (var cmd = CreateCommand())
-            using (IDataReader reader =
-                ExecuteQuery(cmd, String.Format("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = lower('{0}')", table)))
-            {
-                return reader.Read();
-            }
+            using var cmd = CreateCommand();
+            using var reader =
+                ExecuteQuery(cmd, String.Format("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = lower('{0}')", table));
+            return reader.Read();
         }
 
         public override bool ViewExists(string view)
         {
-            using (var cmd = CreateCommand())
-            using (IDataReader reader =
-                ExecuteQuery(cmd, String.Format("SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = lower('{0}')", view)))
-            {
-                return reader.Read();
-            }
+            using var cmd = CreateCommand();
+            using var reader =
+                ExecuteQuery(cmd, String.Format("SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = lower('{0}')", view));
+
+            return reader.Read();
         }
 
         public override List<string> GetDatabases()
@@ -174,11 +172,10 @@ WHERE  lower(tablenm) = lower('{0}')
 
             column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
 
-            ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
+            var mapper = _dialect.GetAndMapColumnProperties(column);
 
-            string change1 = string.Format("{0} TYPE {1}", QuoteColumnNameIfRequired(mapper.Name), mapper.type);
+            var change1 = string.Format("{0} TYPE {1}", QuoteColumnNameIfRequired(mapper.Name), mapper.type);
 
-            #region Field Type Converters...
             if ((oldColumn.Type == DbType.Int16 || oldColumn.Type == DbType.Int32 || oldColumn.Type == DbType.Int64 || oldColumn.Type == DbType.Decimal) && column.Type == DbType.Boolean)
             {
                 change1 += string.Format(" USING CASE {0} WHEN 1 THEN true ELSE false END", QuoteColumnNameIfRequired(mapper.Name));
@@ -187,29 +184,29 @@ WHERE  lower(tablenm) = lower('{0}')
             {
                 change1 += string.Format(" USING CASE {0} WHEN '1' THEN true ELSE false END", QuoteColumnNameIfRequired(mapper.Name));
             }
-            #endregion
+
 
             ChangeColumn(table, change1);
 
             if (mapper.Default != null)
             {
-                string change2 = string.Format("{0} SET {1}", QuoteColumnNameIfRequired(mapper.Name), _dialect.Default(mapper.Default));
+                var change2 = string.Format("{0} SET {1}", QuoteColumnNameIfRequired(mapper.Name), _dialect.Default(mapper.Default));
                 ChangeColumn(table, change2);
             }
             else
             {
-                string change2 = string.Format("{0} DROP DEFAULT", QuoteColumnNameIfRequired(mapper.Name));
+                var change2 = string.Format("{0} DROP DEFAULT", QuoteColumnNameIfRequired(mapper.Name));
                 ChangeColumn(table, change2);
             }
 
             if (column.ColumnProperty.HasFlag(ColumnProperty.NotNull))
             {
-                string change3 = string.Format("{0} SET NOT NULL", QuoteColumnNameIfRequired(mapper.Name));
+                var change3 = string.Format("{0} SET NOT NULL", QuoteColumnNameIfRequired(mapper.Name));
                 ChangeColumn(table, change3);
             }
             else
             {
-                string change3 = string.Format("{0} DROP NOT NULL", QuoteColumnNameIfRequired(mapper.Name));
+                var change3 = string.Format("{0} DROP NOT NULL", QuoteColumnNameIfRequired(mapper.Name));
                 ChangeColumn(table, change3);
             }
 
@@ -238,7 +235,7 @@ WHERE  lower(tablenm) = lower('{0}')
         {
             var tables = new List<string>();
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+            using (var reader = ExecuteQuery(cmd, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
             {
                 while (reader.Read())
                 {
@@ -253,7 +250,7 @@ WHERE  lower(tablenm) = lower('{0}')
             var columns = new List<Column>();
             using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(cmd,
                         String.Format("select COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT from information_schema.columns where table_schema = 'public' AND table_name = lower('{0}');", table)))
             {
@@ -261,31 +258,44 @@ WHERE  lower(tablenm) = lower('{0}')
                 while (reader.Read())
                 {
                     var column = new Column(reader[0].ToString(), DbType.String);
-                    bool isNullable = reader.GetString(1) == "YES";
-                    object defaultValue = reader.GetValue(2);
+                    var isNullable = reader.GetString(1) == "YES";
+                    var defaultValue = reader.GetValue(2);
 
                     column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
 
                     if (defaultValue != null && defaultValue != DBNull.Value)
+                    {
                         column.DefaultValue = defaultValue;
+                    }
 
                     if (column.DefaultValue != null)
                     {
                         if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                        {
                             column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                        }
                         else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                        {
                             column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                        }
                         else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                        {
                             column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                        }
                         else if (column.Type == DbType.Boolean)
+                        {
                             column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+                        }
                         else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                         {
                             if (column.DefaultValue is string defVal)
                             {
                                 var dt = defVal;
                                 if (defVal.StartsWith("'"))
+                                {
                                     dt = defVal.Substring(1, defVal.Length - 2);
+                                }
+
                                 var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
                                 column.DefaultValue = d;
                             }
@@ -296,7 +306,10 @@ WHERE  lower(tablenm) = lower('{0}')
                             {
                                 var dt = defVal;
                                 if (defVal.StartsWith("'"))
+                                {
                                     dt = defVal.Substring(1, defVal.Length - 2);
+                                }
+
                                 var d = Guid.Parse(dt);
                                 column.DefaultValue = d;
                             }
@@ -313,11 +326,12 @@ WHERE  lower(tablenm) = lower('{0}')
         public override string[] GetConstraints(string table)
         {
             var constraints = new List<string>();
-            using (IDbCommand cmd = CreateCommand())
+
+            using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(
-                        cmd, String.Format(@"select c.conname as constraint_name
+                        cmd, string.Format(@"select c.conname as constraint_name
 from pg_constraint c
 join pg_class t on c.conrelid = t.oid
 where LOWER(t.relname) = LOWER('{0}')", table)))
@@ -334,17 +348,16 @@ where LOWER(t.relname) = LOWER('{0}')", table)))
         public override Column GetColumnByName(string table, string columnName)
         {
             // Duplicate because of the lower case issue
-            return Array.Find(GetColumns(table), column => column.Name == columnName.ToLower() || column.Name == columnName);
+            return Array.Find(GetColumns(table), x => x.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase) || x.Name == columnName);
         }
 
         public override bool IndexExists(string table, string name)
         {
-            using (var cmd = CreateCommand())
-            using (IDataReader reader =
-                ExecuteQuery(cmd, string.Format("SELECT indexname FROM pg_catalog.pg_indexes WHERE indexname = lower('{0}')", name)))
-            {
-                return reader.Read();
-            }
+            using var cmd = CreateCommand();
+            using var reader =
+                ExecuteQuery(cmd, string.Format("SELECT indexname FROM pg_catalog.pg_indexes WHERE indexname = lower('{0}')", name));
+
+            return reader.Read();
         }
 
         protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
