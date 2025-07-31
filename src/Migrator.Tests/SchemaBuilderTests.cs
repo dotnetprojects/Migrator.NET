@@ -28,7 +28,7 @@ namespace Migrator.Tests
         [Test]
         public void Can_AddColumn()
         {
-            string columnName = "MyUserId";
+            var columnName = "MyUserId";
 
             _schemaBuilder
                 .AddColumn(columnName);

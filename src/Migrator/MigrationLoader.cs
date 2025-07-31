@@ -23,7 +23,7 @@ namespace Migrator
             if (trace)
             {
                 provider.Logger.Trace("Loaded migrations:");
-                foreach (Type t in _migrationsTypes)
+                foreach (var t in _migrationsTypes)
                 {
                     provider.Logger.Trace("{0} {1}", GetMigrationVersion(t).ToString().PadLeft(5), StringUtils.ToHumanName(t.Name));
                 }
@@ -38,7 +38,7 @@ namespace Migrator
             if (trace)
             {
                 provider.Logger.Trace("Loaded migrations:");
-                foreach (Type t in _migrationsTypes)
+                foreach (var t in _migrationsTypes)
                 {
                     provider.Logger.Trace("{0} {1}", GetMigrationVersion(t).ToString().PadLeft(5), StringUtils.ToHumanName(t.Name));
                 }
@@ -79,9 +79,9 @@ namespace Migrator
         public virtual void CheckForDuplicatedVersion()
         {
             var versions = new List<long>();
-            foreach (Type t in _migrationsTypes)
+            foreach (var t in _migrationsTypes)
             {
-                long version = GetMigrationVersion(t);
+                var version = GetMigrationVersion(t);
 
                 if (versions.Contains(version))
                     throw new DuplicatedVersionException(version);
@@ -98,7 +98,7 @@ namespace Migrator
         public static List<Type> GetMigrationTypes(Assembly asm)
         {
             var migrations = new List<Type>();
-            foreach (Type t in asm.GetExportedTypes())
+            foreach (var t in asm.GetExportedTypes())
             {
 
 
@@ -143,7 +143,7 @@ namespace Migrator
 
         public virtual IMigration GetMigration(long version)
         {
-            foreach (Type t in _migrationsTypes)
+            foreach (var t in _migrationsTypes)
             {
                 if (GetMigrationVersion(t) == version)
                 {

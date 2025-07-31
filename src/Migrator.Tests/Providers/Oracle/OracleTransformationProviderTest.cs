@@ -14,7 +14,7 @@ public class OracleTransformationProviderTest : TransformationProviderConstraint
     [SetUp]
     public void SetUp()
     {
-        string constr = ConfigurationManager.AppSettings["OracleConnectionString"];
+        var constr = ConfigurationManager.AppSettings["OracleConnectionString"];
         if (constr == null)
             throw new ArgumentNullException("OracleConnectionString", "No config file");
         Provider = new OracleTransformationProvider(new OracleDialect(), constr, null, "default", null);

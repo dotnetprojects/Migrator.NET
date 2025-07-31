@@ -62,7 +62,7 @@ namespace Migrator
         protected long NextMigration()
         {
             // Start searching at the current index
-            int migrationSearch = _availableMigrations.IndexOf(Current) + 1;
+            var migrationSearch = _availableMigrations.IndexOf(Current) + 1;
 
             // See if we can find a migration that matches the requirement
             while (migrationSearch < _availableMigrations.Count
@@ -89,7 +89,7 @@ namespace Migrator
         protected long PreviousMigration()
         {
             // Start searching at the current index
-            int migrationSearch = _availableMigrations.IndexOf(Current) - 1;
+            var migrationSearch = _availableMigrations.IndexOf(Current) - 1;
 
             // See if we can find a migration that matches the requirement
             while (migrationSearch > -1

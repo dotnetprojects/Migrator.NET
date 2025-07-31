@@ -12,9 +12,9 @@ namespace Migrator.Framework
 
         public static T TryParse<T>(this IDataRecord record, string name, Func<T> defaultValue)
         {
-            object value = record[name];
+            var value = record[name];
 
-            Type type = typeof(T);
+            var type = typeof(T);
 
             if (value == null || value == DBNull.Value) return defaultValue();
 
@@ -48,7 +48,7 @@ namespace Migrator.Framework
             {
                 if (value is Int32 || value is Int64 || value is Int16 || value is UInt16 || value is UInt32 || value is UInt64)
                 {
-                    long intValue = Convert.ToInt64(value);
+                    var intValue = Convert.ToInt64(value);
                     return (T)(object)(intValue != 0);
                 }
 

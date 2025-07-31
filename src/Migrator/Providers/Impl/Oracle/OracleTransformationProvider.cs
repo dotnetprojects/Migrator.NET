@@ -47,8 +47,8 @@ namespace Migrator.Providers.Oracle
 
             primaryTable = QuoteTableNameIfRequired(primaryTable);
             refTable = QuoteTableNameIfRequired(refTable);
-            string primaryColumnsSql = String.Join(",", primaryColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
-            string refColumnsSql = String.Join(",", refColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
+            var primaryColumnsSql = String.Join(",", primaryColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
+            var refColumnsSql = String.Join(",", refColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
 
             ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
         }
@@ -75,7 +75,7 @@ namespace Migrator.Providers.Oracle
                 RenameColumn(table, column.Name, TemporaryColumnName);
 
                 // check if this is not-null
-                bool isNotNull = (column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull;
+                var isNotNull = (column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull;
 
                 // remove the not-null option
                 column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.NotNull);
@@ -85,7 +85,7 @@ namespace Migrator.Providers.Oracle
                 RemoveColumn(table, TemporaryColumnName);
                 //RenameColumn(table, TemporaryColumnName, column.Name);
 
-                string columnName = QuoteColumnNameIfRequired(column.Name);
+                var columnName = QuoteColumnNameIfRequired(column.Name);
 
                 // now set the column to not-null
                 if (isNotNull)
@@ -110,7 +110,7 @@ namespace Migrator.Providers.Oracle
                     column.ColumnProperty = column.ColumnProperty & ~ColumnProperty.Null;
                 }
 
-                ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
+                var mapper = _dialect.GetAndMapColumnProperties(column);
 
                 ChangeColumn(table, mapper.ColumnSql);
             }
@@ -181,7 +181,7 @@ namespace Migrator.Providers.Oracle
             var constraints = new List<string>();
             using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(cmd,
                         String.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}'", table.ToLower())))
             {
@@ -200,7 +200,7 @@ namespace Migrator.Providers.Oracle
 
             using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(cmd,
                         String.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}' and constraint_type = 'P'", table.ToLower())))
             {
@@ -215,12 +215,12 @@ namespace Migrator.Providers.Oracle
 
         public override bool ConstraintExists(string table, string name)
         {
-            string sql =
+            var sql =
                 string.Format(
                     "SELECT COUNT(constraint_name) FROM user_constraints WHERE lower(constraint_name) = '{0}' AND lower(table_name) = '{1}'",
                     name.ToLower(), table.ToLower());
             Logger.Log(sql);
-            object scalar = ExecuteScalar(sql);
+            var scalar = ExecuteScalar(sql);
             return Convert.ToInt32(scalar) == 1;
         }
 
@@ -229,36 +229,36 @@ namespace Migrator.Providers.Oracle
             if (!TableExists(table))
                 return false;
 
-            string sql =
+            var sql =
                 string.Format(
                     "SELECT COUNT(column_name) FROM user_tab_columns WHERE lower(table_name) = '{0}' AND lower(column_name) = '{1}'",
                     table.ToLower(), column.ToLower());
             Logger.Log(sql);
-            object scalar = ExecuteScalar(sql);
+            var scalar = ExecuteScalar(sql);
             return Convert.ToInt32(scalar) == 1;
         }
 
         public override bool TableExists(string table)
         {
-            string sql = string.Format("SELECT COUNT(table_name) FROM user_tables WHERE lower(table_name) = '{0}'", table.ToLower());
+            var sql = string.Format("SELECT COUNT(table_name) FROM user_tables WHERE lower(table_name) = '{0}'", table.ToLower());
 
             if (_defaultSchema != null)
                 sql = string.Format("SELECT COUNT(table_name) FROM user_tables WHERE lower(owner) = '{0}' and lower(table_name) = '{1}'", _defaultSchema.ToLower(), table.ToLower());
 
             Logger.Log(sql);
-            object count = ExecuteScalar(sql);
+            var count = ExecuteScalar(sql);
             return Convert.ToInt32(count) == 1;
         }
 
         public override bool ViewExists(string view)
         {
-            string sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(view_name) = '{0}'", view.ToLower());
+            var sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(view_name) = '{0}'", view.ToLower());
 
             if (_defaultSchema != null)
                 sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(owner) = '{0}' and lower(view_name) = '{1}'", _defaultSchema.ToLower(), view.ToLower());
 
             Logger.Log(sql);
-            object count = ExecuteScalar(sql);
+            var count = ExecuteScalar(sql);
             return Convert.ToInt32(count) == 1;
         }
 
@@ -272,7 +272,7 @@ namespace Migrator.Providers.Oracle
             var tables = new List<string>();
 
             using (var cmd = CreateCommand())
-            using (IDataReader reader =
+            using (var reader =
                 ExecuteQuery(cmd, "SELECT table_name FROM user_tables"))
             {
                 while (reader.Read())
@@ -290,7 +290,7 @@ namespace Migrator.Providers.Oracle
 
             using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(cmd,
                         string.Format(
                             "select column_name, data_type, data_length, data_precision, data_scale, NULLABLE, data_default FROM USER_TAB_COLUMNS WHERE lower(table_name) = '{0}'",
@@ -298,16 +298,16 @@ namespace Migrator.Providers.Oracle
             {
                 while (reader.Read())
                 {
-                    string colName = reader[0].ToString();
-                    DbType colType = DbType.String;
-                    string dataType = reader[1].ToString().ToLower();
-                    bool isNullable = ParseBoolean(reader.GetValue(5));
-                    object defaultValue = reader.GetValue(6);
+                    var colName = reader[0].ToString();
+                    var colType = DbType.String;
+                    var dataType = reader[1].ToString().ToLower();
+                    var isNullable = ParseBoolean(reader.GetValue(5));
+                    var defaultValue = reader.GetValue(6);
 
                     if (dataType.Equals("number"))
                     {
-                        int precision = Convert.ToInt32(reader.GetValue(3));
-                        int scale = Convert.ToInt32(reader.GetValue(4));
+                        var precision = Convert.ToInt32(reader.GetValue(3));
+                        var scale = Convert.ToInt32(reader.GetValue(4));
                         if (scale == 0)
                         {
                             colType = precision <= 10 ? DbType.Int16 : DbType.Int64;
@@ -498,7 +498,7 @@ namespace Migrator.Providers.Oracle
         }
         void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
         {
-            foreach (Column column in columns)
+            foreach (var column in columns)
             {
                 if (column.Name.Length > 30)
                 {
@@ -511,20 +511,20 @@ namespace Migrator.Providers.Oracle
 
         public override string Encode(Guid guid)
         {
-            byte[] bytes = guid.ToByteArray();
+            var bytes = guid.ToByteArray();
             var hex = new StringBuilder(bytes.Length * 2);
-            foreach (byte b in bytes) hex.AppendFormat("{0:X2}", b);
+            foreach (var b in bytes) hex.AppendFormat("{0:X2}", b);
             return hex.ToString();
         }
 
         public override bool IndexExists(string table, string name)
         {
-            string sql =
+            var sql =
                 string.Format(
                     "SELECT COUNT(index_name) FROM user_indexes WHERE lower(index_name) = '{0}' AND lower(table_name) = '{1}'",
                     name.ToLower(), table.ToLower());
             Logger.Log(sql);
-            object scalar = ExecuteScalar(sql);
+            var scalar = ExecuteScalar(sql);
             return Convert.ToInt32(scalar) == 1;
         }
 
@@ -549,7 +549,7 @@ namespace Migrator.Providers.Oracle
             var indexes = new List<Index>();
 
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, sql))
+            using (var reader = ExecuteQuery(cmd, sql))
             {
                 while (reader.Read())
                 {

@@ -49,14 +49,14 @@ namespace Migrator
         /// <returns></returns>
         public static ITransformationProvider Create(ProviderTypes providerType, string connectionString, string defaultSchema, string scope = "default", string providerName = "")
         {
-            Dialect dialectInstance = DialectForProvider(providerType);
+            var dialectInstance = DialectForProvider(providerType);
 
             return dialectInstance.NewProviderForDialect(connectionString, defaultSchema, scope, providerName);
         }
 
         public static ITransformationProvider Create(ProviderTypes providerType, IDbConnection connection, string defaultSchema, string scope = "default", string providerName = "")
         {
-            Dialect dialectInstance = DialectForProvider(providerType);
+            var dialectInstance = DialectForProvider(providerType);
 
             return dialectInstance.NewProviderForDialect(connection, defaultSchema, scope, providerName);
         }

@@ -44,7 +44,7 @@ namespace Migrator.Providers.SqlServer
         public override bool ConstraintExists(string table, string name)
         {
             using (var cmd = CreateCommand())
-            using (IDataReader reader =
+            using (var reader =
                 ExecuteQuery(cmd, string.Format("SELECT cont.constraint_name FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS cont WHERE cont.Constraint_Name='{0}'", name)))
             {
                 return reader.Read();
@@ -59,7 +59,7 @@ namespace Migrator.Providers.SqlServer
         public override bool TableExists(string table)
         {
             using (var cmd = CreateCommand())
-            using (IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}'", table)))
+            using (var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}'", table)))
             {
                 return reader.Read();
             }
@@ -71,7 +71,7 @@ namespace Migrator.Providers.SqlServer
             {
                 return false;
             }
-            int firstIndex = table.IndexOf(".");
+            var firstIndex = table.IndexOf(".");
             if (firstIndex >= 0)
             {
                 table = table.Substring(firstIndex + 1);
@@ -79,7 +79,7 @@ namespace Migrator.Providers.SqlServer
 
             using (var cmd = CreateCommand())
             using (
-                IDataReader reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{0}' AND COLUMN_NAME='{1}'", table, column)))
+                var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{0}' AND COLUMN_NAME='{1}'", table, column)))
             {
                 return reader.Read();
             }
@@ -95,7 +95,7 @@ namespace Migrator.Providers.SqlServer
 
             if (ColumnExists(tableName, oldColumnName))
             {
-                Column column = GetColumnByName(tableName, oldColumnName);
+                var column = GetColumnByName(tableName, oldColumnName);
 
                 AddColumn(tableName, new Column(newColumnName, column.Type, column.ColumnProperty, column.DefaultValue));
                 ExecuteNonQuery(string.Format("UPDATE {0} SET {1}={2}", tableName, newColumnName, oldColumnName));

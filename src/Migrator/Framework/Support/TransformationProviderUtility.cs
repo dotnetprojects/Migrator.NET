@@ -12,14 +12,14 @@ namespace Migrator.Framework.Support
 
         public static string CreateForeignKeyName(string tableName, string foreignKeyTableName)
         {
-            string fkName = string.Format("FK_{0}_{1}", tableName, foreignKeyTableName);
+            var fkName = string.Format("FK_{0}_{1}", tableName, foreignKeyTableName);
 
             return AdjustNameToSize(fkName, MaxLengthForForeignKeyInOracle, true);
         }
 
         public static string AdjustNameToSize(string name, int totalCharacters, bool removeCommmonWords)
         {
-            string adjustedName = name;
+            var adjustedName = name;
 
             if (adjustedName.Length > totalCharacters)
             {

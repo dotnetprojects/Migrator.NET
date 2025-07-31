@@ -19,7 +19,7 @@ namespace Migrator.Framework
     {
         public static ITransformationProvider AddManyToManyJoiningTable(this ITransformationProvider database, string schema, string lhsTableName, string lhsKey, string rhsTableName, string rhsKey)
         {
-            string joiningTable = GetNameOfJoiningTable(lhsTableName, rhsTableName);
+            var joiningTable = GetNameOfJoiningTable(lhsTableName, rhsTableName);
 
             return AddManyToManyJoiningTable(database, schema, lhsTableName, lhsKey, rhsTableName, rhsKey, joiningTable);
         }
@@ -31,28 +31,28 @@ namespace Migrator.Framework
 
         public static ITransformationProvider AddManyToManyJoiningTable(this ITransformationProvider database, string schema, string lhsTableName, string lhsKey, string rhsTableName, string rhsKey, string joiningTableName)
         {
-            string joiningTableWithSchema = TransformationProviderUtility.FormatTableName(schema, joiningTableName);
+            var joiningTableWithSchema = TransformationProviderUtility.FormatTableName(schema, joiningTableName);
 
-            string joinLhsKey = Inflector.Singularize(lhsTableName) + "Id";
-            string joinRhsKey = Inflector.Singularize(rhsTableName) + "Id";
+            var joinLhsKey = Inflector.Singularize(lhsTableName) + "Id";
+            var joinRhsKey = Inflector.Singularize(rhsTableName) + "Id";
 
             database.AddTable(joiningTableWithSchema,
                                                 new Column(joinLhsKey, DbType.Guid, ColumnProperty.NotNull),
                                                 new Column(joinRhsKey, DbType.Guid, ColumnProperty.NotNull));
 
-            string pkName = "PK_" + joiningTableName;
+            var pkName = "PK_" + joiningTableName;
 
             pkName = ShortenKeyNameToBeSuitableForOracle(pkName);
 
             database.AddPrimaryKey(pkName, joiningTableWithSchema, joinLhsKey, joinRhsKey);
 
-            string lhsTableNameWithSchema = TransformationProviderUtility.FormatTableName(schema, lhsTableName);
-            string rhsTableNameWithSchema = TransformationProviderUtility.FormatTableName(schema, rhsTableName);
+            var lhsTableNameWithSchema = TransformationProviderUtility.FormatTableName(schema, lhsTableName);
+            var rhsTableNameWithSchema = TransformationProviderUtility.FormatTableName(schema, rhsTableName);
 
-            string lhsFkName = TransformationProviderUtility.CreateForeignKeyName(lhsTableName, joiningTableName);
+            var lhsFkName = TransformationProviderUtility.CreateForeignKeyName(lhsTableName, joiningTableName);
             database.AddForeignKey(lhsFkName, joiningTableWithSchema, joinLhsKey, lhsTableNameWithSchema, lhsKey, ForeignKeyConstraintType.NoAction);
 
-            string rhsFkName = TransformationProviderUtility.CreateForeignKeyName(rhsTableName, joiningTableName);
+            var rhsFkName = TransformationProviderUtility.CreateForeignKeyName(rhsTableName, joiningTableName);
             database.AddForeignKey(rhsFkName, joiningTableWithSchema, joinRhsKey, rhsTableNameWithSchema, rhsKey, ForeignKeyConstraintType.NoAction);
 
             return database;
@@ -65,15 +65,15 @@ namespace Migrator.Framework
 
         public static ITransformationProvider RemoveManyToManyJoiningTable(this ITransformationProvider database, string schema, string lhsTableName, string rhsTableName)
         {
-            string joiningTable = GetNameOfJoiningTable(lhsTableName, rhsTableName);
+            var joiningTable = GetNameOfJoiningTable(lhsTableName, rhsTableName);
             return RemoveManyToManyJoiningTable(database, schema, lhsTableName, rhsTableName, joiningTable);
         }
 
         public static ITransformationProvider RemoveManyToManyJoiningTable(this ITransformationProvider database, string schema, string lhsTableName, string rhsTableName, string joiningTableName)
         {
-            string joiningTableNameWithSchema = TransformationProviderUtility.FormatTableName(schema, joiningTableName);
-            string lhsFkName = TransformationProviderUtility.CreateForeignKeyName(lhsTableName, joiningTableName);
-            string rhsFkName = TransformationProviderUtility.CreateForeignKeyName(rhsTableName, joiningTableName);
+            var joiningTableNameWithSchema = TransformationProviderUtility.FormatTableName(schema, joiningTableName);
+            var lhsFkName = TransformationProviderUtility.CreateForeignKeyName(lhsTableName, joiningTableName);
+            var rhsFkName = TransformationProviderUtility.CreateForeignKeyName(rhsTableName, joiningTableName);
 
             database.RemoveForeignKey(joiningTableNameWithSchema, lhsFkName);
             database.RemoveForeignKey(joiningTableNameWithSchema, rhsFkName);

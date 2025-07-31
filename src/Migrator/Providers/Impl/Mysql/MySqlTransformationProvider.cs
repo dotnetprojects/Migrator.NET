@@ -46,7 +46,7 @@ namespace Migrator.Providers.Mysql
 
             var l = new List<Tuple<string, string, string>>();
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, qry))
+            using (var reader = ExecuteQuery(cmd, qry))
             {
                 while (reader.Read())
                 {
@@ -74,7 +74,7 @@ namespace Migrator.Providers.Mysql
 
         public override void RemoveAllForeignKeys(string tableName, string columnName)
         {
-            string qry = string.Format(@"SELECT k.TABLE_NAME, i.CONSTRAINT_NAME
+            var qry = string.Format(@"SELECT k.TABLE_NAME, i.CONSTRAINT_NAME
                                                     FROM information_schema.KEY_COLUMN_USAGE k 
                                                     INNER JOIN information_schema.TABLE_CONSTRAINTS i 
                                                     ON i.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND i.TABLE_NAME = k.TABLE_NAME 
@@ -92,7 +92,7 @@ namespace Migrator.Providers.Mysql
             }
             var l = new List<Tuple<string, string>>();
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, qry))
+            using (var reader = ExecuteQuery(cmd, qry))
             {
                 while (reader.Read())
                 {
@@ -119,9 +119,9 @@ namespace Migrator.Providers.Mysql
             if (!TableExists(table))
                 return false;
 
-            string sqlConstraint = string.Format("SHOW KEYS FROM {0}", table);
+            var sqlConstraint = string.Format("SHOW KEYS FROM {0}", table);
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, sqlConstraint))
+            using (var reader = ExecuteQuery(cmd, sqlConstraint))
             {
                 while (reader.Read())
                 {
@@ -140,7 +140,7 @@ namespace Migrator.Providers.Mysql
             if (!TableExists(table))
                 return false;
 
-            string sqlConstraint = string.Format(@"SELECT distinct i.CONSTRAINT_NAME
+            var sqlConstraint = string.Format(@"SELECT distinct i.CONSTRAINT_NAME
                                                     FROM information_schema.TABLE_CONSTRAINTS i 
                                                     INNER JOIN information_schema.KEY_COLUMN_USAGE k 
                                                     ON i.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
@@ -148,7 +148,7 @@ namespace Migrator.Providers.Mysql
                                                     AND i.TABLE_SCHEMA = '{1}'
                                                     AND i.TABLE_NAME = '{0}';", table, GetDatabase());
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, sqlConstraint))
+            using (var reader = ExecuteQuery(cmd, sqlConstraint))
             {
                 while (reader.Read())
                 {
@@ -201,16 +201,16 @@ namespace Migrator.Providers.Mysql
             var columns = new List<Column>();
             using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(cmd,
                         String.Format("SHOW COLUMNS FROM {0}", table)))
             {
                 while (reader.Read())
                 {
                     var column = new Column(reader.GetString(0), DbType.String);
-                    string nullableStr = reader.GetString(2);
-                    bool isNullable = nullableStr == "YES";
-                    object defaultValue = reader.GetValue(4);
+                    var nullableStr = reader.GetString(2);
+                    var isNullable = nullableStr == "YES";
+                    var defaultValue = reader.GetValue(4);
                     column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
 
                     if (defaultValue != null && defaultValue != DBNull.Value)
@@ -261,7 +261,7 @@ namespace Migrator.Providers.Mysql
         {
             var tables = new List<string>();
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, "SHOW TABLES"))
+            using (var reader = ExecuteQuery(cmd, "SHOW TABLES"))
             {
                 while (reader.Read())
                 {
@@ -284,7 +284,7 @@ namespace Migrator.Providers.Mysql
 
         public override void AddTable(string name, string engine, string columns)
         {
-            string sqlCreate = string.Format("CREATE TABLE {0} ({1}) ENGINE = {2}", name, columns, engine);
+            var sqlCreate = string.Format("CREATE TABLE {0} ({1}) ENGINE = {2}", name, columns, engine);
             ExecuteNonQuery(sqlCreate);
         }
 
@@ -302,9 +302,9 @@ namespace Migrator.Providers.Mysql
 
             string definition = null;
 
-            bool dropPrimary = false;
+            var dropPrimary = false;
             using (var cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, String.Format("SHOW COLUMNS FROM {0} WHERE Field='{1}'", tableName, oldColumnName)))
+            using (var reader = ExecuteQuery(cmd, String.Format("SHOW COLUMNS FROM {0} WHERE Field='{1}'", tableName, oldColumnName)))
             {
                 if (reader.Read())
                 {
@@ -317,7 +317,7 @@ namespace Migrator.Providers.Mysql
 
                     if (!reader.IsDBNull(reader.GetOrdinal("Key")))
                     {
-                        string key = reader["Key"].ToString();
+                        var key = reader["Key"].ToString();
                         if ("PRI" == key)
                         {
                             //definition += " " + "PRIMARY KEY";

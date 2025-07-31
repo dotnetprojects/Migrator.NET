@@ -147,13 +147,13 @@ namespace Migrator.Framework.Support
 
         private static string ApplyRules(IList rules, string word)
         {
-            string result = word;
+            var result = word;
 
             if (!uncountables.Contains(word.ToLower()))
             {
-                for (int i = rules.Count - 1; i >= 0; i--)
+                for (var i = rules.Count - 1; i >= 0; i--)
                 {
-                    Rule rule = (Rule)rules[i];
+                    var rule = (Rule)rules[i];
 
                     if ((result = rule.Apply(word)) != null)
                     {

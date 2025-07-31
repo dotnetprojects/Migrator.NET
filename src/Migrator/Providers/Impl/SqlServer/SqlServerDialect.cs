@@ -100,11 +100,11 @@ namespace Migrator.Providers.SqlServer
 
         public override string Quote(string value)
         {
-            int firstDotIndex = value.IndexOf('.');
+            var firstDotIndex = value.IndexOf('.');
             if (firstDotIndex >= 0)
             {
-                string owner = value.Substring(0, firstDotIndex);
-                string table = value.Substring(firstDotIndex + 1);
+                var owner = value.Substring(0, firstDotIndex);
+                var table = value.Substring(firstDotIndex + 1);
                 return (string.Format(QuoteTemplate, owner) + "." + string.Format(QuoteTemplate, table));
             }
             return string.Format(QuoteTemplate, value);

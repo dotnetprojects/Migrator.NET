@@ -71,7 +71,7 @@ namespace Migrator.Tools
         {
             if (list == null)
                 return "new string[]{}";
-            for (int i = 0; i < list.Length; i++)
+            for (var i = 0; i < list.Length; i++)
             {
                 list[i] = $"\"{list[i]}\"";
             }
@@ -93,9 +93,9 @@ namespace Migrator.Tools
         }
         private void addTableStatement(StringWriter writer)
         {
-            foreach (string table in this.tables)
+            foreach (var table in this.tables)
             {
-                string cols = this.getColsStatement(table);
+                var cols = this.getColsStatement(table);
                 writer.WriteLine($"\t\tDatabase.AddTable(\"{table}\",{cols});");
                 this.AddIndexes(table, writer);
             }
@@ -103,19 +103,19 @@ namespace Migrator.Tools
 
         private void AddIndexes(string table, StringWriter writer)
         {
-            Index[] inds = this._provider.GetIndexes(table);
-            foreach (Index ind in inds)
+            var inds = this._provider.GetIndexes(table);
+            foreach (var ind in inds)
             {
                 if (ind.PrimaryKey == true)
                 {
-                    string nonclusteredString = (ind.Clustered == false ? "NonClustered" : "");
+                    var nonclusteredString = (ind.Clustered == false ? "NonClustered" : "");
 
-                    string[] keys = ind.KeyColumns;
-                    for (int i = 0; i < keys.Length; i++)
+                    var keys = ind.KeyColumns;
+                    for (var i = 0; i < keys.Length; i++)
                     {
                         keys[i] = $"\"{keys[i]}\"";
                     }
-                    string keysString = string.Join(",", keys);
+                    var keysString = string.Join(",", keys);
                     writer.WriteLine($"\t\tDatabase.AddPrimaryKey{nonclusteredString}(\"{ind.Name}\",\"{table}\",new string[]{String.Format("{{{0}}}", keysString)});");
                     continue;
                 }
@@ -125,21 +125,21 @@ namespace Migrator.Tools
 
         private string getColsStatement(string table)
         {
-            Column[] cols = this._provider.GetColumns(table);
-            List<string> colList = new List<string>();
+            var cols = this._provider.GetColumns(table);
+            var colList = new List<string>();
             foreach (var col in cols)
             {
                 colList.Add(this.getColStatement(col, table));
             }
-            string result = String.Format("{0}", string.Join(",", colList));
+            var result = String.Format("{0}", string.Join(",", colList));
             return result;
         }
         private string getColStatement(Column col, string table)
         {
-            string precision = "";
+            var precision = "";
             if (col.Precision != null)
                 precision = $"({col.Precision})";
-            string propertyString = this.GetColumnPropertyString(col.ColumnProperty);
+            var propertyString = this.GetColumnPropertyString(col.ColumnProperty);
 
             if (col.Size != 0 && col.DefaultValue == null && col.ColumnProperty == ColumnProperty.None)
             {
@@ -170,7 +170,7 @@ namespace Migrator.Tools
         }
         private string GetColumnPropertyString(ColumnProperty prp)
         {
-            string retVal = "";
+            var retVal = "";
             // if ((prp & ColumnProperty.ForeignKey) == ColumnProperty.ForeignKey) retVal += "ColumnProperty.ForeignKey | ";
             if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity) retVal += "ColumnProperty.Identity | ";
             if ((prp & ColumnProperty.Indexed) == ColumnProperty.Indexed) retVal += "ColumnProperty.Indexed | ";

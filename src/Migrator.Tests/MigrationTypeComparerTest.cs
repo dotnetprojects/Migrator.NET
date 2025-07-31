@@ -74,7 +74,7 @@ namespace Migrator.Tests
 
             list.Sort(new MigrationTypeComparer(true));
 
-            for (int i = 0; i < 3; i++)
+            for (var i = 0; i < 3; i++)
             {
                 Assert.That(_types[i], Is.SameAs(list[i]));
             }
@@ -91,7 +91,7 @@ namespace Migrator.Tests
 
             list.Sort(new MigrationTypeComparer(false));
 
-            for (int i = 0; i < 3; i++)
+            for (var i = 0; i < 3; i++)
             {
                 Assert.That(_types[2 - i], Is.SameAs(list[i]));
             }

@@ -201,14 +201,14 @@ namespace Migrator
                 return;
             }
 
-            bool firstRun = true;
-            BaseMigrate migrate = BaseMigrate.GetInstance(_migrationLoader.GetAvailableMigrations(), _provider, _logger);
+            var firstRun = true;
+            var migrate = BaseMigrate.GetInstance(_migrationLoader.GetAvailableMigrations(), _provider, _logger);
             migrate.DryRun = DryRun;
             Logger.Started(migrate.AppliedVersions, version);
 
             while (migrate.Continue(version))
             {
-                IMigration migration = _migrationLoader.GetMigration(migrate.Current);
+                var migration = _migrationLoader.GetMigration(migrate.Current);
                 if (null == migration)
                 {
                     _logger.Skipping(migrate.Current);

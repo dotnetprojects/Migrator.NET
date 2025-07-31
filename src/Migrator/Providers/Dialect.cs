@@ -86,7 +86,7 @@ namespace Migrator.Providers
         protected void AddReservedWords(params string[] words)
         {
             if (words == null) return;
-            foreach (string word in words) reservedWords.Add(word);
+            foreach (var word in words) reservedWords.Add(word);
         }
 
         public virtual bool IsReservedWord(string reservedWord)
@@ -95,7 +95,7 @@ namespace Migrator.Providers
 
             if (reservedWords == null) return false;
 
-            bool isReserved = reservedWords.Contains(reservedWord.ToUpperInvariant());
+            var isReserved = reservedWords.Contains(reservedWord.ToUpperInvariant());
 
             if (isReserved)
             {
@@ -259,7 +259,7 @@ namespace Migrator.Providers
         /// <param name="scale"></param>
         public virtual string GetTypeName(DbType type, int length, int precision, int scale)
         {
-            string resultWithLength = typeNames.Get(type, length, precision, scale);
+            var resultWithLength = typeNames.Get(type, length, precision, scale);
             if (resultWithLength != null)
                 return resultWithLength;
 
@@ -276,7 +276,7 @@ namespace Migrator.Providers
         /// <param name="scale"></param>
         public virtual string GetTypeNameParametrized(DbType type, int length, int precision, int scale)
         {
-            string result = typeNames.GetParametrized(type);
+            var result = typeNames.GetParametrized(type);
             if (result != null)
                 return result.Replace("{length}", length.ToString())
                     .Replace("{precision}", precision.ToString())
@@ -343,7 +343,7 @@ namespace Migrator.Providers
 
         public ColumnPropertiesMapper GetAndMapColumnProperties(Column column)
         {
-            ColumnPropertiesMapper mapper = GetColumnMapper(column);
+            var mapper = GetColumnMapper(column);
             mapper.MapColumnProperties(column);
             if (column.DefaultValue != null && column.DefaultValue != DBNull.Value)
                 mapper.Default = column.DefaultValue;
@@ -352,7 +352,7 @@ namespace Migrator.Providers
 
         public ColumnPropertiesMapper GetAndMapColumnPropertiesWithoutDefault(Column column)
         {
-            ColumnPropertiesMapper mapper = GetColumnMapper(column);
+            var mapper = GetColumnMapper(column);
             mapper.MapColumnPropertiesWithoutDefault(column);
             if (column.DefaultValue != null && column.DefaultValue != DBNull.Value)
                 mapper.Default = column.DefaultValue;

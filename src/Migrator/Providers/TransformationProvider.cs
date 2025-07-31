@@ -129,8 +129,8 @@ namespace Migrator.Providers
                 while (reader.Read())
                 {
                     var column = new Column(reader.GetString(0), DbType.String);
-                    string nullableStr = reader.GetString(1);
-                    bool isNullable = nullableStr == "YES";
+                    var nullableStr = reader.GetString(1);
+                    var isNullable = nullableStr == "YES";
                     column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
 
                     columns.Add(column);
@@ -173,9 +173,9 @@ namespace Migrator.Providers
         public virtual string[] GetConstraints(string table)
         {
             var constraints = new List<string>();
-            using (IDbCommand cmd = CreateCommand())
+            using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(
                         cmd, String.Format("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE LOWER(TABLE_NAME) = LOWER('{0}')", table)))
             {
@@ -196,7 +196,7 @@ namespace Migrator.Providers
 
         public virtual int GetColumnContentSize(string table, string columnName)
         {
-            object result = this.ExecuteScalar("SELECT MAX(LENGTH(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
+            var result = this.ExecuteScalar("SELECT MAX(LENGTH(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
 
             if (result == DBNull.Value)
                 return 0;
@@ -206,8 +206,8 @@ namespace Migrator.Providers
         public virtual string[] GetTables()
         {
             var tables = new List<string>();
-            using (IDbCommand cmd = CreateCommand())
-            using (IDataReader reader = ExecuteQuery(cmd, "SELECT table_name FROM INFORMATION_SCHEMA.TABLES"))
+            using (var cmd = CreateCommand())
+            using (var reader = ExecuteQuery(cmd, "SELECT table_name FROM INFORMATION_SCHEMA.TABLES"))
             {
                 while (reader.Read())
                 {
@@ -245,8 +245,8 @@ namespace Migrator.Providers
                     .Select(x => x.ColumnName)
                     .ToList();
 
-            int nr = 0;
-            string joins = "";
+            var nr = 0;
+            var joins = "";
             foreach (var joinTable in fields.Where(x => !string.IsNullOrEmpty(x.TableName) && x.TableName != tableName).GroupBy(x => x.TableName))
             {
                 foreach (var viewField in joinTable)
@@ -353,11 +353,11 @@ namespace Migrator.Providers
         {
             var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
 
-            List<string> pks = GetPrimaryKeys(columns);
-            bool compoundPrimaryKey = pks.Count > 1;
+            var pks = GetPrimaryKeys(columns);
+            var compoundPrimaryKey = pks.Count > 1;
 
             var columnProviders = new List<ColumnPropertiesMapper>(columns.Count());
-            foreach (Column column in columns)
+            foreach (var column in columns)
             {
                 // Remove the primary key notation if compound primary key because we'll add it back later
                 if (compoundPrimaryKey && column.IsPrimaryKey)
@@ -366,11 +366,11 @@ namespace Migrator.Providers
                     column.ColumnProperty = column.ColumnProperty | ColumnProperty.NotNull; // PK is always not-null
                 }
 
-                ColumnPropertiesMapper mapper = _dialect.GetAndMapColumnProperties(column);
+                var mapper = _dialect.GetAndMapColumnProperties(column);
                 columnProviders.Add(mapper);
             }
 
-            string columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
+            var columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
             AddTable(name, engine, columnsAndIndexes);
 
             if (compoundPrimaryKey)
@@ -862,9 +862,9 @@ namespace Migrator.Providers
                     {
                         var index = 0;
 
-                        foreach (object obj in args)
+                        foreach (var obj in args)
                         {
-                            IDbDataParameter parameter = cmd.CreateParameter();
+                            var parameter = cmd.CreateParameter();
                             ConfigureParameterWithValue(parameter, index, obj);
                             parameter.ParameterName = GenerateParameterNameParameter(index);
                             cmd.Parameters.Add(parameter);
@@ -1020,7 +1020,7 @@ namespace Migrator.Providers
             table = QuoteTableNameIfRequired(table);
 
             var builder = new StringBuilder();
-            for (int i = 0; i < columns.Length; i++)
+            for (var i = 0; i < columns.Length; i++)
             {
                 if (builder.Length > 0) builder.Append(", ");
                 builder.Append(QuoteColumnNameIfRequired(columns[i]));
@@ -1036,7 +1036,7 @@ namespace Migrator.Providers
                 query = String.Format("SELECT {0} FROM {1} WHERE ", builder.ToString(), table);
             }
 
-            bool andNeeded = false;
+            var andNeeded = false;
             if (whereColumns != null)
             {
                 query += GetWhereString(whereColumns, whereValues);
@@ -1060,13 +1060,13 @@ namespace Migrator.Providers
             cmd.CommandText = query;
             cmd.CommandType = CommandType.Text;
 
-            int paramCount = 0;
+            var paramCount = 0;
 
             if (whereColumns != null)
             {
-                foreach (object value in whereValues)
+                foreach (var value in whereValues)
                 {
-                    IDbDataParameter parameter = cmd.CreateParameter();
+                    var parameter = cmd.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1095,7 +1095,7 @@ namespace Migrator.Providers
 
         public virtual object SelectScalar(string what, string from, string[] whereColumns, object[] whereValues)
         {
-            using (IDbCommand command = _connection.CreateCommand())
+            using (var command = _connection.CreateCommand())
             {
                 if (CommandTimeout.HasValue)
                     command.CommandTimeout = CommandTimeout.Value;
@@ -1107,11 +1107,11 @@ namespace Migrator.Providers
                 command.CommandText = query;
                 command.CommandType = CommandType.Text;
 
-                int paramCount = 0;
+                var paramCount = 0;
 
-                foreach (object value in whereValues)
+                foreach (var value in whereValues)
                 {
-                    IDbDataParameter parameter = command.CreateParameter();
+                    var parameter = command.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1142,7 +1142,7 @@ namespace Migrator.Providers
             table = QuoteTableNameIfRequired(table);
 
             var builder = new StringBuilder();
-            for (int i = 0; i < values.Length; i++)
+            for (var i = 0; i < values.Length; i++)
             {
                 if (builder.Length > 0) builder.Append(", ");
                 builder.Append(QuoteColumnNameIfRequired(columns[i]));
@@ -1150,7 +1150,7 @@ namespace Migrator.Providers
                 builder.Append(GenerateParameterName(i));
             }
 
-            using (IDbCommand command = _connection.CreateCommand())
+            using (var command = _connection.CreateCommand())
             {
                 if (CommandTimeout.HasValue)
                     command.CommandTimeout = CommandTimeout.Value;
@@ -1165,11 +1165,11 @@ namespace Migrator.Providers
                 command.CommandText = query;
                 command.CommandType = CommandType.Text;
 
-                int paramCount = 0;
+                var paramCount = 0;
 
-                foreach (object value in values)
+                foreach (var value in values)
                 {
-                    IDbDataParameter parameter = command.CreateParameter();
+                    var parameter = command.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1196,7 +1196,7 @@ namespace Migrator.Providers
             table = QuoteTableNameIfRequired(table);
 
             var builder = new StringBuilder();
-            for (int i = 0; i < values.Length; i++)
+            for (var i = 0; i < values.Length; i++)
             {
                 if (builder.Length > 0) builder.Append(", ");
                 builder.Append(QuoteColumnNameIfRequired(columns[i]));
@@ -1204,7 +1204,7 @@ namespace Migrator.Providers
                 builder.Append(GenerateParameterName(i));
             }
 
-            using (IDbCommand command = _connection.CreateCommand())
+            using (var command = _connection.CreateCommand())
             {
                 if (CommandTimeout.HasValue)
                     command.CommandTimeout = CommandTimeout.Value;
@@ -1216,11 +1216,11 @@ namespace Migrator.Providers
                 command.CommandText = query;
                 command.CommandType = CommandType.Text;
 
-                int paramCount = 0;
+                var paramCount = 0;
 
-                foreach (object value in values)
+                foreach (var value in values)
                 {
-                    IDbDataParameter parameter = command.CreateParameter();
+                    var parameter = command.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1231,12 +1231,12 @@ namespace Migrator.Providers
                     paramCount++;
                 }
 
-                foreach (object value in whereValues)
+                foreach (var value in whereValues)
                 {
                     if (value == null || value == DBNull.Value)
                         continue;
 
-                    IDbDataParameter parameter = command.CreateParameter();
+                    var parameter = command.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1266,15 +1266,15 @@ namespace Migrator.Providers
 
             var builder = new StringBuilder();
 
-            for (int i = 0; i < values.Length; i++)
+            for (var i = 0; i < values.Length; i++)
             {
                 if (builder.Length > 0) builder.Append(", ");
                 builder.Append(GenerateParameterName(i));
             }
 
-            string parameterNames = builder.ToString();
+            var parameterNames = builder.ToString();
 
-            using (IDbCommand command = _connection.CreateCommand())
+            using (var command = _connection.CreateCommand())
             {
                 if (CommandTimeout.HasValue)
                     command.CommandTimeout = CommandTimeout.Value;
@@ -1284,11 +1284,11 @@ namespace Migrator.Providers
                 command.CommandText = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", table, columnNames, parameterNames);
                 command.CommandType = CommandType.Text;
 
-                int paramCount = 0;
+                var paramCount = 0;
 
-                foreach (object value in values)
+                foreach (var value in values)
                 {
-                    IDbDataParameter parameter = command.CreateParameter();
+                    var parameter = command.CreateParameter();
 
                     ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1307,7 +1307,7 @@ namespace Migrator.Providers
         {
             var builder2 = new StringBuilder();
             var parCnt = 0;
-            for (int i = 0; i < whereColumns.Length; i++)
+            for (var i = 0; i < whereColumns.Length; i++)
             {
                 if (builder2.Length > 0) builder2.Append(" AND ");
                 var val = whereValues[i];
@@ -1331,7 +1331,7 @@ namespace Migrator.Providers
         protected virtual string GetWhereString(string[] whereColumns, object[] whereValues, int parameterStartIndex = 0)
         {
             var builder2 = new StringBuilder();
-            for (int i = 0; i < whereColumns.Length; i++)
+            for (var i = 0; i < whereColumns.Length; i++)
             {
                 if (builder2.Length > 0) builder2.Append(" AND ");
                 builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
@@ -1345,7 +1345,7 @@ namespace Migrator.Providers
         protected virtual string GetWhereStringIsNull(string[] whereColumns)
         {
             var builder2 = new StringBuilder();
-            for (int i = 0; i < whereColumns.Length; i++)
+            for (var i = 0; i < whereColumns.Length; i++)
             {
                 if (builder2.Length > 0) builder2.Append(" AND ");
                 builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
@@ -1358,7 +1358,7 @@ namespace Migrator.Providers
         protected virtual string GetWhereStringIsNotNull(string[] whereColumns)
         {
             var builder2 = new StringBuilder();
-            for (int i = 0; i < whereColumns.Length; i++)
+            for (var i = 0; i < whereColumns.Length; i++)
             {
                 if (builder2.Length > 0) builder2.Append(" AND ");
                 builder2.Append(QuoteColumnNameIfRequired(whereColumns[i]));
@@ -1399,7 +1399,7 @@ namespace Migrator.Providers
             {
                 table = QuoteTableNameIfRequired(table);
 
-                using (IDbCommand command = _connection.CreateCommand())
+                using (var command = _connection.CreateCommand())
                 {
                     if (CommandTimeout.HasValue)
                         command.CommandTimeout = CommandTimeout.Value;
@@ -1412,11 +1412,11 @@ namespace Migrator.Providers
                     command.CommandText = query;
                     command.CommandType = CommandType.Text;
 
-                    int paramCount = 0;
+                    var paramCount = 0;
 
-                    foreach (object value in whereValues)
+                    foreach (var value in whereValues)
                     {
-                        IDbDataParameter parameter = command.CreateParameter();
+                        var parameter = command.CreateParameter();
 
                         ConfigureParameterWithValue(parameter, paramCount, value);
 
@@ -1516,14 +1516,14 @@ namespace Migrator.Providers
                     _appliedMigrations = new List<long>();
                     CreateSchemaInfoTable();
 
-                    string versionColumn = "Version";
-                    string scopeColumn = "Scope";
+                    var versionColumn = "Version";
+                    var scopeColumn = "Scope";
 
                     versionColumn = QuoteColumnNameIfRequired(versionColumn);
                     scopeColumn = QuoteColumnNameIfRequired(scopeColumn);
 
                     using (var cmd = CreateCommand())
-                    using (IDataReader reader = Select(cmd, versionColumn, _schemaInfotable, string.Format("{0} = '{1}'", scopeColumn, _scope)))
+                    using (var reader = Select(cmd, versionColumn, _schemaInfotable, string.Format("{0} = '{1}'", scopeColumn, _scope)))
                     {
                         while (reader.Read())
                         {
@@ -1592,7 +1592,7 @@ namespace Migrator.Providers
 
         public virtual void ExecuteSchemaBuilder(SchemaBuilder builder)
         {
-            foreach (ISchemaBuilderExpression expr in builder.Expressions)
+            foreach (var expr in builder.Expressions)
                 expr.Create(this);
         }
 
@@ -1644,7 +1644,7 @@ namespace Migrator.Providers
         {
             var quotedColumns = new string[columnNames.Length];
 
-            for (int i = 0; i < columnNames.Length; i++)
+            for (var i = 0; i < columnNames.Length; i++)
             {
                 quotedColumns[i] = QuoteColumnNameIfRequired(columnNames[i]);
             }
@@ -1664,14 +1664,14 @@ namespace Migrator.Providers
         public virtual void AddTable(string table, string engine, string columns)
         {
             table = _dialect.TableNameNeedsQuote ? _dialect.Quote(table) : table;
-            string sqlCreate = String.Format("CREATE TABLE {0} ({1})", table, columns);
+            var sqlCreate = String.Format("CREATE TABLE {0} ({1})", table, columns);
             ExecuteNonQuery(sqlCreate);
         }
 
         public virtual List<string> GetPrimaryKeys(IEnumerable<Column> columns)
         {
             var pks = new List<string>();
-            foreach (Column col in columns)
+            foreach (var col in columns)
             {
                 if (col.IsPrimaryKey)
                     pks.Add(col.Name);
@@ -1701,8 +1701,8 @@ namespace Migrator.Providers
 
         protected virtual string JoinColumnsAndIndexes(IEnumerable<ColumnPropertiesMapper> columns)
         {
-            string indexes = JoinIndexes(columns);
-            string columnsAndIndexes = JoinColumns(columns) + (indexes != null ? "," + indexes : String.Empty);
+            var indexes = JoinIndexes(columns);
+            var columnsAndIndexes = JoinColumns(columns) + (indexes != null ? "," + indexes : String.Empty);
             return columnsAndIndexes;
         }
 
@@ -1832,9 +1832,9 @@ namespace Migrator.Providers
 
         public virtual string JoinColumnsAndValues(string[] columns, string[] values, string joinSeperator)
         {
-            string[] quotedValues = QuoteValues(values);
+            var quotedValues = QuoteValues(values);
             var namesAndValues = new string[columns.Length];
-            for (int i = 0; i < columns.Length; i++)
+            for (var i = 0; i < columns.Length; i++)
             {
                 namesAndValues[i] = String.Format("{0}={1}", columns[i], quotedValues[i]);
             }
@@ -1933,7 +1933,7 @@ namespace Migrator.Providers
 
         void QuoteColumnNames(string[] primaryColumns)
         {
-            for (int i = 0; i < primaryColumns.Length; i++)
+            for (var i = 0; i < primaryColumns.Length; i++)
             {
                 primaryColumns[i] = QuoteColumnNameIfRequired(primaryColumns[i]);
             }

@@ -34,7 +34,7 @@ namespace Migrator.Compile
 
         public Assembly Compile(string directory)
         {
-            string[] files = GetFilesRecursive(directory);
+            var files = GetFilesRecursive(directory);
             Console.Out.WriteLine("Compiling:");
             Array.ForEach(files, file => Console.Out.WriteLine(file));
 
@@ -43,9 +43,9 @@ namespace Migrator.Compile
 
         string[] GetFilesRecursive(string directory)
         {
-            FileInfo[] files = GetFilesRecursive(new DirectoryInfo(directory));
+            var files = GetFilesRecursive(new DirectoryInfo(directory));
             var fileNames = new string[files.Length];
-            for (int i = 0; i < files.Length; i++)
+            for (var i = 0; i < files.Length; i++)
             {
                 fileNames[i] = files[i].FullName;
             }
@@ -56,10 +56,10 @@ namespace Migrator.Compile
         {
             var files = new List<FileInfo>();
             files.AddRange(d.GetFiles(String.Format("*.{0}", _provider.FileExtension)));
-            DirectoryInfo[] subDirs = d.GetDirectories();
+            var subDirs = d.GetDirectories();
             if (subDirs.Length > 0)
             {
-                foreach (DirectoryInfo subDir in subDirs)
+                foreach (var subDir in subDirs)
                 {
                     files.AddRange(GetFilesRecursive(subDir));
                 }
@@ -70,9 +70,9 @@ namespace Migrator.Compile
 
         public Assembly Compile(params string[] files)
         {
-            CompilerParameters parms = SetupCompilerParams();
+            var parms = SetupCompilerParams();
 
-            CompilerResults compileResult = _provider.CompileAssemblyFromFile(parms, files);
+            var compileResult = _provider.CompileAssemblyFromFile(parms, files);
             if (compileResult.Errors.Count != 0)
             {
                 foreach (CompilerError err in compileResult.Errors)
@@ -85,7 +85,7 @@ namespace Migrator.Compile
 
         CompilerParameters SetupCompilerParams()
         {
-            string migrationFrameworkPath = FrameworkAssemblyPath();
+            var migrationFrameworkPath = FrameworkAssemblyPath();
             var parms = new CompilerParameters();
             parms.CompilerOptions = "/t:library";
             parms.GenerateInMemory = true;
@@ -109,7 +109,7 @@ namespace Migrator.Compile
 
         static string FrameworkAssemblyPath()
         {
-            string path = typeof(MigrationAttribute).Module.FullyQualifiedName;
+            var path = typeof(MigrationAttribute).Module.FullyQualifiedName;
             Console.Out.WriteLine("Framework DLL: " + path);
             return path;
         }

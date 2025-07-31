@@ -29,7 +29,7 @@ namespace Migrator.Tests.Providers
         [SetUp]
         public void SetUp()
         {
-            string constr = ConfigurationManager.AppSettings["SqlServerCeConnectionString"];
+            var constr = ConfigurationManager.AppSettings["SqlServerCeConnectionString"];
             if (constr == null)
                 throw new ArgumentNullException("SqlServerCeConnectionString", "No config file");
 

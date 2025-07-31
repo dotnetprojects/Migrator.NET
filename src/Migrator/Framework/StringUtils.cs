@@ -13,7 +13,7 @@ namespace Migrator.Framework
         /// <returns></returns>
         public static string ToHumanName(string className)
         {
-            string name = Regex.Replace(className, "^[_0-9]*|[_0-9]*$", "");
+            var name = Regex.Replace(className, "^[_0-9]*|[_0-9]*$", "");
 
             name = Regex.Replace(name, "([A-Z])", " $1").Substring(1);
 
@@ -29,7 +29,7 @@ namespace Migrator.Framework
         /// <returns></returns>
         public static string ReplaceOnce(string template, string placeholder, string replacement)
         {
-            int loc = template.IndexOf(placeholder);
+            var loc = template.IndexOf(placeholder);
             if (loc < 0)
             {
                 return template;

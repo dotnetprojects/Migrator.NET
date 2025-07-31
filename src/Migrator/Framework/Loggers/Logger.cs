@@ -124,7 +124,7 @@ namespace Migrator.Framework.Loggers
         {
             WriteLine("{0}", ex.Message);
             WriteLine("{0}", ex.StackTrace);
-            Exception iex = ex.InnerException;
+            var iex = ex.InnerException;
             while (iex != null)
             {
                 WriteLine("Caused by: {0}", iex);
@@ -140,7 +140,7 @@ namespace Migrator.Framework.Loggers
 
         void Write(string message, params object[] args)
         {
-            foreach (ILogWriter writer in _writers)
+            foreach (var writer in _writers)
             {
                 writer.Write(message, args);
             }
@@ -148,7 +148,7 @@ namespace Migrator.Framework.Loggers
 
         void WriteLine(string message, params object[] args)
         {
-            foreach (ILogWriter writer in _writers)
+            foreach (var writer in _writers)
             {
                 writer.WriteLine(message, args);
             }

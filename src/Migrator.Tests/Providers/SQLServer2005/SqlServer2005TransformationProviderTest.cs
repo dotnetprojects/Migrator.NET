@@ -25,7 +25,7 @@ public class SqlServer2005TransformationProviderTest : TransformationProviderCon
     [SetUp]
     public void SetUp()
     {
-        string constr = ConfigurationManager.AppSettings["SqlServer2005ConnectionString"];
+        var constr = ConfigurationManager.AppSettings["SqlServer2005ConnectionString"];
 
 
         if (constr == null)

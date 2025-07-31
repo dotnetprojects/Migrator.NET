@@ -26,7 +26,7 @@ namespace Migrator.Tests.Tools
         [Test]
         public void Dump()
         {
-            string constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
+            var constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
 
             if (constr == null)
             {
@@ -34,7 +34,7 @@ namespace Migrator.Tests.Tools
             }
 
             var dumper = new SchemaDumper(ProviderTypes.Mysql, constr, null);
-            string output = dumper.GetDump();
+            var output = dumper.GetDump();
 
             Assert.That(output, Is.Not.Null);
         }
@@ -45,15 +45,15 @@ namespace Migrator.Tests.Tools
         [Test]
         public void Dump()
         {
-            string constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
+            var constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
 
             if (constr == null)
             {
                 throw new ArgumentNullException("SqlServerConnectionString", "No config file");
             }
 
-            SchemaDumper dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
-            string output = dumper.GetDump();
+            var dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
+            var output = dumper.GetDump();
 
             Assert.That(output, Is.Not.Null);
         }

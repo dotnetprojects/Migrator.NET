@@ -24,8 +24,6 @@ namespace Migrator.Tests.Providers.MySQL;
 [Category("MySql")]
 public class MySqlTransformationProviderTest : TransformationProviderConstraintBase
 {
-    #region Setup/Teardown
-
     [SetUp]
     public void SetUp()
     {
@@ -43,8 +41,6 @@ public class MySqlTransformationProviderTest : TransformationProviderConstraintB
     {
         DropTestTables();
     }
-
-    #endregion
 
     // [Test,Ignore("MySql doesn't support check constraints")]
     public override void CanAddCheckConstraint()

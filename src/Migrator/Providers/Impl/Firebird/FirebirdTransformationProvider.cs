@@ -65,15 +65,15 @@ namespace Migrator.Providers.Impl.Firebird
             var columns = new List<Column>();
             using (var cmd = CreateCommand())
             using (
-                IDataReader reader =
+                var reader =
                     ExecuteQuery(cmd,
                         String.Format("select RDB$FIELD_NAME, RDB$NULL_FLAG from RDB$RELATION_FIELDS where RDB$RELATION_NAME = '{0}'", table.ToUpper())))
             {
                 while (reader.Read())
                 {
                     var column = new Column(reader.GetString(0).Trim(), DbType.String);
-                    string nullableStr = reader.GetString(1);
-                    bool isNullable = nullableStr == "1";
+                    var nullableStr = reader.GetString(1);
+                    var isNullable = nullableStr == "1";
                     column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
 
                     columns.Add(column);

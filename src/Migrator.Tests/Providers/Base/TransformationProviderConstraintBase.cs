@@ -147,7 +147,7 @@ namespace Migrator.Tests.Providers
             Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
             Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
 
-            Column column = Provider.GetColumnByName("Test", "Name");
+            var column = Provider.GetColumnByName("Test", "Name");
             Assert.That(column, Is.Not.Null);
             Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
         }

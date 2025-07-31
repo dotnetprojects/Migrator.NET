@@ -206,9 +206,9 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     public void CanGetNullableFromProvider()
     {
         Provider.AddColumn("TestTwo", "NullableColumn", DbType.String, 30, ColumnProperty.Null);
-        Column[] columns = Provider.GetColumns("TestTwo");
+        var columns = Provider.GetColumns("TestTwo");
 
-        foreach (Column column in columns)
+        foreach (var column in columns)
         {
             if (column.Name == "NullableColumn")
             {
@@ -311,9 +311,9 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 2, "2" });
 
         using (var cmd = Provider.CreateCommand())
-        using (IDataReader reader = Provider.Select(cmd, "TestId", "TestTwo"))
+        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
         {
-            int[] vals = GetVals(reader);
+            var vals = GetVals(reader);
 
             Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.True);
             Assert.That(Array.Exists(vals, delegate (int val) { return val == 2; }), Is.True);
@@ -329,9 +329,9 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "2", null });
 
         using (var cmd = Provider.CreateCommand())
-        using (IDataReader reader = Provider.Select(cmd, "Title", "Test"))
+        using (var reader = Provider.Select(cmd, "Title", "Test"))
         {
-            string[] vals = GetStringVals(reader);
+            var vals = GetStringVals(reader);
 
             Assert.That(Array.Exists(vals, delegate (string val) { return val == "foo"; }), Is.True);
             Assert.That(Array.Exists(vals, delegate (string val) { return val == null; }), Is.True);
@@ -344,7 +344,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         AddTable();
         Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "1", "Muad'Dib" });
         using (var cmd = Provider.CreateCommand())
-        using (IDataReader reader = Provider.Select(cmd, "Title", "Test"))
+        using (var reader = Provider.Select(cmd, "Title", "Test"))
         {
             Assert.That(reader.Read(), Is.True);
             Assert.That("Muad'Dib", Is.EqualTo(reader.GetString(0)));
@@ -358,7 +358,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         InsertData();
         Provider.Delete("TestTwo", "TestId", "1");
         using (var cmd = Provider.CreateCommand())
-        using (IDataReader reader = Provider.Select(cmd, "TestId", "TestTwo"))
+        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
         {
             Assert.That(reader.Read(), Is.True);
             Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
@@ -372,7 +372,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         InsertData();
         Provider.Delete("TestTwo", new[] { "TestId" }, new[] { "1" });
         using (var cmd = Provider.CreateCommand())
-        using (IDataReader reader = Provider.Select(cmd, "TestId", "TestTwo"))
+        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
         {
             Assert.That(reader.Read(), Is.True);
             Assert.That(2, Is.EqualTo(Convert.ToInt32(reader[0])));
@@ -388,9 +388,9 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
 
         Provider.Update("TestTwo", new[] { "TestId" }, new[] { "3" });
         using (var cmd = Provider.CreateCommand())
-        using (IDataReader reader = Provider.Select(cmd, "TestId", "TestTwo"))
+        using (var reader = Provider.Select(cmd, "TestId", "TestTwo"))
         {
-            int[] vals = GetVals(reader);
+            var vals = GetVals(reader);
 
             Assert.That(Array.Exists(vals, delegate (int val) { return val == 3; }), Is.True);
             Assert.That(Array.Exists(vals, delegate (int val) { return val == 1; }), Is.False);
@@ -407,9 +407,9 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
 
         Provider.Update("Test", new[] { "Title" }, new string[] { null });
         using (var cmd = Provider.CreateCommand())
-        using (IDataReader reader = Provider.Select(cmd, "Title", "Test"))
+        using (var reader = Provider.Select(cmd, "Title", "Test"))
         {
-            string[] vals = GetStringVals(reader);
+            var vals = GetStringVals(reader);
 
             Assert.That(vals[0], Is.Null);
             Assert.That(vals[1], Is.Null);
