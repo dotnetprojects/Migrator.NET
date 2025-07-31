@@ -16,11 +16,11 @@ public static class ColumnPropertyExtensions
 
     public static ColumnProperty Set(this ColumnProperty columnProperty, ColumnProperty flags)
     {
-        return columnProperty |= flags;
+        return columnProperty | flags;
     }
 
     public static ColumnProperty Clear(this ColumnProperty columnProperty, ColumnProperty flags)
     {
-        return columnProperty &= ~flags;
+        return columnProperty & ~flags;
     }
 }
