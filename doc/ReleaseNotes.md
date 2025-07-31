@@ -6,6 +6,7 @@
 
 #### ColumnProperty
 + Removed `ForeignKey` use method `AddForeignKey(...)` instead.
++ `Unique` is now obsolete because you cannot add a constraint name using it. Removing it by name is therefore impossible without investigation. 
 
 ### Other changes
 Several fixes see PRs

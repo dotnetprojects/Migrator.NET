@@ -37,7 +37,7 @@ namespace Migrator.Framework
         Indexed = 1 << 4,
 
         /// <summary>
-        /// Unsigned Column. Not used in SQLite (there is only)
+        /// Unsigned Column. Not used in SQLite there is only on integer data type INTEGER.
         /// </summary>
         Unsigned = 1 << 5,
 
