@@ -1,4 +1,5 @@
 using System.Data;
+using System.Linq;
 using Migrator.Framework;
 using NUnit.Framework;
 
@@ -150,5 +151,37 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
         var column = Provider.GetColumnByName("Test", "Name");
         Assert.That(column, Is.Not.Null);
         Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
+    }
+
+    [Test]
+    public void GetForeignKeyConstraints_SingleColumn_Success()
+    {
+        // Arrange
+        const string fkName = "MyForeignKey";
+        const string childTableName = "ChildTable";
+        const string parentTableName = "ParentTable";
+        const string idColumn = "Id";
+        const string parentIdColumn = "ParentId";
+
+        Provider.AddTable(parentTableName,
+            new Column(idColumn, DbType.Int32, ColumnProperty.PrimaryKey)
+        );
+
+        Provider.AddTable(childTableName,
+            new Column(idColumn, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(parentIdColumn, DbType.Int32)
+        );
+
+        Provider.AddForeignKey(fkName, childTableName, parentIdColumn, parentTableName, idColumn);
+
+        var foreignKeyConstraints = Provider.GetForeignKeyConstraints(childTableName);
+
+        var resultSingle = foreignKeyConstraints.Single();
+
+        Assert.That(resultSingle.Name.ToLowerInvariant(), Is.EqualTo(fkName.ToLowerInvariant()));
+        Assert.That(resultSingle.ChildTable.ToLowerInvariant(), Is.EqualTo(childTableName.ToLowerInvariant()));
+        Assert.That(resultSingle.ParentTable.ToLowerInvariant(), Is.EqualTo(parentTableName.ToLowerInvariant()));
+        Assert.That(resultSingle.ChildColumns.Select(x => x.ToLowerInvariant()).Single(), Is.EqualTo(parentIdColumn.ToLowerInvariant()));
+        Assert.That(resultSingle.ParentColumns.Select(x => x.ToLowerInvariant()).Single(), Is.EqualTo(idColumn.ToLowerInvariant()));
     }
 }

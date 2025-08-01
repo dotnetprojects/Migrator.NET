@@ -12,6 +12,7 @@
 #endregion
 
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models;
 using Migrator.Framework;
 using Migrator.Framework.Loggers;
 using Migrator.Framework.SchemaBuilder;
@@ -143,31 +144,71 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
     {
         var constraints = new List<ForeignKeyConstraint>();
+        var sb = new StringBuilder();
+        sb.AppendLine("SELECT");
+        sb.AppendLine("  tc.CONSTRAINT_NAME AS FK_KEY,");
+        sb.AppendLine("  tc.TABLE_SCHEMA,");
+        sb.AppendLine("  tc.TABLE_NAME AS CHILD_TABLE,");
+        sb.AppendLine("  kcu.COLUMN_NAME AS CHILD_COLUMN,");
+        sb.AppendLine("  ccu.TABLE_NAME AS PARENT_TABLE,");
+        sb.AppendLine("  ccu.COLUMN_NAME AS PARENT_COLUMN");
+        sb.AppendLine("FROM ");
+        sb.AppendLine("  INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ");
+        sb.AppendLine("JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu");
+        sb.AppendLine("  ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA");
+        sb.AppendLine("JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu");
+        sb.AppendLine("  ON tc.CONSTRAINT_NAME = ccu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = ccu.TABLE_SCHEMA");
+        sb.AppendLine($"WHERE LOWER(tc.TABLE_NAME) = LOWER('{table}') AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'");
+        sb.AppendLine("ORDER BY kcu.ORDINAL_POSITION");
+
+        var sql = sb.ToString();
+        List<ForeignKeyConstraintItem> foreignKeyConstraintItems = [];
+
         using (var cmd = CreateCommand())
-        using (
-            var reader =
-                // TODO: 
-                // In this statement the naming of alias PK is misleading since INFORMATION_SCHEMA.TABLE_CONSTRAINTS (alias PK) is the child
-                // while INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (alias C) is the parent
-                ExecuteQuery(
-                    cmd, string.Format("SELECT K_Table = FK.TABLE_NAME, FK_Column = CU.COLUMN_NAME, PK_Table = PK.TABLE_NAME, PK_Column = PT.COLUMN_NAME, Constraint_Name = C.CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS C INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS FK ON C.CONSTRAINT_NAME = FK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS PK ON C.UNIQUE_CONSTRAINT_NAME = PK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE CU ON C.CONSTRAINT_NAME = CU.CONSTRAINT_NAME INNER JOIN ( SELECT i1.TABLE_NAME, i2.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS i1 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE i2 ON i1.CONSTRAINT_NAME = i2.CONSTRAINT_NAME WHERE i1.CONSTRAINT_TYPE = 'PRIMARY KEY' ) PT ON PT.TABLE_NAME = PK.TABLE_NAME  WHERE FK.table_name = '{0}'", table)))
+        using (var reader = ExecuteQuery(cmd, sql))
         {
             while (reader.Read())
             {
-                var constraint = new ForeignKeyConstraint
+                var constraintItem = new ForeignKeyConstraintItem
                 {
-                    Name = reader.GetString(4),
-                    ParentTable = reader.GetString(0),
-                    ParentColumns = [reader.GetString(1)],
-                    ChildTable = reader.GetString(2),
-                    ChildColumns = [reader.GetString(3)]
+                    SchemaName = reader.GetString(reader.GetOrdinal("TABLE_SCHEMA")),
+                    ForeignKeyName = reader.GetString(reader.GetOrdinal("FK_KEY")),
+                    ChildTableName = reader.GetString(reader.GetOrdinal("CHILD_TABLE")),
+                    ChildColumnName = reader.GetString(reader.GetOrdinal("CHILD_COLUMN")),
+                    ParentTableName = reader.GetString(reader.GetOrdinal("PARENT_TABLE")),
+                    ParentColumnName = reader.GetString(reader.GetOrdinal("PARENT_COLUMN"))
                 };
 
-                constraints.Add(constraint);
+                foreignKeyConstraintItems.Add(constraintItem);
             }
         }
 
-        return constraints.ToArray();
+        var schemaChildTableGroups = foreignKeyConstraintItems.GroupBy(x => new { x.SchemaName, x.ChildTableName }).Count();
+
+        if (schemaChildTableGroups > 1)
+        {
+            throw new MigrationException($"Duplicates found (grouping by schema name and child table name). Since we do not offer schemas in '{nameof(GetForeignKeyConstraints)}' at this moment in time we cannot filter your target schema. Your database use the same table name in different schemas.");
+        }
+
+        var groups = foreignKeyConstraintItems.GroupBy(x => x.ForeignKeyName);
+
+        foreach (var group in groups)
+        {
+            var first = group.First();
+
+            var foreignKeyConstraint = new ForeignKeyConstraint
+            {
+                Name = first.ForeignKeyName,
+                ParentTable = first.ParentTableName,
+                ParentColumns = [.. group.Select(x => x.ParentColumnName).Distinct()],
+                ChildTable = first.ChildTableName,
+                ChildColumns = [.. group.Select(x => x.ChildColumnName).Distinct()]
+            };
+
+            constraints.Add(foreignKeyConstraint);
+        }
+
+        return [.. constraints];
     }
 
     public virtual string[] GetConstraints(string table)
@@ -1754,20 +1795,23 @@ public abstract class TransformationProvider : ITransformationProvider
     {
         table = _dialect.TableNameNeedsQuote ? _dialect.Quote(table) : table;
         var sqlCreate = string.Format("CREATE TABLE {0} ({1})", table, columns);
+
         ExecuteNonQuery(sqlCreate);
     }
 
     public virtual List<string> GetPrimaryKeys(IEnumerable<Column> columns)
     {
-        var pks = new List<string>();
+        var primaryKeys = new List<string>();
+
         foreach (var col in columns)
         {
             if (col.IsPrimaryKey)
             {
-                pks.Add(col.Name);
+                primaryKeys.Add(col.Name);
             }
         }
-        return pks;
+
+        return primaryKeys;
     }
 
     public virtual void AddColumnDefaultValue(string table, string column, object defaultValue)
