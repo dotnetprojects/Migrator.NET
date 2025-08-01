@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Migrator.Framework;
 using System.Linq;
+using DotNetProjects.Migrator;
 
 namespace Migrator;
 

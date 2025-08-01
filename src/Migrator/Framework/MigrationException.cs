@@ -31,7 +31,7 @@ public class MigrationException : Exception
     }
 
     public MigrationException(string migration, int version, Exception innerException)
-        : base(String.Format("Exception in migration {0} (#{1})", migration, version), innerException)
+        : base(string.Format("Exception in migration {0} (#{1})", migration, version), innerException)
     {
     }
 }

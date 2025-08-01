@@ -13,7 +13,7 @@
 
 using System;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Exception thrown when a migration number is not unique.
@@ -25,7 +25,7 @@ namespace Migrator;
 public class DuplicatedVersionException : Exception
 {
     public DuplicatedVersionException(long version)
-        : base(String.Format("Migration version #{0} is duplicated", version))
+        : base(string.Format("Migration version #{0} is duplicated", version))
     {
     }
 }

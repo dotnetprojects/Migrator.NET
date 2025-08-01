@@ -32,7 +32,7 @@ public interface ITransformationProvider : IDisposable
     /// <summary>
     /// Connection string to the database
     /// </summary>
-    String ConnectionString { get; }
+    string ConnectionString { get; }
 
     /// <summary>
     /// Logger used to log details of operations performed during migration

@@ -1,4 +1,5 @@
 using System.Reflection;
+using DotNetProjects.Migrator;
 using Migrator.Framework;
 using Migrator.Framework.Loggers;
 using NUnit.Framework;

@@ -24,7 +24,7 @@ public class ScriptEngine
 
     public ScriptEngine(string codeType, string[] extraReferencedAssemblies)
     {
-        if (!String.IsNullOrEmpty(codeType))
+        if (!string.IsNullOrEmpty(codeType))
         {
             _codeType = codeType;
         }
@@ -58,7 +58,7 @@ public class ScriptEngine
     private FileInfo[] GetFilesRecursive(DirectoryInfo d)
     {
         var files = new List<FileInfo>();
-        files.AddRange(d.GetFiles(String.Format("*.{0}", _provider.FileExtension)));
+        files.AddRange(d.GetFiles(string.Format("*.{0}", _provider.FileExtension)));
         var subDirs = d.GetDirectories();
         if (subDirs.Length > 0)
         {

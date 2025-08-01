@@ -53,10 +53,10 @@ public class OracleTransformationProvider : TransformationProvider
 
         primaryTable = QuoteTableNameIfRequired(primaryTable);
         refTable = QuoteTableNameIfRequired(refTable);
-        var primaryColumnsSql = String.Join(",", primaryColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
-        var refColumnsSql = String.Join(",", refColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
+        var primaryColumnsSql = string.Join(",", primaryColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
+        var refColumnsSql = string.Join(",", refColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
 
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
     }
 
     private void GuardAgainstMaximumIdentifierLengthForOracle(string name)
@@ -97,7 +97,7 @@ public class OracleTransformationProvider : TransformationProvider
             if (isNotNull)
             {
                 using var cmd = CreateCommand();
-                ExecuteQuery(cmd, String.Format("ALTER TABLE {0} MODIFY ({1} NOT NULL)", table, columnName));
+                ExecuteQuery(cmd, string.Format("ALTER TABLE {0} MODIFY ({1} NOT NULL)", table, columnName));
             }
         }
         else
@@ -139,7 +139,7 @@ public class OracleTransformationProvider : TransformationProvider
         oldName = QuoteTableNameIfRequired(oldName);
         newName = QuoteTableNameIfRequired(newName);
 
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
     }
 
     private void GuardAgainstExistingTableWithSameName(string newName, string oldName)
@@ -184,7 +184,7 @@ public class OracleTransformationProvider : TransformationProvider
 
         table = QuoteTableNameIfRequired(table);
         sqlColumn = QuoteColumnNameIfRequired(sqlColumn);
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
     }
 
     public override void AddColumn(string table, string sqlColumn)
@@ -192,7 +192,7 @@ public class OracleTransformationProvider : TransformationProvider
         GuardAgainstMaximumIdentifierLengthForOracle(table);
         table = QuoteTableNameIfRequired(table);
         sqlColumn = QuoteColumnNameIfRequired(sqlColumn);
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
     }
 
     public override string[] GetConstraints(string table)
@@ -202,7 +202,7 @@ public class OracleTransformationProvider : TransformationProvider
         using (
             var reader =
                 ExecuteQuery(cmd,
-                    String.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}'", table.ToLower())))
+                    string.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}'", table.ToLower())))
         {
             while (reader.Read())
             {
@@ -221,7 +221,7 @@ public class OracleTransformationProvider : TransformationProvider
         using (
             var reader =
                 ExecuteQuery(cmd,
-                    String.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}' and constraint_type = 'P'", table.ToLower())))
+                    string.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}' and constraint_type = 'P'", table.ToLower())))
         {
             while (reader.Read())
             {
@@ -365,11 +365,11 @@ public class OracleTransformationProvider : TransformationProvider
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
@@ -474,17 +474,17 @@ public class OracleTransformationProvider : TransformationProvider
             parameter.DbType = DbType.Int32;
             parameter.Value = ((bool)value) ? 1 : 0;
         }
-        else if (value is UInt16)
+        else if (value is ushort)
         {
             parameter.DbType = DbType.Decimal;
             parameter.Value = value;
         }
-        else if (value is UInt32)
+        else if (value is uint)
         {
             parameter.DbType = DbType.Decimal;
             parameter.Value = value;
         }
-        else if (value is UInt64)
+        else if (value is ulong)
         {
             parameter.DbType = DbType.Decimal;
             parameter.Value = value;
@@ -530,7 +530,7 @@ public class OracleTransformationProvider : TransformationProvider
             // Create identity trigger (This all has to be in one line (no whitespace), I learned the hard way :) )
             using (var cmd = CreateCommand())
             {
-                ExecuteQuery(cmd, String.Format(
+                ExecuteQuery(cmd, string.Format(
                 @"CREATE OR REPLACE TRIGGER {0}_TRIGGER BEFORE INSERT ON {1} FOR EACH ROW BEGIN SELECT {0}_SEQUENCE.NEXTVAL INTO :NEW.{2} FROM DUAL; END;", seqTName, name, identityColumn.Name));
             }
         }
@@ -541,7 +541,7 @@ public class OracleTransformationProvider : TransformationProvider
         try
         {
             using var cmd = CreateCommand();
-            ExecuteQuery(cmd, String.Format(@"DROP SEQUENCE {0}_SEQUENCE", name));
+            ExecuteQuery(cmd, string.Format(@"DROP SEQUENCE {0}_SEQUENCE", name));
         }
         catch (Exception)
         {

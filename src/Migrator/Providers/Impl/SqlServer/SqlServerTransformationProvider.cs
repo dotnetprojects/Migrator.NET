@@ -115,7 +115,7 @@ public class SqlServerTransformationProvider : TransformationProvider
         }
         else
         {
-            ExecuteNonQuery(String.Format("CREATE {0}{1} INDEX {2} ON {3} ({4})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns)));
+            ExecuteNonQuery(string.Format("CREATE {0}{1} INDEX {2} ON {3} ({4})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns)));
         }
     }
 
@@ -348,7 +348,7 @@ FROM    sys.[indexes] Ind
         using (
                 var reader =
                 ExecuteQuery(cmd,
-                    String.Format("select COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
+                    string.Format("select COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
         {
             while (reader.Read())
             {
@@ -390,11 +390,11 @@ FROM    sys.[indexes] Ind
 
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
@@ -490,7 +490,7 @@ FROM    sys.[indexes] Ind
 
         if (ColumnExists(tableName, newColumnName))
         {
-            throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+            throw new MigrationException(string.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
         }
 
         if (!ColumnExists(tableName, oldColumnName))
@@ -500,7 +500,7 @@ FROM    sys.[indexes] Ind
 
         if (ColumnExists(tableName, oldColumnName))
         {
-            ExecuteNonQuery(String.Format("EXEC sp_rename '{0}.{1}', '{2}', 'COLUMN'", tableName, oldColumnName, newColumnName));
+            ExecuteNonQuery(string.Format("EXEC sp_rename '{0}.{1}', '{2}', 'COLUMN'", tableName, oldColumnName, newColumnName));
         }
     }
 
@@ -508,15 +508,15 @@ FROM    sys.[indexes] Ind
     {
         if (TableExists(newName))
         {
-            throw new MigrationException(String.Format("Table with name '{0}' already exists", newName));
+            throw new MigrationException(string.Format("Table with name '{0}' already exists", newName));
         }
 
         if (!TableExists(oldName))
         {
-            throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", oldName));
+            throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", oldName));
         }
 
-        ExecuteNonQuery(String.Format("EXEC sp_rename '{0}', '{1}'", oldName, newName));
+        ExecuteNonQuery(string.Format("EXEC sp_rename '{0}', '{1}'", oldName, newName));
     }
 
     // Deletes all constraints linked to a column. Sql Server
@@ -600,7 +600,7 @@ AND CU.COLUMN_NAME = '{1}'",
     {
         if (TableExists(table) && IndexExists(table, name))
         {
-            ExecuteNonQuery(String.Format("DROP INDEX {0} ON {1}", QuoteConstraintNameIfRequired(name), QuoteTableNameIfRequired(table)));
+            ExecuteNonQuery(string.Format("DROP INDEX {0} ON {1}", QuoteConstraintNameIfRequired(name), QuoteTableNameIfRequired(table)));
         }
     }
 
@@ -614,17 +614,17 @@ AND CU.COLUMN_NAME = '{1}'",
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is UInt16)
+        if (value is ushort)
         {
             parameter.DbType = DbType.Int32;
             parameter.Value = value;
         }
-        else if (value is UInt32)
+        else if (value is uint)
         {
             parameter.DbType = DbType.Int64;
             parameter.Value = value;
         }
-        else if (value is UInt64)
+        else if (value is ulong)
         {
             parameter.DbType = DbType.Decimal;
             parameter.Value = value;

@@ -83,8 +83,6 @@ public class ProviderFactory
                 return (Dialect)Activator.CreateInstance(typeof(SqlServerDialect));
             case ProviderTypes.SqlServer2005:
                 return (Dialect)Activator.CreateInstance(typeof(SqlServer2005Dialect));
-            case ProviderTypes.SqlServerCe:
-                return (Dialect)Activator.CreateInstance(typeof(SqlServerCeDialect));
             case ProviderTypes.MsOracle:
                 return (Dialect)Activator.CreateInstance(typeof(MsOracleDialect));
             case ProviderTypes.IBM_DB2:

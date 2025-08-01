@@ -40,7 +40,7 @@ public class SchemaDumper
     }
     private void Dump(string tablePrefix, string path)
     {
-        if (String.IsNullOrEmpty(tablePrefix))
+        if (string.IsNullOrEmpty(tablePrefix))
         {
             this.tables = this._provider.GetTables();
         }
@@ -82,7 +82,7 @@ public class SchemaDumper
         {
             list[i] = $"\"{list[i]}\"";
         }
-        return $"new []{String.Format("{{{0}}}", String.Join(",", list))}";
+        return $"new []{string.Format("{{{0}}}", string.Join(",", list))}";
     }
 
     private void addForeignKeys(StringWriter writer)
@@ -123,10 +123,10 @@ public class SchemaDumper
                     keys[i] = $"\"{keys[i]}\"";
                 }
                 var keysString = string.Join(",", keys);
-                writer.WriteLine($"\t\tDatabase.AddPrimaryKey{nonclusteredString}(\"{ind.Name}\",\"{table}\",new string[]{String.Format("{{{0}}}", keysString)});");
+                writer.WriteLine($"\t\tDatabase.AddPrimaryKey{nonclusteredString}(\"{ind.Name}\",\"{table}\",new string[]{string.Format("{{{0}}}", keysString)});");
                 continue;
             }
-            writer.WriteLine($"\t\tDatabase.AddIndex(\"{table}\",new Index() {String.Format("{{Name = \"{0}\",Clustered = {1}, KeyColumns={2}, IncludeColumns={3}, Unique={4}, UniqueConstraint={5}}}", ind.Name, ind.Clustered.ToString().ToLower(), this.GetListString(ind.KeyColumns), this.GetListString(ind.IncludeColumns), ind.Unique.ToString().ToLower(), ind.UniqueConstraint.ToString().ToLower())});");
+            writer.WriteLine($"\t\tDatabase.AddIndex(\"{table}\",new Index() {string.Format("{{Name = \"{0}\",Clustered = {1}, KeyColumns={2}, IncludeColumns={3}, Unique={4}, UniqueConstraint={5}}}", ind.Name, ind.Clustered.ToString().ToLower(), this.GetListString(ind.KeyColumns), this.GetListString(ind.IncludeColumns), ind.Unique.ToString().ToLower(), ind.UniqueConstraint.ToString().ToLower())});");
         }
     }
 
@@ -138,7 +138,7 @@ public class SchemaDumper
         {
             colList.Add(this.getColStatement(col, table));
         }
-        var result = String.Format("{0}", string.Join(",", colList));
+        var result = string.Format("{0}", string.Join(",", colList));
         return result;
     }
     private string getColStatement(Column col, string table)
@@ -153,29 +153,29 @@ public class SchemaDumper
 
         if (col.Size != 0 && col.DefaultValue == null && col.ColumnProperty == ColumnProperty.None)
         {
-            return String.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, col.Size);
+            return string.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, col.Size);
         }
         if (col.DefaultValue != null && col.ColumnProperty == ColumnProperty.None && col.Size == 0)
         {
-            return String.Format("new Column(\"{0}\",DbType.{1},\"{2}\")", col.Name, col.Type, col.DefaultValue);
+            return string.Format("new Column(\"{0}\",DbType.{1},\"{2}\")", col.Name, col.Type, col.DefaultValue);
         }
         if (col.ColumnProperty != ColumnProperty.None && col.Size == 0 && col.DefaultValue == null)
         {
-            return String.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, propertyString);
+            return string.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, propertyString);
         }
         if (col.ColumnProperty != ColumnProperty.None && col.Size != 0 && col.DefaultValue == null)
         {
-            return String.Format("new Column(\"{0}\",DbType.{1},{2},{3})", col.Name, col.Type, col.Size, propertyString);
+            return string.Format("new Column(\"{0}\",DbType.{1},{2},{3})", col.Name, col.Type, col.Size, propertyString);
         }
         if (col.ColumnProperty != ColumnProperty.None && col.Size != 0 && col.DefaultValue != null)
         {
-            return String.Format("new Column(\"{0}\",DbType.{1},{2},{3},\"{4}\")", col.Name, col.Type, col.Size, propertyString, col.DefaultValue);
+            return string.Format("new Column(\"{0}\",DbType.{1},{2},{3},\"{4}\")", col.Name, col.Type, col.Size, propertyString, col.DefaultValue);
         }
         if (col.ColumnProperty != ColumnProperty.None && col.Size == 0 && col.DefaultValue != null)
         {
-            return String.Format("new Column(\"{0}\",DbType.{1},{2},\"{3}\")", col.Name, col.Type, propertyString, col.DefaultValue);
+            return string.Format("new Column(\"{0}\",DbType.{1},{2},\"{3}\")", col.Name, col.Type, propertyString, col.DefaultValue);
         }
-        return String.Format("new Column(\"{0}\",{1})", col.Name, col.Type);
+        return string.Format("new Column(\"{0}\",{1})", col.Name, col.Type);
 
     }
     private string GetColumnPropertyString(ColumnProperty prp)

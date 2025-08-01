@@ -114,10 +114,10 @@ WHERE  lower(tablenm) = lower('{0}')
     {
         if (!TableExists(name))
         {
-            throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", name));
+            throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", name));
         }
 
-        ExecuteNonQuery(String.Format("DROP TABLE IF EXISTS {0} CASCADE", name));
+        ExecuteNonQuery(string.Format("DROP TABLE IF EXISTS {0} CASCADE", name));
     }
 
     public override bool ConstraintExists(string table, string name)
@@ -138,7 +138,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
         using var cmd = CreateCommand();
         using var reader =
-            ExecuteQuery(cmd, String.Format("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = lower('{0}') AND (column_name = lower('{1}') OR column_name = '{1}')", table, column));
+            ExecuteQuery(cmd, string.Format("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = lower('{0}') AND (column_name = lower('{1}') OR column_name = '{1}')", table, column));
         return reader.Read();
     }
 
@@ -146,7 +146,7 @@ WHERE  lower(tablenm) = lower('{0}')
     {
         using var cmd = CreateCommand();
         using var reader =
-            ExecuteQuery(cmd, String.Format("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = lower('{0}')", table));
+            ExecuteQuery(cmd, string.Format("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = lower('{0}')", table));
         return reader.Read();
     }
 
@@ -154,7 +154,7 @@ WHERE  lower(tablenm) = lower('{0}')
     {
         using var cmd = CreateCommand();
         using var reader =
-            ExecuteQuery(cmd, String.Format("SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = lower('{0}')", view));
+            ExecuteQuery(cmd, string.Format("SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = lower('{0}')", view));
 
         return reader.Read();
     }
@@ -212,7 +212,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
         if (isUniqueSet)
         {
-            AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, new string[] { column.Name });
+            AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, [column.Name]);
         }
     }
 
@@ -252,7 +252,7 @@ WHERE  lower(tablenm) = lower('{0}')
         using (
             var reader =
                 ExecuteQuery(cmd,
-                    String.Format("select COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT from information_schema.columns where table_schema = 'public' AND table_name = lower('{0}');", table)))
+                    string.Format("select COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT from information_schema.columns where table_schema = 'public' AND table_name = lower('{0}');", table)))
         {
             // FIXME: Mostly duplicated code from the Transformation provider just to support stupid case-insensitivty of Postgre
             while (reader.Read())
@@ -272,11 +272,11 @@ WHERE  lower(tablenm) = lower('{0}')
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
@@ -362,12 +362,12 @@ where LOWER(t.relname) = LOWER('{0}')", table)))
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is UInt16)
+        if (value is ushort)
         {
             parameter.DbType = DbType.Int32;
             parameter.Value = Convert.ToInt32(value);
         }
-        else if (value is UInt32)
+        else if (value is uint)
         {
             parameter.DbType = DbType.Int64;
             parameter.Value = Convert.ToInt64(value);

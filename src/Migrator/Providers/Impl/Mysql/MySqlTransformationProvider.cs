@@ -68,7 +68,7 @@ public class MySqlTransformationProvider : TransformationProvider
             {
                 try
                 {
-                    ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP PRIMARY KEY", table));
+                    ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP PRIMARY KEY", table));
                 }
                 catch (Exception)
                 { }
@@ -118,7 +118,7 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         if (ConstraintExists(table, name))
         {
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP KEY {1}", table, _dialect.Quote(name)));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP KEY {1}", table, _dialect.Quote(name)));
         }
     }
 
@@ -216,7 +216,7 @@ public class MySqlTransformationProvider : TransformationProvider
         using (
             var reader =
                 ExecuteQuery(cmd,
-                    String.Format("SHOW COLUMNS FROM {0}", table)))
+                    string.Format("SHOW COLUMNS FROM {0}", table)))
         {
             while (reader.Read())
             {
@@ -235,11 +235,11 @@ public class MySqlTransformationProvider : TransformationProvider
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = Int64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = UInt64.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
@@ -303,7 +303,7 @@ public class MySqlTransformationProvider : TransformationProvider
 
     public override void ChangeColumn(string table, string sqlColumn)
     {
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
     }
 
     public override void AddTable(string name, params IDbField[] columns)
@@ -321,7 +321,7 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         if (ColumnExists(tableName, newColumnName))
         {
-            throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+            throw new MigrationException(string.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
         }
 
         if (!ColumnExists(tableName, oldColumnName))
@@ -333,7 +333,7 @@ public class MySqlTransformationProvider : TransformationProvider
 
         var dropPrimary = false;
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, String.Format("SHOW COLUMNS FROM {0} WHERE Field='{1}'", tableName, oldColumnName)))
+        using (var reader = ExecuteQuery(cmd, string.Format("SHOW COLUMNS FROM {0} WHERE Field='{1}'", tableName, oldColumnName)))
         {
             if (reader.Read())
             {
@@ -365,17 +365,17 @@ public class MySqlTransformationProvider : TransformationProvider
             }
         }
 
-        if (!String.IsNullOrEmpty(definition))
+        if (!string.IsNullOrEmpty(definition))
         {
             if (dropPrimary)
             {
-                ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP PRIMARY KEY", tableName));
+                ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP PRIMARY KEY", tableName));
             }
 
-            ExecuteNonQuery(String.Format("ALTER TABLE {0} CHANGE {1} {2} {3}", tableName, QuoteColumnNameIfRequired(oldColumnName), QuoteColumnNameIfRequired(newColumnName), definition));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} CHANGE {1} {2} {3}", tableName, QuoteColumnNameIfRequired(oldColumnName), QuoteColumnNameIfRequired(newColumnName), definition));
             if (dropPrimary)
             {
-                ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD PRIMARY KEY({1});", tableName, QuoteColumnNameIfRequired(newColumnName)));
+                ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD PRIMARY KEY({1});", tableName, QuoteColumnNameIfRequired(newColumnName)));
             }
         }
     }
@@ -389,7 +389,7 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         if (IndexExists(table, name))
         {
-            ExecuteNonQuery(String.Format("DROP INDEX {1} ON {0}", table, _dialect.Quote(name)));
+            ExecuteNonQuery(string.Format("DROP INDEX {1} ON {0}", table, _dialect.Quote(name)));
         }
     }
 

@@ -59,7 +59,7 @@ public class FirebirdDialect : Dialect
 
         if (!IdentityNeedsType && column.IsIdentity)
         {
-            type = String.Empty;
+            type = string.Empty;
         }
 
         return new FirebirdColumnPropertiesMapper(this, type);

@@ -124,7 +124,7 @@ public abstract class TransformationProvider : ITransformationProvider
         using (
             var reader =
                 ExecuteQuery(
-                    cmd, String.Format("select COLUMN_NAME, IS_NULLABLE from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
+                    cmd, string.Format("select COLUMN_NAME, IS_NULLABLE from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
         {
             while (reader.Read())
             {
@@ -150,7 +150,7 @@ public abstract class TransformationProvider : ITransformationProvider
                 // In this statement the naming of alias PK is misleading since INFORMATION_SCHEMA.TABLE_CONSTRAINTS (alias PK) is the child
                 // while INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS (alias C) is the parent
                 ExecuteQuery(
-                    cmd, String.Format("SELECT K_Table = FK.TABLE_NAME, FK_Column = CU.COLUMN_NAME, PK_Table = PK.TABLE_NAME, PK_Column = PT.COLUMN_NAME, Constraint_Name = C.CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS C INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS FK ON C.CONSTRAINT_NAME = FK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS PK ON C.UNIQUE_CONSTRAINT_NAME = PK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE CU ON C.CONSTRAINT_NAME = CU.CONSTRAINT_NAME INNER JOIN ( SELECT i1.TABLE_NAME, i2.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS i1 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE i2 ON i1.CONSTRAINT_NAME = i2.CONSTRAINT_NAME WHERE i1.CONSTRAINT_TYPE = 'PRIMARY KEY' ) PT ON PT.TABLE_NAME = PK.TABLE_NAME  WHERE FK.table_name = '{0}'", table)))
+                    cmd, string.Format("SELECT K_Table = FK.TABLE_NAME, FK_Column = CU.COLUMN_NAME, PK_Table = PK.TABLE_NAME, PK_Column = PT.COLUMN_NAME, Constraint_Name = C.CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS C INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS FK ON C.CONSTRAINT_NAME = FK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS PK ON C.UNIQUE_CONSTRAINT_NAME = PK.CONSTRAINT_NAME INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE CU ON C.CONSTRAINT_NAME = CU.CONSTRAINT_NAME INNER JOIN ( SELECT i1.TABLE_NAME, i2.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS i1 INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE i2 ON i1.CONSTRAINT_NAME = i2.CONSTRAINT_NAME WHERE i1.CONSTRAINT_TYPE = 'PRIMARY KEY' ) PT ON PT.TABLE_NAME = PK.TABLE_NAME  WHERE FK.table_name = '{0}'", table)))
         {
             while (reader.Read())
             {
@@ -177,7 +177,7 @@ public abstract class TransformationProvider : ITransformationProvider
         using (
             var reader =
                 ExecuteQuery(
-                    cmd, String.Format("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE LOWER(TABLE_NAME) = LOWER('{0}')", table)))
+                    cmd, string.Format("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE LOWER(TABLE_NAME) = LOWER('{0}')", table)))
         {
             while (reader.Read())
             {
@@ -403,10 +403,10 @@ public abstract class TransformationProvider : ITransformationProvider
     {
         if (!TableExists(name))
         {
-            throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", name));
+            throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", name));
         }
 
-        ExecuteNonQuery(String.Format("DROP TABLE {0}", name));
+        ExecuteNonQuery(string.Format("DROP TABLE {0}", name));
     }
 
     public virtual void RenameTable(string oldName, string newName)
@@ -416,22 +416,22 @@ public abstract class TransformationProvider : ITransformationProvider
 
         if (TableExists(newName))
         {
-            throw new MigrationException(String.Format("Table with name '{0}' already exists", newName));
+            throw new MigrationException(string.Format("Table with name '{0}' already exists", newName));
         }
 
         if (!TableExists(oldName))
         {
-            throw new MigrationException(String.Format("Table with name '{0}' does not exist to rename", oldName));
+            throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", oldName));
         }
 
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
     }
 
     public virtual void RenameColumn(string tableName, string oldColumnName, string newColumnName)
     {
         if (ColumnExists(tableName, newColumnName))
         {
-            throw new MigrationException(String.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
+            throw new MigrationException(string.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
         }
 
         if (!ColumnExists(tableName, oldColumnName))
@@ -443,7 +443,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         var quotedNewColumnName = QuoteColumnNameIfRequired(newColumnName);
 
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, Dialect.Quote(column.Name), quotedNewColumnName));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, Dialect.Quote(column.Name), quotedNewColumnName));
     }
 
     public virtual void RemoveColumn(string tableName, string column)
@@ -460,7 +460,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         var existingColumn = GetColumnByName(tableName, column);
 
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} DROP COLUMN {1} ", tableName, Dialect.Quote(existingColumn.Name)));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP COLUMN {1} ", tableName, Dialect.Quote(existingColumn.Name)));
     }
 
     public virtual bool ColumnExists(string table, string column)
@@ -995,7 +995,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual IDataReader Select(IDbCommand cmd, string what, string from, string where)
     {
-        return ExecuteQuery(cmd, String.Format("SELECT {0} FROM {1} WHERE {2}", what, from, where));
+        return ExecuteQuery(cmd, string.Format("SELECT {0} FROM {1} WHERE {2}", what, from, where));
     }
 
     public virtual IDataReader Select(IDbCommand cmd, string table, string[] columns, string[] whereColumns = null, object[] whereValues = null)
@@ -1032,11 +1032,11 @@ public abstract class TransformationProvider : ITransformationProvider
 
         cmd.Transaction = _transaction;
 
-        var query = String.Format("SELECT {0} FROM {1}", builder.ToString(), table);
+        var query = string.Format("SELECT {0} FROM {1}", builder.ToString(), table);
 
         if (whereColumns != null || nullWhereColumns != null || notNullWhereColumns != null)
         {
-            query = String.Format("SELECT {0} FROM {1} WHERE ", builder.ToString(), table);
+            query = string.Format("SELECT {0} FROM {1} WHERE ", builder.ToString(), table);
         }
 
         var andNeeded = false;
@@ -1099,7 +1099,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual object SelectScalar(string what, string from, string where)
     {
-        return ExecuteScalar(String.Format("SELECT {0} FROM {1} WHERE {2}", what, from, where));
+        return ExecuteScalar(string.Format("SELECT {0} FROM {1} WHERE {2}", what, from, where));
     }
 
     public virtual object SelectScalar(string what, string from, string[] whereColumns, object[] whereValues)
@@ -1112,7 +1112,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         command.Transaction = _transaction;
 
-        var query = String.Format("SELECT {0} FROM {1} WHERE {2}", what, from, GetWhereString(whereColumns, whereValues));
+        var query = string.Format("SELECT {0} FROM {1} WHERE {2}", what, from, GetWhereString(whereColumns, whereValues));
 
         command.CommandText = query;
         command.CommandType = CommandType.Text;
@@ -1186,8 +1186,8 @@ public abstract class TransformationProvider : ITransformationProvider
 
         command.Transaction = _transaction;
 
-        var query = String.Format("UPDATE {0} SET {1}", table, builder.ToString());
-        if (!String.IsNullOrEmpty(where))
+        var query = string.Format("UPDATE {0} SET {1}", table, builder.ToString());
+        if (!string.IsNullOrEmpty(where))
         {
             query += " WHERE " + where;
         }
@@ -1264,7 +1264,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         command.Transaction = _transaction;
 
-        var query = String.Format("UPDATE {0} SET {1} WHERE {2}", table, builder.ToString(), GetWhereStringWithNullCheck(whereColumns, whereValues, values.Length));
+        var query = string.Format("UPDATE {0} SET {1} WHERE {2}", table, builder.ToString(), GetWhereStringWithNullCheck(whereColumns, whereValues, values.Length));
 
         command.CommandText = query;
         command.CommandType = CommandType.Text;
@@ -1355,7 +1355,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         command.Transaction = _transaction;
 
-        command.CommandText = String.Format("INSERT INTO {0} ({1}) VALUES ({2})", table, columnNames, parameterNames);
+        command.CommandText = string.Format("INSERT INTO {0} ({1}) VALUES ({2})", table, columnNames, parameterNames);
         command.CommandType = CommandType.Text;
 
         var paramCount = 0;
@@ -1460,7 +1460,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual int InsertIfNotExists(string table, string[] columns, object[] values, string[] whereColumns, object[] whereValues)
     {
         using var cmd = CreateCommand();
-        using var reader = this.Select(cmd, table, new[] { whereColumns[0] }, whereColumns, whereValues);
+        using var reader = this.Select(cmd, table, [whereColumns[0]], whereColumns, whereValues);
         if (!reader.Read())
         {
             reader.Close();
@@ -1482,7 +1482,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         if (null == whereColumns || null == whereValues)
         {
-            return ExecuteNonQuery(String.Format("DELETE FROM {0}", table));
+            return ExecuteNonQuery(string.Format("DELETE FROM {0}", table));
         }
         else
         {
@@ -1496,7 +1496,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
             command.Transaction = _transaction;
 
-            var query = String.Format("DELETE FROM {0} WHERE ({1})", table,
+            var query = string.Format("DELETE FROM {0} WHERE ({1})", table,
                 GetWhereString(whereColumns, whereValues));
 
             command.CommandText = query;
@@ -1529,12 +1529,12 @@ public abstract class TransformationProvider : ITransformationProvider
             return Delete(table, (string[])null, null);
         }
 
-        return ExecuteNonQuery(String.Format("DELETE FROM {0} WHERE {1} = {2}", table, wherecolumn, QuoteValues(wherevalue)));
+        return ExecuteNonQuery(string.Format("DELETE FROM {0} WHERE {1} = {2}", table, wherecolumn, QuoteValues(wherevalue)));
     }
 
     public virtual int TruncateTable(string table)
     {
-        return ExecuteNonQuery(String.Format("TRUNCATE TABLE {0} ", table));
+        return ExecuteNonQuery(string.Format("TRUNCATE TABLE {0} ", table));
     }
 
     /// <summary>
@@ -1615,7 +1615,7 @@ public abstract class TransformationProvider : ITransformationProvider
                 using var reader = Select(cmd, versionColumn, _schemaInfotable, string.Format("{0} = '{1}'", scopeColumn, _scope));
                 while (reader.Read())
                 {
-                    if (reader.GetFieldType(0) == typeof(Decimal))
+                    if (reader.GetFieldType(0) == typeof(decimal))
                     {
                         _appliedMigrations.Add((long)reader.GetDecimal(0));
                     }
@@ -1631,7 +1631,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual bool IsMigrationApplied(long version, string scope)
     {
-        var value = SelectScalar("Version", _schemaInfotable, new[] { "Scope", "Version" }, new object[] { scope, version });
+        var value = SelectScalar("Version", _schemaInfotable, ["Scope", "Version"], [scope, version]);
         return Convert.ToInt64(value) == version;
     }
 
@@ -1642,7 +1642,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void MigrationApplied(long version, string scope)
     {
         CreateSchemaInfoTable();
-        Insert(_schemaInfotable, new string[] { "Scope", "Version", "TimeStamp" }, new object[] { scope ?? _scope, version, DateTime.UtcNow });
+        Insert(_schemaInfotable, ["Scope", "Version", "TimeStamp"], [scope ?? _scope, version, DateTime.UtcNow]);
         _appliedMigrations.Add(version);
     }
 
@@ -1653,7 +1653,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void MigrationUnApplied(long version, string scope)
     {
         CreateSchemaInfoTable();
-        Delete(_schemaInfotable, new[] { "Scope", "Version" }, new[] { scope ?? _scope, version.ToString() });
+        Delete(_schemaInfotable, ["Scope", "Version"], [scope ?? _scope, version.ToString()]);
         _appliedMigrations.Remove(version);
     }
 
@@ -1753,7 +1753,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void AddTable(string table, string engine, string columns)
     {
         table = _dialect.TableNameNeedsQuote ? _dialect.Quote(table) : table;
-        var sqlCreate = String.Format("CREATE TABLE {0} ({1})", table, columns);
+        var sqlCreate = string.Format("CREATE TABLE {0} ({1})", table, columns);
         ExecuteNonQuery(sqlCreate);
     }
 
@@ -1775,25 +1775,25 @@ public abstract class TransformationProvider : ITransformationProvider
         table = QuoteTableNameIfRequired(table);
         column = this.QuoteColumnNameIfRequired(column);
         var def = Dialect.Default(defaultValue);
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD DEFAULT('{1}') FOR {2}", table, def, column));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD DEFAULT('{1}') FOR {2}", table, def, column));
     }
 
     public virtual void AddColumn(string table, string sqlColumn)
     {
         table = QuoteTableNameIfRequired(table);
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} ADD COLUMN {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD COLUMN {1}", table, sqlColumn));
     }
 
     public virtual void ChangeColumn(string table, string sqlColumn)
     {
         table = QuoteTableNameIfRequired(table);
-        ExecuteNonQuery(String.Format("ALTER TABLE {0} ALTER COLUMN {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ALTER COLUMN {1}", table, sqlColumn));
     }
 
     protected virtual string JoinColumnsAndIndexes(IEnumerable<ColumnPropertiesMapper> columns)
     {
         var indexes = JoinIndexes(columns);
-        var columnsAndIndexes = JoinColumns(columns) + (indexes != null ? "," + indexes : String.Empty);
+        var columnsAndIndexes = JoinColumns(columns) + (indexes != null ? "," + indexes : string.Empty);
         return columnsAndIndexes;
     }
 
@@ -1890,7 +1890,7 @@ public abstract class TransformationProvider : ITransformationProvider
             {
                 AddColumn(_schemaInfotable, "Scope", DbType.String, 50, ColumnProperty.NotNull, "default");
                 RemoveAllConstraints(_schemaInfotable);
-                AddPrimaryKey("PK_SchemaInfo", _schemaInfotable, new[] { "Version", "Scope" });
+                AddPrimaryKey("PK_SchemaInfo", _schemaInfotable, ["Version", "Scope"]);
             }
 
             if (!ColumnExists(_schemaInfotable, "TimeStamp"))
@@ -1902,7 +1902,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual string QuoteValues(string values)
     {
-        return QuoteValues(new[] { values })[0];
+        return QuoteValues([values])[0];
     }
 
     public virtual string[] QuoteValues(string[] values)
@@ -1915,7 +1915,7 @@ public abstract class TransformationProvider : ITransformationProvider
             }
             else
             {
-                return String.Format("'{0}'", val.Replace("'", "''"));
+                return string.Format("'{0}'", val.Replace("'", "''"));
             }
         }).ToArray();
     }
@@ -1931,10 +1931,10 @@ public abstract class TransformationProvider : ITransformationProvider
         var namesAndValues = new string[columns.Length];
         for (var i = 0; i < columns.Length; i++)
         {
-            namesAndValues[i] = String.Format("{0}={1}", columns[i], quotedValues[i]);
+            namesAndValues[i] = string.Format("{0}={1}", columns[i], quotedValues[i]);
         }
 
-        return String.Join(joinSeperator, namesAndValues);
+        return string.Join(joinSeperator, namesAndValues);
     }
 
     public virtual string GenerateParameterNameParameter(int index)
@@ -1958,47 +1958,47 @@ public abstract class TransformationProvider : ITransformationProvider
             parameter.DbType = DbType.Guid;
             parameter.Value = (Guid)value;
         }
-        else if (value is Int16)
+        else if (value is short)
         {
             parameter.DbType = DbType.Int16;
             parameter.Value = value;
         }
-        else if (value is Int32)
+        else if (value is int)
         {
             parameter.DbType = DbType.Int32;
             parameter.Value = value;
         }
-        else if (value is Int64)
+        else if (value is long)
         {
             parameter.DbType = DbType.Int64;
             parameter.Value = value;
         }
-        else if (value is UInt16)
+        else if (value is ushort)
         {
             parameter.DbType = DbType.UInt16;
             parameter.Value = value;
         }
-        else if (value is UInt32)
+        else if (value is uint)
         {
             parameter.DbType = DbType.UInt32;
             parameter.Value = value;
         }
-        else if (value is UInt64)
+        else if (value is ulong)
         {
             parameter.DbType = DbType.UInt64;
             parameter.Value = value;
         }
-        else if (value is Double)
+        else if (value is double)
         {
             parameter.DbType = DbType.Double;
             parameter.Value = value;
         }
-        else if (value is Decimal)
+        else if (value is decimal)
         {
             parameter.DbType = DbType.Decimal;
             parameter.Value = value;
         }
-        else if (value is String)
+        else if (value is string)
         {
             parameter.DbType = DbType.String;
             parameter.Value = value;
@@ -2008,7 +2008,7 @@ public abstract class TransformationProvider : ITransformationProvider
             parameter.DbType = DbType.DateTime;
             parameter.Value = value;
         }
-        else if (value is Boolean || value is Boolean?)
+        else if (value is bool || value is bool?)
         {
             parameter.DbType = DbType.Boolean;
             parameter.Value = value;
@@ -2047,7 +2047,7 @@ public abstract class TransformationProvider : ITransformationProvider
         if (TableExists(table) && IndexExists(table, name))
         {
             name = QuoteConstraintNameIfRequired(name);
-            ExecuteNonQuery(String.Format("DROP INDEX {0}", name));
+            ExecuteNonQuery(string.Format("DROP INDEX {0}", name));
         }
     }
 
@@ -2064,7 +2064,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         columns = QuoteColumnNamesIfRequired(columns);
 
-        ExecuteNonQuery(String.Format("CREATE INDEX {0} ON {1} ({2}) ", name, table, string.Join(", ", columns)));
+        ExecuteNonQuery(string.Format("CREATE INDEX {0} ON {1} ({2}) ", name, table, string.Join(", ", columns)));
     }
 
     protected string QuoteConstraintNameIfRequired(string name)

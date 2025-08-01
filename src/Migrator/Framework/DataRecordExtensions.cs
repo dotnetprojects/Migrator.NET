@@ -41,19 +41,19 @@ public static class DataRecordExtensions
             return (T)((object)value.ToString());
         }
 
-        if (type == typeof(Int32?) || type == typeof(Int32))
+        if (type == typeof(int?) || type == typeof(int))
         {
             return (T)(object)Convert.ToInt32(value);
         }
 
-        if (type == typeof(Int64?) || type == typeof(Int64))
+        if (type == typeof(long?) || type == typeof(long))
         {
             return (T)(object)Convert.ToInt64(value);
         }
 
         if (type == typeof(bool) || type == typeof(bool?))
         {
-            if (value is Int32 || value is Int64 || value is Int16 || value is UInt16 || value is UInt32 || value is UInt64)
+            if (value is int || value is long || value is short || value is ushort || value is uint || value is ulong)
             {
                 var intValue = Convert.ToInt64(value);
                 return (T)(object)(intValue != 0);

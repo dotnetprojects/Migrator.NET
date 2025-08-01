@@ -35,7 +35,7 @@ public class NoOpTransformationProvider : ITransformationProvider
 
     public string ConnectionString
     {
-        get { return String.Empty; }
+        get { return string.Empty; }
     }
 
     public virtual ILogger Logger
