@@ -1,21 +1,8 @@
-#region License
-
-//The contents of this file are subject to the Mozilla Public License
-//Version 1.1 (the "License"); you may not use this file except in
-//compliance with the License. You may obtain a copy of the License at
-//http://www.mozilla.org/MPL/
-//Software distributed under the License is distributed on an "AS IS"
-//basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
-//License for the specific language governing rights and limitations
-//under the License.
-
-#endregion
-
-using System;
-using System.Configuration;
 using System.Data;
 using Migrator.Framework;
 using Migrator.Providers.Mysql;
+using Migrator.Tests.Settings;
+using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.MySQL;
@@ -27,13 +14,16 @@ public class MySqlTransformationProviderTest : TransformationProviderConstraintB
     [SetUp]
     public void SetUp()
     {
-        var constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
-        if (constr == null)
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.MySQL)
+            ?.ConnectionString;
+
+        if (string.IsNullOrEmpty(connectionString))
         {
-            throw new ArgumentNullException("MySqlConnectionString", "No config file");
+            throw new IgnoreException("No MySQL ConnectionString is Set.");
         }
 
-        Provider = new MySqlTransformationProvider(new MysqlDialect(), constr, "default", null);
+        Provider = new MySqlTransformationProvider(new MysqlDialect(), connectionString, "default", null);
         // _provider.Logger = new Logger(true, new ConsoleWriter());
 
         AddDefaultTable();

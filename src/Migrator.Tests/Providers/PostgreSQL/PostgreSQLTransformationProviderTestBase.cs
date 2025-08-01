@@ -16,7 +16,12 @@ public abstract class PostgreSQLTransformationProviderTestBase : TransformationP
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL)
-            .ConnectionString;
+            ?.ConnectionString;
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new IgnoreException("No Postgre ConnectionString is Set.");
+        }
 
         DbProviderFactories.RegisterFactory("Npgsql", () => Npgsql.NpgsqlFactory.Instance);
 

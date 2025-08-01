@@ -1,5 +1,3 @@
-using System;
-using System.Configuration;
 using Migrator.Providers;
 using Migrator.Providers.PostgreSQL;
 using Migrator.Tests.Settings;
@@ -17,7 +15,12 @@ public class PostgreSQLTransformationProviderTest : TransformationProviderConstr
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL)
-            .ConnectionString;
+            ?.ConnectionString;
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new IgnoreException("No Postgre ConnectionString is Set.");
+        }
 
         DbProviderFactories.RegisterFactory("Npgsql", () => Npgsql.NpgsqlFactory.Instance);
 

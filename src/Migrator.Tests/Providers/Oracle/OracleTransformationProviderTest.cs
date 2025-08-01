@@ -1,8 +1,8 @@
-using System;
-using System.Configuration;
 using System.Data;
 using Migrator.Framework;
 using Migrator.Providers.Oracle;
+using Migrator.Tests.Settings;
+using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers;
@@ -14,13 +14,16 @@ public class OracleTransformationProviderTest : TransformationProviderConstraint
     [SetUp]
     public void SetUp()
     {
-        var constr = ConfigurationManager.AppSettings["OracleConnectionString"];
-        if (constr == null)
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.Oracle)
+            ?.ConnectionString;
+
+        if (string.IsNullOrEmpty(connectionString))
         {
-            throw new ArgumentNullException("OracleConnectionString", "No config file");
+            throw new IgnoreException("No Oracle ConnectionString is Set.");
         }
 
-        Provider = new OracleTransformationProvider(new OracleDialect(), constr, null, "default", null);
+        Provider = new OracleTransformationProvider(new OracleDialect(), connectionString, null, "default", null);
         Provider.BeginTransaction();
 
         AddDefaultTable();

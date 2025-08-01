@@ -22,3 +22,6 @@ jobs:
     - name: Build
       run: |
         dotnet build Migrator.slnx
+    - name: Test
+      run: |
+        dotnet test Migrator.slnx
