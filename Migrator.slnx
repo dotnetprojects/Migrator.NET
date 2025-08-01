@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/Core/">
+    <Project Path="src/Migrator/DotNetProjects.Migrator.csproj" />
+  </Folder>
+  <Folder Name="/Extras/">
+    <File Path="doc/README.txt" />
+    <File Path="doc/TODO.txt" />
+    <File Path="src/MigratorDotNet.snk" />
+  </Folder>
+  <Folder Name="/Extras/.github/" />
+  <Folder Name="/Extras/.github/workflows/">
+    <File Path=".github/workflows/dotnet.yml" />
+    <File Path=".github/workflows/dotnetpull.yml" />
+    <File Path=".github/workflows/release.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="src/Migrator.Tests/Migrator.Tests.csproj" />
+  </Folder>
+</Solution>
