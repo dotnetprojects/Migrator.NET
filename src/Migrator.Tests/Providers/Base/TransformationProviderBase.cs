@@ -292,10 +292,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Assert.That(Provider.TableExists("SchemaInfo"), Is.True, "No SchemaInfo table created");
     }
 
-    /// <summary>
-    /// Reproduce bug reported by Luke Melia & Daniel Berlinger :
-    /// http://macournoyer.wordpress.com/2006/10/15/migrate-nant-task/#comment-113
-    /// </summary>
+
     [Test]
     public void CommitTwice()
     {

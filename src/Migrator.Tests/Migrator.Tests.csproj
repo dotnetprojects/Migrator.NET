@@ -25,15 +25,10 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="NUnit.Mocks" Version="2.6.4" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="System.Configuration" />
-    <Reference Include="System.Data.SqlServerCe, Version=3.5.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
-      <HintPath>..\..\lib\System.Data.SqlServerCe.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup>
