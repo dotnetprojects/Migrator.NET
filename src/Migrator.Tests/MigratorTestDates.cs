@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Migrator.Framework;
 using Migrator.Framework.Loggers;
+using NSubstitute;
 using NUnit.Framework;
 using NUnit.Mocks;
 
@@ -60,22 +61,24 @@ public class MigratorTestDates
 
     private void SetUpCurrentVersion(long version, List<long> appliedVersions, bool assertRollbackIsCalled, bool includeBad)
     {
-        var providerMock = new DynamicMock(typeof(ITransformationProvider));
+        var providerMock = Substitute.For<ITransformationProvider>();
 
-        providerMock.SetReturnValue("get_MaxVersion", version);
-        providerMock.SetReturnValue("get_AppliedMigrations", appliedVersions);
-        providerMock.SetReturnValue("get_Logger", new Logger(false));
+        providerMock.AppliedMigrations.Returns(appliedVersions);
+        providerMock.Logger.Returns(new Logger(false));
 
-        if (assertRollbackIsCalled)
+        providerMock.When(x => x.Dispose()).Do(_ =>
         {
-            providerMock.Expect("Rollback");
-        }
-        else
-        {
-            providerMock.ExpectNoCall("Rollback");
-        }
+            if (assertRollbackIsCalled)
+            {
+                providerMock.Received().Rollback();
+            }
+            else
+            {
+                providerMock.DidNotReceive().Rollback();
+            }
+        });
 
-        _migrator = new Migrator((ITransformationProvider)providerMock.MockInstance, Assembly.GetExecutingAssembly(), false);
+        _migrator = new Migrator((ITransformationProvider)providerMock, Assembly.GetExecutingAssembly(), false);
 
         _migrator.MigrationsTypes.Clear();
         _upCalled.Clear();
