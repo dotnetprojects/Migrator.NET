@@ -37,6 +37,18 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+      oracle:
+        image: gvenzl/oracle-xe:21.3.0-slim
+        ports:
+          - 1521:1521
+        env:
+          ORACLE_PASSWORD: oracle
+        options: >-
+          --health-cmd "echo 'exit' | sqlplus -L system/oracle@localhost/XEPDB1"
+          --health-interval=15s
+          --health-timeout=10s
+          --health-retries=10
+
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
