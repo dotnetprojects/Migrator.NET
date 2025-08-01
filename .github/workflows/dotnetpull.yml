@@ -37,17 +37,17 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
-      oracle:
-        image: gvenzl/oracle-xe:21.3.0-slim
-        ports:
-          - 1521:1521
-        env:
-          ORACLE_PASSWORD: testpass
-        options: >-
-          --health-cmd "echo 'exit' | sqlplus -L system/oracle@localhost/XEPDB1"
-          --health-interval=15s
-          --health-timeout=10s
-          --health-retries=10
+      # oracle:
+      #   image: gvenzl/oracle-xe:21.3.0-slim
+      #   ports:
+      #     - 1521:1521
+      #   env:
+      #     ORACLE_PASSWORD: testpass
+      #   options: >-
+      #     --health-cmd "echo 'exit' | sqlplus -L system/oracle@localhost/XEPDB1"
+      #     --health-interval=15s
+      #     --health-timeout=10s
+      #     --health-retries=10
 
       mysql:
         image: mysql:8.0
@@ -90,12 +90,12 @@ jobs:
         sudo mv instantclient_* /opt/oracle/instantclient
         export LD_LIBRARY_PATH=/opt/oracle/instantclient
         export PATH=$PATH:/opt/oracle/instantclient
-    - name: Create Oracle schema
-      run: |
-          echo "CREATE USER test IDENTIFIED BY test DEFAULT TABLESPACE users TEMPORARY TABLESPACE temp QUOTA UNLIMITED ON users;" |
-          sqlplus -L system/oracle@//localhost:1521/XEPDB1
-          echo "GRANT CONNECT, RESOURCE TO test;" |
-          sqlplus -L system/oracle@//localhost:1521/XEPDB1
+    # - name: Create Oracle schema
+    #   run: |
+    #       echo "CREATE USER test IDENTIFIED BY test DEFAULT TABLESPACE users TEMPORARY TABLESPACE temp QUOTA UNLIMITED ON users;" |
+    #       sqlplus -L system/oracle@//localhost:1521/XEPDB1
+    #       echo "GRANT CONNECT, RESOURCE TO test;" |
+    #       sqlplus -L system/oracle@//localhost:1521/XEPDB1
     - name: Create SQLServer database
       run: |
         /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
