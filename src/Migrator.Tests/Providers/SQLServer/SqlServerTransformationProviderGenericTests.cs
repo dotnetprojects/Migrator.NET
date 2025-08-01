@@ -16,7 +16,7 @@ public class SqlServerTransformationProviderGenericTests : TransformationProvide
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLServerConnectionConfigId)
-            .ConnectionString;
+            ?.ConnectionString;
 
         if (string.IsNullOrEmpty(connectionString))
         {
