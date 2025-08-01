@@ -8,7 +8,7 @@ public static class TransformationProviderUtility
 {
     public const int MaxLengthForForeignKeyInOracle = 30;
     //static readonly ILog log = LogManager.GetLogger(typeof (TransformationProviderUtility));
-    private static readonly string[] CommonWords = new[] { "Test" };
+    private static readonly string[] CommonWords = ["Test"];
 
     public static string CreateForeignKeyName(string tableName, string foreignKeyTableName)
     {

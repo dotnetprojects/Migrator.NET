@@ -212,7 +212,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
         if (isUniqueSet)
         {
-            AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, new string[] { column.Name });
+            AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, [column.Name]);
         }
     }
 

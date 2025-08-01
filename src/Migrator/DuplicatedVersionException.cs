@@ -13,7 +13,7 @@
 
 using System;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Exception thrown when a migration number is not unique.

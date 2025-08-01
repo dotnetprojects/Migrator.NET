@@ -21,11 +21,11 @@ namespace Migrator.Tests;
 [TestFixture]
 public class MigrationTypeComparerTest
 {
-    private readonly Type[] _types = {
+    private readonly Type[] _types = [
                                  typeof (Migration1),
                                  typeof (Migration2),
                                  typeof (Migration3)
-                             };
+                             ];
 
     [Migration(1, Ignore = true)]
     internal class Migration1 : Migration

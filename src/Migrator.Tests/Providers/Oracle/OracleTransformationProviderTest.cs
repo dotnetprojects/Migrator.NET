@@ -31,7 +31,7 @@ public class OracleTransformationProviderTest : TransformationProviderConstraint
     {
         Provider.ExecuteNonQuery("DELETE FROM TestTwo");
         Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
-        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 3, "Not an Int val." });
+        Provider.Insert("TestTwo", ["Id", "TestId"], [3, "Not an Int val."]);
         Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
         Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
     }

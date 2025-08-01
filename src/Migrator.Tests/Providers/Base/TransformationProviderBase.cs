@@ -159,7 +159,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     {
         Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50));
         Assert.That(Provider.ColumnExists("TestTwo", "TestId"), Is.True);
-        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 1, "Not an Int val." });
+        Provider.Insert("TestTwo", ["Id", "TestId"], [1, "Not an Int val."]);
     }
 
     [Test]
@@ -168,7 +168,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
         Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
         Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
-        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 2, "Not an Int val." });
+        Provider.Insert("TestTwo", ["Id", "TestId"], [2, "Not an Int val."]);
     }
 
     [Test]
@@ -307,8 +307,8 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     [Test]
     public void InsertData()
     {
-        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 1, "1" });
-        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 2, "2" });
+        Provider.Insert("TestTwo", ["Id", "TestId"], [1, "1"]);
+        Provider.Insert("TestTwo", ["Id", "TestId"], [2, "2"]);
 
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd, "TestId", "TestTwo");
@@ -323,8 +323,8 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     {
         AddTable();
 
-        Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "1", "foo" });
-        Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "2", null });
+        Provider.Insert("Test", ["Id", "Title"], ["1", "foo"]);
+        Provider.Insert("Test", ["Id", "Title"], ["2", null]);
 
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd, "Title", "Test");
@@ -338,7 +338,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     public void CanInsertDataWithSingleQuotes()
     {
         AddTable();
-        Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "1", "Muad'Dib" });
+        Provider.Insert("Test", ["Id", "Title"], ["1", "Muad'Dib"]);
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd, "Title", "Test");
         Assert.That(reader.Read(), Is.True);
@@ -362,7 +362,7 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     public void DeleteDataWithArrays()
     {
         InsertData();
-        Provider.Delete("TestTwo", new[] { "TestId" }, new[] { "1" });
+        Provider.Delete("TestTwo", ["TestId"], ["1"]);
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd, "TestId", "TestTwo");
         Assert.That(reader.Read(), Is.True);
@@ -373,10 +373,10 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     [Test]
     public void UpdateData()
     {
-        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 20, "1" });
-        Provider.Insert("TestTwo", new[] { "Id", "TestId" }, new object[] { 21, "2" });
+        Provider.Insert("TestTwo", ["Id", "TestId"], [20, "1"]);
+        Provider.Insert("TestTwo", ["Id", "TestId"], [21, "2"]);
 
-        Provider.Update("TestTwo", new[] { "TestId" }, new[] { "3" });
+        Provider.Update("TestTwo", ["TestId"], ["3"]);
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd, "TestId", "TestTwo");
         var vals = GetVals(reader);
@@ -390,10 +390,10 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
     public void CanUpdateWithNullData()
     {
         AddTable();
-        Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "1", "foo" });
-        Provider.Insert("Test", new[] { "Id", "Title" }, new[] { "2", null });
+        Provider.Insert("Test", ["Id", "Title"], ["1", "foo"]);
+        Provider.Insert("Test", ["Id", "Title"], ["2", null]);
 
-        Provider.Update("Test", new[] { "Title" }, new string[] { null });
+        Provider.Update("Test", ["Title"], [null]);
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd, "Title", "Test");
         var vals = GetStringVals(reader);

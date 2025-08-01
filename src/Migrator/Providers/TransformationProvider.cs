@@ -1460,7 +1460,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual int InsertIfNotExists(string table, string[] columns, object[] values, string[] whereColumns, object[] whereValues)
     {
         using var cmd = CreateCommand();
-        using var reader = this.Select(cmd, table, new[] { whereColumns[0] }, whereColumns, whereValues);
+        using var reader = this.Select(cmd, table, [whereColumns[0]], whereColumns, whereValues);
         if (!reader.Read())
         {
             reader.Close();
@@ -1631,7 +1631,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual bool IsMigrationApplied(long version, string scope)
     {
-        var value = SelectScalar("Version", _schemaInfotable, new[] { "Scope", "Version" }, new object[] { scope, version });
+        var value = SelectScalar("Version", _schemaInfotable, ["Scope", "Version"], [scope, version]);
         return Convert.ToInt64(value) == version;
     }
 
@@ -1642,7 +1642,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void MigrationApplied(long version, string scope)
     {
         CreateSchemaInfoTable();
-        Insert(_schemaInfotable, new string[] { "Scope", "Version", "TimeStamp" }, new object[] { scope ?? _scope, version, DateTime.UtcNow });
+        Insert(_schemaInfotable, ["Scope", "Version", "TimeStamp"], [scope ?? _scope, version, DateTime.UtcNow]);
         _appliedMigrations.Add(version);
     }
 
@@ -1653,7 +1653,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void MigrationUnApplied(long version, string scope)
     {
         CreateSchemaInfoTable();
-        Delete(_schemaInfotable, new[] { "Scope", "Version" }, new[] { scope ?? _scope, version.ToString() });
+        Delete(_schemaInfotable, ["Scope", "Version"], [scope ?? _scope, version.ToString()]);
         _appliedMigrations.Remove(version);
     }
 
@@ -1890,7 +1890,7 @@ public abstract class TransformationProvider : ITransformationProvider
             {
                 AddColumn(_schemaInfotable, "Scope", DbType.String, 50, ColumnProperty.NotNull, "default");
                 RemoveAllConstraints(_schemaInfotable);
-                AddPrimaryKey("PK_SchemaInfo", _schemaInfotable, new[] { "Version", "Scope" });
+                AddPrimaryKey("PK_SchemaInfo", _schemaInfotable, ["Version", "Scope"]);
             }
 
             if (!ColumnExists(_schemaInfotable, "TimeStamp"))
@@ -1902,7 +1902,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual string QuoteValues(string values)
     {
-        return QuoteValues(new[] { values })[0];
+        return QuoteValues([values])[0];
     }
 
     public virtual string[] QuoteValues(string[] values)
