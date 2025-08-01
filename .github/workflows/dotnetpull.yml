@@ -40,7 +40,7 @@ jobs:
         source ~/.bashrc
     - name: Create database
       run: |
-        sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
+        /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
     - name: Restore dependencies
       run: |
         dotnet restore Migrator.slnx
