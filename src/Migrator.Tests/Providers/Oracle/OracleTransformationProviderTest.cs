@@ -1,5 +1,6 @@
 using System.Data;
 using Migrator.Framework;
+using Migrator.Providers;
 using Migrator.Providers.Oracle;
 using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;
@@ -22,6 +23,8 @@ public class OracleTransformationProviderTest : TransformationProviderConstraint
         {
             throw new IgnoreException("No Oracle ConnectionString is Set.");
         }
+
+        DbProviderFactories.RegisterFactory("Oracle.DataAccess.Client", () => Oracle.ManagedDataAccess.Client.OracleClientFactory.Instance);
 
         Provider = new OracleTransformationProvider(new OracleDialect(), connectionString, null, "default", null);
         Provider.BeginTransaction();
