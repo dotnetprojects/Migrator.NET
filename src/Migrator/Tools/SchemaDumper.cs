@@ -20,173 +20,210 @@ using Migrator.Framework;
 using Migrator.Providers;
 using Index = Migrator.Framework.Index;
 
-namespace Migrator.Tools
+namespace Migrator.Tools;
+
+public class SchemaDumper
 {
-    public class SchemaDumper
+    private readonly ITransformationProvider _provider;
+    private string[] tables;
+    private List<ForeignKeyConstraint> foreignKeys = new List<ForeignKeyConstraint>();
+    private List<Column> columns = new List<Column>();
+    private string dumpResult;
+    public SchemaDumper(ProviderTypes provider, string connectionString, string defaultSchema, string path = null, string tablePrefix = null)
     {
-        private readonly ITransformationProvider _provider;
-        string[] tables;
-        List<ForeignKeyConstraint> foreignKeys = new List<ForeignKeyConstraint>();
-        List<Column> columns = new List<Column>();
-        string dumpResult;
-        public SchemaDumper(ProviderTypes provider, string connectionString, string defaultSchema, string path = null, string tablePrefix = null)
+        _provider = ProviderFactory.Create(provider, connectionString, defaultSchema);
+        this.Dump(tablePrefix, path);
+    }
+    public string GetDump()
+    {
+        return this.dumpResult;
+    }
+    private void Dump(string tablePrefix, string path)
+    {
+        if (String.IsNullOrEmpty(tablePrefix))
         {
-            _provider = ProviderFactory.Create(provider, connectionString, defaultSchema);
-            this.Dump(tablePrefix, path);
+            this.tables = this._provider.GetTables();
         }
-        public string GetDump()
+        else
         {
-            return this.dumpResult;
+            this.tables = this._provider.GetTables().Where(o => o.ToUpper().StartsWith(tablePrefix.ToUpper())).ToArray();
         }
-        private void Dump(string tablePrefix, string path)
-        {
-            if (String.IsNullOrEmpty(tablePrefix))
-                this.tables = this._provider.GetTables();
-            else
-                this.tables = this._provider.GetTables().Where(o => o.ToUpper().StartsWith(tablePrefix.ToUpper())).ToArray();
 
-            foreach (var tab in this.tables)
+        foreach (var tab in this.tables)
+        {
+            foreignKeys.AddRange(this._provider.GetForeignKeyConstraints(tab));
+        }
+
+        var writer = new StringWriter();
+        writer.WriteLine("using System.Data;");
+        writer.WriteLine("using Migrator.Framework;\n");
+        writer.WriteLine("\t[Migration(1)]");
+        writer.WriteLine("\tpublic class SchemaDump : Migration");
+        writer.WriteLine("\t{");
+        writer.WriteLine("\tpublic override void Up()");
+        writer.WriteLine("\t{");
+        this.addTableStatement(writer);
+        this.addForeignKeys(writer);
+        writer.WriteLine("\t}");
+        writer.WriteLine("\tpublic override void Down(){}");
+        writer.WriteLine("}");
+        this.dumpResult = writer.ToString();
+        File.WriteAllText(path, dumpResult);
+    }
+
+    private string GetListString(string[] list)
+    {
+        if (list == null)
+        {
+            return "new string[]{}";
+        }
+
+        for (var i = 0; i < list.Length; i++)
+        {
+            list[i] = $"\"{list[i]}\"";
+        }
+        return $"new []{String.Format("{{{0}}}", String.Join(",", list))}";
+    }
+
+    private void addForeignKeys(StringWriter writer)
+    {
+        foreach (var fk in this.foreignKeys)
+        {
+            var fkCols = fk.ParentColumns;
+
+            foreach (var col in fkCols)
             {
-                foreignKeys.AddRange(this._provider.GetForeignKeyConstraints(tab));
+                writer.WriteLine($"\t\tDatabase.AddForeignKey(\"{fk.Name}\", \"{fk.ParentTable}\", {this.GetListString(fk.ParentColumns)}, \"{fk.ChildTable}\", {this.GetListString(fk.ChildColumns)});");
             }
-
-            var writer = new StringWriter();
-            writer.WriteLine("using System.Data;");
-            writer.WriteLine("using Migrator.Framework;\n");
-            writer.WriteLine("\t[Migration(1)]");
-            writer.WriteLine("\tpublic class SchemaDump : Migration");
-            writer.WriteLine("\t{");
-            writer.WriteLine("\tpublic override void Up()");
-            writer.WriteLine("\t{");
-            this.addTableStatement(writer);
-            this.addForeignKeys(writer);
-            writer.WriteLine("\t}");
-            writer.WriteLine("\tpublic override void Down(){}");
-            writer.WriteLine("}");
-            this.dumpResult = writer.ToString();
-            File.WriteAllText(path, dumpResult);
+            //this._provider.AddForeignKey(name, fktable, fkcols, pktable, primaryCols);
         }
-
-        private string GetListString(string[] list)
+    }
+    private void addTableStatement(StringWriter writer)
+    {
+        foreach (var table in this.tables)
         {
-            if (list == null)
-                return "new string[]{}";
-            for (int i = 0; i < list.Length; i++)
-            {
-                list[i] = $"\"{list[i]}\"";
-            }
-            return $"new []{String.Format("{{{0}}}", String.Join(",", list))}";
+            var cols = this.getColsStatement(table);
+            writer.WriteLine($"\t\tDatabase.AddTable(\"{table}\",{cols});");
+            this.AddIndexes(table, writer);
         }
+    }
 
-        private void addForeignKeys(StringWriter writer)
+    private void AddIndexes(string table, StringWriter writer)
+    {
+        var inds = this._provider.GetIndexes(table);
+        foreach (var ind in inds)
         {
-            foreach (var fk in this.foreignKeys)
+            if (ind.PrimaryKey == true)
             {
-                var fkCols = fk.ParentColumns;
+                var nonclusteredString = (ind.Clustered == false ? "NonClustered" : "");
 
-                foreach (var col in fkCols)
+                var keys = ind.KeyColumns;
+                for (var i = 0; i < keys.Length; i++)
                 {
-                    writer.WriteLine($"\t\tDatabase.AddForeignKey(\"{fk.Name}\", \"{fk.ParentTable}\", {this.GetListString(fk.ParentColumns)}, \"{fk.ChildTable}\", {this.GetListString(fk.ChildColumns)});");
+                    keys[i] = $"\"{keys[i]}\"";
                 }
-                //this._provider.AddForeignKey(name, fktable, fkcols, pktable, primaryCols);
+                var keysString = string.Join(",", keys);
+                writer.WriteLine($"\t\tDatabase.AddPrimaryKey{nonclusteredString}(\"{ind.Name}\",\"{table}\",new string[]{String.Format("{{{0}}}", keysString)});");
+                continue;
             }
+            writer.WriteLine($"\t\tDatabase.AddIndex(\"{table}\",new Index() {String.Format("{{Name = \"{0}\",Clustered = {1}, KeyColumns={2}, IncludeColumns={3}, Unique={4}, UniqueConstraint={5}}}", ind.Name, ind.Clustered.ToString().ToLower(), this.GetListString(ind.KeyColumns), this.GetListString(ind.IncludeColumns), ind.Unique.ToString().ToLower(), ind.UniqueConstraint.ToString().ToLower())});");
         }
-        private void addTableStatement(StringWriter writer)
+    }
+
+    private string getColsStatement(string table)
+    {
+        var cols = this._provider.GetColumns(table);
+        var colList = new List<string>();
+        foreach (var col in cols)
         {
-            foreach (string table in this.tables)
-            {
-                string cols = this.getColsStatement(table);
-                writer.WriteLine($"\t\tDatabase.AddTable(\"{table}\",{cols});");
-                this.AddIndexes(table, writer);
-            }
+            colList.Add(this.getColStatement(col, table));
         }
-
-        private void AddIndexes(string table, StringWriter writer)
+        var result = String.Format("{0}", string.Join(",", colList));
+        return result;
+    }
+    private string getColStatement(Column col, string table)
+    {
+        var precision = "";
+        if (col.Precision != null)
         {
-            Index[] inds = this._provider.GetIndexes(table);
-            foreach (Index ind in inds)
-            {
-                if (ind.PrimaryKey == true)
-                {
-                    string nonclusteredString = (ind.Clustered == false ? "NonClustered" : "");
-
-                    string[] keys = ind.KeyColumns;
-                    for (int i = 0; i < keys.Length; i++)
-                    {
-                        keys[i] = $"\"{keys[i]}\"";
-                    }
-                    string keysString = string.Join(",", keys);
-                    writer.WriteLine($"\t\tDatabase.AddPrimaryKey{nonclusteredString}(\"{ind.Name}\",\"{table}\",new string[]{String.Format("{{{0}}}", keysString)});");
-                    continue;
-                }
-                writer.WriteLine($"\t\tDatabase.AddIndex(\"{table}\",new Index() {String.Format("{{Name = \"{0}\",Clustered = {1}, KeyColumns={2}, IncludeColumns={3}, Unique={4}, UniqueConstraint={5}}}", ind.Name, ind.Clustered.ToString().ToLower(), this.GetListString(ind.KeyColumns), this.GetListString(ind.IncludeColumns), ind.Unique.ToString().ToLower(), ind.UniqueConstraint.ToString().ToLower())});");
-            }
+            precision = $"({col.Precision})";
         }
 
-        private string getColsStatement(string table)
+        var propertyString = this.GetColumnPropertyString(col.ColumnProperty);
+
+        if (col.Size != 0 && col.DefaultValue == null && col.ColumnProperty == ColumnProperty.None)
         {
-            Column[] cols = this._provider.GetColumns(table);
-            List<string> colList = new List<string>();
-            foreach (var col in cols)
-            {
-                colList.Add(this.getColStatement(col, table));
-            }
-            string result = String.Format("{0}", string.Join(",", colList));
-            return result;
+            return String.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, col.Size);
         }
-        private string getColStatement(Column col, string table)
+        if (col.DefaultValue != null && col.ColumnProperty == ColumnProperty.None && col.Size == 0)
         {
-            string precision = "";
-            if (col.Precision != null)
-                precision = $"({col.Precision})";
-            string propertyString = this.GetColumnPropertyString(col.ColumnProperty);
-
-            if (col.Size != 0 && col.DefaultValue == null && col.ColumnProperty == ColumnProperty.None)
-            {
-                return String.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, col.Size);
-            }
-            if (col.DefaultValue != null && col.ColumnProperty == ColumnProperty.None && col.Size == 0)
-            {
-                return String.Format("new Column(\"{0}\",DbType.{1},\"{2}\")", col.Name, col.Type, col.DefaultValue);
-            }
-            if (col.ColumnProperty != ColumnProperty.None && col.Size == 0 && col.DefaultValue == null)
-            {
-                return String.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, propertyString);
-            }
-            if (col.ColumnProperty != ColumnProperty.None && col.Size != 0 && col.DefaultValue == null)
-            {
-                return String.Format("new Column(\"{0}\",DbType.{1},{2},{3})", col.Name, col.Type, col.Size, propertyString);
-            }
-            if (col.ColumnProperty != ColumnProperty.None && col.Size != 0 && col.DefaultValue != null)
-            {
-                return String.Format("new Column(\"{0}\",DbType.{1},{2},{3},\"{4}\")", col.Name, col.Type, col.Size, propertyString, col.DefaultValue);
-            }
-            if (col.ColumnProperty != ColumnProperty.None && col.Size == 0 && col.DefaultValue != null)
-            {
-                return String.Format("new Column(\"{0}\",DbType.{1},{2},\"{3}\")", col.Name, col.Type, propertyString, col.DefaultValue);
-            }
-            return String.Format("new Column(\"{0}\",{1})", col.Name, col.Type);
-
+            return String.Format("new Column(\"{0}\",DbType.{1},\"{2}\")", col.Name, col.Type, col.DefaultValue);
         }
-        private string GetColumnPropertyString(ColumnProperty prp)
+        if (col.ColumnProperty != ColumnProperty.None && col.Size == 0 && col.DefaultValue == null)
         {
-            string retVal = "";
-            // if ((prp & ColumnProperty.ForeignKey) == ColumnProperty.ForeignKey) retVal += "ColumnProperty.ForeignKey | ";
-            if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity) retVal += "ColumnProperty.Identity | ";
-            if ((prp & ColumnProperty.Indexed) == ColumnProperty.Indexed) retVal += "ColumnProperty.Indexed | ";
-            if ((prp & ColumnProperty.NotNull) == ColumnProperty.NotNull) retVal += "ColumnProperty.NotNull | ";
-            if ((prp & ColumnProperty.Null) == ColumnProperty.Null) retVal += "ColumnProperty.Null | ";
-            //if ((prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey) retVal += "ColumnProperty.PrimaryKey | ";
-            //if ((prp & ColumnProperty.PrimaryKeyWithIdentity) == ColumnProperty.PrimaryKeyWithIdentity) retVal += "ColumnProperty.PrimaryKeyWithIdentity | ";
-            //if ((prp & ColumnProperty.PrimaryKeyNonClustered) == ColumnProperty.PrimaryKeyNonClustered) retVal += "ColumnProperty.PrimaryKeyNonClustered | ";
-            if ((prp & ColumnProperty.Unique) == ColumnProperty.Unique) retVal += "ColumnProperty.Unique | ";
-            if ((prp & ColumnProperty.Unsigned) == ColumnProperty.Unsigned) retVal += "ColumnProperty.Unsigned | ";
-
-            if (retVal != "") retVal = retVal.Substring(0, retVal.Length - 3);
-
-            if (retVal == "") retVal = "ColumnProperty.None";
-
-            return retVal;
+            return String.Format("new Column(\"{0}\",DbType.{1},{2})", col.Name, col.Type, propertyString);
         }
+        if (col.ColumnProperty != ColumnProperty.None && col.Size != 0 && col.DefaultValue == null)
+        {
+            return String.Format("new Column(\"{0}\",DbType.{1},{2},{3})", col.Name, col.Type, col.Size, propertyString);
+        }
+        if (col.ColumnProperty != ColumnProperty.None && col.Size != 0 && col.DefaultValue != null)
+        {
+            return String.Format("new Column(\"{0}\",DbType.{1},{2},{3},\"{4}\")", col.Name, col.Type, col.Size, propertyString, col.DefaultValue);
+        }
+        if (col.ColumnProperty != ColumnProperty.None && col.Size == 0 && col.DefaultValue != null)
+        {
+            return String.Format("new Column(\"{0}\",DbType.{1},{2},\"{3}\")", col.Name, col.Type, propertyString, col.DefaultValue);
+        }
+        return String.Format("new Column(\"{0}\",{1})", col.Name, col.Type);
+
+    }
+    private string GetColumnPropertyString(ColumnProperty prp)
+    {
+        var retVal = "";
+        // if ((prp & ColumnProperty.ForeignKey) == ColumnProperty.ForeignKey) retVal += "ColumnProperty.ForeignKey | ";
+        if ((prp & ColumnProperty.Identity) == ColumnProperty.Identity)
+        {
+            retVal += "ColumnProperty.Identity | ";
+        }
+
+        if ((prp & ColumnProperty.Indexed) == ColumnProperty.Indexed)
+        {
+            retVal += "ColumnProperty.Indexed | ";
+        }
+
+        if ((prp & ColumnProperty.NotNull) == ColumnProperty.NotNull)
+        {
+            retVal += "ColumnProperty.NotNull | ";
+        }
+
+        if ((prp & ColumnProperty.Null) == ColumnProperty.Null)
+        {
+            retVal += "ColumnProperty.Null | ";
+        }
+        //if ((prp & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey) retVal += "ColumnProperty.PrimaryKey | ";
+        //if ((prp & ColumnProperty.PrimaryKeyWithIdentity) == ColumnProperty.PrimaryKeyWithIdentity) retVal += "ColumnProperty.PrimaryKeyWithIdentity | ";
+        //if ((prp & ColumnProperty.PrimaryKeyNonClustered) == ColumnProperty.PrimaryKeyNonClustered) retVal += "ColumnProperty.PrimaryKeyNonClustered | ";
+        if ((prp & ColumnProperty.Unique) == ColumnProperty.Unique)
+        {
+            retVal += "ColumnProperty.Unique | ";
+        }
+
+        if ((prp & ColumnProperty.Unsigned) == ColumnProperty.Unsigned)
+        {
+            retVal += "ColumnProperty.Unsigned | ";
+        }
+
+        if (retVal != "")
+        {
+            retVal = retVal.Substring(0, retVal.Length - 3);
+        }
+
+        if (retVal == "")
+        {
+            retVal = "ColumnProperty.None";
+        }
+
+        return retVal;
     }
 }

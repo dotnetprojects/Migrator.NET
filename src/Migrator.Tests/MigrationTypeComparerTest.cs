@@ -16,85 +16,84 @@ using System.Collections.Generic;
 using Migrator.Framework;
 using NUnit.Framework;
 
-namespace Migrator.Tests
+namespace Migrator.Tests;
+
+[TestFixture]
+public class MigrationTypeComparerTest
 {
-    [TestFixture]
-    public class MigrationTypeComparerTest
+    private readonly Type[] _types = {
+                                 typeof (Migration1),
+                                 typeof (Migration2),
+                                 typeof (Migration3)
+                             };
+
+    [Migration(1, Ignore = true)]
+    internal class Migration1 : Migration
     {
-        readonly Type[] _types = {
-                                     typeof (Migration1),
-                                     typeof (Migration2),
-                                     typeof (Migration3)
-                                 };
-
-        [Migration(1, Ignore = true)]
-        internal class Migration1 : Migration
+        public override void Up()
         {
-            public override void Up()
-            {
-            }
-
-            public override void Down()
-            {
-            }
         }
 
-        [Migration(2, Ignore = true)]
-        internal class Migration2 : Migration
+        public override void Down()
         {
-            public override void Up()
-            {
-            }
+        }
+    }
 
-            public override void Down()
-            {
-            }
+    [Migration(2, Ignore = true)]
+    internal class Migration2 : Migration
+    {
+        public override void Up()
+        {
         }
 
-        [Migration(3, Ignore = true)]
-        internal class Migration3 : Migration
+        public override void Down()
         {
-            public override void Up()
-            {
-            }
+        }
+    }
 
-            public override void Down()
-            {
-            }
+    [Migration(3, Ignore = true)]
+    internal class Migration3 : Migration
+    {
+        public override void Up()
+        {
         }
 
-        [Test]
-        public void SortAscending()
+        public override void Down()
         {
-            var list = new List<Type>();
-
-            list.Add(_types[1]);
-            list.Add(_types[0]);
-            list.Add(_types[2]);
-
-            list.Sort(new MigrationTypeComparer(true));
-
-            for (int i = 0; i < 3; i++)
-            {
-                Assert.That(_types[i], Is.SameAs(list[i]));
-            }
         }
+    }
 
-        [Test]
-        public void SortDescending()
+    [Test]
+    public void SortAscending()
+    {
+        var list = new List<Type>();
+
+        list.Add(_types[1]);
+        list.Add(_types[0]);
+        list.Add(_types[2]);
+
+        list.Sort(new MigrationTypeComparer(true));
+
+        for (var i = 0; i < 3; i++)
         {
-            var list = new List<Type>();
+            Assert.That(_types[i], Is.SameAs(list[i]));
+        }
+    }
 
-            list.Add(_types[1]);
-            list.Add(_types[0]);
-            list.Add(_types[2]);
+    [Test]
+    public void SortDescending()
+    {
+        var list = new List<Type>();
 
-            list.Sort(new MigrationTypeComparer(false));
+        list.Add(_types[1]);
+        list.Add(_types[0]);
+        list.Add(_types[2]);
 
-            for (int i = 0; i < 3; i++)
-            {
-                Assert.That(_types[2 - i], Is.SameAs(list[i]));
-            }
+        list.Sort(new MigrationTypeComparer(false));
+
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.That(_types[2 - i], Is.SameAs(list[i]));
         }
     }
 }

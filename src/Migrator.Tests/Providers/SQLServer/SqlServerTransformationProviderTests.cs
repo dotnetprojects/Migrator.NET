@@ -11,8 +11,6 @@
 
 #endregion
 
-using System;
-using System.Configuration;
 using System.Data;
 using Migrator.Providers;
 using Migrator.Providers.SqlServer;

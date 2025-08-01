@@ -11,22 +11,21 @@
 
 #endregion
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public class RenameTableExpression : ISchemaBuilderExpression
 {
-    public class RenameTableExpression : ISchemaBuilderExpression
+    private readonly string _newName;
+    private readonly string _oldName;
+
+    public RenameTableExpression(string oldName, string newName)
     {
-        readonly string _newName;
-        readonly string _oldName;
+        _oldName = oldName;
+        _newName = newName;
+    }
 
-        public RenameTableExpression(string oldName, string newName)
-        {
-            _oldName = oldName;
-            _newName = newName;
-        }
-
-        public void Create(ITransformationProvider provider)
-        {
-            provider.RenameTable(_oldName, _newName);
-        }
+    public void Create(ITransformationProvider provider)
+    {
+        provider.RenameTable(_oldName, _newName);
     }
 }

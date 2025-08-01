@@ -11,20 +11,19 @@
 
 #endregion
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public class AddTableExpression : ISchemaBuilderExpression
 {
-    public class AddTableExpression : ISchemaBuilderExpression
+    private readonly string _newTable;
+
+    public AddTableExpression(string newTable)
     {
-        readonly string _newTable;
+        _newTable = newTable;
+    }
 
-        public AddTableExpression(string newTable)
-        {
-            _newTable = newTable;
-        }
-
-        public void Create(ITransformationProvider provider)
-        {
-            provider.AddTable(_newTable);
-        }
+    public void Create(ITransformationProvider provider)
+    {
+        provider.AddTable(_newTable);
     }
 }

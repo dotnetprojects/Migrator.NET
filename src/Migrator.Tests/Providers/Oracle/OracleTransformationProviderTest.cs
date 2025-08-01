@@ -11,21 +11,20 @@ namespace Migrator.Tests.Providers;
 [Category("Oracle")]
 public class OracleTransformationProviderTest : TransformationProviderConstraintBase
 {
-    #region Setup/Teardown
-
     [SetUp]
     public void SetUp()
     {
-        string constr = ConfigurationManager.AppSettings["OracleConnectionString"];
+        var constr = ConfigurationManager.AppSettings["OracleConnectionString"];
         if (constr == null)
+        {
             throw new ArgumentNullException("OracleConnectionString", "No config file");
+        }
+
         Provider = new OracleTransformationProvider(new OracleDialect(), constr, null, "default", null);
         Provider.BeginTransaction();
 
         AddDefaultTable();
     }
-
-    #endregion
 
     [Test]
     public void ChangeColumn_FromNotNullToNotNull()

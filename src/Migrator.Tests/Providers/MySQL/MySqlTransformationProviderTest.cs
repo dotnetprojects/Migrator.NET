@@ -18,20 +18,21 @@ using Migrator.Framework;
 using Migrator.Providers.Mysql;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.MySQL;
 
 [TestFixture]
 [Category("MySql")]
 public class MySqlTransformationProviderTest : TransformationProviderConstraintBase
 {
-    #region Setup/Teardown
-
     [SetUp]
     public void SetUp()
     {
         var constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
         if (constr == null)
+        {
             throw new ArgumentNullException("MySqlConnectionString", "No config file");
+        }
+
         Provider = new MySqlTransformationProvider(new MysqlDialect(), constr, "default", null);
         // _provider.Logger = new Logger(true, new ConsoleWriter());
 
@@ -43,8 +44,6 @@ public class MySqlTransformationProviderTest : TransformationProviderConstraintB
     {
         DropTestTables();
     }
-
-    #endregion
 
     // [Test,Ignore("MySql doesn't support check constraints")]
     public override void CanAddCheckConstraint()

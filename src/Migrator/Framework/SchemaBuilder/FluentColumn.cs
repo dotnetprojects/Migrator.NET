@@ -14,70 +14,69 @@
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Framework.SchemaBuilder
+namespace Migrator.Framework.SchemaBuilder;
+
+public class FluentColumn : IFluentColumn
 {
-    public class FluentColumn : IFluentColumn
+    private readonly Column _inner;
+
+    public FluentColumn(string columnName)
     {
-        readonly Column _inner;
+        _inner = new Column(columnName);
+    }
 
-        public FluentColumn(string columnName)
-        {
-            _inner = new Column(columnName);
-        }
+    public ColumnProperty ColumnProperty
+    {
+        get { return _inner.ColumnProperty; }
+        set { _inner.ColumnProperty = value; }
+    }
 
-        public ColumnProperty ColumnProperty
-        {
-            get { return _inner.ColumnProperty; }
-            set { _inner.ColumnProperty = value; }
-        }
+    public string Name
+    {
+        get { return _inner.Name; }
+        set { _inner.Name = value; }
+    }
 
-        public string Name
-        {
-            get { return _inner.Name; }
-            set { _inner.Name = value; }
-        }
+    public DbType Type
+    {
+        get { return _inner.Type; }
+        set { _inner.Type = value; }
+    }
 
-        public DbType Type
-        {
-            get { return _inner.Type; }
-            set { _inner.Type = value; }
-        }
+    public MigratorDbType MigratorDbType
+    {
+        get { return _inner.MigratorDbType; }
+        set { _inner.MigratorDbType = value; }
+    }
 
-        public MigratorDbType MigratorDbType
-        {
-            get { return _inner.MigratorDbType; }
-            set { _inner.MigratorDbType = value; }
-        }
+    public int Size
+    {
+        get { return _inner.Size; }
+        set { _inner.Size = value; }
+    }
 
-        public int Size
-        {
-            get { return _inner.Size; }
-            set { _inner.Size = value; }
-        }
+    public bool IsIdentity
+    {
+        get { return _inner.IsIdentity; }
+    }
 
-        public bool IsIdentity
-        {
-            get { return _inner.IsIdentity; }
-        }
+    public bool IsPrimaryKey
+    {
+        get { return _inner.IsPrimaryKey; }
+    }
 
-        public bool IsPrimaryKey
-        {
-            get { return _inner.IsPrimaryKey; }
-        }
+    public object DefaultValue
+    {
+        get { return _inner.DefaultValue; }
+        set { _inner.DefaultValue = value; }
+    }
 
-        public object DefaultValue
-        {
-            get { return _inner.DefaultValue; }
-            set { _inner.DefaultValue = value; }
-        }
+    public ForeignKeyConstraintType Constraint { get; set; }
 
-        public ForeignKeyConstraintType Constraint { get; set; }
+    public ForeignKey ForeignKey { get; set; }
 
-        public ForeignKey ForeignKey { get; set; }
-
-        public bool IsPrimaryKeyNonClustered
-        {
-            get { return _inner.IsPrimaryKeyNonClustered; }
-        }
+    public bool IsPrimaryKeyNonClustered
+    {
+        get { return _inner.IsPrimaryKeyNonClustered; }
     }
 }

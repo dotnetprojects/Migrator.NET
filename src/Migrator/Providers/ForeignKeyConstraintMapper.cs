@@ -1,24 +1,23 @@
 using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers
+namespace Migrator.Providers;
+
+public class ForeignKeyConstraintMapper
 {
-    public class ForeignKeyConstraintMapper
+    public string SqlForConstraint(ForeignKeyConstraintType constraint)
     {
-        public string SqlForConstraint(ForeignKeyConstraintType constraint)
+        switch (constraint)
         {
-            switch (constraint)
-            {
-                case ForeignKeyConstraintType.Cascade:
-                    return "CASCADE";
-                case ForeignKeyConstraintType.Restrict:
-                    return "RESTRICT";
-                case ForeignKeyConstraintType.SetDefault:
-                    return "SET DEFAULT";
-                case ForeignKeyConstraintType.SetNull:
-                    return "SET NULL";
-                default:
-                    return "NO ACTION";
-            }
+            case ForeignKeyConstraintType.Cascade:
+                return "CASCADE";
+            case ForeignKeyConstraintType.Restrict:
+                return "RESTRICT";
+            case ForeignKeyConstraintType.SetDefault:
+                return "SET DEFAULT";
+            case ForeignKeyConstraintType.SetNull:
+                return "SET NULL";
+            default:
+                return "NO ACTION";
         }
     }
 }

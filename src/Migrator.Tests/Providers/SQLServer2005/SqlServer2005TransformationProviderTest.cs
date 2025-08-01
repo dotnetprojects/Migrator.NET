@@ -25,11 +25,13 @@ public class SqlServer2005TransformationProviderTest : TransformationProviderCon
     [SetUp]
     public void SetUp()
     {
-        string constr = ConfigurationManager.AppSettings["SqlServer2005ConnectionString"];
+        var constr = ConfigurationManager.AppSettings["SqlServer2005ConnectionString"];
 
 
         if (constr == null)
+        {
             throw new ArgumentNullException("SqlServer2005ConnectionString", "No config file");
+        }
 
         Provider = new SqlServerTransformationProvider(new SqlServer2005Dialect(), constr, null, "default", null);
         Provider.BeginTransaction();

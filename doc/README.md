@@ -1,4 +1,4 @@
-= Migrator DotNet
+# Migrator DotNet
 Database Migrations implemented in .NET.
 Supports rolling up and rolling back of migrations.
 
@@ -7,27 +7,27 @@ The migrations themselves are implemented in code and can be mostly done in a da
 
 Licensed under MPL 1.1 : http://www.mozilla.org/MPL/
 
-== Supported Database
+## Supported Database
 * MySQL (5.0, 5.1)
 * PostgreSQL
 * SQLite (tested on Mono)
 * SQL Server (2000, 2005)
 * SQL Server CE (3.5)
 
-== Untested Databases but in there
+## Untested Databases but in there
 * Oracle
 * Firebird
 * Informix
 * DB2
 * Ingres
 
-== Supported Modes
+## Supported Modes
 * MSBuild Task
 * NAnt Task
 * Console Application
 
 
-= Development
+# Development
 
 == Compiling
 To build from source:
@@ -47,7 +47,7 @@ You can Test on each engine or change those by changing the 'exclude' properties
 file called 'local.properties'. To change the database connection strings see config\app.config. You
 can make your own local version called 'local.config' to override these
 
-== SQL Server CE
+## SQL Server CE
 To use SQL Server CE, you will need the proper tools installed. The current DLL that we are testing
 against is the 3.5 version.
 As of this writing you can download the installer for the SQL CE Runtime at:
@@ -56,9 +56,9 @@ http://www.microsoft.com/downloads/details.aspx?&FamilyID=7849b34f-67ab-481f-a5a
 We have not confirmed if this will build on Mono yet. But it almost definitely won't run because SQL CE uses PInvoke
 internally.
 
-= Usage
+# Usage
 
-1. Add bin/Migrator.Framework.dll to you project references
+1. Add bin/Migrator.Framework.dll to your project references
     - All of the other DLLs are only needed for actually running the migrations.
 2. Create a class for your migration like:
     using Migrator.Framework;
