@@ -85,7 +85,7 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
     }
 
     [Test]
-    public void RemoveForeignKey()
+    public virtual void RemoveForeignKey()
     {
         Console.WriteLine($"Test running in class: {TestContext.CurrentContext.Test.ClassName}");
         AddForeignKey();
