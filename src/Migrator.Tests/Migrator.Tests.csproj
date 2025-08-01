@@ -28,10 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="System.Configuration" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Migrator\DotNetProjects.Migrator.csproj" />
   </ItemGroup>
 
