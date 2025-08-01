@@ -41,6 +41,6 @@ public class PostgreSQLTransformationProvider_PrimaryKeyWithIdentityTests : Post
         var exception = Assert.Throws<PostgresException>(() => Provider.Insert(testTableName, [propertyName1, propertyName2], [1, 888]));
 
         // Assert II
-        Assert.That(exception.SqlState,  Is.EqualTo("428C9"));
+        Assert.That(exception.SqlState, Is.EqualTo("428C9"));
     }
 }
