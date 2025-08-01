@@ -1,8 +1,11 @@
 using System;
 using System.Configuration;
+using System.Diagnostics;
 using System.Linq;
 using Migrator.Providers;
-
+using Migrator.Tests.Settings;
+using Migrator.Tests.Settings.Config;
+using Npgsql;
 using NUnit.Framework;
 
 namespace Migrator.Tests;
@@ -21,57 +24,78 @@ public class ProviderFactoryTest
         Assert.That(ProviderFactory.DialectForProvider(ProviderTypes.none), Is.Null);
     }
 
-    //[Test]
-    //[Category("MySql")]
-    //public void CanLoad_MySqlProvider()
-    //{
-    //    using var provider = ProviderFactory.Create(ProviderTypes.Mysql, ConfigurationManager.AppSettings["MySqlConnectionString"], null);
+    [SetUp]
+    public void SetUp()
+    {
+        DbProviderFactories.RegisterFactory("Npgsql", () => NpgsqlFactory.Instance);
+        DbProviderFactories.RegisterFactory("MySql.Data.MySqlClient", () => MySql.Data.MySqlClient.MySqlClientFactory.Instance);
+        DbProviderFactories.RegisterFactory("Oracle.DataAccess.Client", () => Oracle.ManagedDataAccess.Client.OracleClientFactory.Instance);
+        DbProviderFactories.RegisterFactory("System.Data.SqlClient", () => Microsoft.Data.SqlClient.SqlClientFactory.Instance);
+        DbProviderFactories.RegisterFactory("System.Data.SQLite", () => System.Data.SQLite.SQLiteFactory.Instance);
+    }
 
-    //    Assert.That(provider, Is.Not.Null);
-    //}
+    [Test]
+    [Category("MySql")]
+    public void CanLoad_MySqlProvider()
+    {
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.MySQL)?.ConnectionString;
+        if (!String.IsNullOrEmpty(connectionString))
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.Mysql, connectionString, null);
+            Assert.That(provider, Is.Not.Null);
+        }
+    }
 
-    //[Test]
-    //[Category("Oracle")]
-    //public void CanLoad_OracleProvider()
-    //{
-    //    using var provider = ProviderFactory.Create(ProviderTypes.Oracle, ConfigurationManager.AppSettings["OracleConnectionString"], null);
+    [Test]
+    [Category("Oracle")]
+    public void CanLoad_OracleProvider()
+    {
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.Oracle)?.ConnectionString;
+        if (!String.IsNullOrEmpty(connectionString))
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.Oracle, connectionString, null);
+            Assert.That(provider, Is.Not.Null);
+        }
+    }
 
-    //    Assert.That(provider, Is.Not.Null);
-    //}
+    [Test]
+    [Category("Postgre")]
+    public void CanLoad_PostgreSQLProvider()
+    {
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL)?.ConnectionString;
+        if (!String.IsNullOrEmpty(connectionString))
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.PostgreSQL, connectionString, null);
+            Assert.That(provider, Is.Not.Null);
+        }
+    }
 
-    //[Test]
-    //[Category("Postgre")]
-    //public void CanLoad_PostgreSQLProvider()
-    //{
-    //    using var provider = ProviderFactory.Create(ProviderTypes.PostgreSQL, ConfigurationManager.AppSettings["NpgsqlConnectionString"], null);
+    [Test]
+    [Category("SQLite")]
+    public void CanLoad_SQLiteProvider()
+    {
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteConnectionConfigId)?.ConnectionString;
+        if (!String.IsNullOrEmpty(connectionString))
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connectionString, null);
+            Assert.That(provider, Is.Not.Null);
+        }
+    }
 
-    //    Assert.That(provider, Is.Not.Null);
-    //}
-
-    //[Test]
-    //[Category("SQLite")]
-    //public void CanLoad_SQLiteProvider()
-    //{
-    //    using var provider = ProviderFactory.Create(ProviderTypes.SQLite, ConfigurationManager.AppSettings["SQLiteConnectionString"], null);
-
-    //    Assert.That(provider, Is.Not.Null);
-    //}
-
-    //[Test]
-    //[Category("SqlServer2005")]
-    //public void CanLoad_SqlServer2005Provider()
-    //{
-    //    using var provider = ProviderFactory.Create(ProviderTypes.SqlServer2005, ConfigurationManager.AppSettings["SqlServer2005ConnectionString"], null);
-
-    //    Assert.That(provider, Is.Not.Null);
-    //}
-
-    //[Test]
-    //[Category("SqlServer")]
-    //public void CanLoad_SqlServerProvider()
-    //{
-    //    using var provider = ProviderFactory.Create(ProviderTypes.SqlServer, ConfigurationManager.AppSettings["SqlServerConnectionString"], null);
-
-    //    Assert.That(provider, Is.Not.Null);
-    //}
+    [Test]
+    [Category("SqlServer")]
+    public void CanLoad_SqlServerProvider()
+    {
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLServerConnectionConfigId)?.ConnectionString;
+        if (!String.IsNullOrEmpty(connectionString))
+        {
+            using var provider = ProviderFactory.Create(ProviderTypes.SqlServer, connectionString, null);
+            Assert.That(provider, Is.Not.Null);
+        }
+    }
 }
