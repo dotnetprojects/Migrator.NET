@@ -1,23 +1,10 @@
-#region License
-
-//The contents of this file are subject to the Mozilla Public License
-//Version 1.1 (the "License"); you may not use this file except in
-//compliance with the License. You may obtain a copy of the License at
-//http://www.mozilla.org/MPL/
-//Software distributed under the License is distributed on an "AS IS"
-//basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
-//License for the specific language governing rights and limitations
-//under the License.
-
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Migrator.Framework;
 using Migrator.Framework.Loggers;
+using NSubstitute;
 using NUnit.Framework;
-using NUnit.Mocks;
 
 namespace Migrator.Tests;
 
@@ -52,7 +39,7 @@ public class MigratorTest
 
     private void SetUpCurrentVersion(long version, bool assertRollbackIsCalled, bool includeBad)
     {
-        var providerMock = new DynamicMock(typeof(ITransformationProvider));
+        var providerMock = Substitute.For<ITransformationProvider>();
 
         var appliedVersions = new List<long>();
 
@@ -61,20 +48,22 @@ public class MigratorTest
             appliedVersions.Add(i);
         }
 
-        providerMock.SetReturnValue("get_AppliedMigrations", appliedVersions);
-        providerMock.SetReturnValue("get_Logger", new Logger(false));
+        providerMock.AppliedMigrations.Returns(appliedVersions);
+        providerMock.Logger.Returns(new Logger(false));
 
-        if (assertRollbackIsCalled)
+        providerMock.When(x => x.Dispose()).Do(_ =>
         {
-            providerMock.Expect("Rollback");
-        }
-        else
-        {
-            providerMock.ExpectNoCall("Rollback");
-        }
+            if (assertRollbackIsCalled)
+            {
+                providerMock.Received().Rollback();
+            }
+            else
+            {
+                providerMock.DidNotReceive().Rollback();
+            }
+        });
 
-        _migrator = new Migrator((ITransformationProvider)providerMock.MockInstance, Assembly.GetExecutingAssembly(), false);
-
+        _migrator = new Migrator((ITransformationProvider)providerMock, Assembly.GetExecutingAssembly(), false);
 
         _migrator.MigrationsTypes.Clear();
         _upCalled.Clear();

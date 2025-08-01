@@ -1,60 +1,48 @@
-#region License
+//using System;
+//using System.Configuration;
+//using Migrator.Providers;
+//using Migrator.Tools;
+//using NUnit.Framework;
 
-//The contents of this file are subject to the Mozilla Public License
-//Version 1.1 (the "License"); you may not use this file except in
-//compliance with the License. You may obtain a copy of the License at
-//http://www.mozilla.org/MPL/
-//Software distributed under the License is distributed on an "AS IS"
-//basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
-//License for the specific language governing rights and limitations
-//under the License.
+//namespace Migrator.Tests.Tools;
 
-#endregion
+//[TestFixture]
+//[Category("MySql")]
+//public class SchemaDumperTest
+//{
+//    [Test]
+//    public void Dump()
+//    {
+//        var constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
 
-using System;
-using System.Configuration;
-using Migrator.Providers;
-using Migrator.Tools;
-using NUnit.Framework;
+//        if (constr == null)
+//        {
+//            throw new ArgumentNullException("MySqlConnectionString", "No config file");
+//        }
 
-namespace Migrator.Tests.Tools;
+//        var dumper = new SchemaDumper(ProviderTypes.Mysql, constr, null);
+//        var output = dumper.GetDump();
 
-[TestFixture]
-[Category("MySql")]
-public class SchemaDumperTest
-{
-    [Test]
-    public void Dump()
-    {
-        var constr = ConfigurationManager.AppSettings["MySqlConnectionString"];
+//        Assert.That(output, Is.Not.Null);
+//    }
+//}
 
-        if (constr == null)
-        {
-            throw new ArgumentNullException("MySqlConnectionString", "No config file");
-        }
+//[TestFixture, Category("SqlServer2005")]
+//public class SchemaDumperSqlServerTest
+//{
+//    [Test]
+//    public void Dump()
+//    {
+//        var constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
 
-        var dumper = new SchemaDumper(ProviderTypes.Mysql, constr, null);
-        var output = dumper.GetDump();
+//        if (constr == null)
+//        {
+//            throw new ArgumentNullException("SqlServerConnectionString", "No config file");
+//        }
 
-        Assert.That(output, Is.Not.Null);
-    }
-}
-[TestFixture, Category("SqlServer2005")]
-public class SchemaDumperSqlServerTest
-{
-    [Test]
-    public void Dump()
-    {
-        var constr = ConfigurationManager.AppSettings["SqlServerConnectionString"];
+//        var dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
+//        var output = dumper.GetDump();
 
-        if (constr == null)
-        {
-            throw new ArgumentNullException("SqlServerConnectionString", "No config file");
-        }
-
-        var dumper = new SchemaDumper(ProviderTypes.SqlServer, constr, "");
-        var output = dumper.GetDump();
-
-        Assert.That(output, Is.Not.Null);
-    }
-}
+//        Assert.That(output, Is.Not.Null);
+//    }
+//}

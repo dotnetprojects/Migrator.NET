@@ -27,7 +27,7 @@ public class ConfigurationReader() : IConfigurationReader
         var databaseConnectionConfigs = configurationRoot.GetSection("DatabaseConnectionConfigs")
             .Get<List<DatabaseConnectionConfig>>() ?? throw new KeyNotFoundException();
 
-        return databaseConnectionConfigs.Single(x => x.Id == id);
+        return databaseConnectionConfigs.SingleOrDefault(x => x.Id == id);
     }
 
     /// <summary>
@@ -37,13 +37,18 @@ public class ConfigurationReader() : IConfigurationReader
     /// <returns></returns>
     public IConfigurationRoot GetConfigurationRoot()
     {
+
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
         var aspNetCoreVariableName = GetAspNetCoreEnvironmentVariable();
 
-        return new ConfigurationBuilder()
-            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
-            .AddJsonFile($"appsettings.{aspNetCoreVariableName}.json", optional: true, reloadOnChange: false)
-            .Build();
+        if (!string.IsNullOrEmpty(aspNetCoreVariableName))
+        {
+            builder = builder.AddJsonFile($"appsettings.{aspNetCoreVariableName}.json", optional: true, reloadOnChange: false);
+        }
+
+        return builder.Build();
     }
 
     private static string GetAspNetCoreEnvironmentVariable()
@@ -57,11 +62,6 @@ public class ConfigurationReader() : IConfigurationReader
         else if (string.IsNullOrEmpty(aspNetCoreVariable))
         {
             aspNetCoreVariable = Environment.GetEnvironmentVariable(AspnetCoreVariableString, EnvironmentVariableTarget.Machine);
-        }
-
-        if (string.IsNullOrWhiteSpace(aspNetCoreVariable))
-        {
-            throw new Exception($"The environment variable '{AspnetCoreVariableString}' is not set.");
         }
 
         return aspNetCoreVariable;

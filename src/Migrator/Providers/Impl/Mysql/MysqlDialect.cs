@@ -45,15 +45,11 @@ public class MysqlDialect : Dialect
         RegisterColumnType(DbType.Single, "FLOAT");
         RegisterColumnType(DbType.StringFixedLength, "CHAR(255)");
         RegisterColumnType(DbType.StringFixedLength, 255, "CHAR($l)");
-        RegisterColumnType(DbType.StringFixedLength, 65535, "TEXT");
-        RegisterColumnType(DbType.StringFixedLength, 16777215, "MEDIUMTEXT");
+        RegisterColumnType(DbType.StringFixedLength, 16383, "TEXT");
+        RegisterColumnType(DbType.StringFixedLength, 5592415, "MEDIUMTEXT");
         RegisterColumnType(DbType.String, "VARCHAR(255)");
-        RegisterColumnType(DbType.String, 65535, "VARCHAR($l)");
-        //RegisterColumnType(DbType.String, 256, "VARCHAR(255)");
-        //RegisterColumnType(DbType.String, 256, "VARCHAR(255)");
-        //RegisterColumnType(DbType.String, 65535, "TEXT");
-        RegisterColumnType(DbType.String, 16777215, "MEDIUMTEXT");
-        //RegisterColumnType(DbType.String, 1073741823, "LONGTEXT");
+        RegisterColumnType(DbType.String, 16383, "VARCHAR($l)");
+        RegisterColumnType(DbType.String, 5592415, "MEDIUMTEXT");
         RegisterColumnType(DbType.String, int.MaxValue, "LONGTEXT");
         RegisterColumnType(DbType.Time, "TIME");
 
