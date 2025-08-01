@@ -37,7 +37,7 @@ public enum ColumnProperty
     Indexed = 1 << 4,
 
     /// <summary>
-    /// Unsigned Column. Not used in SQLite there is only on integer data type INTEGER.
+    /// Unsigned Column. Not used in SQLite there is only one integer data type => INTEGER.
     /// </summary>
     Unsigned = 1 << 5,
 
