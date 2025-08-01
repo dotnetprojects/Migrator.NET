@@ -49,6 +49,21 @@ jobs:
           --health-timeout=10s
           --health-retries=10
 
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpass
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -prootpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET
@@ -68,6 +83,25 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y postgresql-client
+    - name: Install Oracle client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libaio1 alien
+        wget https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linux.x64-21.13.0.0.0dbru.zip
+        wget https://download.oracle.com/otn_software/linux/instantclient/instantclient-sqlplus-linux.x64-21.13.0.0.0dbru.zip
+        unzip instantclient-*.zip
+        sudo mkdir -p /opt/oracle
+        sudo mv instantclient_* /opt/oracle/instantclient
+        export LD_LIBRARY_PATH=/opt/oracle/instantclient
+        export PATH=$PATH:/opt/oracle/instantclient
+    - name: Create Oracle schema
+      run: |
+          echo "CREATE USER test IDENTIFIED BY test DEFAULT TABLESPACE users TEMPORARY TABLESPACE temp QUOTA UNLIMITED ON users;" |
+          sqlplus -L system/oracle@//localhost:1521/XEPDB1
+          echo "GRANT CONNECT, RESOURCE TO test;" |
+          sqlplus -L system/oracle@//localhost:1521/XEPDB1
+    - name: Install MySQL client
+      run: sudo apt-get update && sudo apt-get install -y mysql-client
     - name: Create SQLServer database
       run: |
         /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"

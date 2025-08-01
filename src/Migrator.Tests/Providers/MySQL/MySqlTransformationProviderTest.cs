@@ -1,5 +1,6 @@
 using System.Data;
 using Migrator.Framework;
+using Migrator.Providers;
 using Migrator.Providers.Mysql;
 using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;
@@ -23,8 +24,9 @@ public class MySqlTransformationProviderTest : TransformationProviderConstraintB
             throw new IgnoreException("No MySQL ConnectionString is Set.");
         }
 
+        DbProviderFactories.RegisterFactory("MySql.Data.MySqlClient", () => MySql.Data.MySqlClient.MySqlClientFactory.Instance);
+
         Provider = new MySqlTransformationProvider(new MysqlDialect(), connectionString, "default", null);
-        // _provider.Logger = new Logger(true, new ConsoleWriter());
 
         AddDefaultTable();
     }
