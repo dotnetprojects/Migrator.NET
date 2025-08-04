@@ -26,7 +26,7 @@ public class OracleTransformationProviderTest : TransformationProviderConstraint
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var configReader = new ConfigurationReader();
 
-        var databaseConnectionConfig = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.Oracle);
+        var databaseConnectionConfig = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.OracleId);
 
         var connectionString = databaseConnectionConfig?.ConnectionString;
 

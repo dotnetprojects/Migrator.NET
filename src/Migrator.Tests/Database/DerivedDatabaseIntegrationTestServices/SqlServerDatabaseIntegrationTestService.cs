@@ -25,7 +25,7 @@ public class SqlServerDatabaseIntegrationTestService(TimeProvider timeProvider, 
         using var context = new DataConnection(new DataOptions().UseSqlServer(databaseConnectionConfig.ConnectionString));
         await context.ExecuteAsync("use master", cancellationToken);
 
-        var databaseNames = await context.FromSql<string>($"SELECT name FROM sys.databases WHERE name NOT IN ('master', 'model', 'msdb', 'tempdb')").ToListAsync(cancellationToken);
+        var databaseNames = context.Query<string>($"SELECT name FROM sys.databases WHERE name NOT IN ('master', 'model', 'msdb', 'tempdb')").ToList();
 
         var toBeDeletedDatabaseNames = databaseNames.Where(x =>
             {

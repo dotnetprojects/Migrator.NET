@@ -17,7 +17,7 @@ public class MySqlTransformationProviderTest : TransformationProviderConstraintB
     public void SetUp()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.MySQL)
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.MySQLId)
             ?.ConnectionString;
 
         if (string.IsNullOrEmpty(connectionString))

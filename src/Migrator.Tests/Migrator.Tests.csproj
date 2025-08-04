@@ -20,7 +20,7 @@
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.6" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="linq2db" Version="6.0.0-rc.2" />
-    <PackageReference Include="linq2db.Oracle.Managed" Version="6.0.0-preview.1" />
+    <PackageReference Include="linq2db.Oracle" Version="6.0.0-rc.2" />
     <PackageReference Include="DryIoc.dll" Version="5.4.3" />
     <PackageReference Include="Mapster" Version="7.4.0" />
     <PackageReference Include="Npgsql" Version="9.0.3" />

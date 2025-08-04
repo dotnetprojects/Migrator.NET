@@ -73,11 +73,15 @@ public class SqlServerTransformationProvider : TransformationProvider
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"SELECT OBJECT_ID('{tableName}', 'U')");
 
-        var result = cmd.ExecuteScalar();
+        if (reader.Read())
+        {
+            var result = reader.GetValue(0);
+            var tableExists = result != DBNull.Value && result != null;
 
-        var tableExists = result != DBNull.Value && result != null;
+            return tableExists;
+        }
 
-        return tableExists;
+        return false;
     }
 
     public override bool ViewExists(string viewName)

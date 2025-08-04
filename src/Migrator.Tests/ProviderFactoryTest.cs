@@ -39,7 +39,7 @@ public class ProviderFactoryTest
     public void CanLoad_MySqlProvider()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.MySQL)?.ConnectionString;
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.MySQLId)?.ConnectionString;
         if (!String.IsNullOrEmpty(connectionString))
         {
             using var provider = ProviderFactory.Create(ProviderTypes.Mysql, connectionString, null);
@@ -52,7 +52,7 @@ public class ProviderFactoryTest
     public void CanLoad_OracleProvider()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.Oracle)?.ConnectionString;
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.OracleId)?.ConnectionString;
         if (!String.IsNullOrEmpty(connectionString))
         {
             using var provider = ProviderFactory.Create(ProviderTypes.Oracle, connectionString, null);
@@ -78,7 +78,7 @@ public class ProviderFactoryTest
     public void CanLoad_SQLiteProvider()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteConnectionConfigId)?.ConnectionString;
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteId)?.ConnectionString;
         if (!String.IsNullOrEmpty(connectionString))
         {
             using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connectionString, null);
@@ -91,7 +91,7 @@ public class ProviderFactoryTest
     public void CanLoad_SqlServerProvider()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLServerConnectionConfigId)?.ConnectionString;
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLServerId)?.ConnectionString;
         if (!String.IsNullOrEmpty(connectionString))
         {
             using var provider = ProviderFactory.Create(ProviderTypes.SqlServer, connectionString, null);
