@@ -2,8 +2,8 @@ using System.Reflection;
 using DotNetProjects.Migrator;
 using Migrator.Framework;
 using Migrator.Framework.Loggers;
+using NSubstitute;
 using NUnit.Framework;
-using NUnit.Mocks;
 
 namespace Migrator.Tests;
 
@@ -24,20 +24,22 @@ public class MigrationLoaderTest
 
     private void SetUpCurrentVersion(int version, bool assertRollbackIsCalled)
     {
-        var providerMock = new DynamicMock(typeof(ITransformationProvider));
+        var providerMock = Substitute.For<ITransformationProvider>();
 
-        providerMock.SetReturnValue("get_CurrentVersion", version);
-        providerMock.SetReturnValue("get_Logger", new Logger(false));
-        if (assertRollbackIsCalled)
+        providerMock.Logger = new Logger(false);
+        providerMock.When(x => x.Dispose()).Do(_ =>
         {
-            providerMock.Expect("Rollback");
-        }
-        else
-        {
-            providerMock.ExpectNoCall("Rollback");
-        }
+            if (assertRollbackIsCalled)
+            {
+                providerMock.Received().Rollback();
+            }
+            else
+            {
+                providerMock.DidNotReceive().Rollback();
+            }
+        });
 
-        _migrationLoader = new MigrationLoader((ITransformationProvider)providerMock.MockInstance, Assembly.GetExecutingAssembly(), true);
+        _migrationLoader = new MigrationLoader(providerMock, Assembly.GetExecutingAssembly(), true);
         _migrationLoader.MigrationsTypes.Add(typeof(MigratorTest.FirstMigration));
         _migrationLoader.MigrationsTypes.Add(typeof(MigratorTest.SecondMigration));
         _migrationLoader.MigrationsTypes.Add(typeof(MigratorTest.ThirdMigration));

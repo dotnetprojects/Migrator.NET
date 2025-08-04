@@ -17,8 +17,12 @@ public abstract class SQLServerTransformationProviderTestBase : TransformationPr
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLServerConnectionConfigId)
-            .ConnectionString;
+            ?.ConnectionString;
 
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new IgnoreException("No SqlServer ConnectionString is Set.");
+        }
 
         DbProviderFactories.RegisterFactory("Microsoft.Data.SqlClient", () => Microsoft.Data.SqlClient.SqlClientFactory.Instance);
 

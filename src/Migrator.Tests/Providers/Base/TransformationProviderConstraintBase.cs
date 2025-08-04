@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.Linq;
 using Migrator.Framework;
@@ -85,8 +86,9 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
     }
 
     [Test]
-    public void RemoveForeignKey()
+    public virtual void RemoveForeignKey()
     {
+        Console.WriteLine($"Test running in class: {TestContext.CurrentContext.Test.ClassName}");
         AddForeignKey();
         Provider.RemoveForeignKey("TestTwo", "FK_Test_TestTwo");
         Assert.That(Provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"), Is.False);
