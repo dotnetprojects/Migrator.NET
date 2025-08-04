@@ -425,7 +425,7 @@ public interface ITransformationProvider : IDisposable
 
     /// <summary>
     /// Get all foreign keys by the given table name.
-    /// ATTENTION: For Postgre SQL the result will be lower case if the names were not quoted on table creation of on FK creation!
+    /// ATTENTION: For Postgre SQL the result will be lower case if the names were not quoted on table creation of on FK creation! For Oracle they are uppercase!
     /// </summary>
     /// <param name="table"></param>
     /// <returns></returns>

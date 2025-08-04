@@ -1,14 +1,17 @@
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models;
 using Migrator.Framework;
+using Migrator.Providers;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = Migrator.Framework.Index;
 
-namespace Migrator.Providers.Oracle;
+namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 
 public class OracleTransformationProvider : TransformationProvider
 {
@@ -17,7 +20,7 @@ public class OracleTransformationProvider : TransformationProvider
     public OracleTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
         : base(dialect, connectionString, defaultSchema, scope)
     {
-        this.CreateConnection(providerName);
+        CreateConnection(providerName);
     }
 
     public OracleTransformationProvider(Dialect dialect, IDbConnection connection, string defaultSchema, string scope, string providerName)
@@ -44,6 +47,78 @@ public class OracleTransformationProvider : TransformationProvider
         {
             ExecuteNonQuery(string.Format("DROP DATABASE"));
         }
+    }
+
+    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
+    {
+        var constraints = new List<ForeignKeyConstraint>();
+        var sb = new StringBuilder();
+        sb.AppendLine("SELECT");
+        sb.AppendLine("  a.OWNER AS TABLE_SCHEMA,");
+        sb.AppendLine("  c.CONSTRAINT_NAME AS FK_KEY,");
+        sb.AppendLine("  a.TABLE_NAME AS CHILD_TABLE,");
+        sb.AppendLine("  a.COLUMN_NAME AS CHILD_COLUMN,");
+        sb.AppendLine("  c_pk.TABLE_NAME AS PARENT_TABLE,");
+        sb.AppendLine("  col_pk.COLUMN_NAME AS PARENT_COLUMN");
+        sb.AppendLine("FROM ");
+        sb.AppendLine("  ALL_CONS_COLUMNS a ");
+        sb.AppendLine("JOIN ALL_CONSTRAINTS c");
+        sb.AppendLine("  ON a.owner = c.owner AND a.CONSTRAINT_NAME = c.CONSTRAINT_NAME");
+        sb.AppendLine("JOIN ALL_CONSTRAINTS c_pk");
+        sb.AppendLine("  ON c.R_OWNER = c_pk.OWNER AND c.R_CONSTRAINT_NAME = c_pk.CONSTRAINT_NAME");
+        sb.AppendLine("JOIN ALL_CONS_COLUMNS col_pk");
+        sb.AppendLine("  ON c_pk.CONSTRAINT_NAME = col_pk.CONSTRAINT_NAME AND c_pk.OWNER = col_pk.OWNER AND a.POSITION = col_pk.POSITION");
+        sb.AppendLine($"WHERE LOWER(a.TABLE_NAME) = LOWER('{table}') AND c.CONSTRAINT_TYPE  = 'R'");
+        sb.AppendLine("ORDER BY a.POSITION");
+
+        var sql = sb.ToString();
+        List<ForeignKeyConstraintItem> foreignKeyConstraintItems = [];
+
+        using (var cmd = CreateCommand())
+        using (var reader = ExecuteQuery(cmd, sql))
+        {
+            while (reader.Read())
+            {
+                var constraintItem = new ForeignKeyConstraintItem
+                {
+                    SchemaName = reader.GetString(reader.GetOrdinal("TABLE_SCHEMA")),
+                    ForeignKeyName = reader.GetString(reader.GetOrdinal("FK_KEY")),
+                    ChildTableName = reader.GetString(reader.GetOrdinal("CHILD_TABLE")),
+                    ChildColumnName = reader.GetString(reader.GetOrdinal("CHILD_COLUMN")),
+                    ParentTableName = reader.GetString(reader.GetOrdinal("PARENT_TABLE")),
+                    ParentColumnName = reader.GetString(reader.GetOrdinal("PARENT_COLUMN"))
+                };
+
+                foreignKeyConstraintItems.Add(constraintItem);
+            }
+        }
+
+        var schemaChildTableGroups = foreignKeyConstraintItems.GroupBy(x => new { x.SchemaName, x.ChildTableName }).Count();
+
+        if (schemaChildTableGroups > 1)
+        {
+            throw new MigrationException($"Duplicates found (grouping by schema name and child table name). Since we do not offer schemas in '{nameof(GetForeignKeyConstraints)}' at this moment in time we cannot filter your target schema. Your database use the same table name in different schemas.");
+        }
+
+        var groups = foreignKeyConstraintItems.GroupBy(x => x.ForeignKeyName);
+
+        foreach (var group in groups)
+        {
+            var first = group.First();
+
+            var foreignKeyConstraint = new ForeignKeyConstraint
+            {
+                Name = first.ForeignKeyName,
+                ParentTable = first.ParentTableName,
+                ParentColumns = [.. group.Select(x => x.ParentColumnName).Distinct()],
+                ChildTable = first.ChildTableName,
+                ChildColumns = [.. group.Select(x => x.ChildColumnName).Distinct()]
+            };
+
+            constraints.Add(foreignKeyConstraint);
+        }
+
+        return [.. constraints];
     }
 
     public override void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,

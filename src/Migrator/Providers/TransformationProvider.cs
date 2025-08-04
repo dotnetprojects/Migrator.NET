@@ -141,6 +141,12 @@ public abstract class TransformationProvider : ITransformationProvider
         return columns.ToArray();
     }
 
+    /// <summary>
+    /// Basic implementation works for Postgre and probably for MySQL (not tested). For Oracle it should be overridden
+    /// </summary>
+    /// <param name="table"></param>
+    /// <returns></returns>
+    /// <exception cref="MigrationException"></exception>
     public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
     {
         var constraints = new List<ForeignKeyConstraint>();
