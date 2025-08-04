@@ -156,8 +156,10 @@ public abstract class TransformationProvider : ITransformationProvider
         sb.AppendLine("  INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ");
         sb.AppendLine("JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu");
         sb.AppendLine("  ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA");
+        sb.AppendLine("JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS as rc");
+        sb.AppendLine("  ON tc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA");
         sb.AppendLine("JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu");
-        sb.AppendLine("  ON tc.CONSTRAINT_NAME = ccu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = ccu.TABLE_SCHEMA");
+        sb.AppendLine("  ON rc.UNIQUE_CONSTRAINT_NAME = ccu.CONSTRAINT_NAME AND rc.UNIQUE_CONSTRAINT_SCHEMA = ccu.CONSTRAINT_SCHEMA");
         sb.AppendLine($"WHERE LOWER(tc.TABLE_NAME) = LOWER('{table}') AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'");
         sb.AppendLine("ORDER BY kcu.ORDINAL_POSITION");
 
