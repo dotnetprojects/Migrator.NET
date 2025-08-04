@@ -558,28 +558,12 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual bool TableExists(string table)
     {
-        try
-        {
-            ExecuteNonQuery("SELECT COUNT(*) FROM " + table);
-            return true;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        throw new NotImplementedException();
     }
 
     public virtual bool ViewExists(string view)
     {
-        try
-        {
-            ExecuteNonQuery("SELECT COUNT(*) FROM " + view);
-            return true;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        throw new NotImplementedException();
     }
 
     public virtual void SwitchDatabase(string databaseName)
