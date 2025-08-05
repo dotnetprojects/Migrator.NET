@@ -16,7 +16,6 @@ using Migrator.Framework;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Globalization;
 using Index = Migrator.Framework.Index;
 
@@ -64,7 +63,39 @@ public class SqlServerTransformationProvider : TransformationProvider
             collationString = "Latin1_General_CI_AS";
         }
 
-        this.Dialect.RegisterProperty(ColumnProperty.CaseSensitive, "COLLATE " + collationString.Replace("_CI_", "_CS_"));
+        Dialect.RegisterProperty(ColumnProperty.CaseSensitive, "COLLATE " + collationString.Replace("_CI_", "_CS_"));
+    }
+
+    public override bool TableExists(string tableName)
+    {
+        // This is not clean! Usually you should use schema as well as this query will find tables in other tables as well!
+
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, $"SELECT OBJECT_ID('{tableName}', 'U')");
+
+        if (reader.Read())
+        {
+            var result = reader.GetValue(0);
+            var tableExists = result != DBNull.Value && result != null;
+
+            return tableExists;
+        }
+
+        return false;
+    }
+
+    public override bool ViewExists(string viewName)
+    {
+        // This is not clean! Usually you should use schema as well as this query will find views in other tables as well!
+
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, $"SELECT OBJECT_ID('{viewName}', 'V')");
+
+        var result = cmd.ExecuteScalar();
+
+        var viewExists = result != DBNull.Value && result != null;
+
+        return viewExists;
     }
 
     public override bool ConstraintExists(string table, string name)
@@ -181,50 +212,6 @@ public class SqlServerTransformationProvider : TransformationProvider
         {
             RemoveConstraint(table, constraintName.ToString());
         }
-    }
-
-
-    public override bool TableExists(string table)
-    {
-        string schema;
-
-        var firstIndex = table.IndexOf(".");
-        if (firstIndex >= 0)
-        {
-            schema = table.Substring(0, firstIndex).Trim();
-            table = table.Substring(firstIndex + 1).Trim();
-        }
-        else
-        {
-            schema = _defaultSchema;
-        }
-
-        schema = schema.StartsWith("[") && schema.EndsWith("]") ? schema.Substring(1, schema.Length - 2) : schema;
-        table = table.StartsWith("[") && table.EndsWith("]") ? table.Substring(1, table.Length - 2) : table;
-
-        using var cmd = CreateCommand();
-        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", table, schema));
-        return reader.Read();
-    }
-
-    public override bool ViewExists(string view)
-    {
-        string schema;
-
-        var firstIndex = view.IndexOf(".");
-        if (firstIndex >= 0)
-        {
-            schema = view.Substring(0, firstIndex);
-            view = view.Substring(firstIndex + 1);
-        }
-        else
-        {
-            schema = _defaultSchema;
-        }
-
-        using var cmd = CreateCommand();
-        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME='{0}' AND TABLE_SCHEMA='{1}'", view, schema));
-        return reader.Read();
     }
 
     public override Index[] GetIndexes(string table)

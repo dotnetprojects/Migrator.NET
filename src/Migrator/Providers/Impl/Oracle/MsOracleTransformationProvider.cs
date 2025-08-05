@@ -1,6 +1,7 @@
 using System.Data;
+using Migrator.Providers;
 
-namespace Migrator.Providers.Oracle;
+namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 
 public class MsOracleTransformationProvider : OracleTransformationProvider
 {

@@ -15,7 +15,7 @@ public abstract class SQLiteTransformationProviderTestBase : TransformationProvi
     public void SetUp()
     {
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteConnectionConfigId)
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteId)
             .ConnectionString;
 
         Provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);
