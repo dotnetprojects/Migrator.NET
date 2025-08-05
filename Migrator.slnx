@@ -3,13 +3,10 @@
     <Project Path="src/Migrator/DotNetProjects.Migrator.csproj" />
   </Folder>
   <Folder Name="/Extras/">
-    <File Path="doc/README.txt" />
-    <File Path="doc/TODO.txt" />
-    <File Path="src/MigratorDotNet.snk" />
+    <File Path="README.md" />
   </Folder>
   <Folder Name="/Extras/.github/" />
   <Folder Name="/Extras/.github/workflows/">
-    <File Path=".github/workflows/dotnet.yml" />
     <File Path=".github/workflows/dotnetpull.yml" />
     <File Path=".github/workflows/release.yml" />
   </Folder>

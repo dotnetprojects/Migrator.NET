@@ -1,45 +1,31 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFrameworks>netstandard2.0;net40;net9.0</TargetFrameworks>
-		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-		<SignAssembly>True</SignAssembly>
-		<AssemblyOriginatorKeyFile>MigratorDotNet.snk</AssemblyOriginatorKeyFile>
-		<AssemblyName>DotNetProjects.Migrator</AssemblyName>
-		<RootNamespace>DotNetProjects.Migrator</RootNamespace>
-		<LangVersion>latest</LangVersion>
-	</PropertyGroup>
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net40;net9.0</TargetFrameworks>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>DotNetProjects.Migrator</AssemblyName>
+    <RootNamespace>DotNetProjects.Migrator</RootNamespace>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
 
-	<PropertyGroup>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<IncludeSymbols>true</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<PackageProjectUrl>https://github.com/dotnetprojects/Migrator.NET</PackageProjectUrl>
-		<PackageLicenseExpression>MPL-1.1</PackageLicenseExpression>
-		<AssemblyVersion>7.0.0.0</AssemblyVersion>
-		<FileVersion>7.0.0.0</FileVersion>
-		<Version>8.0.0</Version>
-	</PropertyGroup>
-	<ItemGroup>
-		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-	</ItemGroup>
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageProjectUrl>https://github.com/dotnetprojects/Migrator.NET</PackageProjectUrl>
+    <PackageLicenseExpression>MPL-1.1</PackageLicenseExpression>
+    <AssemblyVersion>9.0.0.0</AssemblyVersion>
+    <FileVersion>9.0.0.0</FileVersion>
+    <Version>9.0.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-		<PackageReference Include="System.CodeDom">
-			<Version>5.0.0</Version>
-		</PackageReference>
-	</ItemGroup>
-
-	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-		<PackageReference Include="System.CodeDom">
-			<Version>5.0.0</Version>
-		</PackageReference>
-	</ItemGroup>
-
-	<PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
-		<DefineConstants>$(DefineConstants);NETSTANDARD</DefineConstants>
-	</PropertyGroup>
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
+    <DefineConstants>$(DefineConstants);NETSTANDARD</DefineConstants>
+  </PropertyGroup>
 
 </Project>
