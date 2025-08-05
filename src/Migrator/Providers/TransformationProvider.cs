@@ -14,7 +14,6 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Loggers;
 using DotNetProjects.Migrator.Framework.SchemaBuilder;
-using DotNetProjects.Migrator.Framework.Support;
 using DotNetProjects.Migrator.Providers.Models;
 using System;
 using System.Collections.Generic;
@@ -958,28 +957,6 @@ public abstract class TransformationProvider : ITransformationProvider
                 sqlText = reader.ReadToEnd();
             }
 
-            ExecuteNonQuery(sqlText);
-        }
-    }
-
-    public virtual void ExecuteEmbededScript(string resourceName)
-    {
-        if (CurrentMigration != null)
-        {
-#if NETSTANDARD
-            var assembly = CurrentMigration.GetType().GetTypeInfo().Assembly;
-#else
-            var assembly = CurrentMigration.GetType().Assembly;
-#endif
-
-            string sqlText;
-            var embeddedResourceName = TransformationProviderUtility.GetQualifiedResourcePath(assembly, resourceName);
-
-            using (var stream = assembly.GetManifestResourceStream(embeddedResourceName))
-            using (var reader = new StreamReader(stream))
-            {
-                sqlText = reader.ReadToEnd();
-            }
             ExecuteNonQuery(sqlText);
         }
     }
