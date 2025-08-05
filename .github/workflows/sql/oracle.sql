@@ -24,10 +24,10 @@ grant
    unlimited tablespace
 to k with admin option;
 
-grant select on v_$session to myuser with grant option
+grant select on v_$session to k with grant option
 
 grant
    alter system
-to myuser
+to k
 
 exit;
