@@ -41,7 +41,6 @@ jobs:
         ports:
           - 1521:1521
         env:
-          ORACLE_RANDOM_PASSWORD: true
           ORACLE_PASSWORD: adfkweflajdfglkj
         options: >-
           --health-cmd healthcheck.sh
