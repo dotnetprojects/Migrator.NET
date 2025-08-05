@@ -1,3 +1,5 @@
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+
 alter session set container = freepdb1;
 create user k identified by k;
 grant
@@ -14,3 +16,5 @@ grant connect to k with admin option;
 grant
    unlimited tablespace
 to k with admin option;
+
+exit;

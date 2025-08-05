@@ -86,7 +86,15 @@ jobs:
           /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
       - name: Create Oracle user
         run: |
-          sql test/test@localhost/FREEPDB1  @.github/workflows/sql/oracle.sql
+          sql test/test@localhost/FREEPDB1   <<EOF 
+          WHENEVER SQLERROR EXIT SQL.SQLCODE
+          SET ECHO ON
+          SET FEEDBACK ON
+          SET SERVEROUTPUT ON
+          @.github/workflows/sql/oracle.sql
+          EXIT;
+          EOF
+
       - name: Restore dependencies
         run: |
           dotnet restore Migrator.slnx
