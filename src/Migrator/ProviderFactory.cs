@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
+using DotNetProjects.Migrator.Providers.Impl.Mysql;
 using Migrator.Framework;
 using Migrator.Providers;
 using Migrator.Providers.Impl.DB2;
