@@ -42,8 +42,7 @@ jobs:
           - 1521:1521
         env:
           ORACLE_RANDOM_PASSWORD: true
-          APP_USER: test
-          APP_USER_PASSWORD: test
+          ORACLE_PASSWORD: adfkweflajdfglkj
         options: >-
           --health-cmd healthcheck.sh
           --health-interval 10s
@@ -86,7 +85,7 @@ jobs:
           /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
       - name: Create Oracle user
         run: |
-          sql test/test@localhost/FREEPDB1   <<EOF 
+          sql sys/adfkweflajdfglkj@localhost/FREEPDB1 as sysdba   <<EOF 
           WHENEVER SQLERROR EXIT SQL.SQLCODE
           SET ECHO ON
           SET FEEDBACK ON
