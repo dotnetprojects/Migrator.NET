@@ -1,6 +1,6 @@
 using System;
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 using Npgsql;
 using NUnit.Framework;
 

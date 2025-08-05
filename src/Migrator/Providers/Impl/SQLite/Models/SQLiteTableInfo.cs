@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using DotNetProjects.Migrator.Framework;
-using Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite.Models;
 

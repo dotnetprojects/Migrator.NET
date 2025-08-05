@@ -13,10 +13,10 @@
 
 using System;
 using System.Collections.Generic;
-using Migrator.Framework;
 using System.Reflection;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Comparer of Migration by their version attribute.
@@ -33,8 +33,8 @@ public class MigrationTypeComparer : IComparer<Type>
     public int Compare(Type x, Type y)
     {
 #if NETSTANDARD
-			var attribOfX = x.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
-			var attribOfY = y.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
+        var attribOfX = x.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
+        var attribOfY = y.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
 #else
         var attribOfX = (MigrationAttribute)Attribute.GetCustomAttribute(x, typeof(MigrationAttribute));
         var attribOfY = (MigrationAttribute)Attribute.GetCustomAttribute(y, typeof(MigrationAttribute));

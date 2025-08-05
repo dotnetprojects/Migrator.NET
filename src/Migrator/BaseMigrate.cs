@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 public abstract class BaseMigrate
 {

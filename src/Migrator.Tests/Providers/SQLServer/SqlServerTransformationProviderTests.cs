@@ -1,7 +1,7 @@
 using System.Data;
 using System.Threading.Tasks;
-using Migrator.Providers;
-using Migrator.Providers.SqlServer;
+using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using Migrator.Tests.Providers.SQLServer.Base;
 using NUnit.Framework;
 

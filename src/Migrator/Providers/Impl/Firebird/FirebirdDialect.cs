@@ -1,8 +1,8 @@
 using System;
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.Impl.Firebird;
+namespace DotNetProjects.Migrator.Providers.Impl.Firebird;
 
 public class FirebirdDialect : Dialect
 {

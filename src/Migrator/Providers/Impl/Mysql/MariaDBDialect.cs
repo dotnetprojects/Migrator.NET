@@ -1,8 +1,7 @@
 using System.Data;
-using DotNetProjects.Migrator.Providers.Impl.Mysql;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.Mysql;
+namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 
 public class MariaDBDialect : MysqlDialect
 {

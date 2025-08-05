@@ -1,4 +1,4 @@
-﻿namespace Migrator.Framework;
+﻿namespace DotNetProjects.Migrator.Framework;
 
 public class Index : IDbField
 {

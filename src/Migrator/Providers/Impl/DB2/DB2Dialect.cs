@@ -1,8 +1,7 @@
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 
-using Migrator.Framework;
-
-namespace Migrator.Providers.Impl.DB2;
+namespace DotNetProjects.Migrator.Providers.Impl.DB2;
 
 public class DB2Dialect : Dialect
 {

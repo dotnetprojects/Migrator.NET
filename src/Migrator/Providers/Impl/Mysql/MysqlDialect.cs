@@ -1,7 +1,5 @@
-using System;
 using System.Data;
-using Migrator.Framework;
-using Migrator.Providers;
+using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 

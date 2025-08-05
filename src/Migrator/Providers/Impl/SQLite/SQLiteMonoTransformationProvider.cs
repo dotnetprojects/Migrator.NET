@@ -1,6 +1,4 @@
 using System.Data;
-using Migrator.Providers;
-using Migrator.Providers.SQLite;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 

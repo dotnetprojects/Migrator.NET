@@ -1,7 +1,5 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite.Models;
-using Migrator.Framework;
-using Migrator.Providers;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -10,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
-using Index = Migrator.Framework.Index;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 

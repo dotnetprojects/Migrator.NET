@@ -1,7 +1,7 @@
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.Impl.Sybase;
+namespace DotNetProjects.Migrator.Providers.Impl.Sybase;
 
 public class SybaseDialect : Dialect
 {

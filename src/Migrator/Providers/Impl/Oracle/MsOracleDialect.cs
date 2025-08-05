@@ -1,8 +1,7 @@
 using System.Data;
-using DotNetProjects.Migrator.Providers.Impl.Oracle;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.Oracle;
+namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 
 public class MsOracleDialect : OracleDialect
 {

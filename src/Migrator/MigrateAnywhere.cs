@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using Migrator.Framework;
-using Migrator.Providers;
 using System.Reflection;
+using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Description of MigrateAnywhere.
@@ -65,7 +65,7 @@ public class MigrateAnywhere : BaseMigrate
     {
         _provider.BeginTransaction();
 #if NETSTANDARD
-			var attr = migration.GetType().GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
+        var attr = migration.GetType().GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
 #else
         var attr = (MigrationAttribute)Attribute.GetCustomAttribute(migration.GetType(), typeof(MigrationAttribute));
 #endif

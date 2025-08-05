@@ -1,6 +1,6 @@
 using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 public class ForeignKeyConstraintMapper
 {

@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Migrator.Framework;
 using System.Linq;
-using DotNetProjects.Migrator;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Handles inspecting code to find all of the Migrations in assemblies and reading
@@ -111,11 +110,11 @@ public class MigrationLoader
 
 
 #if NETSTANDARD
-				var attrib = t.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
-				if (attrib != null && typeof(IMigration).GetTypeInfo().IsAssignableFrom(t) && !attrib.Ignore)
-				{
-					migrations.Add(t);
-				}
+            var attrib = t.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
+            if (attrib != null && typeof(IMigration).GetTypeInfo().IsAssignableFrom(t) && !attrib.Ignore)
+            {
+                migrations.Add(t);
+            }
 #else
             var attrib = (MigrationAttribute)Attribute.GetCustomAttribute(t, typeof(MigrationAttribute));
             if (attrib != null && typeof(IMigration).IsAssignableFrom(t) && !attrib.Ignore)

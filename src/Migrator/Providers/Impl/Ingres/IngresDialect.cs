@@ -1,7 +1,7 @@
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.Impl.Ingres;
+namespace DotNetProjects.Migrator.Providers.Impl.Ingres;
 
 public class IngresDialect : Dialect
 {

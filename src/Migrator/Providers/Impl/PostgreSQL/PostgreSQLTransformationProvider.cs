@@ -12,14 +12,13 @@
 #endregion
 
 using DotNetProjects.Migrator.Framework;
-using Migrator.Framework;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
-using Index = Migrator.Framework.Index;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
-namespace Migrator.Providers.PostgreSQL;
+namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 
 /// <summary>
 /// Migration transformations provider for PostgreSql (using NPGSql .Net driver)

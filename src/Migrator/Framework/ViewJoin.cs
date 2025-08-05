@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 public class ViewJoin : IViewElement
 {

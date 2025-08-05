@@ -1,6 +1,5 @@
 using System.Data;
 using DotNetProjects.Migrator.Framework;
-using Migrator.Framework;
 using NSubstitute;
 using NUnit.Framework;
 

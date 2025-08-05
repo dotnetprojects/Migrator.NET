@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 
-namespace Migrator.Providers.Impl.Sybase;
+namespace DotNetProjects.Migrator.Providers.Impl.Sybase;
 
 public class SybaseTransformationProvider : TransformationProvider
 {

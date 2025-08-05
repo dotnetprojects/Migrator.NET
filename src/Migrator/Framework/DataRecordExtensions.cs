@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 public static class DataRecordExtensions
 {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Migrator.Framework.Loggers;
+using DotNetProjects.Migrator.Framework.Loggers;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Tools;

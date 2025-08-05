@@ -1,8 +1,8 @@
 using System;
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.SqlServer;
+namespace DotNetProjects.Migrator.Providers.Impl.SqlServer;
 
 public class SqlServerDialect : Dialect
 {

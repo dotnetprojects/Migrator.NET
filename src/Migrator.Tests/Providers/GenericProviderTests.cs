@@ -1,6 +1,5 @@
 using System.Collections.Generic;
-
-using Migrator.Providers;
+using DotNetProjects.Migrator.Providers;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers;

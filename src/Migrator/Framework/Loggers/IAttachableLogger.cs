@@ -11,7 +11,7 @@
 
 #endregion
 
-namespace Migrator.Framework.Loggers;
+namespace DotNetProjects.Migrator.Framework.Loggers;
 
 /// <summary>
 /// ILogger interface. 

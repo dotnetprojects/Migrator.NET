@@ -1,8 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
+using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using DryIoc;
-using Migrator.Providers;
-using Migrator.Providers.SqlServer;
 using Migrator.Tests.Database;
 using Migrator.Tests.Database.Interfaces;
 using Migrator.Tests.Providers.Base;

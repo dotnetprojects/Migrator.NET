@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 public interface ILogger
 {

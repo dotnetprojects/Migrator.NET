@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Migrator.Framework;
+﻿namespace DotNetProjects.Migrator.Framework;
 
 public interface IDbField
 {

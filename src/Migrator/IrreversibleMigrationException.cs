@@ -13,7 +13,7 @@
 
 using System;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Exception thrown in a migration <c>Down()</c> method

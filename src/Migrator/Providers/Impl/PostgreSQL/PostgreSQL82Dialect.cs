@@ -1,6 +1,6 @@
 ﻿using System.Data;
 
-namespace Migrator.Providers.PostgreSQL;
+namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 
 public class PostgreSQL82Dialect : PostgreSQLDialect
 {

@@ -1,4 +1,4 @@
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 public enum ProviderTypes
 {

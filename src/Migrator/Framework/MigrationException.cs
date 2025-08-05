@@ -13,7 +13,7 @@
 
 using System;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>
 /// Base class for migration errors.

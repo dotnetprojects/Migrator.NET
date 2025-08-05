@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using DotNetProjects.Migrator.Framework;
 
-using Migrator.Framework;
-
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 /// <summary>
 /// This class maps a DbType to names.

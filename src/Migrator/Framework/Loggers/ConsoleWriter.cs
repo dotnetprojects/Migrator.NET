@@ -13,7 +13,7 @@
 
 using System;
 
-namespace Migrator.Framework.Loggers;
+namespace DotNetProjects.Migrator.Framework.Loggers;
 
 public class ConsoleWriter : ILogWriter
 {

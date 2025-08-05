@@ -1,7 +1,7 @@
-﻿using Migrator.Providers.SqlServer;
-using System.Data;
+﻿using System.Data;
+using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 
-namespace Migrator.Providers.Utility;
+namespace DotNetProjects.Migrator.Providers.Utility;
 
 public static class SqlServerUtility
 {

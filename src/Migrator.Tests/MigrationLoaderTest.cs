@@ -1,7 +1,7 @@
 using System.Reflection;
 using DotNetProjects.Migrator;
-using Migrator.Framework;
-using Migrator.Framework.Loggers;
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Loggers;
 using NSubstitute;
 using NUnit.Framework;
 

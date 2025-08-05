@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Migrator.Framework.Loggers;
+namespace DotNetProjects.Migrator.Framework.Loggers;
 
 public class SqlScriptFileLogger : ILogger, IDisposable
 {
