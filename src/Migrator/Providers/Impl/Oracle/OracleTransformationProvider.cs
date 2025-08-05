@@ -1,7 +1,5 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Models;
-using Migrator.Framework;
-using Migrator.Providers;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -9,7 +7,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
-using Index = Migrator.Framework.Index;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 

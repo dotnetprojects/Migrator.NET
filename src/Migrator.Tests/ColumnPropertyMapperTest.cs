@@ -1,10 +1,10 @@
 using System.Data;
-using Migrator.Framework;
-using Migrator.Providers;
-using Migrator.Providers.Oracle;
-using Migrator.Providers.PostgreSQL;
-using Migrator.Providers.SQLite;
-using Migrator.Providers.SqlServer;
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Providers.Impl.Oracle;
+using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
+using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using NUnit.Framework;
 
 namespace Migrator.Tests;

@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 /// <summary>
 /// Defines the implementations specific details for a particular database.
@@ -363,6 +363,7 @@ public abstract class Dialect : IDialect
     {
         var mapper = GetColumnMapper(column);
         mapper.MapColumnProperties(column);
+
         if (column.DefaultValue != null && column.DefaultValue != DBNull.Value)
         {
             mapper.Default = column.DefaultValue;

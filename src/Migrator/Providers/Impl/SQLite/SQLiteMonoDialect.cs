@@ -1,7 +1,6 @@
-using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.SQLite;
+namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
 public class SQLiteMonoDialect : SQLiteDialect
 {

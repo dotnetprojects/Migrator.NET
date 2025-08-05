@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Framework;
 using Migrator.Tests.Providers.SQLite.Base;
 using NUnit.Framework;
 
@@ -47,10 +46,11 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That("CREATE TABLE MyTableName (Column1 INTEGER NOT NULL, Column2 INTEGER NOT NULL, PRIMARY KEY (Column1,Column2) )", Is.EqualTo(createScript));
+        Assert.That("CREATE TABLE MyTableName (Column1 INTEGER NULL, Column2 INTEGER NOT NULL, PRIMARY KEY (Column1, Column2))", Is.EqualTo(createScript));
 
         var pragmaTableInfos = ((SQLiteTransformationProvider)Provider).GetPragmaTableInfoItems(tableName);
-        Assert.That(pragmaTableInfos.All(x => x.NotNull), Is.True);
+        Assert.That(pragmaTableInfos.Single(x => x.Name == columnName1).NotNull, Is.False);
+        Assert.That(pragmaTableInfos.Single(x => x.Name == columnName2).NotNull, Is.True);
 
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
         Assert.That(sqliteInfo.Columns.First().Name, Is.EqualTo(columnName1));

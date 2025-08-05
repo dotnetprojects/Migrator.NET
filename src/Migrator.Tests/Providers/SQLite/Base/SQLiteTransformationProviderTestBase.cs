@@ -1,5 +1,4 @@
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Providers.SQLite;
 using Migrator.Tests.Providers.Base;
 using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;

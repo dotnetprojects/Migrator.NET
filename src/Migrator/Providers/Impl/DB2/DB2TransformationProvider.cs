@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DotNetProjects.Migrator.Providers;
 
-namespace Migrator.Providers.Impl.DB2;
+namespace DotNetProjects.Migrator.Providers.Impl.DB2;
 
 /// <summary>
 /// DB2 transformation provider

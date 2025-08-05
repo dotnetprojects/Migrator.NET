@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Migrator.Framework;
-using Migrator.Providers;
+using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 

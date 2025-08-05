@@ -1,6 +1,6 @@
 using System.Linq;
+using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Framework;
 using Migrator.Tests.Providers.SQLite.Base;
 using NUnit.Framework;
 
@@ -70,14 +70,12 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
             new Column("Id2", System.Data.DbType.Int32, ColumnProperty.PrimaryKey)
         );
 
-        Provider.GetColumns(tableName);
-
         // Act
         var columns = Provider.GetColumns(tableName);
 
         // Assert
-        Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.NotNull | ColumnProperty.Identity));
-        Assert.That(columns[1].ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.NotNull));
+        Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.Null));
+        Assert.That(columns[1].ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.Null));
     }
 
     [Test]

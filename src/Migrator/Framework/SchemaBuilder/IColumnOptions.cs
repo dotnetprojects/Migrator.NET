@@ -1,6 +1,6 @@
 using System.Data;
 
-namespace Migrator.Framework.SchemaBuilder;
+namespace DotNetProjects.Migrator.Framework.SchemaBuilder;
 
 public interface IColumnOptions
 {

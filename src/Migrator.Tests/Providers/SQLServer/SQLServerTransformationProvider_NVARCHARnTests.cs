@@ -1,6 +1,6 @@
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 using Microsoft.Data.SqlClient;
-using Migrator.Framework;
 using Migrator.Tests.Providers.SQLServer.Base;
 using NUnit.Framework;
 

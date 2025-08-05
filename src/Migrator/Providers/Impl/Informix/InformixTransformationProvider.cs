@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DotNetProjects.Migrator.Providers;
 
-namespace Migrator.Providers.Impl.Informix;
+namespace DotNetProjects.Migrator.Providers.Impl.Informix;
 
 /// <summary>
 /// DB2 transformation provider

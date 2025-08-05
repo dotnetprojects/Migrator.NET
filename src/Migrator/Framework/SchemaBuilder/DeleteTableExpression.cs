@@ -11,7 +11,7 @@
 
 #endregion
 
-namespace Migrator.Framework.SchemaBuilder;
+namespace DotNetProjects.Migrator.Framework.SchemaBuilder;
 
 public class DeleteTableExpression : ISchemaBuilderExpression
 {

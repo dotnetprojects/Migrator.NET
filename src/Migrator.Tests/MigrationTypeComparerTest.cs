@@ -13,7 +13,8 @@
 
 using System;
 using System.Collections.Generic;
-using Migrator.Framework;
+using DotNetProjects.Migrator;
+using DotNetProjects.Migrator.Framework;
 using NUnit.Framework;
 
 namespace Migrator.Tests;

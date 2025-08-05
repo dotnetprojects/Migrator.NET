@@ -1,5 +1,5 @@
-using Migrator.Providers;
-using Migrator.Providers.PostgreSQL;
+using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;
 using NUnit.Framework;

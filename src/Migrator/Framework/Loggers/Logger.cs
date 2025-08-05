@@ -14,7 +14,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Migrator.Framework.Loggers;
+namespace DotNetProjects.Migrator.Framework.Loggers;
 
 /// <summary>
 /// Text logger for the migration mediator

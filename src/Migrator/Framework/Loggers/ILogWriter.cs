@@ -11,7 +11,7 @@
 
 #endregion
 
-namespace Migrator.Framework.Loggers;
+namespace DotNetProjects.Migrator.Framework.Loggers;
 
 /// <summary>
 /// Handles writing a message to the log medium (i.e. file, console)

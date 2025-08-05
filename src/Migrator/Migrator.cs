@@ -15,11 +15,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Migrator.Framework;
-using Migrator.Framework.Loggers;
-using Migrator.Providers;
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Loggers;
+using DotNetProjects.Migrator.Providers;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Migrations mediator.

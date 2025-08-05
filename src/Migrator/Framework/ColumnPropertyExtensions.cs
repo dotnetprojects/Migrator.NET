@@ -1,5 +1,3 @@
-using Migrator.Framework;
-
 namespace DotNetProjects.Migrator.Framework;
 
 public static class ColumnPropertyExtensions

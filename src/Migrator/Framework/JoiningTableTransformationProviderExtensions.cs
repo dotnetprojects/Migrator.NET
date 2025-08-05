@@ -1,11 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using DotNetProjects.Migrator.Framework;
-using Migrator.Framework.Support;
+﻿using System.Data;
+using DotNetProjects.Migrator.Framework.Support;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>
 /// A set of extension methods for the transformation provider to make it easier to

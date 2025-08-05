@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Reflection;
 
-namespace Migrator.Framework.Support;
+namespace DotNetProjects.Migrator.Framework.Support;
 
 public static class TransformationProviderUtility
 {
@@ -66,7 +66,7 @@ public static class TransformationProviderUtility
         //resource full name is in format `namespace.resourceName`
         var sqlScriptParts = resourceName.Split('.').Reverse().ToArray();
 #if NETSTANDARD
-			Func<string, bool> isNameMatch = x => x.Split('.').Reverse().Take(sqlScriptParts.Length).SequenceEqual(sqlScriptParts, StringComparer.CurrentCultureIgnoreCase);
+        Func<string, bool> isNameMatch = x => x.Split('.').Reverse().Take(sqlScriptParts.Length).SequenceEqual(sqlScriptParts, StringComparer.CurrentCultureIgnoreCase);
 #else
         Func<string, bool> isNameMatch = x => x.Split('.').Reverse().Take(sqlScriptParts.Length).SequenceEqual(sqlScriptParts, StringComparer.InvariantCultureIgnoreCase);
 #endif

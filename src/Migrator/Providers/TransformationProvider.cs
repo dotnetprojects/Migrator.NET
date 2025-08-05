@@ -12,11 +12,10 @@
 #endregion
 
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Loggers;
+using DotNetProjects.Migrator.Framework.SchemaBuilder;
+using DotNetProjects.Migrator.Framework.Support;
 using DotNetProjects.Migrator.Providers.Models;
-using Migrator.Framework;
-using Migrator.Framework.Loggers;
-using Migrator.Framework.SchemaBuilder;
-using Migrator.Framework.Support;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -27,9 +26,9 @@ using System.Reflection;
 using System.Text;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using ForeignKeyConstraintType = DotNetProjects.Migrator.Framework.ForeignKeyConstraintType;
-using Index = Migrator.Framework.Index;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 /// <summary>
 /// Base class for every transformation providers.

@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers;
 
-namespace Migrator.Providers.Impl.Firebird;
+namespace DotNetProjects.Migrator.Providers.Impl.Firebird;
 
 /// <summary>
 /// Firebird transformation provider

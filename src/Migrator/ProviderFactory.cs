@@ -15,20 +15,20 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
-using Migrator.Framework;
-using Migrator.Providers;
-using Migrator.Providers.Impl.DB2;
-using Migrator.Providers.Impl.Firebird;
-using Migrator.Providers.Impl.Informix;
-using Migrator.Providers.Impl.Ingres;
-using Migrator.Providers.Impl.Sybase;
-using Migrator.Providers.Mysql;
-using Migrator.Providers.Oracle;
-using Migrator.Providers.PostgreSQL;
-using Migrator.Providers.SQLite;
-using Migrator.Providers.SqlServer;
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Providers.Impl.DB2;
+using DotNetProjects.Migrator.Providers.Impl.Firebird;
+using DotNetProjects.Migrator.Providers.Impl.Informix;
+using DotNetProjects.Migrator.Providers.Impl.Ingres;
+using DotNetProjects.Migrator.Providers.Impl.Mysql;
+using DotNetProjects.Migrator.Providers.Impl.Oracle;
+using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
+using DotNetProjects.Migrator.Providers.Impl.SqlServer;
+using DotNetProjects.Migrator.Providers.Impl.Sybase;
 
-namespace Migrator;
+namespace DotNetProjects.Migrator;
 
 /// <summary>
 /// Handles loading Provider implementations

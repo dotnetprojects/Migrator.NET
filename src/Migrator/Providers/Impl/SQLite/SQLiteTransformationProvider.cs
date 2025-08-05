@@ -1,7 +1,5 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite.Models;
-using Migrator.Framework;
-using Migrator.Providers;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -10,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
-using Index = Migrator.Framework.Index;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
@@ -513,6 +511,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
     {
+        if (!TableExists(tableName))
+        {
+            throw new Exception($"Table {tableName} does not exist");
+        }
+
         var isPragmaForeignKeysOn = IsPragmaForeignKeysOn();
 
         if (isPragmaForeignKeysOn)
@@ -578,15 +581,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                     }
 
                     foreignKey.ParentColumns = foreignKey.ParentColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
+
+                    RecreateTable(sqliteTableInfoOther);
                 }
-
-                RecreateTable(sqliteTableInfoOther);
-            }
-
-            // Rename column in index
-            foreach (var index in sqliteTableInfo.Indexes)
-            {
-                index.KeyColumns = index.KeyColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
             }
         }
         else
@@ -700,7 +697,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         ExecuteQuery(cmd, $"PRAGMA foreign_keys = {onOffString}");
     }
 
-    private void RecreateTable(SQLiteTableInfo sqliteTableInfo)
+    public void RecreateTable(SQLiteTableInfo sqliteTableInfo)
     {
         var sourceTableQuoted = QuoteTableNameIfRequired(sqliteTableInfo.TableNameMapping.OldName);
         var targetIntermediateTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}{IntermediateTableSuffix}");
@@ -762,6 +759,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         using (var cmd = CreateCommand())
         {
+            // Rename to original name
             var sql = $"ALTER TABLE {targetIntermediateTableQuoted} RENAME TO {targetTableQuoted}";
             ExecuteQuery(cmd, sql);
         }
@@ -1013,7 +1011,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             var columnTableInfoItem = pragmaTableInfoItems.First(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase));
 
-            if (columnTableInfoItem.Type == "INTEGER" && columnTableInfoItem.Pk == 1)
+            var hasCompoundPrimaryKey = tableInfoPrimaryKeys.Count > 1;
+
+            if (columnTableInfoItem.Type == "INTEGER" && columnTableInfoItem.Pk == 1 && !hasCompoundPrimaryKey)
             {
                 column.ColumnProperty |= ColumnProperty.Identity;
             }
@@ -1088,17 +1088,19 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             .ToArray();
 
         var pks = GetPrimaryKeys(columns);
-        var compoundPrimaryKey = pks.Count > 1;
+        var hasCompoundPrimaryKey = pks.Count > 1;
 
         var columnProviders = new List<ColumnPropertiesMapper>(columns.Length);
 
         foreach (var column in columns)
         {
-            // Remove the primary key notation if compound primary key because we'll add it back later
-            if (compoundPrimaryKey && column.IsPrimaryKey)
+            if (hasCompoundPrimaryKey && column.IsPrimaryKey)
             {
-                column.ColumnProperty ^= ColumnProperty.PrimaryKey;
-                column.ColumnProperty |= ColumnProperty.NotNull; // PK is always not-null
+                // We remove PrimaryKey here and readd it as compound later ("...PRIMARY KEY(column1,column2)");
+                column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
+
+                // AUTOINCREMENT cannot be used in compound primary keys in SQLite so we remove Identity here
+                column.ColumnProperty &= ~ColumnProperty.Identity;
             }
 
             var mapper = _dialect.GetAndMapColumnProperties(column);
@@ -1112,9 +1114,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         stringBuilder.Append(string.Format("CREATE TABLE {0} ({1}", table, columnsAndIndexes));
 
-        if (compoundPrimaryKey)
+        if (hasCompoundPrimaryKey)
         {
-            stringBuilder.Append(string.Format(", PRIMARY KEY ({0}) ", string.Join(",", pks.ToArray())));
+            stringBuilder.Append(string.Format(", PRIMARY KEY ({0})", string.Join(", ", pks.ToArray())));
         }
 
         var uniques = fields.Where(x => x is Unique).Cast<Unique>().ToArray();

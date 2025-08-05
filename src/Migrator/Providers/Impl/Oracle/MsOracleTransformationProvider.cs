@@ -1,5 +1,4 @@
 using System.Data;
-using Migrator.Providers;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 

@@ -1,8 +1,7 @@
-using Migrator.Framework;
-using System;
+using DotNetProjects.Migrator.Framework;
 using System.Data;
 
-namespace Migrator.Providers.PostgreSQL;
+namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 
 public class PostgreSQLDialect : Dialect
 {

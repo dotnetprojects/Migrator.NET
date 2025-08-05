@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using DotNetProjects.Migrator.Framework;
-using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>
 /// The main interface to use in Migrations to make changes on a database schema.

@@ -1,8 +1,7 @@
-using System;
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.Mysql;
+namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 
 public class MysqlDialect : Dialect
 {

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 /// <summary>
 /// This is basically a just a helper base class

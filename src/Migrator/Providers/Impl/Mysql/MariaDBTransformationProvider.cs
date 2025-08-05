@@ -1,6 +1,6 @@
 using System.Data;
 
-namespace Migrator.Providers.Mysql;
+namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 
 /// <summary>
 /// MySql transformation provider

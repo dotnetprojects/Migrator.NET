@@ -1,4 +1,3 @@
-using Migrator.Framework;
 using NUnit.Framework;
 using DotNetProjects.Migrator.Framework;
 using System;

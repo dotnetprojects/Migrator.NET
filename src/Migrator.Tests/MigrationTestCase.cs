@@ -12,7 +12,7 @@
 #endregion
 
 using System.Reflection;
-using Migrator.Providers;
+using DotNetProjects.Migrator.Providers;
 using NUnit.Framework;
 
 namespace Migrator.Tests;
@@ -22,7 +22,7 @@ namespace Migrator.Tests;
 /// </summary>
 public abstract class MigrationsTestCase
 {
-    private Migrator _migrator;
+    private DotNetProjects.Migrator.Migrator _migrator;
 
     protected abstract TransformationProvider TransformationProvider { get; }
     protected abstract string ConnectionString { get; }
@@ -31,7 +31,7 @@ public abstract class MigrationsTestCase
     [SetUp]
     public void SetUp()
     {
-        _migrator = new Migrator(TransformationProvider, MigrationAssembly, true);
+        _migrator = new DotNetProjects.Migrator.Migrator(TransformationProvider, MigrationAssembly, true);
 
         Assert.That(_migrator.MigrationsTypes.Count > 0, Is.True, "No migrations in assembly " + MigrationAssembly.Location);
 

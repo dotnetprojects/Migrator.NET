@@ -1,8 +1,7 @@
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 
-using Migrator.Framework;
-
-namespace Migrator.Providers.Impl.Informix;
+namespace DotNetProjects.Migrator.Providers.Impl.Informix;
 
 public class InformixDialect : Dialect
 {

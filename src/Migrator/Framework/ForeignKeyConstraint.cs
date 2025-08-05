@@ -1,6 +1,4 @@
-﻿using Migrator.Framework;
-
-namespace DotNetProjects.Migrator.Framework;
+﻿namespace DotNetProjects.Migrator.Framework;
 
 public class ForeignKeyConstraint : IDbField
 {

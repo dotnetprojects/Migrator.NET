@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DotNetProjects.Migrator.Providers;
 
-namespace Migrator.Providers.Impl.Ingres;
+namespace DotNetProjects.Migrator.Providers.Impl.Ingres;
 
 public class IngresTransformationProvider : TransformationProvider
 {

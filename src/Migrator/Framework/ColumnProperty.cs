@@ -1,6 +1,6 @@
 using System;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>
 /// Represents a table column properties.

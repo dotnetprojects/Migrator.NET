@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Migrator.Framework;
-using Migrator.Framework.Loggers;
+using DotNetProjects.Migrator;
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Loggers;
 using NSubstitute;
 using NUnit.Framework;
 
@@ -17,7 +18,7 @@ public class MigratorTestDates
         SetUpCurrentVersion(0);
     }
 
-    private Migrator _migrator;
+    private DotNetProjects.Migrator.Migrator _migrator;
 
     // Collections that contain the version that are called migrating up and down
     private static readonly List<long> _upCalled = [];
@@ -64,7 +65,7 @@ public class MigratorTestDates
             }
         });
 
-        _migrator = new Migrator((ITransformationProvider)providerMock, Assembly.GetExecutingAssembly(), false);
+        _migrator = new DotNetProjects.Migrator.Migrator((ITransformationProvider)providerMock, Assembly.GetExecutingAssembly(), false);
 
         _migrator.MigrationsTypes.Clear();
         _upCalled.Clear();

@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Data;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
 using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 

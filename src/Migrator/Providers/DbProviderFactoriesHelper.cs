@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
-using System.Text;
 
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 public static class DbProviderFactoriesHelper
 {
@@ -36,7 +35,7 @@ public static class DbProviderFactoriesHelper
 #endif
 
 #if NETSTANDARD
-			return null;
+        return null;
 #else
         return (DbProviderFactory)AppDomain.CurrentDomain.CreateInstanceAndUnwrap(assemblyName, factoryProviderType);
 #endif

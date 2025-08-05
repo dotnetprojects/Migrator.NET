@@ -2,13 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
-using Migrator.Framework;
-using Migrator.Framework.SchemaBuilder;
-
+using DotNetProjects.Migrator.Framework.SchemaBuilder;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
-using Index = Migrator.Framework.Index;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
-namespace Migrator.Providers;
+namespace DotNetProjects.Migrator.Providers;
 
 /// <summary>
 /// No Op (Null Object Pattern) implementation of the ITransformationProvider

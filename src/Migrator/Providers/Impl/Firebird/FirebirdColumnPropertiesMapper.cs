@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using Migrator.Framework;
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers;
 
-namespace Migrator.Providers.Impl.Firebird;
+namespace DotNetProjects.Migrator.Providers.Impl.Firebird;
 
 public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
 {

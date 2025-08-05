@@ -14,9 +14,8 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Framework.SchemaBuilder;
+namespace DotNetProjects.Migrator.Framework.SchemaBuilder;
 
 public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOptions
 {

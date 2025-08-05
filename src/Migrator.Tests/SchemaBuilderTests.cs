@@ -1,7 +1,6 @@
 using System.Data;
 using DotNetProjects.Migrator.Framework;
-using Migrator.Framework;
-using Migrator.Framework.SchemaBuilder;
+using DotNetProjects.Migrator.Framework.SchemaBuilder;
 using NUnit.Framework;
 
 namespace Migrator.Tests;

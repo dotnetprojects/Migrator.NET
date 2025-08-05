@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using Migrator.Framework;
+﻿using System.Collections.Generic;
+using DotNetProjects.Migrator.Framework;
 
-namespace Migrator.Providers.Impl.Oracle;
+namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 
 public class OracleColumnPropertiesMapper : ColumnPropertiesMapper
 {

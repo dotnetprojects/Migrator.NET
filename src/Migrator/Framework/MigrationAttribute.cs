@@ -13,7 +13,7 @@
 
 using System;
 
-namespace Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>
 /// Describe a migration

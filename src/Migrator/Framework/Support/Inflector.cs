@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace Migrator.Framework.Support;
+namespace DotNetProjects.Migrator.Framework.Support;
 
 public class Inflector
 {
