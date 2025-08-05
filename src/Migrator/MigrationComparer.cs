@@ -32,13 +32,8 @@ public class MigrationTypeComparer : IComparer<Type>
 
     public int Compare(Type x, Type y)
     {
-#if NETSTANDARD
-        var attribOfX = x.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
-        var attribOfY = y.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
-#else
         var attribOfX = (MigrationAttribute)Attribute.GetCustomAttribute(x, typeof(MigrationAttribute));
         var attribOfY = (MigrationAttribute)Attribute.GetCustomAttribute(y, typeof(MigrationAttribute));
-#endif
 
         if (_ascending)
         {
