@@ -1,11 +1,12 @@
 using Migrator.Framework;
+using Migrator.Providers;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using Index = Migrator.Framework.Index;
 
-namespace Migrator.Providers.Mysql;
+namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 
 /// <summary>
 /// MySql transformation provider

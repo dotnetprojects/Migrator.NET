@@ -1,4 +1,5 @@
 using System.Data;
+using DotNetProjects.Migrator.Providers.Impl.Mysql;
 
 namespace Migrator.Providers.Mysql;
 

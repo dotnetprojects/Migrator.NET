@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
