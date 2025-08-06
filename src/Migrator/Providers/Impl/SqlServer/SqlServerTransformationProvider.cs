@@ -88,7 +88,12 @@ public class SqlServerTransformationProvider : TransformationProvider
         // This is not clean! Usually you should use schema as well as this query will find views in other tables as well!
 
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, $"SELECT OBJECT_ID('{viewName}', 'V')");
+        cmd.CommandText = $"SELECT OBJECT_ID(@FullViewName, 'V')";
+
+        var parameter = cmd.CreateParameter();
+        parameter.ParameterName = "@FullViewName";
+        parameter.Value = viewName;
+        cmd.Parameters.Add(parameter);
 
         var result = cmd.ExecuteScalar();
 
