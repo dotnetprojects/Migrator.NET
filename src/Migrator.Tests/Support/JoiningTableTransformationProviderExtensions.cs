@@ -1,7 +1,6 @@
-﻿using System.Data;
-using DotNetProjects.Migrator.Framework.Support;
+using System.Data;
 
-namespace DotNetProjects.Migrator.Framework;
+namespace DotNetProjects.Migrator.Framework.Support;
 
 /// <summary>
 /// A set of extension methods for the transformation provider to make it easier to
@@ -17,7 +16,7 @@ public static class JoiningTableTransformationProviderExtensions
     {
         var joiningTable = GetNameOfJoiningTable(lhsTableName, rhsTableName);
 
-        return AddManyToManyJoiningTable(database, schema, lhsTableName, lhsKey, rhsTableName, rhsKey, joiningTable);
+        return database.AddManyToManyJoiningTable(schema, lhsTableName, lhsKey, rhsTableName, rhsKey, joiningTable);
     }
 
     private static string GetNameOfJoiningTable(string lhsTableName, string rhsTableName)
@@ -62,7 +61,7 @@ public static class JoiningTableTransformationProviderExtensions
     public static ITransformationProvider RemoveManyToManyJoiningTable(this ITransformationProvider database, string schema, string lhsTableName, string rhsTableName)
     {
         var joiningTable = GetNameOfJoiningTable(lhsTableName, rhsTableName);
-        return RemoveManyToManyJoiningTable(database, schema, lhsTableName, rhsTableName, joiningTable);
+        return database.RemoveManyToManyJoiningTable(schema, lhsTableName, rhsTableName, joiningTable);
     }
 
     public static ITransformationProvider RemoveManyToManyJoiningTable(this ITransformationProvider database, string schema, string lhsTableName, string rhsTableName, string joiningTableName)
