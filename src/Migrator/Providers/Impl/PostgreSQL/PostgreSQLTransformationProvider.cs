@@ -18,6 +18,7 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
@@ -384,12 +385,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                 column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
 
-                // if (defaultValueString != null && defaultValueString != DBNull.Value)
-                // {
-                //     column.DefaultValue = defaultValueString;
-                // }
-
-                if (column.DefaultValue != null)
+                if (defaultValueString != null)
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
@@ -409,16 +405,26 @@ WHERE  lower(tablenm) = lower('{0}')
                     }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
-                        if (column.DefaultValue is string defVal)
+                        if (defaultValueString.StartsWith("'"))
                         {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
+                            var regEx = new Regex("(?<=')[^']*(?=')");
+
+                            var match = regEx.Match(defaultValueString);
+                            if (!match.Success)
                             {
-                                dt = defVal.Substring(1, defVal.Length - 2);
+                                throw new Exception("Postgre default value for date time: We expected single quotes around the date time string.");
                             }
 
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
+                            var timeString = match.Value;
+
+                            // We convert to UTC since we restrict to UTC on default value definition.
+                            var dateTimeExtracted = DateTime.ParseExact(timeString, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+
+                            column.DefaultValue = dateTimeExtracted;
+                        }
+                        else
+                        {
+                            throw new NotImplementedException();
                         }
                     }
                     else if (column.Type == DbType.Guid)
