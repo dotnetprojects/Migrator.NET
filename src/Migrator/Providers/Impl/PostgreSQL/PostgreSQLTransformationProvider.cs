@@ -17,7 +17,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
@@ -361,18 +360,14 @@ WHERE  lower(tablenm) = lower('{0}')
                 {
                     dbType = DbType.Boolean;
                 }
-                else if (dataTypeString == "text")
+                else if (dataTypeString == "text" || dataTypeString == "character varying")
                 {
                     dbType = DbType.String;
-                }
-                else if (dataTypeString.StartsWith("character varying("))
-                {
-                    dbType = DbType.StringFixedLength;
                     size = characterMaximumLength;
                 }
                 else if (dataTypeString == "character" || dataTypeString.StartsWith("character("))
                 {
-                    throw new NotSupportedException("Data type 'character' detected. We do not support 'character'. Use 'text' or 'character varying(n)' instead");
+                    throw new NotSupportedException("Data type 'character' detected. We do not support 'character'. Use 'text' or 'character varying' instead");
                 }
                 else
                 {
@@ -382,7 +377,9 @@ WHERE  lower(tablenm) = lower('{0}')
                 var column = new Column(columnName, dbType)
                 {
                     Precision = precision,
-                    Scale = scale
+                    Scale = scale,
+                    // Size should be nullable
+                    Size = size ?? 0
                 };
 
                 column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
