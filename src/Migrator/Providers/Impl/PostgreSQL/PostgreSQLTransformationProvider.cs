@@ -28,6 +28,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 /// </summary>
 public class PostgreSQLTransformationProvider : TransformationProvider
 {
+    private Regex stripSingleQuoteRegEx = new("(?<=')[^']*(?=')");
+
     public PostgreSQLTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
         : base(dialect, connectionString, defaultSchema, scope)
     {
@@ -407,9 +409,8 @@ WHERE  lower(tablenm) = lower('{0}')
                     {
                         if (defaultValueString.StartsWith("'"))
                         {
-                            var regEx = new Regex("(?<=')[^']*(?=')");
+                            var match = stripSingleQuoteRegEx.Match(defaultValueString);
 
-                            var match = regEx.Match(defaultValueString);
                             if (!match.Success)
                             {
                                 throw new Exception("Postgre default value for date time: We expected single quotes around the date time string.");
@@ -429,18 +430,25 @@ WHERE  lower(tablenm) = lower('{0}')
                     }
                     else if (column.Type == DbType.Guid)
                     {
-                        if (column.DefaultValue is string defVal)
+                        if (defaultValueString.StartsWith("'"))
                         {
-                            var dt = defVal;
+                            var match = stripSingleQuoteRegEx.Match(defaultValueString);
 
-                            if (defVal.StartsWith("'"))
+                            if (!match.Success)
                             {
-                                dt = defVal.Substring(1, defVal.Length - 2);
+                                throw new Exception("Postgre default value for uniqueidentifier: We expected single quotes around the Guid string.");
                             }
 
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
+                            column.DefaultValue = Guid.Parse(match.Value);
                         }
+                        else
+                        {
+                            throw new NotImplementedException();
+                        }
+                    }
+                    else if (column.Type == DbType.Decimal)
+                    {
+                        column.DefaultValue = decimal.Parse(defaultValueString, CultureInfo.InvariantCulture);
                     }
                 }
 
