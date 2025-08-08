@@ -36,12 +36,15 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
             new Column(dateTimeColumnName1, DbType.DateTime, dateTimeDefaultValue),
             new Column(dateTimeColumnName2, DbType.DateTime2, dateTimeDefaultValue),
             new Column(decimalColumnName1, DbType.Decimal, DecimalDefaultValue),
-            new Column(guidColumnName1, DbType.Guid, guidDefaultValue)
-        // new Column(booleanColumnName1, DbType.Boolean),
-        // new Column(int32ColumnName1, DbType.Int32),
-        // new Column(int64ColumnName1, DbType.Int64),
-        // new Column(stringColumnName1, DbType.String),
-        // new Column(stringColumnName2, DbType.String) { Size = 30 }
+            new Column(guidColumnName1, DbType.Guid, guidDefaultValue),
+
+            // other boolean default values are tested in another test
+            new Column(booleanColumnName1, DbType.Boolean, true),
+
+            new Column(int32ColumnName1, DbType.Int32, 43),
+            new Column(int64ColumnName1, DbType.Int64, 88),
+            new Column(stringColumnName1, DbType.String),
+            new Column(stringColumnName2, DbType.String) { Size = 30 }
         );
 
         // Act
@@ -52,15 +55,18 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         var dateTimeColumn2 = columns.Single(x => x.Name == dateTimeColumnName2);
         var decimalColumn1 = columns.Single(x => x.Name == decimalColumnName1);
         var guidColumn1 = columns.Single(x => x.Name == guidColumnName1);
-        // var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);
-        // var int32Column1 = columns.Single(x => x.Name == int32ColumnName1);
-        // var int64column1 = columns.Single(x => x.Name == int64ColumnName1);
-        // var stringColumn1 = columns.Single(x => x.Name == stringColumnName1);
-        // var stringColumn2 = columns.Single(x => x.Name == stringColumnName2);
+        var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);
+        var int32Column1 = columns.Single(x => x.Name == int32ColumnName1);
+        var int64Column1 = columns.Single(x => x.Name == int64ColumnName1);
+        var stringColumn1 = columns.Single(x => x.Name == stringColumnName1);
+        var stringColumn2 = columns.Single(x => x.Name == stringColumnName2);
 
         Assert.That(dateTimeColumn1.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
         Assert.That(dateTimeColumn2.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
         Assert.That(decimalColumn1.DefaultValue, Is.EqualTo(DecimalDefaultValue));
         Assert.That(guidColumn1.DefaultValue, Is.EqualTo(guidDefaultValue));
+        Assert.That(booleanColumn1.DefaultValue, Is.True);
+        Assert.That(int32Column1.DefaultValue, Is.EqualTo(43));
+        Assert.That(int64Column1.DefaultValue, Is.EqualTo(88));
     }
 }

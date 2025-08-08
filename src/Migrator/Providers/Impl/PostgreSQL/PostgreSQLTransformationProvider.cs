@@ -403,7 +403,21 @@ WHERE  lower(tablenm) = lower('{0}')
                     }
                     else if (column.Type == DbType.Boolean)
                     {
-                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase) || column.DefaultValue.ToString().Trim() == "YES";
+                        var truthy = new[] { "1", "TRUE", "YES", "'true'", "on", "'on'", "t", "'t'" };
+                        var falsy = new[] { "0", "FALSE", "NO", "'false'", "off", "'off'", "f", "'f'" };
+
+                        if (truthy.Any(x => x.Equals(defaultValueString.Trim(), StringComparison.OrdinalIgnoreCase)))
+                        {
+                            column.DefaultValue = true;
+                        }
+                        else if (falsy.Any(x => x.Equals(defaultValueString.Trim(), StringComparison.OrdinalIgnoreCase)))
+                        {
+                            column.DefaultValue = false;
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot interpret the given default value in column '{column.Name}'");
+                        }
                     }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
