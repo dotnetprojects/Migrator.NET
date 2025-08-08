@@ -43,5 +43,7 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultValueTests : Post
 
         // // Assert II
         // Assert.That(exception.SqlState, Is.EqualTo("428C9"));
+
+        throw new NotImplementedException();
     }
 }
