@@ -16,17 +16,19 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultValueTests : Post
     {
         // Arrange
         const string testTableName = "MyDefaultTestTable";
-        const string propertyName1 = "Color1";
-        const string propertyName2 = "Color2";
+        const string dateTimeColumnName = "datetimecolumn";
+        const string decimalColumnName = "decimalcolumn";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.DateTime2, new DateTime(1980, 1, 1)),
-            new Column(propertyName2, DbType.Decimal)
+            new Column(dateTimeColumnName, DbType.DateTime2),
+            new Column(decimalColumnName, DbType.Decimal)
         );
 
         // Act
-        var column = Provider.GetColumns(testTableName).Single(x => x.Name.Equals(propertyName1, StringComparison.OrdinalIgnoreCase));
-        Provider.Insert(testTableName, [propertyName2], [3.448484]);
+        var dateTimeColumn = Provider.GetColumns(testTableName).Single(x => x.Name.Equals(dateTimeColumnName, StringComparison.OrdinalIgnoreCase));
+
+        // Assert
+        Assert.That(dateTimeColumn.Type, Is.EqualTo(DbType.DateTime2));
 
         // Assert
         // using (var command = Provider.GetCommand())

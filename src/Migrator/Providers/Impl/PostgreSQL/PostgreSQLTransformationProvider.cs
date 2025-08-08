@@ -265,18 +265,22 @@ WHERE  lower(tablenm) = lower('{0}')
         {
             while (reader.Read())
             {
+                var defaultValueOrdinal = reader.GetOrdinal("COLUMN_DEFAULT");
+                var characterMaximumLengthOrdinal = reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH");
+                var dateTimePrecisionOrdinal = reader.GetOrdinal("DATETIME_PRECISION");
+
                 var columnName = reader.GetString(reader.GetOrdinal("COLUMN_NAME"));
                 var isNullable = reader.GetString(reader.GetOrdinal("IS_NULLABLE")) == "YES";
-                var defaultValueString = reader.GetString(reader.GetOrdinal("COLUMN_DEFAULT"));
+                var defaultValueString = reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal);
                 var dataTypeString = reader.GetString(reader.GetOrdinal("DATA_TYPE"));
-                var dateTimePrecision = reader.GetInt32(reader.GetOrdinal("DATETIME_PRECISION"));
-                var characterMaximumLength = reader.GetInt32(reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH"));
+                var dateTimePrecision = reader.IsDBNull(dateTimePrecisionOrdinal) ? null : (int?)reader.GetInt32(dateTimePrecisionOrdinal);
+                var characterMaximumLength = reader.IsDBNull(characterMaximumLengthOrdinal) ? null : (int?)reader.GetInt32(characterMaximumLengthOrdinal);
 
                 DbType dbType = 0;
                 int? precision = null;
                 int? size = null;
 
-                if (new[] { "timestamptz", "timestamp with timezone" }.Contains(dataTypeString))
+                if (new[] { "timestamptz", "timestamp with time zone" }.Contains(dataTypeString))
                 {
                     dbType = DbType.DateTimeOffset;
                     precision = dateTimePrecision;
