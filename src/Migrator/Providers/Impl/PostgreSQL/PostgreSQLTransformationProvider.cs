@@ -285,9 +285,10 @@ WHERE  lower(tablenm) = lower('{0}')
                     dbType = DbType.DateTimeOffset;
                     precision = dateTimePrecision;
                 }
-                else if (dataTypeString == "timestamp")
+                else if (dataTypeString == "timestamp" || dataTypeString == "timestamp without time zone")
                 {
-                    if (dateTimePrecision > 6)
+                    // 6 is the maximum in PostgreSQL
+                    if (dateTimePrecision > 5)
                     {
                         dbType = DbType.DateTime2;
                     }

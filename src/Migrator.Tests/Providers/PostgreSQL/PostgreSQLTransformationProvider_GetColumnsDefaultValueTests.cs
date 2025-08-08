@@ -16,19 +16,31 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultValueTests : Post
     {
         // Arrange
         const string testTableName = "MyDefaultTestTable";
-        const string dateTimeColumnName = "datetimecolumn";
-        const string decimalColumnName = "decimalcolumn";
+        const string dateTimeColumnName1 = "datetimecolumn1";
+        const string dateTimeColumnName2 = "datetimecolumn2";
+        const string decimalColumnName1 = "decimalcolumn";
 
         Provider.AddTable(testTableName,
-            new Column(dateTimeColumnName, DbType.DateTime2),
-            new Column(decimalColumnName, DbType.Decimal)
+            new Column(dateTimeColumnName1, DbType.DateTime),
+            new Column(dateTimeColumnName2, DbType.DateTime2),
+            new Column(decimalColumnName1, DbType.Decimal)
         );
 
         // Act
-        var dateTimeColumn = Provider.GetColumns(testTableName).Single(x => x.Name.Equals(dateTimeColumnName, StringComparison.OrdinalIgnoreCase));
+        var columns = Provider.GetColumns(testTableName);
+
+        var dateTimeColumn1 = columns.Single(x => x.Name == dateTimeColumnName1);
+        var dateTimeColumn2 = columns.Single(x => x.Name == dateTimeColumnName2);
+        var decimalColumn1 = columns.Single(x => x.Name == decimalColumnName1);
 
         // Assert
-        Assert.That(dateTimeColumn.Type, Is.EqualTo(DbType.DateTime2));
+        Assert.That(dateTimeColumn1.Type, Is.EqualTo(DbType.DateTime));
+        Assert.That(dateTimeColumn1.Precision, Is.EqualTo(3));
+
+        Assert.That(dateTimeColumn2.Type, Is.EqualTo(DbType.DateTime2));
+        Assert.That(dateTimeColumn2.Precision, Is.EqualTo(6));
+
+        Assert.That(decimalColumn1.Type, Is.EqualTo(DbType.Decimal));
 
         // Assert
         // using (var command = Provider.GetCommand())
