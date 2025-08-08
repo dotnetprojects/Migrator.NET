@@ -391,15 +391,15 @@ WHERE  lower(tablenm) = lower('{0}')
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(defaultValueString.ToString());
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = ulong.Parse(defaultValueString.ToString());
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
-                        column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = double.Parse(defaultValueString.ToString());
                     }
                     else if (column.Type == DbType.Boolean)
                     {
@@ -463,6 +463,28 @@ WHERE  lower(tablenm) = lower('{0}')
                     else if (column.Type == DbType.Decimal)
                     {
                         column.DefaultValue = decimal.Parse(defaultValueString, CultureInfo.InvariantCulture);
+                    }
+                    else if (column.Type == DbType.String)
+                    {
+                        if (defaultValueString.StartsWith("'"))
+                        {
+                            var match = stripSingleQuoteRegEx.Match(defaultValueString);
+
+                            if (!match.Success)
+                            {
+                                throw new Exception("Postgre default value for date time: We expected single quotes around the date time string.");
+                            }
+
+                            column.DefaultValue = match.Value;
+                        }
+                        else
+                        {
+                            throw new NotImplementedException();
+                        }
+                    }
+                    else
+                    {
+                        throw new NotImplementedException();
                     }
                 }
 

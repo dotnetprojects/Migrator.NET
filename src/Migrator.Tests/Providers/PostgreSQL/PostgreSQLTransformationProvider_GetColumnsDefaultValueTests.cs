@@ -29,7 +29,6 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         const string int32ColumnName1 = "int32column1";
         const string int64ColumnName1 = "int64column1";
         const string stringColumnName1 = "stringcolumn1";
-        const string stringColumnName2 = "stringcolumn2";
 
         // Should be extended by remaining types
         Provider.AddTable(testTableName,
@@ -41,10 +40,9 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
             // other boolean default values are tested in another test
             new Column(booleanColumnName1, DbType.Boolean, true),
 
-            new Column(int32ColumnName1, DbType.Int32, 43),
-            new Column(int64ColumnName1, DbType.Int64, 88),
-            new Column(stringColumnName1, DbType.String),
-            new Column(stringColumnName2, DbType.String) { Size = 30 }
+            new Column(int32ColumnName1, DbType.Int32, defaultValue: 43),
+            new Column(int64ColumnName1, DbType.Int64, defaultValue: 88),
+            new Column(stringColumnName1, DbType.String, defaultValue: "Hello")
         );
 
         // Act
@@ -59,7 +57,6 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         var int32Column1 = columns.Single(x => x.Name == int32ColumnName1);
         var int64Column1 = columns.Single(x => x.Name == int64ColumnName1);
         var stringColumn1 = columns.Single(x => x.Name == stringColumnName1);
-        var stringColumn2 = columns.Single(x => x.Name == stringColumnName2);
 
         Assert.That(dateTimeColumn1.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
         Assert.That(dateTimeColumn2.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
@@ -68,5 +65,6 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         Assert.That(booleanColumn1.DefaultValue, Is.True);
         Assert.That(int32Column1.DefaultValue, Is.EqualTo(43));
         Assert.That(int64Column1.DefaultValue, Is.EqualTo(88));
+        Assert.That(stringColumn1.DefaultValue, Is.EqualTo("Hello"));
     }
 }

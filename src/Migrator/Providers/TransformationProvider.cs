@@ -1784,6 +1784,14 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual void AddColumnDefaultValue(string table, string column, object defaultValue)
     {
+        if (defaultValue is DateTime defaultValueDateTime)
+        {
+            if (defaultValueDateTime.Kind != DateTimeKind.Utc)
+            {
+                throw new Exception("We only accept UTC values as default DateTime values.");
+            }
+        }
+
         table = QuoteTableNameIfRequired(table);
         column = this.QuoteColumnNameIfRequired(column);
         var def = Dialect.Default(defaultValue);
