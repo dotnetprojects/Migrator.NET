@@ -246,18 +246,17 @@ WHERE  lower(tablenm) = lower('{0}')
 
     public override Column[] GetColumns(string table)
     {
+        var query = $"SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'public' AND TABLE_NAME = lower('{table}');";
+
         var columns = new List<Column>();
+
         using (var cmd = CreateCommand())
-        using (
-            var reader =
-                ExecuteQuery(cmd,
-                    string.Format("select COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT from information_schema.columns where table_schema = 'public' AND table_name = lower('{0}');", table)))
+        using (var reader = ExecuteQuery(cmd, query))
         {
-            // FIXME: Mostly duplicated code from the Transformation provider just to support stupid case-insensitivty of Postgre
             while (reader.Read())
             {
                 var column = new Column(reader[0].ToString(), DbType.String);
-                var isNullable = reader.GetString(1) == "YES";
+                var isNullable = reader.GetString(reader.GetOrdinal("IS_NULLABLE")) == "YES";
                 var defaultValue = reader.GetValue(2);
 
                 column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
@@ -283,7 +282,7 @@ WHERE  lower(tablenm) = lower('{0}')
                     }
                     else if (column.Type == DbType.Boolean)
                     {
-                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().Equals("TRUE", StringComparison.OrdinalIgnoreCase) || column.DefaultValue.ToString().Trim() == "YES";
                     }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
@@ -304,6 +303,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         if (column.DefaultValue is string defVal)
                         {
                             var dt = defVal;
+
                             if (defVal.StartsWith("'"))
                             {
                                 dt = defVal.Substring(1, defVal.Length - 2);
