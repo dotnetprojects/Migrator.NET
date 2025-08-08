@@ -255,7 +255,9 @@ WHERE  lower(tablenm) = lower('{0}')
         stringBuilder.AppendLine("  COLUMN_DEFAULT,");
         stringBuilder.AppendLine("  DATA_TYPE,");
         stringBuilder.AppendLine("  DATETIME_PRECISION,");
-        stringBuilder.AppendLine("  CHARACTER_MAXIMUM_LENGTH");
+        stringBuilder.AppendLine("  CHARACTER_MAXIMUM_LENGTH,");
+        stringBuilder.AppendLine("  NUMERIC_PRECISION,");
+        stringBuilder.AppendLine("  NUMERIC_SCALE,");
         stringBuilder.AppendLine($"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'public' AND TABLE_NAME = lower('{table}');");
 
         var columns = new List<Column>();
@@ -268,6 +270,8 @@ WHERE  lower(tablenm) = lower('{0}')
                 var defaultValueOrdinal = reader.GetOrdinal("COLUMN_DEFAULT");
                 var characterMaximumLengthOrdinal = reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH");
                 var dateTimePrecisionOrdinal = reader.GetOrdinal("DATETIME_PRECISION");
+                var numericPrecisionOrdinal = reader.GetOrdinal("NUMERIC_PRECISION");
+                var numericScaleOrdinal = reader.GetOrdinal("NUMERIC_SCALE");
 
                 var columnName = reader.GetString(reader.GetOrdinal("COLUMN_NAME"));
                 var isNullable = reader.GetString(reader.GetOrdinal("IS_NULLABLE")) == "YES";
