@@ -12,7 +12,7 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 public class PostgreSQLTransformationProvider_GetColumnsDefaultValueTests : PostgreSQLTransformationProviderTestBase
 {
     [Test]
-    public void AddTableWithPrimaryKeyIdentity_Succeeds()
+    public void GetColumns_DataTypeResolveSucceeds()
     {
         // Arrange
         const string testTableName = "MyDefaultTestTable";

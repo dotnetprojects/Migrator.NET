@@ -16,6 +16,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
+using System.Text;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
@@ -246,25 +248,133 @@ WHERE  lower(tablenm) = lower('{0}')
 
     public override Column[] GetColumns(string table)
     {
-        var query = $"SELECT COLUMN_NAME, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'public' AND TABLE_NAME = lower('{table}');";
+        var stringBuilder = new StringBuilder();
+        stringBuilder.AppendLine("SELECT");
+        stringBuilder.AppendLine("  COLUMN_NAME,");
+        stringBuilder.AppendLine("  IS_NULLABLE,");
+        stringBuilder.AppendLine("  COLUMN_DEFAULT,");
+        stringBuilder.AppendLine("  DATA_TYPE,");
+        stringBuilder.AppendLine("  DATETIME_PRECISION,");
+        stringBuilder.AppendLine("  CHARACTER_MAXIMUM_LENGTH");
+        stringBuilder.AppendLine($"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'public' AND TABLE_NAME = lower('{table}');");
 
         var columns = new List<Column>();
 
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, query))
+        using (var reader = ExecuteQuery(cmd, stringBuilder.ToString()))
         {
             while (reader.Read())
             {
-                var column = new Column(reader[0].ToString(), DbType.String);
+                var columnName = reader.GetString(reader.GetOrdinal("COLUMN_NAME"));
                 var isNullable = reader.GetString(reader.GetOrdinal("IS_NULLABLE")) == "YES";
-                var defaultValue = reader.GetValue(2);
+                var defaultValueString = reader.GetString(reader.GetOrdinal("COLUMN_DEFAULT"));
+                var dataTypeString = reader.GetString(reader.GetOrdinal("DATA_TYPE"));
+                var dateTimePrecision = reader.GetInt32(reader.GetOrdinal("DATETIME_PRECISION"));
+                var characterMaximumLength = reader.GetInt32(reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH"));
+
+                DbType dbType = 0;
+                int? precision = null;
+                int? size = null;
+
+                if (new[] { "timestamptz", "timestamp with timezone" }.Contains(dataTypeString))
+                {
+                    dbType = DbType.DateTimeOffset;
+                    precision = dateTimePrecision;
+                }
+                else if (dataTypeString == "timestamp")
+                {
+                    if (dateTimePrecision > 6)
+                    {
+                        dbType = DbType.DateTime2;
+                    }
+                    else
+                    {
+                        dbType = DbType.DateTime;
+                    }
+
+                    precision = dateTimePrecision;
+                }
+                else if (dataTypeString == "smallint")
+                {
+                    dbType = DbType.Int16;
+                }
+                else if (dataTypeString == "integer")
+                {
+                    dbType = DbType.Int32;
+                }
+                else if (dataTypeString == "bigint")
+                {
+                    dbType = DbType.Int64;
+                }
+                else if (dataTypeString == "numeric")
+                {
+                    dbType = DbType.Decimal;
+                }
+                else if (dataTypeString == "real")
+                {
+                    dbType = DbType.Single;
+                }
+                else if (dataTypeString == "money")
+                {
+                    dbType = DbType.Currency;
+                }
+                else if (dataTypeString == "date")
+                {
+                    dbType = DbType.Date;
+                }
+                else if (dataTypeString == "byte")
+                {
+                    dbType = DbType.Binary;
+                }
+                else if (dataTypeString == "uuid")
+                {
+                    dbType = DbType.Guid;
+                }
+                else if (dataTypeString == "xml")
+                {
+                    dbType = DbType.Xml;
+                }
+                else if (dataTypeString == "time")
+                {
+                    dbType = DbType.Time;
+                }
+                else if (dataTypeString == "interval")
+                {
+                    throw new NotImplementedException();
+                }
+                else if (dataTypeString == "boolean")
+                {
+                    dbType = DbType.Boolean;
+                }
+                else if (dataTypeString == "text")
+                {
+                    dbType = DbType.String;
+                }
+                else if (dataTypeString.StartsWith("character varying("))
+                {
+                    dbType = DbType.StringFixedLength;
+                    size = characterMaximumLength;
+                }
+                else if (dataTypeString == "character" || dataTypeString.StartsWith("character("))
+                {
+                    throw new NotSupportedException("Data type 'character' detected. We do not support 'character'. Use 'text' or 'character varying(n)' instead");
+                }
+                else
+                {
+                    throw new NotImplementedException("The data type is not implemented. Please file an issue.");
+                }
+
+                var column = new Column(columnName, dbType)
+                {
+                    Precision = precision
+                };
 
                 column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
 
-                if (defaultValue != null && defaultValue != DBNull.Value)
-                {
-                    column.DefaultValue = defaultValue;
-                }
+                // if (defaultValueString != null && defaultValueString != DBNull.Value)
+                // {
+                //     column.DefaultValue = defaultValueString;
+                // }
 
                 if (column.DefaultValue != null)
                 {
