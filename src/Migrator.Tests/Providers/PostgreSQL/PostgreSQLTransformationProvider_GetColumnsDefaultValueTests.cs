@@ -18,11 +18,17 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultValueTests : Post
         const string dateTimeColumnName1 = "datetimecolumn1";
         const string dateTimeColumnName2 = "datetimecolumn2";
         const string decimalColumnName1 = "decimalcolumn";
+        const string guidColumnName1 = "guidcolumn1";
+        const string booleanColumnName1 = "booleancolumn1";
+        const string int32ColumnName1 = "int32column1";
 
         Provider.AddTable(testTableName,
             new Column(dateTimeColumnName1, DbType.DateTime),
             new Column(dateTimeColumnName2, DbType.DateTime2),
-            new Column(decimalColumnName1, DbType.Decimal)
+            new Column(decimalColumnName1, DbType.Decimal),
+            new Column(guidColumnName1, DbType.Guid),
+            new Column(booleanColumnName1, DbType.Boolean),
+            new Column(int32ColumnName1, DbType.Int32)
         );
 
         // Act
@@ -31,6 +37,9 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultValueTests : Post
         var dateTimeColumn1 = columns.Single(x => x.Name == dateTimeColumnName1);
         var dateTimeColumn2 = columns.Single(x => x.Name == dateTimeColumnName2);
         var decimalColumn1 = columns.Single(x => x.Name == decimalColumnName1);
+        var guidColumn1 = columns.Single(x => x.Name == guidColumnName1);
+        var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);
+        var int32Column1 = columns.Single(x => x.Name == int32ColumnName1);
 
         // Assert
         Assert.That(dateTimeColumn1.Type, Is.EqualTo(DbType.DateTime));
@@ -40,23 +49,13 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultValueTests : Post
         Assert.That(dateTimeColumn2.Precision, Is.EqualTo(6));
 
         Assert.That(decimalColumn1.Type, Is.EqualTo(DbType.Decimal));
+        Assert.That(decimalColumn1.Precision, Is.EqualTo(19));
+        Assert.That(decimalColumn1.Scale, Is.EqualTo(5));
 
-        // Assert
-        // using (var command = Provider.GetCommand())
-        // {
-        //     using var reader = Provider.ExecuteQuery(command, $"SELECT max({propertyName1}) as max from {testTableName}");
-        //     reader.Read();
+        Assert.That(guidColumn1.Type, Is.EqualTo(DbType.Guid));
 
-        //     var primaryKeyValue = reader.GetInt32(reader.GetOrdinal("max"));
-        //     Assert.That(primaryKeyValue, Is.EqualTo(2));
-        // }
+        Assert.That(booleanColumn1.Type, Is.EqualTo(DbType.Boolean));
 
-        // // Act II
-        // var exception = Assert.Throws<PostgresException>(() => Provider.Insert(testTableName, [propertyName1, propertyName2], [1, 888]));
-
-        // // Assert II
-        // Assert.That(exception.SqlState, Is.EqualTo("428C9"));
-
-        throw new NotImplementedException();
+        Assert.That(int32Column1.Type, Is.EqualTo(DbType.Int32));
     }
 }

@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
@@ -257,7 +258,7 @@ WHERE  lower(tablenm) = lower('{0}')
         stringBuilder.AppendLine("  DATETIME_PRECISION,");
         stringBuilder.AppendLine("  CHARACTER_MAXIMUM_LENGTH,");
         stringBuilder.AppendLine("  NUMERIC_PRECISION,");
-        stringBuilder.AppendLine("  NUMERIC_SCALE,");
+        stringBuilder.AppendLine("  NUMERIC_SCALE");
         stringBuilder.AppendLine($"FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'public' AND TABLE_NAME = lower('{table}');");
 
         var columns = new List<Column>();
@@ -279,9 +280,12 @@ WHERE  lower(tablenm) = lower('{0}')
                 var dataTypeString = reader.GetString(reader.GetOrdinal("DATA_TYPE"));
                 var dateTimePrecision = reader.IsDBNull(dateTimePrecisionOrdinal) ? null : (int?)reader.GetInt32(dateTimePrecisionOrdinal);
                 var characterMaximumLength = reader.IsDBNull(characterMaximumLengthOrdinal) ? null : (int?)reader.GetInt32(characterMaximumLengthOrdinal);
+                var numericPrecision = reader.IsDBNull(numericPrecisionOrdinal) ? null : (int?)reader.GetInt32(numericPrecisionOrdinal);
+                var numericScale = reader.IsDBNull(numericScaleOrdinal) ? null : (int?)reader.GetInt32(numericScaleOrdinal);
 
                 DbType dbType = 0;
                 int? precision = null;
+                int? scale = null;
                 int? size = null;
 
                 if (new[] { "timestamptz", "timestamp with time zone" }.Contains(dataTypeString))
@@ -318,6 +322,8 @@ WHERE  lower(tablenm) = lower('{0}')
                 else if (dataTypeString == "numeric")
                 {
                     dbType = DbType.Decimal;
+                    precision = numericPrecision;
+                    scale = numericScale;
                 }
                 else if (dataTypeString == "real")
                 {
@@ -375,7 +381,8 @@ WHERE  lower(tablenm) = lower('{0}')
 
                 var column = new Column(columnName, dbType)
                 {
-                    Precision = precision
+                    Precision = precision,
+                    Scale = scale
                 };
 
                 column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;

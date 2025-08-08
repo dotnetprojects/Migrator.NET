@@ -147,8 +147,14 @@ public class Column : IColumn, IDbField
 
     public int Size { get; set; }
 
+    /// <summary>
+    /// Gets or sets the precision for NUMERIC/DECIMAL
+    /// </summary>
     public int? Precision { get; set; }
 
+    /// <summary>
+    /// Gets or sets the scale for NUMERIC/DECIMAL
+    /// </summary>
     public int? Scale { get; set; }
 
     public ColumnProperty ColumnProperty { get; set; }
