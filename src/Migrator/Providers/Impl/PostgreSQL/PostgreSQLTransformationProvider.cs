@@ -486,6 +486,37 @@ WHERE  lower(tablenm) = lower('{0}')
                             throw new NotImplementedException();
                         }
                     }
+                    else if (column.Type == DbType.Binary)
+                    {
+                        if (defaultValueString.StartsWith("'"))
+                        {
+                            var match = stripSingleQuoteRegEx.Match(defaultValueString);
+
+                            if (!match.Success)
+                            {
+                                throw new Exception("Postgre default value for bytea: Single quotes around the bytea string are expected.");
+                            }
+
+                            var singleQuoteString = match.Value;
+
+                            if (!singleQuoteString.StartsWith("\\x"))
+                            {
+                                throw new Exception(@"Postgre \x notation expected.");
+                            }
+
+                            var hexString = singleQuoteString.Substring(2);
+
+                            // Not available in old .NET version: Convert.FromHexString(hexString);
+
+                            column.DefaultValue = Enumerable.Range(0, hexString.Length / 2)
+                                .Select(x => Convert.ToByte(hexString.Substring(x * 2, 2), 16))
+                                .ToArray();
+                        }
+                        else
+                        {
+                            throw new NotImplementedException();
+                        }
+                    }
                     else
                     {
                         throw new NotImplementedException();
