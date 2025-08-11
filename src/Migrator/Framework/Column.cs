@@ -11,6 +11,7 @@
 
 #endregion
 
+using System;
 using System.Data;
 
 namespace DotNetProjects.Migrator.Framework;
@@ -20,6 +21,8 @@ namespace DotNetProjects.Migrator.Framework;
 /// </summary>
 public class Column : IColumn, IDbField
 {
+    private object _defaultValue;
+
     public Column(string name)
     {
         Name = name;
@@ -147,13 +150,34 @@ public class Column : IColumn, IDbField
 
     public int Size { get; set; }
 
+    /// <summary>
+    /// Gets or sets the precision for NUMERIC/DECIMAL
+    /// </summary>
     public int? Precision { get; set; }
 
+    /// <summary>
+    /// Gets or sets the scale for NUMERIC/DECIMAL
+    /// </summary>
     public int? Scale { get; set; }
 
     public ColumnProperty ColumnProperty { get; set; }
 
-    public object DefaultValue { get; set; }
+    public object DefaultValue
+    {
+        get => _defaultValue;
+        set
+        {
+            if (value is DateTime defaultValueDateTime)
+            {
+                if (defaultValueDateTime.Kind != DateTimeKind.Utc)
+                {
+                    throw new Exception("We only accept UTC values as default DateTime values.");
+                }
+            }
+
+            _defaultValue = value;
+        }
+    }
 
     public bool IsIdentity
     {

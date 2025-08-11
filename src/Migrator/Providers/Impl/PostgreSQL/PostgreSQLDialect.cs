@@ -18,8 +18,13 @@ public class PostgreSQLDialect : Dialect
         RegisterColumnType(DbType.Byte, "int2");
         RegisterColumnType(DbType.Currency, "decimal(16,4)");
         RegisterColumnType(DbType.Date, "date");
-        RegisterColumnType(DbType.DateTime, "timestamptz");
-        RegisterColumnType(DbType.DateTime2, "timestamptz");
+
+        // 8 bytes - resolution 1 microsecond
+        RegisterColumnType(DbType.DateTime, "timestamp(3)");
+
+        // 8 bytes - resolution 1 microsecond 
+        // We do not use timezone any more - this is near a datetime2 in SQL Server 
+        RegisterColumnType(DbType.DateTime2, "timestamp(6)");
         RegisterColumnType(DbType.DateTimeOffset, "timestamptz");
         RegisterColumnType(DbType.Decimal, "decimal(19,5)");
         RegisterColumnType(DbType.Decimal, 19, "decimal(18, $l)");

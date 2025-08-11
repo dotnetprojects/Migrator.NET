@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers;
@@ -344,7 +345,9 @@ public abstract class Dialect : IDialect
         }
         else if (defaultValue is Guid)
         {
-            return string.Format("DEFAULT '{0}'", defaultValue.ToString());
+            var guidValue = string.Format("DEFAULT '{0}'", defaultValue.ToString());
+
+            return guidValue;
         }
         else if (defaultValue is DateTime)
         {
@@ -354,6 +357,16 @@ public abstract class Dialect : IDialect
         {
             defaultValue = ((string)defaultValue).Replace("'", "''");
             defaultValue = "'" + defaultValue + "'";
+        }
+        else if (defaultValue is decimal)
+        {
+            // .ToString("N") does not exist in old .NET version
+            defaultValue = Convert.ToString(defaultValue, CultureInfo.InvariantCulture);
+        }
+        else if (defaultValue is byte[] byteArray)
+        {
+            var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
+            defaultValue = $"'\\x{convertedString}'";
         }
 
         return string.Format("DEFAULT {0}", defaultValue);
