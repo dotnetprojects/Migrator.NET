@@ -1721,6 +1721,7 @@ public abstract class TransformationProvider : ITransformationProvider
         {
             return Dialect.Quote(name);
         }
+
         return name;
     }
 
@@ -1730,6 +1731,7 @@ public abstract class TransformationProvider : ITransformationProvider
         {
             return Dialect.Quote(name);
         }
+
         return name;
     }
 
@@ -1793,7 +1795,7 @@ public abstract class TransformationProvider : ITransformationProvider
         }
 
         table = QuoteTableNameIfRequired(table);
-        column = this.QuoteColumnNameIfRequired(column);
+        column = QuoteColumnNameIfRequired(column);
         var def = Dialect.Default(defaultValue);
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD DEFAULT('{1}') FOR {2}", table, def, column));
     }
