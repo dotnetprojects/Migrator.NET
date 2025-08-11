@@ -427,12 +427,12 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for date time: We expected single quotes around the date time string.");
+                                throw new Exception("Postgre default value for date time: We expect single quotes around the date time string.");
                             }
 
                             var timeString = match.Value;
 
-                            // We convert to UTC since we restrict to UTC on default value definition.
+                            // We convert to UTC since we restrict date time default values to UTC on default value definition.
                             var dateTimeExtracted = DateTime.ParseExact(timeString, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
 
                             column.DefaultValue = dateTimeExtracted;
