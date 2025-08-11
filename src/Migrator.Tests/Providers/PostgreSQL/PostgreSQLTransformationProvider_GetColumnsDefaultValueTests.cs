@@ -13,7 +13,7 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
     private const decimal DecimalDefaultValue = 14.56565m;
 
     [Test]
-    public void GetColumns_DataTypeResolveSucceeds()
+    public void GetColumns_DefaultValues_Succeeds()
     {
         // Arrange
         var dateTimeDefaultValue = new DateTime(2000, 1, 2, 3, 4, 5, DateTimeKind.Utc);
@@ -66,5 +66,28 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         Assert.That(int32Column1.DefaultValue, Is.EqualTo(43));
         Assert.That(int64Column1.DefaultValue, Is.EqualTo(88));
         Assert.That(stringColumn1.DefaultValue, Is.EqualTo("Hello"));
+    }
+
+    [TestCase()]
+    public void GetColumns_DefaultValueBooleanValues_Succeeds(string inboundBooleanDefaultValue, bool outboundBooleanDefaultValue)
+    {
+        // Arrange
+        var dateTimeDefaultValue = new DateTime(2000, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var guidDefaultValue = Guid.NewGuid();
+
+        const string testTableName = "MyDefaultTestTable";
+        const string booleanColumnName1 = "booleancolumn1";
+
+        Provider.AddTable(testTableName,
+            new Column(booleanColumnName1, DbType.Boolean, true)
+        );
+
+        // Act
+        var columns = Provider.GetColumns(testTableName);
+
+        // Assert
+        var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);
+
+        Assert.That(booleanColumn1.DefaultValue, Is.True);
     }
 }
