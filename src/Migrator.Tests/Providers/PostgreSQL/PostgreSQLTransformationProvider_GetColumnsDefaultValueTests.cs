@@ -13,7 +13,7 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
     private const decimal DecimalDefaultValue = 14.56565m;
 
     [Test]
-    public void GetColumns_DataTypeResolveSucceeds()
+    public void GetColumns_DefaultValues_Succeeds()
     {
         // Arrange
         var dateTimeDefaultValue = new DateTime(2000, 1, 2, 3, 4, 5, DateTimeKind.Utc);
@@ -70,5 +70,49 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         Assert.That(int64Column1.DefaultValue, Is.EqualTo(88));
         Assert.That(stringColumn1.DefaultValue, Is.EqualTo("Hello"));
         Assert.That(binarycolumn1.DefaultValue, Is.EqualTo(new byte[] { 12, 32, 34 }));
+    }
+
+    // 1 will coerce to true on inserts but not for default values in Postgre SQL - same for 0 to false
+    // so we do not test it here
+    [TestCase("true", true)]
+    [TestCase("TRUE", true)]
+    [TestCase("t", true)]
+    [TestCase("T", true)]
+    [TestCase("yes", true)]
+    [TestCase("YES", true)]
+    [TestCase("y", true)]
+    [TestCase("Y", true)]
+    [TestCase("on", true)]
+    [TestCase("ON", true)]
+    [TestCase("false", false)]
+    [TestCase("FALSE", false)]
+    [TestCase("f", false)]
+    [TestCase("F", false)]
+    [TestCase("false", false)]
+    [TestCase("FALSE", false)]
+    [TestCase("n", false)]
+    [TestCase("N", false)]
+    [TestCase("off", false)]
+    [TestCase("OFF", false)]
+    public void GetColumns_DefaultValueBooleanValues_Succeeds(object inboundBooleanDefaultValue, bool outboundBooleanDefaultValue)
+    {
+        // Arrange
+        var dateTimeDefaultValue = new DateTime(2000, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var guidDefaultValue = Guid.NewGuid();
+
+        const string testTableName = "MyDefaultTestTable";
+        const string booleanColumnName1 = "booleancolumn1";
+
+        Provider.AddTable(testTableName,
+            new Column(booleanColumnName1, DbType.Boolean) { DefaultValue = inboundBooleanDefaultValue }
+        );
+
+        // Act
+        var columns = Provider.GetColumns(testTableName);
+
+        // Assert
+        var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);
+
+        Assert.That(booleanColumn1.DefaultValue, Is.EqualTo(outboundBooleanDefaultValue));
     }
 }
