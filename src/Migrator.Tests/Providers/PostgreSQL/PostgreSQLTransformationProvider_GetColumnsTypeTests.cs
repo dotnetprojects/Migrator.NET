@@ -23,6 +23,7 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
         const string int64ColumnName1 = "int64column1";
         const string stringColumnName1 = "stringcolumn1";
         const string stringColumnName2 = "stringcolumn2";
+        const string byteColumnName = "bytecolumn";
 
         // Should be extended by remaining types
         Provider.AddTable(testTableName,
