@@ -368,9 +368,13 @@ WHERE  lower(tablenm) = lower('{0}')
                     dbType = DbType.String;
                     size = characterMaximumLength;
                 }
+                else if (dataTypeString == "bytea")
+                {
+                    dbType = DbType.Binary;
+                }
                 else if (dataTypeString == "character" || dataTypeString.StartsWith("character("))
                 {
-                    throw new NotSupportedException("Data type 'character' detected. We do not support 'character'. Use 'text' or 'character varying' instead");
+                    throw new NotSupportedException("Data type 'character' detected. 'character' is not supported. Use 'text' or 'character varying' instead.");
                 }
                 else
                 {
@@ -427,7 +431,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for date time: We expect single quotes around the date time string.");
+                                throw new Exception("Postgre default value for date time: Single quotes around the date time string are expected.");
                             }
 
                             var timeString = match.Value;
@@ -450,7 +454,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for uniqueidentifier: We expected single quotes around the Guid string.");
+                                throw new Exception("Postgre default value for uniqueidentifier: Single quotes around the Guid string are expected.");
                             }
 
                             column.DefaultValue = Guid.Parse(match.Value);
@@ -472,10 +476,41 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for date time: We expected single quotes around the date time string.");
+                                throw new Exception("Postgre default value for date time: Single quotes around the date time string are expected.");
                             }
 
                             column.DefaultValue = match.Value;
+                        }
+                        else
+                        {
+                            throw new NotImplementedException();
+                        }
+                    }
+                    else if (column.Type == DbType.Binary)
+                    {
+                        if (defaultValueString.StartsWith("'"))
+                        {
+                            var match = stripSingleQuoteRegEx.Match(defaultValueString);
+
+                            if (!match.Success)
+                            {
+                                throw new Exception("Postgre default value for bytea: Single quotes around the bytea string are expected.");
+                            }
+
+                            var singleQuoteString = match.Value;
+
+                            if (!singleQuoteString.StartsWith("\\x"))
+                            {
+                                throw new Exception(@"Postgre \x notation expected.");
+                            }
+
+                            var hexString = singleQuoteString.Substring(2);
+
+                            // Not available in old .NET version: Convert.FromHexString(hexString);
+
+                            column.DefaultValue = Enumerable.Range(0, hexString.Length / 2)
+                                .Select(x => Convert.ToByte(hexString.Substring(x * 2, 2), 16))
+                                .ToArray();
                         }
                         else
                         {

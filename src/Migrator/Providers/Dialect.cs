@@ -363,6 +363,11 @@ public abstract class Dialect : IDialect
             // .ToString("N") does not exist in old .NET version
             defaultValue = Convert.ToString(defaultValue, CultureInfo.InvariantCulture);
         }
+        else if (defaultValue is byte[] byteArray)
+        {
+            var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
+            defaultValue = $"'\\x{convertedString}'";
+        }
 
         return string.Format("DEFAULT {0}", defaultValue);
     }

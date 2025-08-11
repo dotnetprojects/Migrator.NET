@@ -23,6 +23,7 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
         const string int64ColumnName1 = "int64column1";
         const string stringColumnName1 = "stringcolumn1";
         const string stringColumnName2 = "stringcolumn2";
+        const string binaryColumnName1 = "binarycolumn";
 
         // Should be extended by remaining types
         Provider.AddTable(testTableName,
@@ -34,7 +35,8 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
             new Column(int32ColumnName1, DbType.Int32),
             new Column(int64ColumnName1, DbType.Int64),
             new Column(stringColumnName1, DbType.String),
-            new Column(stringColumnName2, DbType.String) { Size = 30 }
+            new Column(stringColumnName2, DbType.String) { Size = 30 },
+            new Column(binaryColumnName1, DbType.Binary)
         );
 
         // Act
@@ -49,6 +51,7 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
         var int64column1 = columns.Single(x => x.Name == int64ColumnName1);
         var stringColumn1 = columns.Single(x => x.Name == stringColumnName1);
         var stringColumn2 = columns.Single(x => x.Name == stringColumnName2);
+        var binaryColumn1 = columns.Single(x => x.Name == binaryColumnName1);
 
 
         // Assert
@@ -66,5 +69,6 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
         Assert.That(stringColumn1.Type, Is.EqualTo(DbType.String));
         Assert.That(stringColumn2.Type, Is.EqualTo(DbType.String));
         Assert.That(stringColumn2.Size, Is.EqualTo(30));
+        Assert.That(binaryColumn1.Type, Is.EqualTo(DbType.Binary));
     }
 }

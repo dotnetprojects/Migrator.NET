@@ -1788,7 +1788,7 @@ public abstract class TransformationProvider : ITransformationProvider
         {
             if (defaultValueDateTime.Kind != DateTimeKind.Utc)
             {
-                throw new Exception("We only accept UTC values as default DateTime values.");
+                throw new Exception("Only UTC values are accepted as default DateTime values.");
             }
         }
 
