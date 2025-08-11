@@ -28,8 +28,10 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         const string booleanColumnName1 = "booleancolumn1";
         const string int32ColumnName1 = "int32column1";
         const string int64ColumnName1 = "int64column1";
+        const string int64ColumnName2 = "int64column2";
         const string stringColumnName1 = "stringcolumn1";
         const string binaryColumnName1 = "binarycolumn1";
+        const string doubleColumnName1 = "doublecolumn1";
 
         // Should be extended by remaining types
         Provider.AddTable(testTableName,
@@ -43,8 +45,10 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
 
             new Column(int32ColumnName1, DbType.Int32, defaultValue: 43),
             new Column(int64ColumnName1, DbType.Int64, defaultValue: 88),
+            new Column(int64ColumnName2, DbType.Int64, defaultValue: 0),
             new Column(stringColumnName1, DbType.String, defaultValue: "Hello"),
-            new Column(binaryColumnName1, DbType.Binary, defaultValue: new byte[] { 12, 32, 34 })
+            new Column(binaryColumnName1, DbType.Binary, defaultValue: new byte[] { 12, 32, 34 }),
+            new Column(doubleColumnName1, DbType.Double, defaultValue: 84.874596565)
         );
 
         // Act
@@ -58,8 +62,10 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);
         var int32Column1 = columns.Single(x => x.Name == int32ColumnName1);
         var int64Column1 = columns.Single(x => x.Name == int64ColumnName1);
+        var int64Column2 = columns.Single(x => x.Name == int64ColumnName2);
         var stringColumn1 = columns.Single(x => x.Name == stringColumnName1);
         var binarycolumn1 = columns.Single(x => x.Name == binaryColumnName1);
+        var doubleColumn1 = columns.Single(x => x.Name == doubleColumnName1);
 
         Assert.That(dateTimeColumn1.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
         Assert.That(dateTimeColumn2.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
@@ -70,6 +76,7 @@ public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : Postg
         Assert.That(int64Column1.DefaultValue, Is.EqualTo(88));
         Assert.That(stringColumn1.DefaultValue, Is.EqualTo("Hello"));
         Assert.That(binarycolumn1.DefaultValue, Is.EqualTo(new byte[] { 12, 32, 34 }));
+        Assert.That(doubleColumn1.DefaultValue, Is.EqualTo(84.874596565));
     }
 
     // 1 will coerce to true on inserts but not for default values in Postgre SQL - same for 0 to false

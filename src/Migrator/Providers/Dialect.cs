@@ -368,6 +368,10 @@ public abstract class Dialect : IDialect
             var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
             defaultValue = $"'\\x{convertedString}'";
         }
+        else if (defaultValue is double doubleValue)
+        {
+            defaultValue = Convert.ToString(doubleValue, CultureInfo.InvariantCulture);
+        }
 
         return string.Format("DEFAULT {0}", defaultValue);
     }

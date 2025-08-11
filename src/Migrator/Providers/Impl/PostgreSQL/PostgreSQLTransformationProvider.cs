@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Index = DotNetProjects.Migrator.Framework.Index;
@@ -295,6 +296,12 @@ WHERE  lower(tablenm) = lower('{0}')
                     dbType = DbType.DateTimeOffset;
                     precision = dateTimePrecision;
                 }
+                else if (dataTypeString == "double precision")
+                {
+                    dbType = DbType.Double;
+                    scale = numericScale;
+                    precision = numericPrecision;
+                }
                 else if (dataTypeString == "timestamp" || dataTypeString == "timestamp without time zone")
                 {
                     // 6 is the maximum in PostgreSQL
@@ -403,12 +410,12 @@ WHERE  lower(tablenm) = lower('{0}')
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
-                        column.DefaultValue = double.Parse(defaultValueString.ToString());
+                        column.DefaultValue = double.Parse(defaultValueString.ToString(), CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {
-                        var truthy = new[] { "1", "TRUE", "YES", "'true'", "on", "'on'", "t", "'t'" };
-                        var falsy = new[] { "0", "FALSE", "NO", "'false'", "off", "'off'", "f", "'f'" };
+                        var truthy = new[] { "TRUE", "YES", "'true'", "on", "'on'", "t", "'t'" };
+                        var falsy = new[] { "FALSE", "NO", "'false'", "off", "'off'", "f", "'f'" };
 
                         if (truthy.Any(x => x.Equals(defaultValueString.Trim(), StringComparison.OrdinalIgnoreCase)))
                         {
