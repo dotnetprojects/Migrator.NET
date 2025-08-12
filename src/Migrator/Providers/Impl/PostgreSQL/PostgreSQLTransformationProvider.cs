@@ -365,10 +365,6 @@ WHERE  lower(tablenm) = lower('{0}')
                 {
                     dbType = MigratorDbType.Time;
                 }
-                else if (dataTypeString == "interval")
-                {
-                    throw new NotImplementedException();
-                }
                 else if (dataTypeString == "boolean")
                 {
                     dbType = MigratorDbType.Boolean;
@@ -415,6 +411,39 @@ WHERE  lower(tablenm) = lower('{0}')
                     {
                         column.DefaultValue = double.Parse(defaultValueString.ToString(), CultureInfo.InvariantCulture);
                     }
+                    else if (column.MigratorDbType == MigratorDbType.Interval)
+                    {
+                        if (defaultValueString.StartsWith("'"))
+                        {
+                            var match = stripSingleQuoteRegEx.Match(defaultValueString);
+
+                            if (!match.Success)
+                            {
+                                throw new Exception("Postgre default value for interval: Single quotes around the interval string are expected.");
+                            }
+
+                            column.DefaultValue = match.Value;
+                            var splitted = match.Value.Split(':');
+                            if (splitted.Length != 3)
+                            {
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}' unexpected pattern.");
+                            }
+
+                            var hours = int.Parse(splitted[0], CultureInfo.InvariantCulture);
+                            var minutes = int.Parse(splitted[1], CultureInfo.InvariantCulture);
+                            var splitted2 = splitted[2].Split('.');
+                            var seconds = int.Parse(splitted2[0], CultureInfo.InvariantCulture);
+                            var milliseconds = int.Parse(splitted2[1], CultureInfo.InvariantCulture);
+
+                            column.DefaultValue = new TimeSpan(0, hours, minutes, seconds, milliseconds);
+                        }
+                        else
+                        {
+                            // We assume that the value was added using this migrator so we do not interpret things like '2 days 01:02:03' if you
+                            // added such format you will run into this exception.
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}' unexpected pattern.");
+                        }
+                    }
                     else if (column.MigratorDbType == MigratorDbType.Boolean)
                     {
                         var truthy = new[] { "TRUE", "YES", "'true'", "on", "'on'", "t", "'t'" };
@@ -430,7 +459,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException($"Cannot interpret the given default value in column '{column.Name}'");
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else if (column.MigratorDbType == MigratorDbType.DateTime || column.MigratorDbType == MigratorDbType.DateTime2)
@@ -441,7 +470,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for date time: Single quotes around the date time string are expected.");
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                             }
 
                             var timeString = match.Value;
@@ -453,7 +482,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else if (column.MigratorDbType == MigratorDbType.Guid)
@@ -464,14 +493,14 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for uniqueidentifier: Single quotes around the Guid string are expected.");
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                             }
 
                             column.DefaultValue = Guid.Parse(match.Value);
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else if (column.MigratorDbType == MigratorDbType.Decimal)
@@ -504,7 +533,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for bytea: Single quotes around the bytea string are expected.");
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                             }
 
                             var singleQuoteString = match.Value;
@@ -524,7 +553,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else
