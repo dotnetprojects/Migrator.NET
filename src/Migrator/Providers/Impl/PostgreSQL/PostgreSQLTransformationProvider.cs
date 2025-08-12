@@ -251,6 +251,23 @@ WHERE  lower(tablenm) = lower('{0}')
 
     public override int GetColumnContentSize(string table, string columnName)
     {
+        if (!TableExists(table))
+        {
+            throw new Exception($"Table '{table}' not found.");
+        }
+
+        if (!ColumnExists(table, columnName, true))
+        {
+            throw new Exception($"Column '{columnName}' does not exist");
+        }
+
+        var column = GetColumnByName(table, columnName);
+
+        if (column.MigratorDbType != MigratorDbType.String)
+        {
+            throw new Exception($"Column '{columnName}' in table {table} is not of type string");
+        }
+
         var result = ExecuteScalar($"SELECT MAX(LENGTH({QuoteColumnNameIfRequired(columnName)})) FROM {QuoteTableNameIfRequired(table)}");
 
         if (result == DBNull.Value)

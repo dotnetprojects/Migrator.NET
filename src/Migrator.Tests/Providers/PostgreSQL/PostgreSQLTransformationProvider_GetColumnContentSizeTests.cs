@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 using NUnit.Framework;
@@ -9,11 +10,10 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 public class PostgreSQLTransformationProvider_GetColumnContentSizeTests : PostgreSQLTransformationProviderTestBase
 {
     [Test]
-    public void GetColumnContentSize_DefaultValues_Succeeds()
+    public void GetColumnContentSize_UseStringColumn_MaxContentLengthIsCorrect()
     {
         // Arrange
         const string testTableName = "testtable";
-
         const string stringColumnName = "stringcolumn";
 
         Provider.AddTable(testTableName,
@@ -29,5 +29,23 @@ public class PostgreSQLTransformationProvider_GetColumnContentSizeTests : Postgr
 
         // Assert
         Assert.That(columnContentSize, Is.EqualTo(4444));
+    }
+
+    [Test]
+    public void GetColumnContentSize_UseOnNonStringColumn_ThrowsSpeakingException()
+    {
+        // Arrange
+        const string testTableName = "testtable";
+        const string stringColumnName = "nonstringcolumn";
+
+        Provider.AddTable(testTableName,
+            new Column(stringColumnName, DbType.Int32)
+        );
+
+        // Act
+        var exception = Assert.Throws<Exception>(() => Provider.GetColumnContentSize(testTableName, stringColumnName));
+
+        // Assert
+        Assert.That(exception.Message, Does.Contain("is not of type string"));
     }
 }
