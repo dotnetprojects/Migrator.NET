@@ -1,4 +1,5 @@
 using DotNetProjects.Migrator.Framework;
+using System;
 using System.Data;
 
 namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
@@ -110,6 +111,18 @@ public class PostgreSQLDialect : Dialect
     public override ITransformationProvider GetTransformationProvider(Dialect dialect, IDbConnection connection, string defaultSchema, string scope, string providerName)
     {
         return new PostgreSQLTransformationProvider(dialect, connection, defaultSchema, scope, providerName);
+    }
+
+    public override string Default(object defaultValue)
+    {
+        if (defaultValue is TimeSpan timeSpan)
+        {
+            var intervalPostgreNotation = $"{(int)timeSpan.TotalHours:D2}:{timeSpan.Minutes:D2}:{timeSpan.Seconds:D2}.{timeSpan.Milliseconds:D3}";
+
+            return $"DEFAULT '{intervalPostgreNotation}'";
+        }
+
+        return base.Default(defaultValue);
     }
 
     //public override string SqlForProperty(ColumnProperty property, Column column)

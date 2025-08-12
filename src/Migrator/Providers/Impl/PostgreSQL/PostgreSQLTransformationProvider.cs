@@ -17,7 +17,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Index = DotNetProjects.Migrator.Framework.Index;
@@ -181,11 +180,11 @@ WHERE  lower(tablenm) = lower('{0}')
 
         var change1 = string.Format("{0} TYPE {1}", QuoteColumnNameIfRequired(mapper.Name), mapper.type);
 
-        if ((oldColumn.Type == DbType.Int16 || oldColumn.Type == DbType.Int32 || oldColumn.Type == DbType.Int64 || oldColumn.Type == DbType.Decimal) && column.Type == DbType.Boolean)
+        if ((oldColumn.MigratorDbType == MigratorDbType.Int16 || oldColumn.MigratorDbType == MigratorDbType.Int32 || oldColumn.MigratorDbType == MigratorDbType.Int64 || oldColumn.MigratorDbType == MigratorDbType.Decimal) && column.MigratorDbType == MigratorDbType.Boolean)
         {
             change1 += string.Format(" USING CASE {0} WHEN 1 THEN true ELSE false END", QuoteColumnNameIfRequired(mapper.Name));
         }
-        else if (column.Type == DbType.Boolean)
+        else if (column.MigratorDbType == MigratorDbType.Boolean)
         {
             change1 += string.Format(" USING CASE {0} WHEN '1' THEN true ELSE false END", QuoteColumnNameIfRequired(mapper.Name));
         }
@@ -286,19 +285,19 @@ WHERE  lower(tablenm) = lower('{0}')
                 var numericPrecision = reader.IsDBNull(numericPrecisionOrdinal) ? null : (int?)reader.GetInt32(numericPrecisionOrdinal);
                 var numericScale = reader.IsDBNull(numericScaleOrdinal) ? null : (int?)reader.GetInt32(numericScaleOrdinal);
 
-                DbType dbType = 0;
+                MigratorDbType dbType = 0;
                 int? precision = null;
                 int? scale = null;
                 int? size = null;
 
                 if (new[] { "timestamptz", "timestamp with time zone" }.Contains(dataTypeString))
                 {
-                    dbType = DbType.DateTimeOffset;
+                    dbType = MigratorDbType.DateTimeOffset;
                     precision = dateTimePrecision;
                 }
                 else if (dataTypeString == "double precision")
                 {
-                    dbType = DbType.Double;
+                    dbType = MigratorDbType.Double;
                     scale = numericScale;
                     precision = numericPrecision;
                 }
@@ -307,77 +306,77 @@ WHERE  lower(tablenm) = lower('{0}')
                     // 6 is the maximum in PostgreSQL
                     if (dateTimePrecision > 5)
                     {
-                        dbType = DbType.DateTime2;
+                        dbType = MigratorDbType.DateTime2;
                     }
                     else
                     {
-                        dbType = DbType.DateTime;
+                        dbType = MigratorDbType.DateTime;
                     }
 
                     precision = dateTimePrecision;
                 }
                 else if (dataTypeString == "smallint")
                 {
-                    dbType = DbType.Int16;
+                    dbType = MigratorDbType.Int16;
                 }
                 else if (dataTypeString == "integer")
                 {
-                    dbType = DbType.Int32;
+                    dbType = MigratorDbType.Int32;
                 }
                 else if (dataTypeString == "bigint")
                 {
-                    dbType = DbType.Int64;
+                    dbType = MigratorDbType.Int64;
                 }
                 else if (dataTypeString == "numeric")
                 {
-                    dbType = DbType.Decimal;
+                    dbType = MigratorDbType.Decimal;
                     precision = numericPrecision;
                     scale = numericScale;
                 }
                 else if (dataTypeString == "real")
                 {
-                    dbType = DbType.Single;
-                }
-                else if (dataTypeString == "money")
-                {
-                    dbType = DbType.Currency;
-                }
-                else if (dataTypeString == "date")
-                {
-                    dbType = DbType.Date;
-                }
-                else if (dataTypeString == "byte")
-                {
-                    dbType = DbType.Binary;
-                }
-                else if (dataTypeString == "uuid")
-                {
-                    dbType = DbType.Guid;
-                }
-                else if (dataTypeString == "xml")
-                {
-                    dbType = DbType.Xml;
-                }
-                else if (dataTypeString == "time")
-                {
-                    dbType = DbType.Time;
+                    dbType = MigratorDbType.Single;
                 }
                 else if (dataTypeString == "interval")
                 {
-                    throw new NotImplementedException();
+                    dbType = MigratorDbType.Interval;
+                }
+                else if (dataTypeString == "money")
+                {
+                    dbType = MigratorDbType.Currency;
+                }
+                else if (dataTypeString == "date")
+                {
+                    dbType = MigratorDbType.Date;
+                }
+                else if (dataTypeString == "byte")
+                {
+                    dbType = MigratorDbType.Binary;
+                }
+                else if (dataTypeString == "uuid")
+                {
+                    dbType = MigratorDbType.Guid;
+                }
+                else if (dataTypeString == "xml")
+                {
+                    dbType = MigratorDbType.Xml;
+                }
+                else if (dataTypeString == "time")
+                {
+                    dbType = MigratorDbType.Time;
                 }
                 else if (dataTypeString == "boolean")
                 {
-                    dbType = DbType.Boolean;
+                    dbType = MigratorDbType.Boolean;
                 }
                 else if (dataTypeString == "text" || dataTypeString == "character varying")
                 {
-                    dbType = DbType.String;
+                    dbType = MigratorDbType.String;
                     size = characterMaximumLength;
                 }
                 else if (dataTypeString == "bytea")
                 {
-                    dbType = DbType.Binary;
+                    dbType = MigratorDbType.Binary;
                 }
                 else if (dataTypeString == "character" || dataTypeString.StartsWith("character("))
                 {
@@ -400,19 +399,52 @@ WHERE  lower(tablenm) = lower('{0}')
 
                 if (defaultValueString != null)
                 {
-                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    if (column.MigratorDbType == MigratorDbType.Int16 || column.MigratorDbType == MigratorDbType.Int32 || column.MigratorDbType == MigratorDbType.Int64)
                     {
                         column.DefaultValue = long.Parse(defaultValueString.ToString());
                     }
-                    else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                    else if (column.MigratorDbType == MigratorDbType.UInt16 || column.MigratorDbType == MigratorDbType.UInt32 || column.MigratorDbType == MigratorDbType.UInt64)
                     {
                         column.DefaultValue = ulong.Parse(defaultValueString.ToString());
                     }
-                    else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                    else if (column.MigratorDbType == MigratorDbType.Double || column.MigratorDbType == MigratorDbType.Single)
                     {
                         column.DefaultValue = double.Parse(defaultValueString.ToString(), CultureInfo.InvariantCulture);
                     }
-                    else if (column.Type == DbType.Boolean)
+                    else if (column.MigratorDbType == MigratorDbType.Interval)
+                    {
+                        if (defaultValueString.StartsWith("'"))
+                        {
+                            var match = stripSingleQuoteRegEx.Match(defaultValueString);
+
+                            if (!match.Success)
+                            {
+                                throw new Exception("Postgre default value for interval: Single quotes around the interval string are expected.");
+                            }
+
+                            column.DefaultValue = match.Value;
+                            var splitted = match.Value.Split(':');
+                            if (splitted.Length != 3)
+                            {
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}' unexpected pattern.");
+                            }
+
+                            var hours = int.Parse(splitted[0], CultureInfo.InvariantCulture);
+                            var minutes = int.Parse(splitted[1], CultureInfo.InvariantCulture);
+                            var splitted2 = splitted[2].Split('.');
+                            var seconds = int.Parse(splitted2[0], CultureInfo.InvariantCulture);
+                            var milliseconds = int.Parse(splitted2[1], CultureInfo.InvariantCulture);
+
+                            column.DefaultValue = new TimeSpan(0, hours, minutes, seconds, milliseconds);
+                        }
+                        else
+                        {
+                            // We assume that the value was added using this migrator so we do not interpret things like '2 days 01:02:03' if you
+                            // added such format you will run into this exception.
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}' unexpected pattern.");
+                        }
+                    }
+                    else if (column.MigratorDbType == MigratorDbType.Boolean)
                     {
                         var truthy = new[] { "TRUE", "YES", "'true'", "on", "'on'", "t", "'t'" };
                         var falsy = new[] { "FALSE", "NO", "'false'", "off", "'off'", "f", "'f'" };
@@ -427,10 +459,10 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException($"Cannot interpret the given default value in column '{column.Name}'");
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
-                    else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
+                    else if (column.MigratorDbType == MigratorDbType.DateTime || column.MigratorDbType == MigratorDbType.DateTime2)
                     {
                         if (defaultValueString.StartsWith("'"))
                         {
@@ -438,7 +470,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for date time: Single quotes around the date time string are expected.");
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                             }
 
                             var timeString = match.Value;
@@ -450,10 +482,10 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
-                    else if (column.Type == DbType.Guid)
+                    else if (column.MigratorDbType == MigratorDbType.Guid)
                     {
                         if (defaultValueString.StartsWith("'"))
                         {
@@ -461,21 +493,21 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for uniqueidentifier: Single quotes around the Guid string are expected.");
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                             }
 
                             column.DefaultValue = Guid.Parse(match.Value);
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
-                    else if (column.Type == DbType.Decimal)
+                    else if (column.MigratorDbType == MigratorDbType.Decimal)
                     {
                         column.DefaultValue = decimal.Parse(defaultValueString, CultureInfo.InvariantCulture);
                     }
-                    else if (column.Type == DbType.String)
+                    else if (column.MigratorDbType == MigratorDbType.String)
                     {
                         if (defaultValueString.StartsWith("'"))
                         {
@@ -493,7 +525,7 @@ WHERE  lower(tablenm) = lower('{0}')
                             throw new NotImplementedException();
                         }
                     }
-                    else if (column.Type == DbType.Binary)
+                    else if (column.MigratorDbType == MigratorDbType.Binary)
                     {
                         if (defaultValueString.StartsWith("'"))
                         {
@@ -501,7 +533,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new Exception("Postgre default value for bytea: Single quotes around the bytea string are expected.");
+                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                             }
 
                             var singleQuoteString = match.Value;
@@ -521,7 +553,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException();
+                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else

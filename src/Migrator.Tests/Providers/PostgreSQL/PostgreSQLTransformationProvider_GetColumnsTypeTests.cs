@@ -25,6 +25,7 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
         const string stringColumnName2 = "stringcolumn2";
         const string binaryColumnName1 = "binarycolumn";
         const string doubleColumnName1 = "doublecolumn";
+        const string intervalColumnName1 = "intervalcolumn";
 
         // Should be extended by remaining types
         Provider.AddTable(testTableName,
@@ -38,8 +39,10 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
             new Column(stringColumnName1, DbType.String),
             new Column(stringColumnName2, DbType.String) { Size = 30 },
             new Column(binaryColumnName1, DbType.Binary),
-            new Column(doubleColumnName1, DbType.Double)
+            new Column(doubleColumnName1, DbType.Double),
+            new Column(intervalColumnName1, MigratorDbType.Interval)
         );
+
 
         // Act
         var columns = Provider.GetColumns(testTableName);
@@ -55,24 +58,26 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
         var stringColumn2 = columns.Single(x => x.Name == stringColumnName2);
         var binaryColumn1 = columns.Single(x => x.Name == binaryColumnName1);
         var doubleColumn1 = columns.Single(x => x.Name == doubleColumnName1);
+        var intervalColumn1 = columns.Single(x => x.Name == intervalColumnName1);
 
 
         // Assert
-        Assert.That(dateTimeColumn1.Type, Is.EqualTo(DbType.DateTime));
+        Assert.That(dateTimeColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.DateTime));
         Assert.That(dateTimeColumn1.Precision, Is.EqualTo(3));
-        Assert.That(dateTimeColumn2.Type, Is.EqualTo(DbType.DateTime2));
+        Assert.That(dateTimeColumn2.MigratorDbType, Is.EqualTo(MigratorDbType.DateTime2));
         Assert.That(dateTimeColumn2.Precision, Is.EqualTo(6));
-        Assert.That(decimalColumn1.Type, Is.EqualTo(DbType.Decimal));
+        Assert.That(decimalColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.Decimal));
         Assert.That(decimalColumn1.Precision, Is.EqualTo(19));
         Assert.That(decimalColumn1.Scale, Is.EqualTo(5));
-        Assert.That(guidColumn1.Type, Is.EqualTo(DbType.Guid));
-        Assert.That(booleanColumn1.Type, Is.EqualTo(DbType.Boolean));
-        Assert.That(int32Column1.Type, Is.EqualTo(DbType.Int32));
-        Assert.That(int64column1.Type, Is.EqualTo(DbType.Int64));
-        Assert.That(stringColumn1.Type, Is.EqualTo(DbType.String));
-        Assert.That(stringColumn2.Type, Is.EqualTo(DbType.String));
+        Assert.That(guidColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.Guid));
+        Assert.That(booleanColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.Boolean));
+        Assert.That(int32Column1.MigratorDbType, Is.EqualTo(MigratorDbType.Int32));
+        Assert.That(int64column1.MigratorDbType, Is.EqualTo(MigratorDbType.Int64));
+        Assert.That(stringColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.String));
+        Assert.That(stringColumn2.MigratorDbType, Is.EqualTo(MigratorDbType.String));
         Assert.That(stringColumn2.Size, Is.EqualTo(30));
-        Assert.That(binaryColumn1.Type, Is.EqualTo(DbType.Binary));
-        Assert.That(doubleColumn1.Type, Is.EqualTo(DbType.Double));
+        Assert.That(binaryColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.Binary));
+        Assert.That(doubleColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.Double));
+        Assert.That(intervalColumn1.MigratorDbType, Is.EqualTo(MigratorDbType.Interval));
     }
 }
