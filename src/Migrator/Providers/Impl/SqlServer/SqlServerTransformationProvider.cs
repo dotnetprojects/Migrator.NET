@@ -276,11 +276,11 @@ FROM    sys.[indexes] Ind
 
                     if (!reader.IsDBNull(6))
                     {
-                        idx.KeyColumns = (reader.GetString(6).Split(','));
+                        idx.KeyColumns = reader.GetString(6).Split(',');
                     }
                     if (!reader.IsDBNull(7))
                     {
-                        idx.IncludeColumns = (reader.GetString(7).Split(','));
+                        idx.IncludeColumns = reader.GetString(7).Split(',');
                     }
 
                     retVal.Add(idx);
@@ -293,7 +293,7 @@ FROM    sys.[indexes] Ind
 
     public override int GetColumnContentSize(string table, string columnName)
     {
-        var result = this.ExecuteScalar("SELECT MAX(LEN(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
+        var result = ExecuteScalar("SELECT MAX(LEN(" + this.QuoteColumnNameIfRequired(columnName) + ")) FROM " + this.QuoteTableNameIfRequired(table));
 
         if (result == DBNull.Value)
         {

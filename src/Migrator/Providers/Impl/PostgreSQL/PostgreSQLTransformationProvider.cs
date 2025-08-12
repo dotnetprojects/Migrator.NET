@@ -249,6 +249,18 @@ WHERE  lower(tablenm) = lower('{0}')
         return tables.ToArray();
     }
 
+    public override int GetColumnContentSize(string table, string columnName)
+    {
+        var result = ExecuteScalar($"SELECT MAX(LENGTH({QuoteColumnNameIfRequired(columnName)})) FROM {QuoteTableNameIfRequired(table)}");
+
+        if (result == DBNull.Value)
+        {
+            return 0;
+        }
+
+        return Convert.ToInt32(result);
+    }
+
     public override Column[] GetColumns(string table)
     {
         var stringBuilder = new StringBuilder();
