@@ -8,8 +8,6 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 [Category("Postgre")]
 public class PostgreSQLTransformationProvider_GetColumnContentSizeTests : PostgreSQLTransformationProviderTestBase
 {
-    private const decimal DecimalDefaultValue = 14.56565m;
-
     [Test]
     public void GetColumnContentSize_DefaultValues_Succeeds()
     {
