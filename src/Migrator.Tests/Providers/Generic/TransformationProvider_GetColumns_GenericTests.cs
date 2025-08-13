@@ -56,17 +56,17 @@ public abstract class TransformationProvider_GetColumns_GenericTests : Transform
         var columns = Provider.GetColumns(testTableName);
 
         // Assert
-        var dateTimeColumn1 = columns.Single(x => x.Name == dateTimeColumnName1);
-        var dateTimeColumn2 = columns.Single(x => x.Name == dateTimeColumnName2);
-        var decimalColumn1 = columns.Single(x => x.Name == decimalColumnName1);
-        var guidColumn1 = columns.Single(x => x.Name == guidColumnName1);
-        var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);
-        var int32Column1 = columns.Single(x => x.Name == int32ColumnName1);
-        var int64Column1 = columns.Single(x => x.Name == int64ColumnName1);
-        var int64Column2 = columns.Single(x => x.Name == int64ColumnName2);
-        var stringColumn1 = columns.Single(x => x.Name == stringColumnName1);
-        var binarycolumn1 = columns.Single(x => x.Name == binaryColumnName1);
-        var doubleColumn1 = columns.Single(x => x.Name == doubleColumnName1);
+        var dateTimeColumn1 = columns.Single(x => x.Name.Equals(dateTimeColumnName1, StringComparison.OrdinalIgnoreCase));
+        var dateTimeColumn2 = columns.Single(x => x.Name.Equals(dateTimeColumnName2, StringComparison.OrdinalIgnoreCase));
+        var decimalColumn1 = columns.Single(x => x.Name.Equals(decimalColumnName1, StringComparison.OrdinalIgnoreCase));
+        var guidColumn1 = columns.Single(x => x.Name.Equals(guidColumnName1, StringComparison.OrdinalIgnoreCase));
+        var booleanColumn1 = columns.Single(x => x.Name.Equals(booleanColumnName1, StringComparison.OrdinalIgnoreCase));
+        var int32Column1 = columns.Single(x => x.Name.Equals(int32ColumnName1, StringComparison.OrdinalIgnoreCase));
+        var int64Column1 = columns.Single(x => x.Name.Equals(int64ColumnName1, StringComparison.OrdinalIgnoreCase));
+        var int64Column2 = columns.Single(x => x.Name.Equals(int64ColumnName2, StringComparison.OrdinalIgnoreCase));
+        var stringColumn1 = columns.Single(x => x.Name.Equals(stringColumnName1, StringComparison.OrdinalIgnoreCase));
+        var binarycolumn1 = columns.Single(x => x.Name.Equals(binaryColumnName1, StringComparison.OrdinalIgnoreCase));
+        var doubleColumn1 = columns.Single(x => x.Name.Equals(doubleColumnName1, StringComparison.OrdinalIgnoreCase));
 
         Assert.That(dateTimeColumn1.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
         Assert.That(dateTimeColumn2.DefaultValue, Is.EqualTo(dateTimeDefaultValue));

@@ -118,17 +118,31 @@ public class OracleDialect : Dialect
 
     public override string Default(object defaultValue)
     {
-        if (defaultValue.GetType().Equals(typeof(bool)))
+        if (defaultValue == null)
         {
-            return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
+            return string.Empty;
+        }
+
+        if (defaultValue is bool booleanValue)
+        {
+            return string.Format("DEFAULT {0}", booleanValue ? "1" : "0");
         }
         else if (defaultValue is Guid)
         {
             return string.Format("DEFAULT HEXTORAW('{0}')", defaultValue.ToString().Replace("-", ""));
         }
-        else if (defaultValue is DateTime)
+        else if (defaultValue is DateTime dateTime)
         {
-            return string.Format("DEFAULT TO_TIMESTAMP('{0}', 'YYYY-MM-DD HH24:MI:SS.FF')", ((DateTime)defaultValue).ToString("yyyy-MM-dd HH:mm:ss.ff"));
+            return string.Format("DEFAULT TO_TIMESTAMP('{0}', 'YYYY-MM-DD HH24:MI:SS.FF')", dateTime.ToString("yyyy-MM-dd HH:mm:ss.ff"));
+        }
+        else if (defaultValue is string stringValue)
+        {
+            return $"DEFAULT '{stringValue}'";
+        }
+        else if (defaultValue is byte[] byteArray)
+        {
+            var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
+            return $"DEFAULT HEXTORAW('{convertedString}')";
         }
 
         return base.Default(defaultValue);

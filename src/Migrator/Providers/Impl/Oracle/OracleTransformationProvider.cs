@@ -384,112 +384,139 @@ public class OracleTransformationProvider : TransformationProvider
 
     public override Column[] GetColumns(string table)
     {
+        var stringBuilder = new StringBuilder();
+        stringBuilder.AppendLine("SELECT");
+        stringBuilder.AppendLine("  COLUMN_NAME,");
+        stringBuilder.AppendLine("  NULLABLE,");
+        stringBuilder.AppendLine("  DATA_DEFAULT,");
+        stringBuilder.AppendLine("  DATA_TYPE,");
+        stringBuilder.AppendLine("  DATA_PRECISION,");
+        stringBuilder.AppendLine("  DATA_SCALE,");
+        stringBuilder.AppendLine("  CHAR_COL_DECL_LENGTH");
+        stringBuilder.AppendLine($"FROM USER_TAB_COLUMNS WHERE LOWER(TABLE_NAME) = LOWER('{table}')");
+
         var columns = new List<Column>();
 
         using (var cmd = CreateCommand())
-        using (
-            var reader =
-                ExecuteQuery(cmd,
-                    string.Format(
-                        "select column_name, data_type, data_length, data_precision, data_scale, NULLABLE, data_default FROM USER_TAB_COLUMNS WHERE lower(table_name) = '{0}'",
-                        table.ToLower())))
+        using (var reader = ExecuteQuery(cmd, stringBuilder.ToString()))
         {
             while (reader.Read())
             {
-                var colName = reader[0].ToString();
-                var colType = DbType.String;
-                var dataType = reader[1].ToString().ToLower();
-                var isNullable = ParseBoolean(reader.GetValue(5));
-                var defaultValue = reader.GetValue(6);
+                var columnNameOrdinal = reader.GetOrdinal("COLUMN_NAME");
+                var nullableOrdinal = reader.GetOrdinal("NULLABLE");
+                var dataDefaultOrdinal = reader.GetOrdinal("DATA_DEFAULT");
+                var dataTypeOrdinal = reader.GetOrdinal("DATA_TYPE");
+                var dataPrecisionOrdinal = reader.GetOrdinal("DATA_PRECISION");
+                var dataScaleOrdinal = reader.GetOrdinal("DATA_SCALE");
+                var charColDeclLengthOrdinal = reader.GetOrdinal("CHAR_COL_DECL_LENGTH");
 
-                if (dataType.Equals("number"))
+                var columnName = reader.GetString(columnNameOrdinal);
+                var isNullable = reader.GetString(nullableOrdinal) == "Y" ? true : false;
+                var dataDefaultString = reader.GetString(dataDefaultOrdinal);
+                var dataTypeString = reader.GetString(dataTypeOrdinal);
+                var dataPrecision = reader.IsDBNull(dataPrecisionOrdinal) ? (int?)null : reader.GetInt32(dataPrecisionOrdinal);
+                var dataScale = reader.IsDBNull(dataScaleOrdinal) ? (int?)null : reader.GetInt32(dataScaleOrdinal);
+                var charColDeclLength = reader.IsDBNull(charColDeclLengthOrdinal) ? (int?)null : reader.GetInt32(charColDeclLengthOrdinal);
+
+                var column = new Column(columnName, DbType.String)
                 {
-                    var precision = Convert.ToInt32(reader.GetValue(3));
-                    var scale = Convert.ToInt32(reader.GetValue(4));
-                    if (scale == 0)
+                    ColumnProperty = isNullable ? ColumnProperty.Null : ColumnProperty.NotNull
+                };
+
+                if (dataTypeString == "number")
+                {
+                    var precision = dataPrecision;
+                    var scale = dataScale;
+
+                    if (scale > 0)
                     {
-                        colType = precision <= 10 ? DbType.Int16 : DbType.Int64;
+                        column.MigratorDbType = MigratorDbType.Decimal;
                     }
                     else
                     {
-                        colType = DbType.Decimal;
-                    }
-                }
-                else if (dataType.StartsWith("timestamp") || dataType.Equals("date"))
-                {
-                    colType = DbType.DateTime;
-                }
-
-                var columnProperties = (isNullable) ? ColumnProperty.Null : ColumnProperty.NotNull;
-                var column = new Column(colName, colType, columnProperties);
-
-                if (defaultValue != null && defaultValue != DBNull.Value)
-                {
-                    column.DefaultValue = defaultValue;
-                }
-
-                if (column.DefaultValue is string && ((string)column.DefaultValue).StartsWith("'") && ((string)column.DefaultValue).EndsWith("'"))
-                {
-                    column.DefaultValue = ((string)column.DefaultValue).Substring(1, ((string)column.DefaultValue).Length - 2);
-                }
-
-                if ((column.DefaultValue is string s && !string.IsNullOrEmpty(s)) ||
-                     column.DefaultValue is not string && column.DefaultValue != null)
-                {
-                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
-                    {
-                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
-                    }
-                    else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
-                    {
-                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
-                    }
-                    else if (column.Type == DbType.Double || column.Type == DbType.Single)
-                    {
-                        column.DefaultValue = double.Parse(column.DefaultValue.ToString());
-                    }
-                    else if (column.Type == DbType.Boolean)
-                    {
-                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
-                    }
-                    else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
-                    {
-                        if (column.DefaultValue is string defValCv && defValCv.StartsWith("TO_TIMESTAMP("))
+                        if (0 <= precision && precision <= 4)
                         {
-                            var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.ff", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
+                            column.MigratorDbType = MigratorDbType.Int16;
                         }
-                        else if (column.DefaultValue is string defVal)
+                        else if (5 <= precision && precision <= 10)
                         {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
+                            column.MigratorDbType = MigratorDbType.Int32;
+                        }
+                        else if (10 <= precision && precision <= 18)
+                        {
+                            column.MigratorDbType = MigratorDbType.Int64;
+                        }
+                        else
+                        {
+                            throw new NotSupportedException("No support for greater numbers than 18 digits");
+                        }
+                    }
+                }
+                else if (dataTypeString.StartsWith("TIMESTAMP") || dataTypeString.Equals("date"))
+                {
+                    column.MigratorDbType = MigratorDbType.DateTime;
+                }
+
+                if (dataDefaultString != null)
+                {
+                    if ((column.DefaultValue is string s && !string.IsNullOrEmpty(s)) ||
+                             column.DefaultValue is not string && column.DefaultValue != null)
+                    {
+                        if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                        {
+                            column.DefaultValue = long.Parse(column.DefaultValue.ToString());
+                        }
+                        else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                        {
+                            column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
+                        }
+                        else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                        {
+                            column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                        }
+                        else if (column.Type == DbType.Boolean)
+                        {
+                            column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
+                        }
+                        else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
+                        {
+                            if (column.DefaultValue is string defValCv && defValCv.StartsWith("TO_TIMESTAMP("))
                             {
-                                dt = defVal.Substring(1, defVal.Length - 2);
+                                var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
+                                var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.ff", CultureInfo.InvariantCulture);
+                                column.DefaultValue = d;
                             }
-
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
-                        }
-                    }
-                    else if (column.Type == DbType.Guid)
-                    {
-                        if (column.DefaultValue is string defValCv && defValCv.StartsWith("HEXTORAW("))
-                        {
-                            var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
-                        }
-                        else if (column.DefaultValue is string defVal)
-                        {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
+                            else if (column.DefaultValue is string defVal)
                             {
-                                dt = defVal.Substring(1, defVal.Length - 2);
-                            }
+                                var dt = defVal;
+                                if (defVal.StartsWith("'"))
+                                {
+                                    dt = defVal.Substring(1, defVal.Length - 2);
+                                }
 
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
+                                var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                                column.DefaultValue = d;
+                            }
+                        }
+                        else if (column.Type == DbType.Guid)
+                        {
+                            if (column.DefaultValue is string defValCv && defValCv.StartsWith("HEXTORAW("))
+                            {
+                                var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
+                                var d = Guid.Parse(dt);
+                                column.DefaultValue = d;
+                            }
+                            else if (column.DefaultValue is string defVal)
+                            {
+                                var dt = defVal;
+                                if (defVal.StartsWith("'"))
+                                {
+                                    dt = defVal.Substring(1, defVal.Length - 2);
+                                }
+
+                                var d = Guid.Parse(dt);
+                                column.DefaultValue = d;
+                            }
                         }
                     }
                 }
@@ -499,24 +526,6 @@ public class OracleTransformationProvider : TransformationProvider
         }
 
         return columns.ToArray();
-    }
-
-    private bool ParseBoolean(object value)
-    {
-        if (value is string)
-        {
-            if ("N" == (string)value)
-            {
-                return false;
-            }
-
-            if ("Y" == (string)value)
-            {
-                return true;
-            }
-        }
-
-        return Convert.ToBoolean(value);
     }
 
     public override string GenerateParameterNameParameter(int index)
