@@ -19,7 +19,7 @@ public class OracleTransformationProviderTestBase : TransformationProviderSimple
     [SetUp]
     public async Task SetUpAsync()
     {
-        await StartOracleTransactionAsync();
+        await BeginOracleTransactionAsync();
 
         AddDefaultTable();
     }

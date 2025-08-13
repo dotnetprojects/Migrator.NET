@@ -23,7 +23,7 @@ public class OracleTransformationProviderGenericTests : TransformationProviderGe
     [SetUp]
     public async Task SetUpAsync()
     {
-        await StartOracleTransactionAsync();
+        await BeginOracleTransactionAsync();
 
         AddDefaultTable();
     }

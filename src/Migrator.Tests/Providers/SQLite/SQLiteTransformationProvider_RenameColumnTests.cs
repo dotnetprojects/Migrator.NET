@@ -1,16 +1,15 @@
-using System;
 using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Tests.Providers.SQLite.Base;
+using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]
-public class SQLiteTransformationProvider_RenameColumnTests : SQLiteTransformationProviderTestBase
+public class SQLiteTransformationProvider_RenameColumnTests : TransformationProviderBase
 {
     [Test]
     public void RenameColumn_HavingASingleForeignKeyPointingToTheTargetColumn_SingleColumnForeignKeyIsRemoved()
