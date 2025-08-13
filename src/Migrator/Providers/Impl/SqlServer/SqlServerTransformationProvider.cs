@@ -321,7 +321,7 @@ FROM    sys.[indexes] Ind
         var pkColumns = new List<string>();
         try
         {
-            pkColumns = this.ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu WHERE EXISTS ( SELECT tc.* FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc WHERE tc.TABLE_NAME = '{0}' AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY' AND tc.CONSTRAINT_NAME = cu.CONSTRAINT_NAME )", table);
+            pkColumns = ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu WHERE EXISTS ( SELECT tc.* FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc WHERE tc.TABLE_NAME = '{0}' AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY' AND tc.CONSTRAINT_NAME = cu.CONSTRAINT_NAME )", table);
         }
         catch (Exception)
         { }
@@ -329,7 +329,7 @@ FROM    sys.[indexes] Ind
         var idtColumns = new List<string>();
         try
         {
-            idtColumns = this.ExecuteStringQuery(" select COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA = '{1}' and TABLE_NAME = '{0}' and COLUMNPROPERTY(object_id(TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1", table, schema);
+            idtColumns = ExecuteStringQuery("SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA = '{1}' and TABLE_NAME = '{0}' and COLUMNPROPERTY(object_id(TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1", table, schema);
         }
         catch (Exception)
         { }
@@ -357,15 +357,18 @@ FROM    sys.[indexes] Ind
 
                 var nullableStr = reader.GetString(1);
                 var isNullable = nullableStr == "YES";
+
                 if (!reader.IsDBNull(2))
                 {
                     var type = reader.GetString(2);
                     column.Type = Dialect.GetDbTypeFromString(type);
                 }
+
                 if (!reader.IsDBNull(3))
                 {
                     column.Size = reader.GetInt32(3);
                 }
+
                 if (!reader.IsDBNull(4))
                 {
                     column.DefaultValue = reader.GetValue(4);
@@ -400,7 +403,7 @@ FROM    sys.[indexes] Ind
                         if (column.DefaultValue is string defValCv && defValCv.StartsWith("CONVERT("))
                         {
                             var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
+                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                             column.DefaultValue = d;
                         }
                         else if (column.DefaultValue is string defVal)
@@ -411,8 +414,12 @@ FROM    sys.[indexes] Ind
                                 dt = defVal.Substring(1, defVal.Length - 2);
                             }
 
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                             column.DefaultValue = d;
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot interpret {column.DefaultValue} in column '{column.Name}' unexpected pattern.");
                         }
                     }
                     else if (column.Type == DbType.Guid)

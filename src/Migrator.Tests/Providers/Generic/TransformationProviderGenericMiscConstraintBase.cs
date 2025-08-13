@@ -4,12 +4,12 @@ using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.Generic;
 
 /// <summary>
 /// Base class for Provider tests for all tests including constraint oriented tests.
 /// </summary>
-public abstract class TransformationProviderConstraintBase : TransformationProviderBase
+public abstract class TransformationProviderGenericMiscConstraintBase : TransformationProviderGenericMiscTests
 {
     public void AddForeignKey()
     {

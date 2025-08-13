@@ -1,9 +1,10 @@
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
+using Migrator.Tests.Providers.Base;
 using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers.SQLite.Base;
+namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]

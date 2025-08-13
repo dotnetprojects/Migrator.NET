@@ -366,7 +366,7 @@ public abstract class Dialect : IDialect
         else if (defaultValue is byte[] byteArray)
         {
             var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
-            defaultValue = $"'\\x{convertedString}'";
+            defaultValue = $"0x{convertedString}";
         }
         else if (defaultValue is double doubleValue)
         {

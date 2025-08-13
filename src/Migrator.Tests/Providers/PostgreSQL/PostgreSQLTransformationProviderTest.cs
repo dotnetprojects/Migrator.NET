@@ -4,7 +4,7 @@ using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
 [Category("Postgre")]

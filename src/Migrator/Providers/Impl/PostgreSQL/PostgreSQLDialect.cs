@@ -121,6 +121,11 @@ public class PostgreSQLDialect : Dialect
 
             return $"DEFAULT '{intervalPostgreNotation}'";
         }
+        else if (defaultValue is byte[] byteArray)
+        {
+            var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
+            return $"'\\x{convertedString}'";
+        }
 
         return base.Default(defaultValue);
     }
