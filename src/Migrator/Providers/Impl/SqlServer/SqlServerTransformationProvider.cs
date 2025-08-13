@@ -377,6 +377,10 @@ FROM    sys.[indexes] Ind
                 {
                     column.MigratorDbType = MigratorDbType.Int32;
                 }
+                else if (dataTypeString == "bigint")
+                {
+                    column.MigratorDbType = MigratorDbType.Int64;
+                }
                 else if (dataTypeString == "smallint")
                 {
                     column.MigratorDbType = MigratorDbType.Int16;
@@ -439,21 +443,42 @@ FROM    sys.[indexes] Ind
 
                 if (defaultValueString != null)
                 {
+                    var bracesStrippedString = defaultValueString.Replace("(", "").Replace(")", "").Trim();
+                    var bracesAndSingleQuoteStrippedString = bracesStrippedString.Replace("'", "");
+
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = ulong.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
-                        column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = double.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {
-                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+                        var truthy = new string[] { "'TRUE'", "1" };
+                        var falsy = new string[] { "'FALSE'", "0" };
+
+                        if (truthy.Contains(bracesStrippedString))
+                        {
+                            column.DefaultValue = true;
+                        }
+                        else if (falsy.Contains(bracesStrippedString))
+                        {
+                            column.DefaultValue = false;
+                        }
+                        else if (bracesStrippedString == "NULL")
+                        {
+                            column.DefaultValue = null;
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot parse the boolean default value '{defaultValueString}' of column '{column.Name}'");
+                        }
                     }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
@@ -478,8 +503,7 @@ FROM    sys.[indexes] Ind
                             }
 
                             // We convert to UTC since we restrict date time default values to UTC on default value definition.
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
-                            column.DefaultValue = d;
+                            column.DefaultValue = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                         }
                         else
                         {
@@ -488,29 +512,37 @@ FROM    sys.[indexes] Ind
                     }
                     else if (column.Type == DbType.Guid)
                     {
-                        if (column.DefaultValue is string defVal)
-                        {
-                            var dt = defVal;
-
-                            if (defVal.StartsWith("'"))
-                            {
-                                dt = defVal.Substring(1, defVal.Length - 2);
-                            }
-
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
-                        }
+                        column.DefaultValue = Guid.Parse(bracesAndSingleQuoteStrippedString);
                     }
                     else if (column.MigratorDbType == MigratorDbType.Decimal)
                     {
                         // We assume ((1.234))
-                        var decimalString = defaultValueString.Replace("(", "").Replace(")", "");
+                        column.DefaultValue = decimal.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
+                    }
+                    else if (column.MigratorDbType == MigratorDbType.String)
+                    {
+                        column.DefaultValue = bracesAndSingleQuoteStrippedString;
+                    }
+                    else if (column.MigratorDbType == MigratorDbType.Binary)
+                    {
+                        if (bracesStrippedString.StartsWith("0x"))
+                        {
+                            var hexString = bracesStrippedString.Substring(2);
 
-                        column.DefaultValue = decimal.Parse(decimalString, CultureInfo.InvariantCulture);
+                            // Not available in old .NET version: Convert.FromHexString(hexString);
+
+                            column.DefaultValue = Enumerable.Range(0, hexString.Length / 2)
+                                .Select(x => Convert.ToByte(hexString.Substring(x * 2, 2), 16))
+                                .ToArray();
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot parse the binary default value of '{column.Name}'. The value is '{defaultValueString}'");
+                        }
                     }
                     else
                     {
-                        throw new NotImplementedException($"Cannot parse the default value of {column.Name}. Type '' is not implemented yet.");
+                        throw new NotImplementedException($"Cannot parse the default value of {column.Name} type '{column.MigratorDbType}'. It is not yet implemented - file an issue.");
                     }
                 }
                 if (!reader.IsDBNull(5))

@@ -562,7 +562,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new NotImplementedException($"Cannot pars {defaultValueString} in column '{column.Name}'");
+                                throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}'");
                             }
 
                             var singleQuoteString = match.Value;

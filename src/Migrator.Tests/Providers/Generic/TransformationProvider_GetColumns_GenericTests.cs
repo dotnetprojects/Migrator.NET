@@ -49,7 +49,7 @@ public abstract class TransformationProvider_GetColumns_GenericTests : Transform
             new Column(int64ColumnName2, DbType.Int64, defaultValue: 0),
             new Column(stringColumnName1, DbType.String, defaultValue: "Hello"),
             new Column(binaryColumnName1, DbType.Binary, defaultValue: new byte[] { 12, 32, 34 }),
-            new Column(doubleColumnName1, DbType.Double, defaultValue: 84.874596565)
+            new Column(doubleColumnName1, DbType.Double, defaultValue: 84.874596567)
         );
 
         // Act
@@ -77,6 +77,6 @@ public abstract class TransformationProvider_GetColumns_GenericTests : Transform
         Assert.That(int64Column1.DefaultValue, Is.EqualTo(88));
         Assert.That(stringColumn1.DefaultValue, Is.EqualTo("Hello"));
         Assert.That(binarycolumn1.DefaultValue, Is.EqualTo(new byte[] { 12, 32, 34 }));
-        Assert.That(doubleColumn1.DefaultValue, Is.EqualTo(84.874596565));
+        Assert.That(doubleColumn1.DefaultValue, Is.EqualTo(84.874596567));
     }
 }
