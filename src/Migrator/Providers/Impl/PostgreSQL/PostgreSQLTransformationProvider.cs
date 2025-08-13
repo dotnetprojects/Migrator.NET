@@ -470,7 +470,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         {
                             // We assume that the value was added using this migrator so we do not interpret things like '2 days 01:02:03' if you
                             // added such format you will run into this exception.
-                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}' unexpected pattern.");
+                            throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}' unexpected pattern.");
                         }
                     }
                     else if (column.MigratorDbType == MigratorDbType.Boolean)
@@ -488,7 +488,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
+                            throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else if (column.MigratorDbType == MigratorDbType.DateTime || column.MigratorDbType == MigratorDbType.DateTime2)
@@ -499,7 +499,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
+                                throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}'");
                             }
 
                             var timeString = match.Value;
@@ -511,7 +511,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
+                            throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else if (column.MigratorDbType == MigratorDbType.Guid)
@@ -522,14 +522,14 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
+                                throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}'");
                             }
 
                             column.DefaultValue = Guid.Parse(match.Value);
                         }
                         else
                         {
-                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
+                            throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else if (column.MigratorDbType == MigratorDbType.Decimal)
@@ -562,7 +562,7 @@ WHERE  lower(tablenm) = lower('{0}')
 
                             if (!match.Success)
                             {
-                                throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
+                                throw new NotImplementedException($"Cannot pars {defaultValueString} in column '{column.Name}'");
                             }
 
                             var singleQuoteString = match.Value;
@@ -582,7 +582,7 @@ WHERE  lower(tablenm) = lower('{0}')
                         }
                         else
                         {
-                            throw new NotImplementedException($"Cannot interpret {defaultValueString} in column '{column.Name}'");
+                            throw new NotImplementedException($"Cannot parse {defaultValueString} in column '{column.Name}'");
                         }
                     }
                     else

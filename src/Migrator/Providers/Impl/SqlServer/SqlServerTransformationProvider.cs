@@ -16,6 +16,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SqlServer;
@@ -339,11 +341,18 @@ FROM    sys.[indexes] Ind
         using (
                 var reader =
                 ExecuteQuery(cmd,
-                    string.Format("select COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
+                    string.Format("SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH , NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE, CHARACTER_MAXIMUM_LENGTH from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
         {
             while (reader.Read())
             {
                 var column = new Column(reader.GetString(0), DbType.String);
+
+                var defaultValueOrdinal = reader.GetOrdinal("COLUMN_DEFAULT");
+                var dataTypeOrdinal = reader.GetOrdinal("DATA_TYPE");
+                var characterMaximumLengthOrdinal = reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH");
+
+                var defaultValueString = reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal).Trim();
+                var characterMaximumLength = reader.IsDBNull(characterMaximumLengthOrdinal) ? (int?)null : reader.GetInt32(characterMaximumLengthOrdinal);
 
                 if (pkColumns.Contains(column.Name))
                 {
@@ -358,10 +367,69 @@ FROM    sys.[indexes] Ind
                 var nullableStr = reader.GetString(1);
                 var isNullable = nullableStr == "YES";
 
-                if (!reader.IsDBNull(2))
+                var dataTypeString = reader.GetString(dataTypeOrdinal);
+
+                if (dataTypeString == "date")
                 {
-                    var type = reader.GetString(2);
-                    column.Type = Dialect.GetDbTypeFromString(type);
+                    column.MigratorDbType = MigratorDbType.Date;
+                }
+                else if (dataTypeString == "int")
+                {
+                    column.MigratorDbType = MigratorDbType.Int32;
+                }
+                else if (dataTypeString == "smallint")
+                {
+                    column.MigratorDbType = MigratorDbType.Int16;
+                }
+                else if (dataTypeString == "tinyint")
+                {
+                    column.MigratorDbType = MigratorDbType.Byte;
+                }
+                else if (dataTypeString == "bit")
+                {
+                    column.MigratorDbType = MigratorDbType.Boolean;
+                }
+                else if (dataTypeString == "money")
+                {
+                    column.MigratorDbType = MigratorDbType.Currency;
+                }
+                else if (dataTypeString == "float")
+                {
+                    column.MigratorDbType = MigratorDbType.Double;
+                }
+                else if (new[] { "text", "nchar", "ntext", "varchar", "nvarchar" }.Contains(dataTypeString))
+                {
+                    // We use string for all string-like data types.
+                    column.MigratorDbType = MigratorDbType.String;
+                    column.Size = characterMaximumLength.Value;
+                }
+                else if (dataTypeString == "decimal")
+                {
+                    column.MigratorDbType = MigratorDbType.Decimal;
+                }
+                else if (dataTypeString == "datetime")
+                {
+                    column.MigratorDbType = MigratorDbType.DateTime;
+                }
+                else if (dataTypeString == "datetime2")
+                {
+                    column.MigratorDbType = MigratorDbType.DateTime2;
+                }
+                else if (dataTypeString == "datetimeoffset")
+                {
+                    column.MigratorDbType = MigratorDbType.DateTimeOffset;
+                }
+                else if (dataTypeString == "binary" || dataTypeString == "varbinary")
+                {
+                    column.MigratorDbType = MigratorDbType.Binary;
+                }
+                else if (dataTypeString == "uniqueidentifier")
+                {
+                    column.MigratorDbType = MigratorDbType.Guid;
+                }
+                else
+                {
+                    throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
                 }
 
                 if (!reader.IsDBNull(3))
@@ -369,19 +437,8 @@ FROM    sys.[indexes] Ind
                     column.Size = reader.GetInt32(3);
                 }
 
-                if (!reader.IsDBNull(4))
+                if (defaultValueString != null)
                 {
-                    column.DefaultValue = reader.GetValue(4);
-
-                    if (column.DefaultValue.ToString()[1] == '(' || column.DefaultValue.ToString()[1] == '\'')
-                    {
-                        column.DefaultValue = column.DefaultValue.ToString().Substring(2, column.DefaultValue.ToString().Length - 4); // Example "((10))" or "('false')"
-                    }
-                    else
-                    {
-                        column.DefaultValue = column.DefaultValue.ToString().Substring(1, column.DefaultValue.ToString().Length - 2); // Example "(CONVERT([datetime],'20000101',(112)))"
-                    }
-
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
                         column.DefaultValue = long.Parse(column.DefaultValue.ToString());
@@ -400,20 +457,27 @@ FROM    sys.[indexes] Ind
                     }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
-                        if (column.DefaultValue is string defValCv && defValCv.StartsWith("CONVERT("))
+                        // (CONVERT([datetime],'2000-01-02 03:04:05.000',(121)))
+                        // 121 is a pattern: it contains milliseconds
+                        // Search for 121 here: https://learn.microsoft.com/de-de/sql/t-sql/functions/cast-and-convert-transact-sql?view=sql-server-ver17
+                        var regexDateTimeConvert121 = new Regex(@"(?<=^\(CONVERT\([\[]+datetime[\]]+,')[^']+(?='\s*,\s*\(121\s*\)\)\)$)");
+                        var match121 = regexDateTimeConvert121.Match(defaultValueString);
+
+                        if (match121.Success)
                         {
-                            var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
-                            column.DefaultValue = d;
+                            // We convert to UTC since we restrict date time default values to UTC on default value definition.
+                            column.DefaultValue = DateTime.ParseExact(match121.Value, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                         }
-                        else if (column.DefaultValue is string defVal)
+                        else if (defaultValueString is string defVal)
                         {
+                            // Not tested
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
                             {
                                 dt = defVal.Substring(1, defVal.Length - 2);
                             }
 
+                            // We convert to UTC since we restrict date time default values to UTC on default value definition.
                             var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                             column.DefaultValue = d;
                         }
@@ -427,6 +491,7 @@ FROM    sys.[indexes] Ind
                         if (column.DefaultValue is string defVal)
                         {
                             var dt = defVal;
+
                             if (defVal.StartsWith("'"))
                             {
                                 dt = defVal.Substring(1, defVal.Length - 2);
@@ -435,6 +500,17 @@ FROM    sys.[indexes] Ind
                             var d = Guid.Parse(dt);
                             column.DefaultValue = d;
                         }
+                    }
+                    else if (column.MigratorDbType == MigratorDbType.Decimal)
+                    {
+                        // We assume ((1.234))
+                        var decimalString = defaultValueString.Replace("(", "").Replace(")", "");
+
+                        column.DefaultValue = decimal.Parse(decimalString, CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        throw new NotImplementedException($"Cannot parse the default value of {column.Name}. Type '' is not implemented yet.");
                     }
                 }
                 if (!reader.IsDBNull(5))
