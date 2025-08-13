@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.Oracle;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DryIoc;
 using Migrator.Tests.Database;
 using Migrator.Tests.Database.Interfaces;
@@ -17,11 +18,13 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.Base;
 
 /// <summary>
-/// Base class for Provider tests for all non-constraint oriented tests.
+/// Base class for provider tests.
 /// </summary>
-public abstract class TransformationProviderBase : TransformationProviderSimpleBase
+public abstract class TransformationProviderBase
 {
-    protected async Task StartOracleProvider()
+    protected ITransformationProvider Provider;
+
+    protected async Task StartOracleTransactionAsync()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var configReader = new ConfigurationReader();
@@ -46,5 +49,17 @@ public abstract class TransformationProviderBase : TransformationProviderSimpleB
         Provider = new OracleTransformationProvider(new OracleDialect(), databaseInfo.DatabaseConnectionConfig.ConnectionString, null, "default", "Oracle.ManagedDataAccess.Client");
 
         Provider.BeginTransaction();
+    }
+
+    protected async Task BeginSQLiteTransactionAsync()
+    {
+        var configReader = new ConfigurationReader();
+        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteId)
+            .ConnectionString;
+
+        Provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);
+        Provider.BeginTransaction();
+
+        await Task.CompletedTask;
     }
 }

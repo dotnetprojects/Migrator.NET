@@ -5,10 +5,8 @@ using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.Base;
 
-public abstract class TransformationProviderSimpleBase
+public abstract class TransformationProviderSimpleBase : TransformationProviderBase
 {
-    protected ITransformationProvider Provider;
-
     [TearDown]
     public virtual void TearDown()
     {
