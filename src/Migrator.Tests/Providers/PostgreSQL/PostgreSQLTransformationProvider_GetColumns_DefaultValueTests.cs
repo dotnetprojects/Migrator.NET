@@ -9,7 +9,7 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
 [Category("Postgre")]
-public class PostgreSQLTransformationProvider_GetColumnsDefaultTypeTests : PostgreSQLTransformationProviderTestBase
+public class PostgreSQLTransformationProvider_GetColumns_DefaultTypeTests : PostgreSQLTransformationProviderTestBase
 {
     /// <summary>
     /// More tests for GetColumns  <see cref="ITransformationProvider.GetColumns"/> in <see cref="TransformationProviderBase"/>

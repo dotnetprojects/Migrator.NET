@@ -7,7 +7,7 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
 [Category("Postgre")]
-public class PostgreSQLTransformationProvider_GetColumnContentSizeTests : PostgreSQLTransformationProviderTestBase
+public class PostgreSQLTransformationProvider_GetColumnContentSize_Tests : PostgreSQLTransformationProviderTestBase
 {
     [Test]
     public void GetColumnContentSize_UseStringColumn_MaxContentLengthIsCorrect()

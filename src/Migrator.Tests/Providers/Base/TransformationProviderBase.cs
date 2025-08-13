@@ -22,6 +22,41 @@ namespace Migrator.Tests.Providers.Base;
 /// </summary>
 public abstract class TransformationProviderBase
 {
+    [TearDown]
+    public virtual void TearDown()
+    {
+        DropTestTables();
+
+        Provider?.Rollback();
+    }
+
+    protected void DropTestTables()
+    {
+        // Because MySql doesn't support schema transaction
+        // we got to remove the tables manually... sad...
+        try
+        {
+            Provider.RemoveTable("TestTwo");
+        }
+        catch (Exception)
+        {
+        }
+        try
+        {
+            Provider.RemoveTable("Test");
+        }
+        catch (Exception)
+        {
+        }
+        try
+        {
+            Provider.RemoveTable("SchemaInfo");
+        }
+        catch (Exception)
+        {
+        }
+    }
+
     protected ITransformationProvider Provider;
 
     protected async Task BeginOracleTransactionAsync()

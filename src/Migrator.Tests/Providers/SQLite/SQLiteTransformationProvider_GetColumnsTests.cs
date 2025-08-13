@@ -1,15 +1,22 @@
 using System.Linq;
+using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Tests.Providers.SQLite.Base;
+using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]
-public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformationProviderTestBase
+public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvider_GetColumns_GenericTests
 {
+    [SetUp]
+    public async Task SetUpAsync()
+    {
+        await BeginSQLiteTransactionAsync();
+    }
+
     [Test]
     public void GetColumns_UniqueButNotPrimaryKey_ReturnsFalse()
     {
