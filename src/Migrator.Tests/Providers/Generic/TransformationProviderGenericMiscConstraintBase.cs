@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.Generic;
 
 /// <summary>
-/// Base class for Provider tests for all tests including constraint oriented tests.
+/// Base class for provider tests for all tests including constraint oriented tests.
 /// </summary>
 public abstract class TransformationProviderGenericMiscConstraintBase : TransformationProviderGenericMiscTests
 {

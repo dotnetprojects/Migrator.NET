@@ -12,6 +12,8 @@ namespace Migrator.Tests.Providers.Generic;
 /// </summary>
 public abstract class TransformationProvider_GetColumns_GenericTests : TransformationProviderBase
 {
+
+
     [Test]
     public void GetColumns_DefaultValues_Succeeds()
     {

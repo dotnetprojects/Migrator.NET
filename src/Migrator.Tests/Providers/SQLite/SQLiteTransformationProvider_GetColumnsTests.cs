@@ -101,7 +101,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvid
         Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.Null));
     }
 
-    [Test, Description("Add index. Should be added and detected as index")]
+    [Test, Description("Add index. The index should be added and then being detected as index.")]
     public void GetSQLiteTableInfo_GetIndexesAndColumnsWithIndex_NoUniqueOnTheColumnsAndIndexExists()
     {
         // Arrange
