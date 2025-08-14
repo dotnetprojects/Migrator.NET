@@ -166,6 +166,7 @@ public class OracleDialect : Dialect
         }
         else if (defaultValue is string stringValue)
         {
+            stringValue = stringValue.Replace("'", "''");
             return $"DEFAULT '{stringValue}'";
         }
         else if (defaultValue is byte[] byteArray)
