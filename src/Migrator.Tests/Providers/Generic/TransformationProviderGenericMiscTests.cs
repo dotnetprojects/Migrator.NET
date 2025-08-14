@@ -43,14 +43,19 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
     [Test]
     public void GetTablesWorks()
     {
-        foreach (var name in Provider.GetTables())
+        var tables = Provider.GetTables();
+
+        foreach (var name in tables)
         {
             Provider.Logger.Log("Table: {0}", name);
         }
 
-        Assert.That(1, Is.EqualTo(Provider.GetTables().Length));
+        Assert.That(1, Is.EqualTo(tables.Length));
         AddTable();
-        Assert.That(2, Is.EqualTo(Provider.GetTables().Length));
+
+        tables = Provider.GetTables();
+
+        Assert.That(2, Is.EqualTo(tables.Length));
     }
 
     [Test]
