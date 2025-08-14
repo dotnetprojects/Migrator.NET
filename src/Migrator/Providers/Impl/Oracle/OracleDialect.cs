@@ -160,6 +160,7 @@ public class OracleDialect : Dialect
         }
         else if (defaultValue is DateTime dateTime)
         {
+            // We use 4 because we have no access data type and therefore no access to the real n in TIMESTAMP(n) in this method. Needs refactoring.
             var dateTimeString = dateTime.ToString("yyyy-MM-dd HH:mm:ss.ffff");
             return $"DEFAULT TO_TIMESTAMP('{dateTimeString}', 'YYYY-MM-DD HH24:MI:SS.FF4')";
         }

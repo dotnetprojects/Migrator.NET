@@ -966,7 +966,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                             dt = defVal.Substring(1, defVal.Length - 2);
                         }
 
-                        var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                        var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                         column.DefaultValue = d;
                     }
                 }
@@ -984,6 +984,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                         var d = Guid.Parse(dt);
                         column.DefaultValue = d;
                     }
+                }
+                else if (column.Type == DbType.Boolean)
+                {
+                    throw new NotSupportedException("SQLite does not support default values for BLOB columns.");
                 }
             }
 

@@ -349,8 +349,13 @@ public abstract class Dialect : IDialect
 
             return guidValue;
         }
-        else if (defaultValue is DateTime)
+        else if (defaultValue is DateTime dateTime)
         {
+            if (dateTime.Kind != DateTimeKind.Utc)
+            {
+                throw new Exception("Use DateTimeKind.Utc for default date time values.");
+            }
+
             return string.Format("DEFAULT '{0}'", ((DateTime)defaultValue).ToString("yyyy-MM-dd HH:mm:ss"));
         }
         else if (defaultValue is string)
