@@ -641,6 +641,14 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteTableInfo);
     }
 
+    public override void RemoveConstraint(string table, string name)
+    {
+        var sqliteTableInfo = GetSQLiteTableInfo(table);
+        sqliteTableInfo.Uniques.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        RecreateTable(sqliteTableInfo);
+    }
+
     public SQLiteTableInfo GetSQLiteTableInfo(string tableName)
     {
         var sqliteTable = new SQLiteTableInfo
