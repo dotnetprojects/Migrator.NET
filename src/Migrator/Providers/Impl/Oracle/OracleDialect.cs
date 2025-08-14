@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Linq;
 using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
@@ -37,6 +38,7 @@ public class OracleDialect : Dialect
         RegisterColumnType(DbType.UInt32, "NUMBER(10,0)");
         RegisterColumnType(DbType.UInt64, "NUMBER(20,0)");
         RegisterColumnType(DbType.Single, "FLOAT(24)");
+        RegisterColumnType(DbType.Double, "BINARY_DOUBLE");
         RegisterColumnType(DbType.StringFixedLength, "NCHAR(255)");
         RegisterColumnType(DbType.StringFixedLength, 2000, "NCHAR($l)");
         RegisterColumnType(DbType.String, "NVARCHAR2(255)");
@@ -133,7 +135,8 @@ public class OracleDialect : Dialect
         }
         else if (defaultValue is DateTime dateTime)
         {
-            return string.Format("DEFAULT TO_TIMESTAMP('{0}', 'YYYY-MM-DD HH24:MI:SS.FF')", dateTime.ToString("yyyy-MM-dd HH:mm:ss.ff"));
+            var dateTimeString = dateTime.ToString("yyyy-MM-dd HH:mm:ss.ffff");
+            return $"DEFAULT TO_TIMESTAMP('{dateTimeString}', 'YYYY-MM-DD HH24:MI:SS.FF4')";
         }
         else if (defaultValue is string stringValue)
         {

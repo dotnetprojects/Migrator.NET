@@ -49,7 +49,7 @@ public abstract class TransformationProvider_GetColumns_GenericTests : Transform
             new Column(int64ColumnName2, DbType.Int64, defaultValue: 0),
             new Column(stringColumnName1, DbType.String, defaultValue: "Hello"),
             new Column(binaryColumnName1, DbType.Binary, defaultValue: new byte[] { 12, 32, 34 }),
-            new Column(doubleColumnName1, DbType.Double, defaultValue: 84.874596567)
+            new Column(doubleColumnName1, DbType.Double, defaultValue: 84.874596567) { Precision = 19, Scale = 10 }
         );
 
         // Act
