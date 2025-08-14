@@ -17,6 +17,8 @@ public class OracleDialect : Dialect
         RegisterColumnType(DbType.Binary, "RAW(2000)");
         RegisterColumnType(DbType.Binary, 2000, "RAW($l)");
         RegisterColumnType(DbType.Binary, 2147483647, "BLOB");
+
+        // 23ai now has a native boolean data type but for backwards compatibility we keep using NUMBER(1,0)
         RegisterColumnType(DbType.Boolean, "NUMBER(1,0)");
         RegisterColumnType(DbType.Byte, "NUMBER(3,0)");
         RegisterColumnType(DbType.Currency, "NUMBER(19,1)");
@@ -129,9 +131,32 @@ public class OracleDialect : Dialect
         {
             return string.Format("DEFAULT {0}", booleanValue ? "1" : "0");
         }
-        else if (defaultValue is Guid)
+        else if (defaultValue is Guid guid)
         {
-            return string.Format("DEFAULT HEXTORAW('{0}')", defaultValue.ToString().Replace("-", ""));
+            var bytes = guid.ToByteArray();
+
+            // Convert to big-endian format in Oracle
+            var oracleBytes = new byte[16];
+
+            // Reverse first 4 bytes
+            Array.Copy(bytes, 0, oracleBytes, 0, 4);
+            Array.Reverse(oracleBytes, 0, 4);
+
+            // Reverse next 2 bytes
+            Array.Copy(bytes, 4, oracleBytes, 4, 2);
+            Array.Reverse(oracleBytes, 4, 2);
+
+            // Reverse next 2 bytes
+            Array.Copy(bytes, 6, oracleBytes, 6, 2);
+            Array.Reverse(oracleBytes, 6, 2);
+
+            // Copy remaining 8bytes
+            Array.Copy(bytes, 8, oracleBytes, 8, 8);
+
+            // Convert to hex string
+            var hex = BitConverter.ToString(oracleBytes).Replace("-", "");
+
+            return $"DEFAULT HEXTORAW('{hex}')";
         }
         else if (defaultValue is DateTime dateTime)
         {

@@ -388,6 +388,7 @@ public class OracleTransformationProvider : TransformationProvider
     public override Column[] GetColumns(string table)
     {
         var timestampRegex = new Regex(@"(?<=^TIMESTAMP\s+')[^']+(?=')", RegexOptions.IgnoreCase);
+        var hexToRawRegex = new Regex(@"(?<=^HEXTORAW\s*\(')[^']+(?=')", RegexOptions.IgnoreCase);
         var timestampBaseFormat = "yyyy-MM-dd HH:mm:ss";
 
         var stringBuilder = new StringBuilder();
@@ -396,6 +397,7 @@ public class OracleTransformationProvider : TransformationProvider
         stringBuilder.AppendLine("  NULLABLE,");
         stringBuilder.AppendLine("  DATA_DEFAULT,");
         stringBuilder.AppendLine("  DATA_TYPE,");
+        stringBuilder.AppendLine("  DATA_LENGTH,");
         stringBuilder.AppendLine("  DATA_PRECISION,");
         stringBuilder.AppendLine("  DATA_SCALE,");
         stringBuilder.AppendLine("  CHAR_COL_DECL_LENGTH");
@@ -443,6 +445,7 @@ public class OracleTransformationProvider : TransformationProvider
                 var columnNameOrdinal = reader.GetOrdinal("COLUMN_NAME");
                 var nullableOrdinal = reader.GetOrdinal("NULLABLE");
                 var dataTypeOrdinal = reader.GetOrdinal("DATA_TYPE");
+                var dataLengthOrdinal = reader.GetOrdinal("DATA_LENGTH");
                 var dataPrecisionOrdinal = reader.GetOrdinal("DATA_PRECISION");
                 var dataScaleOrdinal = reader.GetOrdinal("DATA_SCALE");
                 var charColDeclLengthOrdinal = reader.GetOrdinal("CHAR_COL_DECL_LENGTH");
@@ -450,6 +453,7 @@ public class OracleTransformationProvider : TransformationProvider
                 var columnName = reader.GetString(columnNameOrdinal);
                 var isNullable = reader.GetString(nullableOrdinal) == "Y";
                 var dataTypeString = reader.GetString(dataTypeOrdinal).ToUpperInvariant();
+                var dataLength = reader.IsDBNull(dataLengthOrdinal) ? (int?)null : reader.GetInt32(dataLengthOrdinal);
                 var dataPrecision = reader.IsDBNull(dataPrecisionOrdinal) ? (int?)null : reader.GetInt32(dataPrecisionOrdinal);
                 var dataScale = reader.IsDBNull(dataScaleOrdinal) ? (int?)null : reader.GetInt32(dataScaleOrdinal);
                 var charColDeclLength = reader.IsDBNull(charColDeclLengthOrdinal) ? (int?)null : reader.GetInt32(charColDeclLengthOrdinal);
@@ -473,7 +477,11 @@ public class OracleTransformationProvider : TransformationProvider
                     }
                     else
                     {
-                        if (dataPrecision.HasValue && 0 <= dataPrecision && dataPrecision <= 5)
+                        if (dataPrecision.HasValue && dataPrecision == 1)
+                        {
+                            column.MigratorDbType = MigratorDbType.Boolean;
+                        }
+                        else if (dataPrecision.HasValue && (dataPrecision == 0 || (2 <= dataPrecision && dataPrecision <= 5)))
                         {
                             column.MigratorDbType = MigratorDbType.Int16;
                         }
@@ -514,7 +522,7 @@ public class OracleTransformationProvider : TransformationProvider
                 {
                     column.MigratorDbType = MigratorDbType.Date;
                 }
-                else if (dataTypeString == "RAW(16)")
+                else if (dataTypeString == "RAW" && dataLength == 16)
                 {
                     // ambiguity - cannot distinguish between guid and binary
                     column.MigratorDbType = MigratorDbType.Guid;
@@ -534,6 +542,10 @@ public class OracleTransformationProvider : TransformationProvider
                 else if (dataTypeString == "BINARY_DOUBLE")
                 {
                     column.MigratorDbType = MigratorDbType.Double;
+                }
+                else if (dataTypeString == "BOOLEAN")
+                {
+                    column.MigratorDbType = MigratorDbType.Boolean;
                 }
                 else
                 {
@@ -598,8 +610,6 @@ public class OracleTransformationProvider : TransformationProvider
                     }
                     else if (column.Type == DbType.Guid)
                     {
-                        var hexToRawRegex = new Regex(@"(?<=^HEXTORAW\s*\(')[^']+(?=')", RegexOptions.IgnoreCase);
-
                         if (hexToRawRegex.Match(dataDefaultString) is Match hexToRawMatch && hexToRawMatch.Success)
                         {
                             var bytes = Enumerable.Range(0, hexToRawMatch.Value.Length / 2)
@@ -607,19 +617,11 @@ public class OracleTransformationProvider : TransformationProvider
                                 .ToArray();
 
                             // Oracle uses Big-Endian
-                            // Reverse first 4 bytes 
-                            var guidBytes = new byte[16];
-                            Array.Copy(bytes, 0, guidBytes, 0, 4);
-                            Array.Reverse(guidBytes, 0, 4);
+                            Array.Reverse(bytes, 0, 4);
+                            Array.Reverse(bytes, 4, 2);
+                            Array.Reverse(bytes, 6, 2);
 
-                            // Reverse next 2 bytes 
-                            Array.Copy(bytes, 4, guidBytes, 4, 2);
-                            Array.Reverse(guidBytes, 6, 2);
-
-                            // Copy remaining 8 bytes
-                            Array.Copy(bytes, 8, guidBytes, 8, 8);
-
-                            column.DefaultValue = new Guid(guidBytes);
+                            column.DefaultValue = new Guid(bytes);
                         }
                         else if (dataDefaultString.StartsWith("'"))
                         {
@@ -630,6 +632,32 @@ public class OracleTransformationProvider : TransformationProvider
                         else
                         {
                             column.DefaultValue = dataDefaultString;
+                        }
+                    }
+                    else if (column.Type == DbType.String)
+                    {
+                        var contentRegex = new Regex(@"(?<=^').*(?='$)");
+
+                        if (contentRegex.Match(dataDefaultString) is Match contentMatch && contentMatch.Success)
+                        {
+                            column.DefaultValue = contentMatch.Value;
+                        }
+                        else
+                        {
+                            throw new Exception($"Cannot parse string column '{column.Name}'");
+                        }
+                    }
+                    else if (column.Type == DbType.Binary)
+                    {
+                        if (hexToRawRegex.Match(dataDefaultString) is Match hexToRawMatch && hexToRawMatch.Success)
+                        {
+                            column.DefaultValue = Enumerable.Range(0, hexToRawMatch.Value.Length / 2)
+                                .Select(x => Convert.ToByte(hexToRawMatch.Value.Substring(x * 2, 2), 16))
+                                .ToArray();
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot parse default value in column '{column.Name}'");
                         }
                     }
                     else
