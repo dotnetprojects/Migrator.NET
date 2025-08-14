@@ -88,18 +88,27 @@ public abstract class TransformationProviderBase
 
     protected async Task BeginPostgreSQLTransactionAsync()
     {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL)
-            ?.ConnectionString;
+
+        var databaseConnectionConfig = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL);
+
+        var connectionString = databaseConnectionConfig?.ConnectionString;
 
         if (string.IsNullOrEmpty(connectionString))
         {
-            throw new IgnoreException("No Postgre ConnectionString is Set.");
+            throw new IgnoreException("No Postgre SQL connection string is set.");
         }
 
         DbProviderFactories.RegisterFactory("Npgsql", () => Npgsql.NpgsqlFactory.Instance);
 
-        Provider = new PostgreSQLTransformationProvider(new PostgreSQLDialect(), connectionString, null, "default", "Npgsql");
+        using var container = new Container();
+        container.RegisterDatabaseIntegrationTestService();
+        var databaseIntegrationTestServiceFactory = container.Resolve<IDatabaseIntegrationTestServiceFactory>();
+        var postgreIntegrationTestService = databaseIntegrationTestServiceFactory.Create(DatabaseProviderType.Postgres);
+        var databaseInfo = await postgreIntegrationTestService.CreateTestDatabaseAsync(databaseConnectionConfig, cts.Token);
+
+        Provider = new PostgreSQLTransformationProvider(new PostgreSQLDialect(), databaseInfo.DatabaseConnectionConfig.ConnectionString, null, "default", "Npgsql");
         Provider.BeginTransaction();
 
         await Task.CompletedTask;
