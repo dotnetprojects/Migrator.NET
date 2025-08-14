@@ -124,7 +124,7 @@ public class PostgreSQLDialect : Dialect
         else if (defaultValue is byte[] byteArray)
         {
             var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
-            return $"'\\x{convertedString}'";
+            return @$"DEFAULT E'\\x{convertedString}'";
         }
 
         return base.Default(defaultValue);
