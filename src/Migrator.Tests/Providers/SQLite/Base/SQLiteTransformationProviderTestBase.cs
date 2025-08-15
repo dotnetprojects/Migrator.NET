@@ -21,6 +21,8 @@ public abstract class SQLiteTransformationProviderTestBase : TransformationProvi
         Provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);
         Provider.BeginTransaction();
 
+        AddDefaultTable();
+
         await Task.CompletedTask;
     }
 }

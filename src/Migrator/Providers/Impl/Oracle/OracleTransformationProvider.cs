@@ -547,6 +547,10 @@ public class OracleTransformationProvider : TransformationProvider
                 {
                     column.MigratorDbType = MigratorDbType.Boolean;
                 }
+                else if (dataTypeString == "NCLOB")
+                {
+                    column.MigratorDbType = MigratorDbType.String;
+                }
                 else
                 {
                     throw new NotImplementedException();

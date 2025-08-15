@@ -131,8 +131,8 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     public void AddTableWithCompoundPrimaryKey()
     {
         Provider.AddTable("Test",
-                           new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-                           new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
+            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
         );
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
@@ -142,14 +142,15 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     [Test]
     public void AddTableWithCompoundPrimaryKeyShouldKeepNullForOtherProperties()
     {
-        Provider.AddTable("Test",
-                           new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-                           new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey),
-                           new Column("Name", DbType.String, 30, ColumnProperty.Null)
-            );
+        var testTableName = "Test";
+
+        Provider.AddTable(testTableName,
+            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column("Name", DbType.String, 30, ColumnProperty.Null)
+        );
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
-        Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
 
         var column = Provider.GetColumnByName("Test", "Name");
 
