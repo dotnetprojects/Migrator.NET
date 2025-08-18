@@ -380,6 +380,11 @@ public abstract class TransformationProvider : ITransformationProvider
     /// </example>
     public virtual void AddTable(string name, params IDbField[] columns)
     {
+        if (columns.Any(x => x is CheckConstraint))
+        {
+            throw new MigrationException($"{nameof(CheckConstraint)}s are currently supported in SQLite only.");
+        }
+
         // Most databases don't have the concept of a storage engine, so default is to not use it.
         AddTable(name, null, columns);
     }
