@@ -544,6 +544,10 @@ FROM    sys.[indexes] Ind
                             throw new NotImplementedException($"Cannot parse the binary default value of '{column.Name}'. The value is '{defaultValueString}'");
                         }
                     }
+                    else if (column.MigratorDbType == MigratorDbType.Byte)
+                    {
+                        column.DefaultValue = byte.Parse(bracesStrippedString);
+                    }
                     else
                     {
                         throw new NotImplementedException($"Cannot parse the default value of {column.Name} type '{column.MigratorDbType}'. It is not yet implemented - file an issue.");
