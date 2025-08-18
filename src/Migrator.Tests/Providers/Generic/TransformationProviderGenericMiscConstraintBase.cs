@@ -54,11 +54,11 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
         }
     }
 
-    [Test]
-    public void AddIndexedColumn()
-    {
-        Provider.AddColumn("TestTwo", "Test", DbType.String, 50, ColumnProperty.Indexed);
-    }
+    // [Test]
+    // public void AddIndexedColumn()
+    // {
+    //     Provider.AddColumn("TestTwo", "Test", DbType.String, 50, ColumnProperty.Indexed);
+    // }
 
     [Test]
     public void AddUniqueColumn()

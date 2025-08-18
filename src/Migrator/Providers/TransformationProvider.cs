@@ -670,7 +670,7 @@ public abstract class TransformationProvider : ITransformationProvider
     /// AddColumn(string, string, Type, int, ColumnProperty, object)
     /// </see>
     /// </summary>
-    public void AddColumn(string table, string column, DbType type, int size)
+    public virtual void AddColumn(string table, string column, DbType type, int size)
     {
         AddColumn(table, column, type, size, ColumnProperty.Null, null);
     }

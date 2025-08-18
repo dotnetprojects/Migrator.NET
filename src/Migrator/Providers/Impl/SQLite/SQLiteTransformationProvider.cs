@@ -838,6 +838,20 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteInfo);
     }
 
+    public override void AddColumn(string table, string columnName, DbType type, int size)
+    {
+        var column = new Column(columnName, type, size);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, int size)
+    {
+        var column = new Column(columnName, type, size);
+
+        AddColumn(table, column);
+    }
+
     public override void AddColumn(string table, string columnName, DbType type, ColumnProperty property)
     {
         var column = new Column(columnName, type, property);
@@ -848,6 +862,14 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override void AddColumn(string table, string columnName, MigratorDbType type, ColumnProperty property)
     {
         var column = new Column(columnName, type, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, int size, ColumnProperty property,
+                                  object defaultValue)
+    {
+        var column = new Column(columnName, type, property) { Size = size, DefaultValue = defaultValue };
 
         AddColumn(table, column);
     }

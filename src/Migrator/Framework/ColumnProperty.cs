@@ -34,6 +34,7 @@ public enum ColumnProperty
     /// <summary>
     /// Indexed Column
     /// </summary>
+    [Obsolete("Use method 'AddIndex'")]
     Indexed = 1 << 4,
 
     /// <summary>
