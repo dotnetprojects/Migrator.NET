@@ -341,7 +341,17 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void RemoveForeignKey(string table, string name)
     {
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
         var sqliteTableInfo = GetSQLiteTableInfo(table);
+        if (!sqliteTableInfo.ForeignKeys.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new MigrationException($"Foreign key '{name}' does not exist.");
+        }
+
         sqliteTableInfo.ForeignKeys.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
         RecreateTable(sqliteTableInfo);
@@ -640,6 +650,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         RecreateTable(sqliteTableInfo);
+    }
+
+    public override bool PrimaryKeyExists(string table, string name)
+    {
+        throw new NotSupportedException($"SQLite does not support named primary keys. You may wonder why there is a name in method '{nameof(AddPrimaryKey)}'. It is because of architectural decisions of the past. It is overridden in {nameof(SQLiteTransformationProvider)}.");
     }
 
     public override void AddUniqueConstraint(string name, string table, params string[] columns)

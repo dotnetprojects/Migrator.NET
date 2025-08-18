@@ -1,33 +1,16 @@
-using DotNetProjects.Migrator.Providers;
-using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
+using System.Threading.Tasks;
 using Migrator.Tests.Providers.Base;
-using Migrator.Tests.Settings;
-using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers.PostgreSQL;
+namespace Migrator.Tests.Providers.PostgreSQL.Base;
 
 [TestFixture]
 [Category("Postgre")]
 public abstract class PostgreSQLTransformationProviderTestBase : TransformationProviderSimpleBase
 {
     [SetUp]
-    public void SetUp()
+    public async Task SetUpAsync()
     {
-        var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL)
-            ?.ConnectionString;
-
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            throw new IgnoreException("No Postgre ConnectionString is Set.");
-        }
-
-        DbProviderFactories.RegisterFactory("Npgsql", () => Npgsql.NpgsqlFactory.Instance);
-
-        Provider = new PostgreSQLTransformationProvider(new PostgreSQLDialect(), connectionString, null, "default", "Npgsql");
-        Provider.BeginTransaction();
-
-        AddDefaultTable();
+        await BeginPostgreSQLTransactionAsync();
     }
 }

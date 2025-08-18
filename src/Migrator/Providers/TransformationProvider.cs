@@ -269,15 +269,27 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual void RemoveForeignKey(string table, string name)
     {
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
         RemoveConstraint(table, name);
     }
 
     public virtual void RemoveConstraint(string table, string name)
     {
-        if (TableExists(table) && ConstraintExists(table, name))
+        if (!TableExists(table))
         {
-            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
+            throw new MigrationException($"Table '{name}' does not exist");
         }
+
+        if (!ConstraintExists(table, name))
+        {
+            throw new MigrationException($"Constraint '{name}' does not exist");
+        }
+
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
     }
 
     public virtual void RemoveAllConstraints(string table)

@@ -38,4 +38,9 @@ public abstract class TransformationProviderSimpleBase : TransformationProviderB
             new Column("bigstring", DbType.String, 50000)
         );
     }
+
+    public void AddPrimaryKey()
+    {
+        Provider.AddPrimaryKey("PK_Test", "Test", "Id");
+    }
 }

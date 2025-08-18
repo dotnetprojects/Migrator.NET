@@ -2,6 +2,8 @@ using System;
 using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
+using DryIoc;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.Generic;
@@ -113,10 +115,22 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     [Test]
     public void RemoveUnexistingForeignKey()
     {
+        // Arrange 
         AddForeignKey();
-        Provider.RemoveForeignKey("abc", "FK_Test_TestTwo");
-        Provider.RemoveForeignKey("abc", "abc");
-        Provider.RemoveForeignKey("Test", "abc");
+
+        // Act/Assert
+        // Table does not exist.
+        Assert.Throws<MigrationException>(() => Provider.RemoveForeignKey("NotExistingTable", "FK_Test_TestTwo"));
+
+        // Table exists but foreign key does not exist.
+        if (Provider is SQLiteTransformationProvider)
+        {
+            Assert.Throws<MigrationException>(() => Provider.RemoveForeignKey("Test", "NotExistingForeignKey"));
+        }
+        else
+        {
+            Assert.That(() => Provider.RemoveForeignKey("Test", "NotExistingForeignKey"), Throws.Exception);
+        }
     }
 
     [Test]
@@ -124,10 +138,8 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     {
         AddForeignKey();
         Assert.That(Provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"), Is.True);
-        Assert.That(Provider.ConstraintExists("abc", "abc"), Is.False);
+        Assert.That(Provider.ConstraintExists("TestTwo", "abc"), Is.False);
     }
-
-
 
     [Test]
     public void AddTableWithCompoundPrimaryKeyShouldKeepNullForOtherProperties()
