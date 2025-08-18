@@ -14,6 +14,7 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Loggers;
 using DotNetProjects.Migrator.Framework.SchemaBuilder;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DotNetProjects.Migrator.Providers.Models;
 using System;
 using System.Collections.Generic;
@@ -392,9 +393,9 @@ public abstract class TransformationProvider : ITransformationProvider
     /// </example>
     public virtual void AddTable(string name, params IDbField[] columns)
     {
-        if (columns.Any(x => x is CheckConstraint))
+        if (this is not SQLiteTransformationProvider && columns.Any(x => x is CheckConstraint))
         {
-            throw new MigrationException($"{nameof(CheckConstraint)}s are currently supported in SQLite only.");
+            throw new MigrationException($"{nameof(CheckConstraint)}s are currently only supported in SQLite.");
         }
 
         // Most databases don't have the concept of a storage engine, so default is to not use it.

@@ -198,8 +198,9 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         Provider.RemoveColumn(testTableName, propertyName2);
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Uniques.Count, Is.EqualTo(2));
-        Assert.That(tableInfoAfter.Uniques.Count, Is.EqualTo(1));
+        // We do not support not named uniques in SQLite any more.
+        Assert.That(tableInfoBefore.Uniques.Count, Is.EqualTo(0));
+        Assert.That(tableInfoAfter.Uniques.Count, Is.EqualTo(0));
     }
 
     [Test]
