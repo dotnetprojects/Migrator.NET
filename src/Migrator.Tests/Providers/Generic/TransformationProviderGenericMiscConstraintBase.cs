@@ -3,7 +3,6 @@ using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using DryIoc;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.Generic;
@@ -35,7 +34,7 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
         Provider.AddUniqueConstraint("UN_Test_TestTwo", "TestTwo", "Id", "TestId");
     }
 
-    public void AddCheckConstraint()
+    public void AddTestCheckConstraint()
     {
         Provider.AddCheckConstraint("CK_TestTwo_TestId", "TestTwo", "TestId>5");
     }
@@ -91,8 +90,10 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     [Test]
     public virtual void CanAddCheckConstraint()
     {
-        AddCheckConstraint();
-        Assert.That(Provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"), Is.True);
+        AddTestCheckConstraint();
+        var constraintExists = Provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId");
+
+        Assert.That(constraintExists, Is.True);
     }
 
     [Test]
@@ -115,7 +116,7 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     [Test]
     public virtual void RemoveCheckConstraint()
     {
-        AddCheckConstraint();
+        AddTestCheckConstraint();
         Provider.RemoveConstraint("TestTwo", "CK_TestTwo_TestId");
         Assert.That(Provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"), Is.False);
     }

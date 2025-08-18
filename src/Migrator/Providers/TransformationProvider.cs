@@ -425,6 +425,7 @@ public abstract class TransformationProvider : ITransformationProvider
         var compoundPrimaryKey = pks.Count > 1;
 
         var columnProviders = new List<ColumnPropertiesMapper>(columns.Count());
+
         foreach (var column in columns)
         {
             // Remove the primary key notation if compound primary key because we'll add it back later
@@ -447,15 +448,17 @@ public abstract class TransformationProvider : ITransformationProvider
         }
 
         var indexes = fields.Where(x => x is Index).Cast<Index>().ToArray();
+
         foreach (var index in indexes)
         {
             AddIndex(name, index);
         }
 
         var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
+
         foreach (var foreignKey in foreignKeys)
         {
-            this.AddForeignKey(name, foreignKey);
+            AddForeignKey(name, foreignKey);
         }
     }
 
@@ -647,7 +650,7 @@ public abstract class TransformationProvider : ITransformationProvider
     /// AddColumn(string, string, Type, int, ColumnProperty, object)
     /// </see>
     /// </summary>
-    public void AddColumn(string table, string column, DbType type)
+    public virtual void AddColumn(string table, string column, DbType type)
     {
         AddColumn(table, column, type, 0, ColumnProperty.Null, null);
     }

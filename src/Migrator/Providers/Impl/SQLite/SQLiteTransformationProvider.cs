@@ -751,6 +751,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var dbFields = columnDbFields.Concat(foreignKeyDbFields)
             .Concat(uniqueDbFields)
+            .Concat(checkConstraintDbFields)
             .ToArray();
 
         // ToHashSet() not available in older .NET versions so we create it old-fashioned.
@@ -811,6 +812,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
     }
 
+    [Obsolete]
+    public override void AddTable(string table, string engine, string columns)
+    {
+        throw new NotSupportedException();
+    }
+
     public override void AddColumn(string table, Column column)
     {
         if (!TableExists(table))
@@ -819,6 +826,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         var sqliteInfo = GetSQLiteTableInfo(table);
+
         if (sqliteInfo.ColumnMappings.Select(x => x.OldName).ToList().Contains(column.Name))
         {
             throw new Exception("Column already exists.");
@@ -828,6 +836,61 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         sqliteInfo.Columns.Add(column);
 
         RecreateTable(sqliteInfo);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type)
+    {
+        var column = new Column(columnName, type);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type)
+    {
+        var column = new Column(columnName, type);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type, int size, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, size, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, int size, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, size, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type, object defaultValue)
+    {
+        var column = new Column(columnName, type, defaultValue);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string sqlColumn)
+    {
+        var column = new Column(sqlColumn);
+        AddColumn(table, column);
     }
 
     public override void ChangeColumn(string table, Column column)
@@ -910,9 +973,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             .Select(x => x.Name)
             .ToList();
 
-        // TODO add PK and CHECK
+        var checkConstraints = sqliteInfo.CheckConstraints
+            .Select(x => x.Name)
+            .ToList();
 
         var names = foreignKeyNames.Concat(uniqueConstraints)
+            .Concat(checkConstraints)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .ToArray();
 
@@ -1469,6 +1535,16 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         return pragmaTableInfoItems;
+    }
+
+    public override void AddCheckConstraint(string constraintName, string tableName, string checkSql)
+    {
+        var sqliteTableInfo = GetSQLiteTableInfo(tableName);
+
+        var checkConstraint = new CheckConstraint(constraintName, checkSql);
+        sqliteTableInfo.CheckConstraints.Add(checkConstraint);
+
+        RecreateTable(sqliteTableInfo);
     }
 
     public List<CheckConstraint> GetCheckConstraints(string tableName)
