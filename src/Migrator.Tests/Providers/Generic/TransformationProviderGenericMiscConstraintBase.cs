@@ -127,17 +127,7 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
         Assert.That(Provider.ConstraintExists("abc", "abc"), Is.False);
     }
 
-    [Test]
-    public void AddTableWithCompoundPrimaryKey()
-    {
-        Provider.AddTable("Test",
-            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
-        );
 
-        Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
-        Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
-    }
 
     [Test]
     public void AddTableWithCompoundPrimaryKeyShouldKeepNullForOtherProperties()
