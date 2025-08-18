@@ -521,7 +521,7 @@ FROM    sys.[indexes] Ind
                     else if (column.MigratorDbType == MigratorDbType.Decimal)
                     {
                         // We assume ((1.234))
-                        column.DefaultValue = decimal.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = decimal.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.MigratorDbType == MigratorDbType.String)
                     {
@@ -546,7 +546,7 @@ FROM    sys.[indexes] Ind
                     }
                     else if (column.MigratorDbType == MigratorDbType.Byte)
                     {
-                        column.DefaultValue = byte.Parse(bracesStrippedString);
+                        column.DefaultValue = byte.Parse(bracesAndSingleQuoteStrippedString);
                     }
                     else
                     {
