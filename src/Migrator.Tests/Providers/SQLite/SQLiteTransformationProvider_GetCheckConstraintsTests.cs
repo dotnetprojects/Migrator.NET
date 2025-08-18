@@ -1,4 +1,3 @@
-using System;
 using System.Data.SQLite;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
@@ -41,21 +40,5 @@ public class SQLiteTransformationProvider_GetCheckConstraintsTests : SQLiteTrans
 
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
         Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (MyColumnName INTEGER NULL, CONSTRAINT MyCheckConstraint1 CHECK (MyColumnName > 10), CONSTRAINT MyCheckConstraint2 CHECK (MyColumnName < 100))"));
-    }
-
-    [Test]
-    public void CheckForeignKeyIntegrity_IntegrityOk_ReturnsTrue()
-    {
-        // Arrange
-        AddTableWithPrimaryKey();
-        Provider.ExecuteNonQuery("INSERT INTO Test (Id, name) VALUES (1, 'my name')");
-        Provider.ExecuteNonQuery("INSERT INTO TestTwo (TestId) VALUES (1)");
-        Provider.AddForeignKey(name: "FKName", childTable: "TestTwo", childColumn: "TestId", parentTable: "Test", parentColumn: "Id", constraint: ForeignKeyConstraintType.Cascade);
-
-        // Act
-        var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
-
-        // Assert
-        Assert.That(result, Is.True);
     }
 }

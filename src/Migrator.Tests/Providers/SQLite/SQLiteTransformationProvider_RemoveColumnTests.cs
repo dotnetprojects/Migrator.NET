@@ -265,4 +265,23 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         var valid = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
         Assert.That(valid, Is.True);
     }
+
+    [Test]
+    public void RemoveColumn_ColumnExistsInCheckConstraintString_Throws()
+    {
+        const string tableName = "MyTableName";
+        const string columnName = "MyColumnName";
+        const string checkConstraint1 = "MyCheckConstraint1";
+
+        // Arrange
+        Provider.AddTable(tableName,
+            new Column(columnName, System.Data.DbType.Int32),
+            new CheckConstraint(checkConstraint1, $"{columnName} > 10")
+        );
+
+        var checkConstraints = ((SQLiteTransformationProvider)Provider).GetCheckConstraints(tableName);
+
+        // Act/Assert
+        Assert.Throws<MigrationException>(() => Provider.RemoveColumn(tableName, columnName));
+    }
 }

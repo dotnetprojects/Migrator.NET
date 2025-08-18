@@ -7,9 +7,9 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = DotNetProjects.Migrator.Framework.Index;
+using DotNetProjects.Migrator.Framework.Extensions;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
@@ -407,9 +407,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
 
-        if (sqliteInfoMainTable.CheckConstraints.Any(x => x.CheckConstraintString.Equals(column, StringComparison.OrdinalIgnoreCase)))
+        var checkConstraints = sqliteInfoMainTable.CheckConstraints;
+
+        if (checkConstraints.Any(x => x.CheckConstraintString.Contains(column, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new Exception("A check constraint contains the column you want to remove. Remove the check constraint first");
+            throw new MigrationException("A check constraint contains the column you want to remove. Remove the check constraint first");
         }
 
         if (!sqliteInfoMainTable.ColumnMappings.Any(x => x.OldName == column))
