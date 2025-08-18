@@ -431,6 +431,10 @@ FROM    sys.[indexes] Ind
                 {
                     column.MigratorDbType = MigratorDbType.Guid;
                 }
+                else if (dataTypeString == "real")
+                {
+                    column.MigratorDbType = MigratorDbType.Single;
+                }
                 else
                 {
                     throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");

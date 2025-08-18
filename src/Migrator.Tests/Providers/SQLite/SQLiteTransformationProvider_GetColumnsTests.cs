@@ -2,14 +2,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Tests.Providers.Generic;
+using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]
-public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvider_GetColumns_GenericTests
+public class SQLiteTransformationProvider_GetColumnsTests : TransformationProviderBase
 {
     [SetUp]
     public async Task SetUpAsync()
