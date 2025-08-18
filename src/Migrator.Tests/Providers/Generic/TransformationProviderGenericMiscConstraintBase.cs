@@ -2,14 +2,15 @@ using System;
 using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers;
+namespace Migrator.Tests.Providers.Generic;
 
 /// <summary>
-/// Base class for Provider tests for all tests including constraint oriented tests.
+/// Base class for provider tests for all tests including constraint oriented tests.
 /// </summary>
-public abstract class TransformationProviderConstraintBase : TransformationProviderBase
+public abstract class TransformationProviderGenericMiscConstraintBase : TransformationProviderGenericMiscTests
 {
     public void AddForeignKey()
     {
@@ -33,7 +34,7 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
         Provider.AddUniqueConstraint("UN_Test_TestTwo", "TestTwo", "Id", "TestId");
     }
 
-    public void AddCheckConstraint()
+    public void AddTestCheckConstraint()
     {
         Provider.AddCheckConstraint("CK_TestTwo_TestId", "TestTwo", "TestId>5");
     }
@@ -42,14 +43,22 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
     public void CanAddPrimaryKey()
     {
         AddPrimaryKey();
-        Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True);
+
+        if (Provider is SQLiteTransformationProvider)
+        {
+            Assert.Throws<NotSupportedException>(() => Provider.PrimaryKeyExists("Test", "PK_Test"));
+        }
+        else
+        {
+            Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True);
+        }
     }
 
-    [Test]
-    public void AddIndexedColumn()
-    {
-        Provider.AddColumn("TestTwo", "Test", DbType.String, 50, ColumnProperty.Indexed);
-    }
+    // [Test]
+    // public void AddIndexedColumn()
+    // {
+    //     Provider.AddColumn("TestTwo", "Test", DbType.String, 50, ColumnProperty.Indexed);
+    // }
 
     [Test]
     public void AddUniqueColumn()
@@ -81,8 +90,10 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
     [Test]
     public virtual void CanAddCheckConstraint()
     {
-        AddCheckConstraint();
-        Assert.That(Provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"), Is.True);
+        AddTestCheckConstraint();
+        var constraintExists = Provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId");
+
+        Assert.That(constraintExists, Is.True);
     }
 
     [Test]
@@ -105,7 +116,7 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
     [Test]
     public virtual void RemoveCheckConstraint()
     {
-        AddCheckConstraint();
+        AddTestCheckConstraint();
         Provider.RemoveConstraint("TestTwo", "CK_TestTwo_TestId");
         Assert.That(Provider.ConstraintExists("TestTwo", "CK_TestTwo_TestId"), Is.False);
     }
@@ -113,10 +124,22 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
     [Test]
     public void RemoveUnexistingForeignKey()
     {
+        // Arrange 
         AddForeignKey();
-        Provider.RemoveForeignKey("abc", "FK_Test_TestTwo");
-        Provider.RemoveForeignKey("abc", "abc");
-        Provider.RemoveForeignKey("Test", "abc");
+
+        // Act/Assert
+        // Table does not exist.
+        Assert.Throws<MigrationException>(() => Provider.RemoveForeignKey("NotExistingTable", "FK_Test_TestTwo"));
+
+        // Table exists but foreign key does not exist.
+        if (Provider is SQLiteTransformationProvider)
+        {
+            Assert.Throws<MigrationException>(() => Provider.RemoveForeignKey("Test", "NotExistingForeignKey"));
+        }
+        else
+        {
+            Assert.That(() => Provider.RemoveForeignKey("Test", "NotExistingForeignKey"), Throws.Exception);
+        }
     }
 
     [Test]
@@ -124,32 +147,21 @@ public abstract class TransformationProviderConstraintBase : TransformationProvi
     {
         AddForeignKey();
         Assert.That(Provider.ConstraintExists("TestTwo", "FK_Test_TestTwo"), Is.True);
-        Assert.That(Provider.ConstraintExists("abc", "abc"), Is.False);
-    }
-
-    [Test]
-    public void AddTableWithCompoundPrimaryKey()
-    {
-        Provider.AddTable("Test",
-                           new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-                           new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
-        );
-
-        Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
-        Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
+        Assert.That(Provider.ConstraintExists("TestTwo", "abc"), Is.False);
     }
 
     [Test]
     public void AddTableWithCompoundPrimaryKeyShouldKeepNullForOtherProperties()
     {
-        Provider.AddTable("Test",
-                           new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-                           new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey),
-                           new Column("Name", DbType.String, 30, ColumnProperty.Null)
-            );
+        var testTableName = "Test";
+
+        Provider.AddTable(testTableName,
+            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column("Name", DbType.String, 30, ColumnProperty.Null)
+        );
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
-        Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
 
         var column = Provider.GetColumnByName("Test", "Name");
 

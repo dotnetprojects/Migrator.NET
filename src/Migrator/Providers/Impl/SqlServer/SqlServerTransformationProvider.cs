@@ -16,6 +16,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SqlServer;
@@ -321,7 +323,7 @@ FROM    sys.[indexes] Ind
         var pkColumns = new List<string>();
         try
         {
-            pkColumns = this.ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu WHERE EXISTS ( SELECT tc.* FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc WHERE tc.TABLE_NAME = '{0}' AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY' AND tc.CONSTRAINT_NAME = cu.CONSTRAINT_NAME )", table);
+            pkColumns = ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu WHERE EXISTS ( SELECT tc.* FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc WHERE tc.TABLE_NAME = '{0}' AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY' AND tc.CONSTRAINT_NAME = cu.CONSTRAINT_NAME )", table);
         }
         catch (Exception)
         { }
@@ -329,7 +331,7 @@ FROM    sys.[indexes] Ind
         var idtColumns = new List<string>();
         try
         {
-            idtColumns = this.ExecuteStringQuery(" select COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA = '{1}' and TABLE_NAME = '{0}' and COLUMNPROPERTY(object_id(TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1", table, schema);
+            idtColumns = ExecuteStringQuery("SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA = '{1}' and TABLE_NAME = '{0}' and COLUMNPROPERTY(object_id(TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1", table, schema);
         }
         catch (Exception)
         { }
@@ -339,11 +341,18 @@ FROM    sys.[indexes] Ind
         using (
                 var reader =
                 ExecuteQuery(cmd,
-                    string.Format("select COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
+                    string.Format("SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH , NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE, CHARACTER_MAXIMUM_LENGTH from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
         {
             while (reader.Read())
             {
                 var column = new Column(reader.GetString(0), DbType.String);
+
+                var defaultValueOrdinal = reader.GetOrdinal("COLUMN_DEFAULT");
+                var dataTypeOrdinal = reader.GetOrdinal("DATA_TYPE");
+                var characterMaximumLengthOrdinal = reader.GetOrdinal("CHARACTER_MAXIMUM_LENGTH");
+
+                var defaultValueString = reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal).Trim();
+                var characterMaximumLength = reader.IsDBNull(characterMaximumLengthOrdinal) ? (int?)null : reader.GetInt32(characterMaximumLengthOrdinal);
 
                 if (pkColumns.Contains(column.Name))
                 {
@@ -357,77 +366,187 @@ FROM    sys.[indexes] Ind
 
                 var nullableStr = reader.GetString(1);
                 var isNullable = nullableStr == "YES";
-                if (!reader.IsDBNull(2))
+
+                var dataTypeString = reader.GetString(dataTypeOrdinal);
+
+                if (dataTypeString == "date")
                 {
-                    var type = reader.GetString(2);
-                    column.Type = Dialect.GetDbTypeFromString(type);
+                    column.MigratorDbType = MigratorDbType.Date;
                 }
+                else if (dataTypeString == "int")
+                {
+                    column.MigratorDbType = MigratorDbType.Int32;
+                }
+                else if (dataTypeString == "bigint")
+                {
+                    column.MigratorDbType = MigratorDbType.Int64;
+                }
+                else if (dataTypeString == "smallint")
+                {
+                    column.MigratorDbType = MigratorDbType.Int16;
+                }
+                else if (dataTypeString == "tinyint")
+                {
+                    column.MigratorDbType = MigratorDbType.Byte;
+                }
+                else if (dataTypeString == "bit")
+                {
+                    column.MigratorDbType = MigratorDbType.Boolean;
+                }
+                else if (dataTypeString == "money")
+                {
+                    column.MigratorDbType = MigratorDbType.Currency;
+                }
+                else if (dataTypeString == "float")
+                {
+                    column.MigratorDbType = MigratorDbType.Double;
+                }
+                else if (new[] { "text", "nchar", "ntext", "varchar", "nvarchar" }.Contains(dataTypeString))
+                {
+                    // We use string for all string-like data types.
+                    column.MigratorDbType = MigratorDbType.String;
+                    column.Size = characterMaximumLength.Value;
+                }
+                else if (dataTypeString == "decimal")
+                {
+                    column.MigratorDbType = MigratorDbType.Decimal;
+                }
+                else if (dataTypeString == "datetime")
+                {
+                    column.MigratorDbType = MigratorDbType.DateTime;
+                }
+                else if (dataTypeString == "datetime2")
+                {
+                    column.MigratorDbType = MigratorDbType.DateTime2;
+                }
+                else if (dataTypeString == "datetimeoffset")
+                {
+                    column.MigratorDbType = MigratorDbType.DateTimeOffset;
+                }
+                else if (dataTypeString == "binary" || dataTypeString == "varbinary")
+                {
+                    column.MigratorDbType = MigratorDbType.Binary;
+                }
+                else if (dataTypeString == "uniqueidentifier")
+                {
+                    column.MigratorDbType = MigratorDbType.Guid;
+                }
+                else if (dataTypeString == "real")
+                {
+                    column.MigratorDbType = MigratorDbType.Single;
+                }
+                else
+                {
+                    throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
+                }
+
                 if (!reader.IsDBNull(3))
                 {
                     column.Size = reader.GetInt32(3);
                 }
-                if (!reader.IsDBNull(4))
-                {
-                    column.DefaultValue = reader.GetValue(4);
 
-                    if (column.DefaultValue.ToString()[1] == '(' || column.DefaultValue.ToString()[1] == '\'')
-                    {
-                        column.DefaultValue = column.DefaultValue.ToString().Substring(2, column.DefaultValue.ToString().Length - 4); // Example "((10))" or "('false')"
-                    }
-                    else
-                    {
-                        column.DefaultValue = column.DefaultValue.ToString().Substring(1, column.DefaultValue.ToString().Length - 2); // Example "(CONVERT([datetime],'20000101',(112)))"
-                    }
+                if (defaultValueString != null)
+                {
+                    var bracesStrippedString = defaultValueString.Replace("(", "").Replace(")", "").Trim();
+                    var bracesAndSingleQuoteStrippedString = bracesStrippedString.Replace("'", "");
 
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = ulong.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
-                        column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = double.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {
-                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
+                        var truthy = new string[] { "'TRUE'", "1" };
+                        var falsy = new string[] { "'FALSE'", "0" };
+
+                        if (truthy.Contains(bracesStrippedString))
+                        {
+                            column.DefaultValue = true;
+                        }
+                        else if (falsy.Contains(bracesStrippedString))
+                        {
+                            column.DefaultValue = false;
+                        }
+                        else if (bracesStrippedString == "NULL")
+                        {
+                            column.DefaultValue = null;
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot parse the boolean default value '{defaultValueString}' of column '{column.Name}'");
+                        }
                     }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
-                        if (column.DefaultValue is string defValCv && defValCv.StartsWith("CONVERT("))
+                        // (CONVERT([datetime],'2000-01-02 03:04:05.000',(121)))
+                        // 121 is a pattern: it contains milliseconds
+                        // Search for 121 here: https://learn.microsoft.com/de-de/sql/t-sql/functions/cast-and-convert-transact-sql?view=sql-server-ver17
+                        var regexDateTimeConvert121 = new Regex(@"(?<=^\(CONVERT\([\[]+datetime[\]]+,')[^']+(?='\s*,\s*\(121\s*\)\)\)$)");
+                        var match121 = regexDateTimeConvert121.Match(defaultValueString);
+
+                        if (match121.Success)
                         {
-                            var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
+                            // We convert to UTC since we restrict date time default values to UTC on default value definition.
+                            column.DefaultValue = DateTime.ParseExact(match121.Value, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                         }
-                        else if (column.DefaultValue is string defVal)
+                        else if (defaultValueString is string defVal)
                         {
+                            // Not tested
                             var dt = defVal;
                             if (defVal.StartsWith("'"))
                             {
                                 dt = defVal.Substring(1, defVal.Length - 2);
                             }
 
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
+                            // We convert to UTC since we restrict date time default values to UTC on default value definition.
+                            column.DefaultValue = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot interpret {column.DefaultValue} in column '{column.Name}' unexpected pattern.");
                         }
                     }
                     else if (column.Type == DbType.Guid)
                     {
-                        if (column.DefaultValue is string defVal)
+                        column.DefaultValue = Guid.Parse(bracesAndSingleQuoteStrippedString);
+                    }
+                    else if (column.MigratorDbType == MigratorDbType.Decimal)
+                    {
+                        // We assume ((1.234))
+                        column.DefaultValue = decimal.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
+                    }
+                    else if (column.MigratorDbType == MigratorDbType.String)
+                    {
+                        column.DefaultValue = bracesAndSingleQuoteStrippedString;
+                    }
+                    else if (column.MigratorDbType == MigratorDbType.Binary)
+                    {
+                        if (bracesStrippedString.StartsWith("0x"))
                         {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
-                            {
-                                dt = defVal.Substring(1, defVal.Length - 2);
-                            }
+                            var hexString = bracesStrippedString.Substring(2);
 
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
+                            // Not available in old .NET version: Convert.FromHexString(hexString);
+
+                            column.DefaultValue = Enumerable.Range(0, hexString.Length / 2)
+                                .Select(x => Convert.ToByte(hexString.Substring(x * 2, 2), 16))
+                                .ToArray();
                         }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot parse the binary default value of '{column.Name}'. The value is '{defaultValueString}'");
+                        }
+                    }
+                    else
+                    {
+                        throw new NotImplementedException($"Cannot parse the default value of {column.Name} type '{column.MigratorDbType}'. It is not yet implemented - file an issue.");
                     }
                 }
                 if (!reader.IsDBNull(5))

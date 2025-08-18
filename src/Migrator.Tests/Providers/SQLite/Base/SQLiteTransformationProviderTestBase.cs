@@ -1,7 +1,5 @@
-using DotNetProjects.Migrator.Providers.Impl.SQLite;
+using System.Threading.Tasks;
 using Migrator.Tests.Providers.Base;
-using Migrator.Tests.Settings;
-using Migrator.Tests.Settings.Config;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLite.Base;
@@ -11,15 +9,9 @@ namespace Migrator.Tests.Providers.SQLite.Base;
 public abstract class SQLiteTransformationProviderTestBase : TransformationProviderSimpleBase
 {
     [SetUp]
-    public void SetUp()
+    public async Task SetUpAsync()
     {
-        var configReader = new ConfigurationReader();
-        var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteId)
-            .ConnectionString;
-
-        Provider = new SQLiteTransformationProvider(new SQLiteDialect(), connectionString, "default", null);
-        Provider.BeginTransaction();
-
+        await BeginSQLiteTransactionAsync();
         AddDefaultTable();
     }
 }

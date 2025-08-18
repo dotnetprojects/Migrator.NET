@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
+using Migrator.Tests.Providers.PostgreSQL.Base;
 using Npgsql;
 using NUnit.Framework;
 

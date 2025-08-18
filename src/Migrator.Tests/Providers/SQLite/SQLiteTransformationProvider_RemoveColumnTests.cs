@@ -198,8 +198,9 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         Provider.RemoveColumn(testTableName, propertyName2);
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Uniques.Count, Is.EqualTo(2));
-        Assert.That(tableInfoAfter.Uniques.Count, Is.EqualTo(1));
+        // We do not support not named uniques in SQLite any more.
+        Assert.That(tableInfoBefore.Uniques.Count, Is.EqualTo(0));
+        Assert.That(tableInfoAfter.Uniques.Count, Is.EqualTo(0));
     }
 
     [Test]
@@ -264,5 +265,24 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
 
         var valid = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
         Assert.That(valid, Is.True);
+    }
+
+    [Test]
+    public void RemoveColumn_ColumnExistsInCheckConstraintString_Throws()
+    {
+        const string tableName = "MyTableName";
+        const string columnName = "MyColumnName";
+        const string checkConstraint1 = "MyCheckConstraint1";
+
+        // Arrange
+        Provider.AddTable(tableName,
+            new Column(columnName, System.Data.DbType.Int32),
+            new CheckConstraint(checkConstraint1, $"{columnName} > 10")
+        );
+
+        var checkConstraints = ((SQLiteTransformationProvider)Provider).GetCheckConstraints(tableName);
+
+        // Act/Assert
+        Assert.Throws<MigrationException>(() => Provider.RemoveColumn(tableName, columnName));
     }
 }

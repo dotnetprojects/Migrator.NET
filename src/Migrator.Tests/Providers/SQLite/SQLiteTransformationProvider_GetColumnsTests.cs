@@ -1,15 +1,22 @@
 using System.Linq;
+using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Tests.Providers.SQLite.Base;
+using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]
-public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformationProviderTestBase
+public class SQLiteTransformationProvider_GetColumnsTests : TransformationProviderBase
 {
+    [SetUp]
+    public async Task SetUpAsync()
+    {
+        await BeginSQLiteTransactionAsync();
+    }
+
     [Test]
     public void GetColumns_UniqueButNotPrimaryKey_ReturnsFalse()
     {
@@ -94,7 +101,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : SQLiteTransformation
         Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.Null));
     }
 
-    [Test, Description("Add index. Should be added and detected as index")]
+    [Test, Description("Add index. The index should be added and then being detected as index.")]
     public void GetSQLiteTableInfo_GetIndexesAndColumnsWithIndex_NoUniqueOnTheColumnsAndIndexExists()
     {
         // Arrange

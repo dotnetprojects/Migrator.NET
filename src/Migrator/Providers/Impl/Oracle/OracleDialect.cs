@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Linq;
 using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
@@ -16,6 +17,8 @@ public class OracleDialect : Dialect
         RegisterColumnType(DbType.Binary, "RAW(2000)");
         RegisterColumnType(DbType.Binary, 2000, "RAW($l)");
         RegisterColumnType(DbType.Binary, 2147483647, "BLOB");
+
+        // 23ai now has a native boolean data type but for backwards compatibility we keep using NUMBER(1,0)
         RegisterColumnType(DbType.Boolean, "NUMBER(1,0)");
         RegisterColumnType(DbType.Byte, "NUMBER(3,0)");
         RegisterColumnType(DbType.Currency, "NUMBER(19,1)");
@@ -37,6 +40,7 @@ public class OracleDialect : Dialect
         RegisterColumnType(DbType.UInt32, "NUMBER(10,0)");
         RegisterColumnType(DbType.UInt64, "NUMBER(20,0)");
         RegisterColumnType(DbType.Single, "FLOAT(24)");
+        RegisterColumnType(DbType.Double, "BINARY_DOUBLE");
         RegisterColumnType(DbType.StringFixedLength, "NCHAR(255)");
         RegisterColumnType(DbType.StringFixedLength, 2000, "NCHAR($l)");
         RegisterColumnType(DbType.String, "NVARCHAR2(255)");
@@ -118,17 +122,57 @@ public class OracleDialect : Dialect
 
     public override string Default(object defaultValue)
     {
-        if (defaultValue.GetType().Equals(typeof(bool)))
+        if (defaultValue == null)
         {
-            return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
+            return string.Empty;
         }
-        else if (defaultValue is Guid)
+
+        if (defaultValue is bool booleanValue)
         {
-            return string.Format("DEFAULT HEXTORAW('{0}')", defaultValue.ToString().Replace("-", ""));
+            return string.Format("DEFAULT {0}", booleanValue ? "1" : "0");
         }
-        else if (defaultValue is DateTime)
+        else if (defaultValue is Guid guid)
         {
-            return string.Format("DEFAULT TO_TIMESTAMP('{0}', 'YYYY-MM-DD HH24:MI:SS.FF')", ((DateTime)defaultValue).ToString("yyyy-MM-dd HH:mm:ss.ff"));
+            var bytes = guid.ToByteArray();
+
+            // Convert to big-endian format in Oracle
+            var oracleBytes = new byte[16];
+
+            // Reverse first 4 bytes
+            Array.Copy(bytes, 0, oracleBytes, 0, 4);
+            Array.Reverse(oracleBytes, 0, 4);
+
+            // Reverse next 2 bytes
+            Array.Copy(bytes, 4, oracleBytes, 4, 2);
+            Array.Reverse(oracleBytes, 4, 2);
+
+            // Reverse next 2 bytes
+            Array.Copy(bytes, 6, oracleBytes, 6, 2);
+            Array.Reverse(oracleBytes, 6, 2);
+
+            // Copy remaining 8bytes
+            Array.Copy(bytes, 8, oracleBytes, 8, 8);
+
+            // Convert to hex string
+            var hex = BitConverter.ToString(oracleBytes).Replace("-", "");
+
+            return $"DEFAULT HEXTORAW('{hex}')";
+        }
+        else if (defaultValue is DateTime dateTime)
+        {
+            // We use 4 because we have no access data type and therefore no access to the real n in TIMESTAMP(n) in this method. Needs refactoring.
+            var dateTimeString = dateTime.ToString("yyyy-MM-dd HH:mm:ss.ffff");
+            return $"DEFAULT TO_TIMESTAMP('{dateTimeString}', 'YYYY-MM-DD HH24:MI:SS.FF4')";
+        }
+        else if (defaultValue is string stringValue)
+        {
+            stringValue = stringValue.Replace("'", "''");
+            return $"DEFAULT '{stringValue}'";
+        }
+        else if (defaultValue is byte[] byteArray)
+        {
+            var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
+            return $"DEFAULT HEXTORAW('{convertedString}')";
         }
 
         return base.Default(defaultValue);

@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = DotNetProjects.Migrator.Framework.Index;
+using DotNetProjects.Migrator.Framework.Extensions;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
@@ -108,7 +109,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             if (reader.Read())
             {
-                sqlCreateTableScript = (string)reader[0];
+                sqlCreateTableScript = reader.IsDBNull(0) ? null : (string)reader[0];
             }
         }
 
@@ -340,8 +341,20 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void RemoveForeignKey(string table, string name)
     {
-        //Check the impl...
-        return;
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
+        var sqliteTableInfo = GetSQLiteTableInfo(table);
+        if (!sqliteTableInfo.ForeignKeys.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new MigrationException($"Foreign key '{name}' does not exist.");
+        }
+
+        sqliteTableInfo.ForeignKeys.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        RecreateTable(sqliteTableInfo);
     }
 
     public string[] GetCreateIndexSqlStrings(string table)
@@ -403,6 +416,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
+
+        var checkConstraints = sqliteInfoMainTable.CheckConstraints;
+
+        if (checkConstraints.Any(x => x.CheckConstraintString.Contains(column, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new MigrationException("A check constraint contains the column you want to remove. Remove the check constraint first");
+        }
 
         if (!sqliteInfoMainTable.ColumnMappings.Any(x => x.OldName == column))
         {
@@ -632,6 +652,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteTableInfo);
     }
 
+    public override bool PrimaryKeyExists(string table, string name)
+    {
+        throw new NotSupportedException($"SQLite does not support named primary keys. You may wonder why there is a name in method '{nameof(AddPrimaryKey)}'. It is because of architectural decisions of the past. It is overridden in {nameof(SQLiteTransformationProvider)}.");
+    }
+
     public override void AddUniqueConstraint(string name, string table, params string[] columns)
     {
         var sqliteTableInfo = GetSQLiteTableInfo(table);
@@ -641,15 +666,30 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteTableInfo);
     }
 
+    public override void RemoveConstraint(string table, string name)
+    {
+        var sqliteTableInfo = GetSQLiteTableInfo(table);
+        sqliteTableInfo.Uniques.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        sqliteTableInfo.CheckConstraints.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        RecreateTable(sqliteTableInfo);
+    }
+
     public SQLiteTableInfo GetSQLiteTableInfo(string tableName)
     {
+        if (!TableExists(tableName))
+        {
+            return null;
+        }
+
         var sqliteTable = new SQLiteTableInfo
         {
             TableNameMapping = new MappingInfo { OldName = tableName, NewName = tableName },
             Columns = GetColumns(tableName).ToList(),
             ForeignKeys = GetForeignKeyConstraints(tableName).ToList(),
             Indexes = GetIndexes(tableName).ToList(),
-            Uniques = GetUniques(tableName).ToList()
+            Uniques = GetUniques(tableName).ToList(),
+            CheckConstraints = GetCheckConstraints(tableName)
         };
 
         sqliteTable.ColumnMappings = sqliteTable.Columns
@@ -707,9 +747,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var foreignKeyDbFields = sqliteTableInfo.ForeignKeys.Cast<IDbField>();
         var indexDbFields = sqliteTableInfo.Indexes.Cast<IDbField>();
         var uniqueDbFields = sqliteTableInfo.Uniques.Cast<IDbField>();
+        var checkConstraintDbFields = sqliteTableInfo.CheckConstraints.Cast<IDbField>();
 
         var dbFields = columnDbFields.Concat(foreignKeyDbFields)
             .Concat(uniqueDbFields)
+            .Concat(checkConstraintDbFields)
             .ToArray();
 
         // ToHashSet() not available in older .NET versions so we create it old-fashioned.
@@ -770,6 +812,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
     }
 
+    [Obsolete]
+    public override void AddTable(string table, string engine, string columns)
+    {
+        throw new NotSupportedException();
+    }
+
     public override void AddColumn(string table, Column column)
     {
         if (!TableExists(table))
@@ -778,6 +826,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         var sqliteInfo = GetSQLiteTableInfo(table);
+
         if (sqliteInfo.ColumnMappings.Select(x => x.OldName).ToList().Contains(column.Name))
         {
             throw new Exception("Column already exists.");
@@ -787,6 +836,83 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         sqliteInfo.Columns.Add(column);
 
         RecreateTable(sqliteInfo);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type, int size)
+    {
+        var column = new Column(columnName, type, size);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, int size)
+    {
+        var column = new Column(columnName, type, size);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, int size, ColumnProperty property,
+                                  object defaultValue)
+    {
+        var column = new Column(columnName, type, property) { Size = size, DefaultValue = defaultValue };
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type)
+    {
+        var column = new Column(columnName, type);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type)
+    {
+        var column = new Column(columnName, type);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type, int size, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, size, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, MigratorDbType type, int size, ColumnProperty property)
+    {
+        var column = new Column(columnName, type, size, property);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string columnName, DbType type, object defaultValue)
+    {
+        var column = new Column(columnName, type, defaultValue);
+
+        AddColumn(table, column);
+    }
+
+    public override void AddColumn(string table, string sqlColumn)
+    {
+        var column = new Column(sqlColumn);
+        AddColumn(table, column);
     }
 
     public override void ChangeColumn(string table, Column column)
@@ -840,6 +966,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override bool ConstraintExists(string table, string name)
     {
+        if (!TableExists(table))
+        {
+            throw new Exception($"Table '{table}' does not exist.");
+        }
+
         var constraintNames = GetConstraints(table);
 
         var exists = constraintNames.Any(x => x.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -849,6 +980,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override string[] GetConstraints(string table)
     {
+        if (!TableExists(table))
+        {
+            throw new Exception($"Table '{table}' does not exist.");
+        }
+
         var sqliteInfo = GetSQLiteTableInfo(table);
 
         var foreignKeyNames = sqliteInfo.ForeignKeys
@@ -859,9 +995,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             .Select(x => x.Name)
             .ToList();
 
-        // TODO add PK and CHECK
+        var checkConstraints = sqliteInfo.CheckConstraints
+            .Select(x => x.Name)
+            .ToList();
 
         var names = foreignKeyNames.Concat(uniqueConstraints)
+            .Concat(checkConstraints)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .ToArray();
 
@@ -966,7 +1105,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                             dt = defVal.Substring(1, defVal.Length - 2);
                         }
 
-                        var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                        var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
                         column.DefaultValue = d;
                     }
                 }
@@ -984,6 +1123,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                         var d = Guid.Parse(dt);
                         column.DefaultValue = d;
                     }
+                }
+                else if (column.Type == DbType.Boolean)
+                {
+                    throw new NotSupportedException("SQLite does not support default values for BLOB columns.");
                 }
             }
 
@@ -1119,6 +1262,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             stringBuilder.Append(string.Format(", PRIMARY KEY ({0})", string.Join(", ", pks.ToArray())));
         }
 
+
+        // Uniques
         var uniques = fields.Where(x => x is Unique).Cast<Unique>().ToArray();
 
         foreach (var u in uniques)
@@ -1136,6 +1281,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             stringBuilder.Append($" UNIQUE ({uniqueColumnsCommaSeparated})");
         }
 
+        // Foreign keys
         var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
 
         List<string> foreignKeyStrings = [];
@@ -1154,12 +1300,25 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             foreignKeyStrings.Add($"CONSTRAINT {fk.Name} FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})");
         }
 
-        if (foreignKeyStrings.Count != 0)
+        if (foreignKeyStrings.Count > 0)
         {
             stringBuilder.Append(", ");
             stringBuilder.Append(string.Join(", ", foreignKeyStrings));
         }
 
+        // Check Constraints
+        var checkConstraints = fields.Where(x => x is CheckConstraint).OfType<CheckConstraint>().ToArray();
+        List<string> checkConstraintStrings = [];
+
+        foreach (var checkConstraint in checkConstraints)
+        {
+            checkConstraintStrings.Add($"CONSTRAINT {checkConstraint.Name} CHECK ({checkConstraint.CheckConstraintString})");
+        }
+
+        if (checkConstraintStrings.Count > 0)
+        {
+            stringBuilder.Append($", {string.Join(", ", checkConstraintStrings)}");
+        }
 
         stringBuilder.Append(')');
 
@@ -1239,6 +1398,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public List<Unique> GetUniques(string tableName)
     {
+        if (!TableExists(tableName))
+        {
+            throw new Exception($"Table '{tableName}' does not exist.");
+        }
+
         var regEx = new Regex(@"(?<=,)\s*(CONSTRAINT\s+\w+\s+)?UNIQUE\s*\(\s*[\w\s,]+\s*\)\s*(?=,|\s*\))");
         var regExConstraintName = new Regex(@"(?<=CONSTRAINT\s+)\w+(?=\s+)");
         var regExParenthesis = new Regex(@"(?<=\().+(?=\))");
@@ -1273,10 +1437,20 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var createScript = GetSqlCreateTableScript(tableName);
 
-        var matches = regEx.Matches(createScript).Cast<Match>().Where(x => x.Success).Select(x => x.Value.Trim()).ToList();
+        var matches = regEx.Matches(createScript);
+        if (matches.Count == 0)
+        {
+            return [];
+        }
+
+        var constraintNames = matches
+            .OfType<Match>()
+            .Where(x => x.Success && !string.IsNullOrWhiteSpace(x.Value))
+            .Select(x => x.Value.Trim())
+            .ToList();
 
         // We can only use the ones containing a  starting with CONSTRAINT 
-        var matchesHavingName = matches.Where(x => x.StartsWith("CONSTRAINT")).ToList();
+        var matchesHavingName = constraintNames.Where(x => x.StartsWith("CONSTRAINT")).ToList();
 
         foreach (var constraintString in matchesHavingName)
         {
@@ -1383,6 +1557,68 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         return pragmaTableInfoItems;
+    }
+
+    public override void AddCheckConstraint(string constraintName, string tableName, string checkSql)
+    {
+        var sqliteTableInfo = GetSQLiteTableInfo(tableName);
+
+        var checkConstraint = new CheckConstraint(constraintName, checkSql);
+        sqliteTableInfo.CheckConstraints.Add(checkConstraint);
+
+        RecreateTable(sqliteTableInfo);
+    }
+
+    public List<CheckConstraint> GetCheckConstraints(string tableName)
+    {
+        if (!TableExists(tableName))
+        {
+            throw new Exception($"Table '{tableName}' does not exist.");
+        }
+
+        var checkConstraintRegex = new Regex(@"(?<=,)[^,]+\s+[^,]+check[^,]+(?=[,|\)])", RegexOptions.IgnoreCase);
+        var braceContentRegex = new Regex(@"(?<=^\().+(?=\)$)");
+
+        var script = GetSqlCreateTableScript(tableName);
+
+        var matches = checkConstraintRegex.Matches(script);
+
+        if (matches == null)
+        {
+            return [];
+        }
+
+        var checkStrings = matches.OfType<Match>()
+            .Where(x => x.Success)
+            .Select(x => x.Value)
+            .ToList();
+
+        List<CheckConstraint> checkConstraints = [];
+
+        foreach (var checkString in checkStrings)
+        {
+            var splitted = checkString.Trim().Split(' ')
+                .Select(x => x.Trim())
+                .ToList();
+
+            if (!splitted[0].Equals("CONSTRAINT", StringComparison.OrdinalIgnoreCase) || !splitted[2].Equals("CHECK", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new Exception($"Cannot parse check constraint in table {tableName}");
+            }
+
+            var checkConstraintStringWithBraces = string.Join(" ", splitted.Skip(3)).Trim();
+            var checkConstraintString = braceContentRegex.Match(checkConstraintStringWithBraces);
+
+            var checkConstraint = new CheckConstraint
+            {
+                Name = splitted[1],
+                CheckConstraintString = checkConstraintString.Value
+            };
+
+            checkConstraints.Add(checkConstraint);
+        }
+
+        return checkConstraints;
     }
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)

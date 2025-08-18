@@ -1,8 +1,8 @@
-using System;
 using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
+using Migrator.Tests.Providers.Base;
 using Migrator.Tests.Providers.SQLite.Base;
 using NUnit.Framework;
 

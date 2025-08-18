@@ -25,7 +25,9 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         Assert.That("CREATE TABLE MyTableName (MyColumnName INTEGER NULL UNIQUE)", Is.EqualTo(createScript));
 
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
-        Assert.That(sqliteInfo.Uniques.Single().KeyColumns.Single(), Is.EqualTo(columnName));
+
+        // It is no named unique so it is not listed in the Uniques list. Unique on column level is marked as obsolete.
+        Assert.That(sqliteInfo.Uniques, Is.Empty);
     }
 
     [Test]

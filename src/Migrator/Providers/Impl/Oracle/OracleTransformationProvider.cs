@@ -1,11 +1,14 @@
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Impl.Oracle.Models;
 using DotNetProjects.Migrator.Providers.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
+using System.Text.RegularExpressions;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
@@ -384,113 +387,286 @@ public class OracleTransformationProvider : TransformationProvider
 
     public override Column[] GetColumns(string table)
     {
-        var columns = new List<Column>();
+        var timestampRegex = new Regex(@"(?<=^TIMESTAMP\s+')[^']+(?=')", RegexOptions.IgnoreCase);
+        var hexToRawRegex = new Regex(@"(?<=^HEXTORAW\s*\(')[^']+(?=')", RegexOptions.IgnoreCase);
+        var timestampBaseFormat = "yyyy-MM-dd HH:mm:ss";
+
+        var stringBuilder = new StringBuilder();
+        stringBuilder.AppendLine("SELECT");
+        stringBuilder.AppendLine("  COLUMN_NAME,");
+        stringBuilder.AppendLine("  NULLABLE,");
+        stringBuilder.AppendLine("  DATA_DEFAULT,");
+        stringBuilder.AppendLine("  DATA_TYPE,");
+        stringBuilder.AppendLine("  DATA_LENGTH,");
+        stringBuilder.AppendLine("  DATA_PRECISION,");
+        stringBuilder.AppendLine("  DATA_SCALE,");
+        stringBuilder.AppendLine("  CHAR_COL_DECL_LENGTH");
+        stringBuilder.AppendLine($"FROM USER_TAB_COLUMNS WHERE LOWER(TABLE_NAME) = LOWER('{table}')");
+
+        var stringBuilder2 = new StringBuilder();
+        stringBuilder2.AppendLine("SELECT x.column_name, x.data_default");
+        stringBuilder2.AppendLine("FROM XMLTABLE(");
+        stringBuilder2.AppendLine("   '/ROWSET/ROW'");
+        stringBuilder2.AppendLine("   PASSING DBMS_XMLGEN.GETXMLTYPE(");
+        stringBuilder2.AppendLine($"      'SELECT column_name, data_default FROM user_tab_columns WHERE table_name = ''{table.ToUpperInvariant()}'''");
+        stringBuilder2.AppendLine("   )");
+        stringBuilder2.AppendLine("   COLUMNS");
+        stringBuilder2.AppendLine("      column_name VARCHAR2(4000) PATH 'COLUMN_NAME',");
+        stringBuilder2.AppendLine("      data_default VARCHAR2(4000) PATH 'DATA_DEFAULT'");
+        stringBuilder2.AppendLine(") x");
+
+        List<UserTabColumns> userTabColumns = [];
 
         using (var cmd = CreateCommand())
-        using (
-            var reader =
-                ExecuteQuery(cmd,
-                    string.Format(
-                        "select column_name, data_type, data_length, data_precision, data_scale, NULLABLE, data_default FROM USER_TAB_COLUMNS WHERE lower(table_name) = '{0}'",
-                        table.ToLower())))
+        using (var reader = ExecuteQuery(cmd, stringBuilder2.ToString()))
         {
             while (reader.Read())
             {
-                var colName = reader[0].ToString();
-                var colType = DbType.String;
-                var dataType = reader[1].ToString().ToLower();
-                var isNullable = ParseBoolean(reader.GetValue(5));
-                var defaultValue = reader.GetValue(6);
+                var columnNameOrdinal = reader.GetOrdinal("COLUMN_NAME");
+                var dataDefaultOrdinal = reader.GetOrdinal("DATA_DEFAULT");
 
-                if (dataType.Equals("number"))
+                var userTabColumnsItem = new UserTabColumns
                 {
-                    var precision = Convert.ToInt32(reader.GetValue(3));
-                    var scale = Convert.ToInt32(reader.GetValue(4));
-                    if (scale == 0)
+                    ColumnName = reader.IsDBNull(columnNameOrdinal) ? null : reader.GetString(columnNameOrdinal),
+                    DataDefault = reader.IsDBNull(dataDefaultOrdinal) ? null : reader.GetString(dataDefaultOrdinal).Trim()
+                };
+
+                userTabColumns.Add(userTabColumnsItem);
+            }
+        }
+
+        var columns = new List<Column>();
+
+        using (var cmd = CreateCommand())
+        using (var reader = ExecuteQuery(cmd, stringBuilder.ToString()))
+        {
+            while (reader.Read())
+            {
+                var columnNameOrdinal = reader.GetOrdinal("COLUMN_NAME");
+                var nullableOrdinal = reader.GetOrdinal("NULLABLE");
+                var dataTypeOrdinal = reader.GetOrdinal("DATA_TYPE");
+                var dataLengthOrdinal = reader.GetOrdinal("DATA_LENGTH");
+                var dataPrecisionOrdinal = reader.GetOrdinal("DATA_PRECISION");
+                var dataScaleOrdinal = reader.GetOrdinal("DATA_SCALE");
+                var charColDeclLengthOrdinal = reader.GetOrdinal("CHAR_COL_DECL_LENGTH");
+
+                var columnName = reader.GetString(columnNameOrdinal);
+                var isNullable = reader.GetString(nullableOrdinal) == "Y";
+                var dataTypeString = reader.GetString(dataTypeOrdinal).ToUpperInvariant();
+                var dataLength = reader.IsDBNull(dataLengthOrdinal) ? (int?)null : reader.GetInt32(dataLengthOrdinal);
+                var dataPrecision = reader.IsDBNull(dataPrecisionOrdinal) ? (int?)null : reader.GetInt32(dataPrecisionOrdinal);
+                var dataScale = reader.IsDBNull(dataScaleOrdinal) ? (int?)null : reader.GetInt32(dataScaleOrdinal);
+                var charColDeclLength = reader.IsDBNull(charColDeclLengthOrdinal) ? (int?)null : reader.GetInt32(charColDeclLengthOrdinal);
+                var dataDefaultString = userTabColumns.FirstOrDefault(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase))?.DataDefault;
+
+                var column = new Column(columnName, DbType.String)
+                {
+                    ColumnProperty = isNullable ? ColumnProperty.Null : ColumnProperty.NotNull
+                };
+
+                // Oracle does not have unsigned types. All NUMBER types can hold positive or negative values so we do not return DbType.UIntX types.
+                if (dataTypeString.StartsWith("NUMBER") || dataTypeString.StartsWith("FLOAT"))
+                {
+                    column.Precision = dataPrecision;
+
+                    if (dataScale > 0)
                     {
-                        colType = precision <= 10 ? DbType.Int16 : DbType.Int64;
+                        // Could also be Double
+                        column.MigratorDbType = MigratorDbType.Decimal;
+                        column.Scale = dataScale;
                     }
                     else
                     {
-                        colType = DbType.Decimal;
+                        if (dataPrecision.HasValue && dataPrecision == 1)
+                        {
+                            column.MigratorDbType = MigratorDbType.Boolean;
+                        }
+                        else if (dataPrecision.HasValue && (dataPrecision == 0 || (2 <= dataPrecision && dataPrecision <= 5)))
+                        {
+                            column.MigratorDbType = MigratorDbType.Int16;
+                        }
+                        else if (dataPrecision.HasValue && 6 <= dataPrecision && dataPrecision <= 10)
+                        {
+                            column.MigratorDbType = MigratorDbType.Int32;
+                        }
+                        else if (dataPrecision == null || 11 <= dataPrecision)
+                        {
+                            // Oracle allows up to 38 digits but in C# the maximum is Int64 and in Oracle there is no unsigned data type.
+                            column.MigratorDbType = MigratorDbType.Int64;
+                        }
+                        else
+                        {
+                            throw new NotSupportedException();
+                        }
                     }
                 }
-                else if (dataType.StartsWith("timestamp") || dataType.Equals("date"))
+                else if (dataTypeString.StartsWith("TIMESTAMP"))
                 {
-                    colType = DbType.DateTime;
+                    var timestampNumberRegex = new Regex(@"(?<=^Timestamp\()[\d]+(?=\)$)", RegexOptions.IgnoreCase);
+                    var timestampNumberMatch = timestampNumberRegex.Match(dataTypeString);
+
+                    if (timestampNumberMatch.Success)
+                    {
+                        // n in TIMESTAMP(n) is not retrievable using system tables so we need to extract it via regex.
+                        column.Precision = int.Parse(timestampNumberMatch.Value);
+                        column.MigratorDbType = column.Precision < 3 ? MigratorDbType.DateTime : MigratorDbType.DateTime2;
+                    }
+                    else
+                    {
+                        // 6 is the standard if we use TIMESTAMP without n like in TIMESTAMP(n)
+                        column.Precision = 6;
+                        column.MigratorDbType = MigratorDbType.DateTime2;
+                    }
+                }
+                else if (dataTypeString == "DATE")
+                {
+                    column.MigratorDbType = MigratorDbType.Date;
+                }
+                else if (dataTypeString == "RAW" && dataLength == 16)
+                {
+                    // ambiguity - cannot distinguish between guid and binary
+                    column.MigratorDbType = MigratorDbType.Guid;
+                }
+                else if (dataTypeString.StartsWith("RAW") || dataTypeString == "BLOB")
+                {
+                    column.MigratorDbType = MigratorDbType.Binary;
+                }
+                else if (dataTypeString == "NVARCHAR2")
+                {
+                    column.MigratorDbType = MigratorDbType.String;
+                }
+                else if (dataTypeString == "BINARY_FLOAT")
+                {
+                    column.MigratorDbType = MigratorDbType.Single;
+                }
+                else if (dataTypeString == "BINARY_DOUBLE")
+                {
+                    column.MigratorDbType = MigratorDbType.Double;
+                }
+                else if (dataTypeString == "BOOLEAN")
+                {
+                    column.MigratorDbType = MigratorDbType.Boolean;
+                }
+                else if (dataTypeString == "NCLOB")
+                {
+                    column.MigratorDbType = MigratorDbType.String;
+                }
+                else
+                {
+                    throw new NotImplementedException();
                 }
 
-                var columnProperties = (isNullable) ? ColumnProperty.Null : ColumnProperty.NotNull;
-                var column = new Column(colName, colType, columnProperties);
-
-                if (defaultValue != null && defaultValue != DBNull.Value)
-                {
-                    column.DefaultValue = defaultValue;
-                }
-
-                if (column.DefaultValue is string && ((string)column.DefaultValue).StartsWith("'") && ((string)column.DefaultValue).EndsWith("'"))
-                {
-                    column.DefaultValue = ((string)column.DefaultValue).Substring(1, ((string)column.DefaultValue).Length - 2);
-                }
-
-                if ((column.DefaultValue is string s && !string.IsNullOrEmpty(s)) ||
-                     column.DefaultValue is not string && column.DefaultValue != null)
+                if (!string.IsNullOrWhiteSpace(dataDefaultString))
                 {
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = long.Parse(dataDefaultString, CultureInfo.InvariantCulture);
                     }
-                    else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
+                    else if (column.Type == DbType.Double)
                     {
-                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = double.Parse(dataDefaultString, CultureInfo.InvariantCulture);
                     }
-                    else if (column.Type == DbType.Double || column.Type == DbType.Single)
+                    else if (column.Type == DbType.Single)
                     {
-                        column.DefaultValue = double.Parse(column.DefaultValue.ToString());
+                        column.DefaultValue = float.Parse(dataDefaultString, CultureInfo.InvariantCulture);
+                    }
+                    else if (column.Type == DbType.Decimal)
+                    {
+                        column.DefaultValue = decimal.Parse(dataDefaultString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {
-                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
+                        column.DefaultValue = dataDefaultString == "1" || dataDefaultString.ToUpper() == "TRUE";
                     }
                     else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
                     {
-                        if (column.DefaultValue is string defValCv && defValCv.StartsWith("TO_TIMESTAMP("))
+                        if (dataDefaultString.StartsWith("TO_TIMESTAMP("))
                         {
-                            var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss.ff", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
-                        }
-                        else if (column.DefaultValue is string defVal)
-                        {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
+                            var expectedOracleToTimestampPattern = "YYYY-MM-DD HH24:MI:SS";
+
+                            if (!dataDefaultString.Contains(expectedOracleToTimestampPattern))
                             {
-                                dt = defVal.Substring(1, defVal.Length - 2);
+                                throw new NotSupportedException($"Not supported 'TO_TIMESTAMP' pattern. Expected pattern: {expectedOracleToTimestampPattern}");
                             }
 
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
+                            var toTimestampRegex = new Regex(@"(?<=^TO_TIMESTAMP\(')[^']+(?=')", RegexOptions.IgnoreCase);
+                            var toTimestampMatch = toTimestampRegex.Match(dataDefaultString);
+                            var toTimestampDateTimeString = toTimestampMatch.Value;
+
+                            List<string> formats = [];
+
+                            // add formats with .F, .FF, .FFF etc.
+                            formats = Enumerable.Range(0, 20).Select((x, y) => $"{timestampBaseFormat}.{new string('F', y + 1)}").ToList();
+                            formats.Add(timestampBaseFormat);
+
+                            column.DefaultValue = DateTime.ParseExact(toTimestampDateTimeString, [.. formats], CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+                        }
+                        else if (timestampRegex.Match(dataDefaultString) is Match timestampMatch && timestampMatch.Success)
+                        {
+                            var millisecondsPattern = column.Size == 0 ? string.Empty : $".{new string('F', column.Size)}";
+                            column.DefaultValue = DateTime.ParseExact(timestampMatch.Value, $"yyyy-MM-dd HH:mm:ss{millisecondsPattern}", CultureInfo.InvariantCulture);
+                        }
+                        else
+                        {
+                            // Could be system time in many variants
+                            column.DefaultValue = dataDefaultString;
                         }
                     }
                     else if (column.Type == DbType.Guid)
                     {
-                        if (column.DefaultValue is string defValCv && defValCv.StartsWith("HEXTORAW("))
+                        if (hexToRawRegex.Match(dataDefaultString) is Match hexToRawMatch && hexToRawMatch.Success)
                         {
-                            var dt = defValCv.Substring((defValCv.IndexOf("'") + 1), defValCv.IndexOf("'", defValCv.IndexOf("'") + 1) - defValCv.IndexOf("'") - 1);
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
-                        }
-                        else if (column.DefaultValue is string defVal)
-                        {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
-                            {
-                                dt = defVal.Substring(1, defVal.Length - 2);
-                            }
+                            var bytes = Enumerable.Range(0, hexToRawMatch.Value.Length / 2)
+                                .Select(x => Convert.ToByte(hexToRawMatch.Value.Substring(x * 2, 2), 16))
+                                .ToArray();
 
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
+                            // Oracle uses Big-Endian
+                            Array.Reverse(bytes, 0, 4);
+                            Array.Reverse(bytes, 4, 2);
+                            Array.Reverse(bytes, 6, 2);
+
+                            column.DefaultValue = new Guid(bytes);
                         }
+                        else if (dataDefaultString.StartsWith("'"))
+                        {
+                            var guidString = dataDefaultString.Substring(1, dataDefaultString.Length - 2);
+
+                            column.DefaultValue = Guid.Parse(guidString);
+                        }
+                        else
+                        {
+                            column.DefaultValue = dataDefaultString;
+                        }
+                    }
+                    else if (column.Type == DbType.String)
+                    {
+                        var contentRegex = new Regex(@"(?<=^').*(?='$)");
+
+                        if (contentRegex.Match(dataDefaultString) is Match contentMatch && contentMatch.Success)
+                        {
+                            column.DefaultValue = contentMatch.Value;
+                        }
+                        else
+                        {
+                            throw new Exception($"Cannot parse string column '{column.Name}'");
+                        }
+                    }
+                    else if (column.Type == DbType.Binary)
+                    {
+                        if (hexToRawRegex.Match(dataDefaultString) is Match hexToRawMatch && hexToRawMatch.Success)
+                        {
+                            column.DefaultValue = Enumerable.Range(0, hexToRawMatch.Value.Length / 2)
+                                .Select(x => Convert.ToByte(hexToRawMatch.Value.Substring(x * 2, 2), 16))
+                                .ToArray();
+                        }
+                        else
+                        {
+                            throw new NotImplementedException($"Cannot parse default value in column '{column.Name}'");
+                        }
+                    }
+                    else
+                    {
+                        column.DefaultValue = dataDefaultString;
                     }
                 }
 
@@ -499,24 +675,6 @@ public class OracleTransformationProvider : TransformationProvider
         }
 
         return columns.ToArray();
-    }
-
-    private bool ParseBoolean(object value)
-    {
-        if (value is string)
-        {
-            if ("N" == (string)value)
-            {
-                return false;
-            }
-
-            if ("Y" == (string)value)
-            {
-                return true;
-            }
-        }
-
-        return Convert.ToBoolean(value);
     }
 
     public override string GenerateParameterNameParameter(int index)

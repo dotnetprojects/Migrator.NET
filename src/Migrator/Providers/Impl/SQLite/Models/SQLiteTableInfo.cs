@@ -34,4 +34,9 @@ public class SQLiteTableInfo
     /// Gets or sets the unique definitions.
     /// </summary>
     public List<Unique> Uniques { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the check constraint definitions.
+    /// </summary>
+    public List<CheckConstraint> CheckConstraints { get; set; } = [];
 }

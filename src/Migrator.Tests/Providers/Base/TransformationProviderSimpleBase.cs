@@ -5,45 +5,8 @@ using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.Base;
 
-public abstract class TransformationProviderSimpleBase
+public abstract class TransformationProviderSimpleBase : TransformationProviderBase
 {
-    protected ITransformationProvider Provider;
-
-    [TearDown]
-    public virtual void TearDown()
-    {
-        DropTestTables();
-
-        Provider?.Rollback();
-    }
-
-    protected void DropTestTables()
-    {
-        // Because MySql doesn't support schema transaction
-        // we got to remove the tables manually... sad...
-        try
-        {
-            Provider.RemoveTable("TestTwo");
-        }
-        catch (Exception)
-        {
-        }
-        try
-        {
-            Provider.RemoveTable("Test");
-        }
-        catch (Exception)
-        {
-        }
-        try
-        {
-            Provider.RemoveTable("SchemaInfo");
-        }
-        catch (Exception)
-        {
-        }
-    }
-
     public void AddDefaultTable()
     {
         Provider.AddTable("TestTwo",
@@ -74,5 +37,10 @@ public abstract class TransformationProviderSimpleBase
             new Column("boolVal", DbType.Boolean),
             new Column("bigstring", DbType.String, 50000)
         );
+    }
+
+    public void AddPrimaryKey()
+    {
+        Provider.AddPrimaryKey("PK_Test", "Test", "Id");
     }
 }

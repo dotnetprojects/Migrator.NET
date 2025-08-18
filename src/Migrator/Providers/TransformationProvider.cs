@@ -14,6 +14,7 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Loggers;
 using DotNetProjects.Migrator.Framework.SchemaBuilder;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DotNetProjects.Migrator.Providers.Models;
 using System;
 using System.Collections.Generic;
@@ -269,15 +270,27 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual void RemoveForeignKey(string table, string name)
     {
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
         RemoveConstraint(table, name);
     }
 
     public virtual void RemoveConstraint(string table, string name)
     {
-        if (TableExists(table) && ConstraintExists(table, name))
+        if (!TableExists(table))
         {
-            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
+            throw new MigrationException($"Table '{name}' does not exist");
         }
+
+        if (!ConstraintExists(table, name))
+        {
+            throw new MigrationException($"Constraint '{name}' does not exist");
+        }
+
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
     }
 
     public virtual void RemoveAllConstraints(string table)
@@ -380,6 +393,11 @@ public abstract class TransformationProvider : ITransformationProvider
     /// </example>
     public virtual void AddTable(string name, params IDbField[] columns)
     {
+        if (this is not SQLiteTransformationProvider && columns.Any(x => x is CheckConstraint))
+        {
+            throw new MigrationException($"{nameof(CheckConstraint)}s are currently only supported in SQLite.");
+        }
+
         // Most databases don't have the concept of a storage engine, so default is to not use it.
         AddTable(name, null, columns);
     }
@@ -407,6 +425,7 @@ public abstract class TransformationProvider : ITransformationProvider
         var compoundPrimaryKey = pks.Count > 1;
 
         var columnProviders = new List<ColumnPropertiesMapper>(columns.Count());
+
         foreach (var column in columns)
         {
             // Remove the primary key notation if compound primary key because we'll add it back later
@@ -429,15 +448,17 @@ public abstract class TransformationProvider : ITransformationProvider
         }
 
         var indexes = fields.Where(x => x is Index).Cast<Index>().ToArray();
+
         foreach (var index in indexes)
         {
             AddIndex(name, index);
         }
 
         var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
+
         foreach (var foreignKey in foreignKeys)
         {
-            this.AddForeignKey(name, foreignKey);
+            AddForeignKey(name, foreignKey);
         }
     }
 
@@ -629,7 +650,7 @@ public abstract class TransformationProvider : ITransformationProvider
     /// AddColumn(string, string, Type, int, ColumnProperty, object)
     /// </see>
     /// </summary>
-    public void AddColumn(string table, string column, DbType type)
+    public virtual void AddColumn(string table, string column, DbType type)
     {
         AddColumn(table, column, type, 0, ColumnProperty.Null, null);
     }
@@ -649,7 +670,7 @@ public abstract class TransformationProvider : ITransformationProvider
     /// AddColumn(string, string, Type, int, ColumnProperty, object)
     /// </see>
     /// </summary>
-    public void AddColumn(string table, string column, DbType type, int size)
+    public virtual void AddColumn(string table, string column, DbType type, int size)
     {
         AddColumn(table, column, type, size, ColumnProperty.Null, null);
     }
