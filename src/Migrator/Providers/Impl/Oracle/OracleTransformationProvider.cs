@@ -558,21 +558,24 @@ public class OracleTransformationProvider : TransformationProvider
 
                 if (!string.IsNullOrWhiteSpace(dataDefaultString))
                 {
+                    // This is only necessary because older versions of this migrator added single quotes for numerics.
+                    var singleQuoteStrippedString = dataDefaultString.Replace("'", "");
+
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = long.Parse(dataDefaultString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = long.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Double)
                     {
-                        column.DefaultValue = double.Parse(dataDefaultString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = double.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Single)
                     {
-                        column.DefaultValue = float.Parse(dataDefaultString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = float.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Decimal)
                     {
-                        column.DefaultValue = decimal.Parse(dataDefaultString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = decimal.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {
