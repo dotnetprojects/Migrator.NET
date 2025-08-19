@@ -538,19 +538,12 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual bool ColumnExists(string table, string column, bool ignoreCase)
     {
-        try
+        if (ignoreCase)
         {
-            if (ignoreCase)
-            {
-                return GetColumns(table).Any(col => col.Name.ToLower() == column.ToLower());
-            }
+            return GetColumns(table).Any(x => x.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
+        }
 
-            return GetColumns(table).Any(col => col.Name == column);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        return GetColumns(table).Any(x => x.Name == column);
     }
 
     public virtual void ChangeColumn(string table, Column column)
