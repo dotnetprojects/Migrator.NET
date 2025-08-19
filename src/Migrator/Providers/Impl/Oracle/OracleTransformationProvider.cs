@@ -137,9 +137,11 @@ public class OracleTransformationProvider : TransformationProvider
 
     private void GuardAgainstMaximumIdentifierLengthForOracle(string name)
     {
-        if (name.Length > 30)
+        var utf8Bytes = Encoding.UTF8.GetBytes(name);
+
+        if (utf8Bytes.Length > 128)
         {
-            throw new ArgumentException(string.Format("The name \"{0}\" is {1} characters in length, bug maximum length for Oracle identifier is 30 characters.", name, name.Length), "name");
+            throw new MigrationException($"The name '{name}' is {utf8Bytes.Length} bytes in length, but maximum length for Oracle identifiers is 128 bytes for Oracle versions  12.1+.");
         }
     }
 
