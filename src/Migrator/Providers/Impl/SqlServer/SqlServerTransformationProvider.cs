@@ -452,11 +452,11 @@ FROM    sys.[indexes] Ind
 
                     if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
-                        column.DefaultValue = long.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = long.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
                     {
-                        column.DefaultValue = ulong.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = ulong.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
@@ -521,7 +521,7 @@ FROM    sys.[indexes] Ind
                     else if (column.MigratorDbType == MigratorDbType.Decimal)
                     {
                         // We assume ((1.234))
-                        column.DefaultValue = decimal.Parse(bracesStrippedString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = decimal.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.MigratorDbType == MigratorDbType.String)
                     {
@@ -546,7 +546,7 @@ FROM    sys.[indexes] Ind
                     }
                     else if (column.MigratorDbType == MigratorDbType.Byte)
                     {
-                        column.DefaultValue = byte.Parse(bracesStrippedString);
+                        column.DefaultValue = byte.Parse(bracesAndSingleQuoteStrippedString);
                     }
                     else
                     {
