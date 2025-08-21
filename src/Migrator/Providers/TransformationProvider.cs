@@ -2089,7 +2089,44 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual void AddIndex(string table, Index index)
     {
-        AddIndex(index.Name, table, index.KeyColumns);
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
+        foreach (var column in index.KeyColumns)
+        {
+            if (!ColumnExists(table, column))
+            {
+                throw new MigrationException($"Column '{column}' does not exist.");
+            }
+        }
+
+        if (IndexExists(table, index.Name))
+        {
+            throw new MigrationException($"Index '{index.Name}' in table {table} already exists");
+        }
+
+        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
+        var name = QuoteConstraintNameIfRequired(index.Name);
+        table = QuoteTableNameIfRequired(table);
+        var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
+
+        var uniqueString = index.Unique ? "UNIQUE" : null;
+        var columnsString = $"({string.Join(", ", columns)})";
+
+        List<string> list = [];
+        list.Add("CREATE");
+        list.Add(uniqueString);
+        list.Add("INDEX");
+        list.Add(name);
+        list.Add("ON");
+        list.Add(table);
+        list.Add(columnsString);
+
+        var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        ExecuteNonQuery(sql);
     }
 
     public virtual void AddIndex(string name, string table, params string[] columns)
