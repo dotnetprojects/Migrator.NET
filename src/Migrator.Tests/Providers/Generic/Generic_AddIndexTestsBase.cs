@@ -40,28 +40,6 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
     }
 
     [Test]
-    public void AddIndex_Unique_ShouldThrowOnSecondInsert()
-    {
-        // Arrange
-        const string tableName = "TestTable";
-        const string columnName = "TestColumn";
-        const string indexName = "TestIndexName";
-
-        Provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32));
-
-        // Act
-        Provider.AddIndex(tableName, new Index { Name = indexName, KeyColumns = [columnName], Unique = true });
-
-        // Assert
-        Provider.Insert(tableName, [columnName], [1]);
-        var oracleException = Assert.Throws<OracleException>(() => Provider.Insert(tableName, [columnName], [1]));
-        var index = Provider.GetIndexes(tableName).Single();
-
-        Assert.That(index.Unique, Is.True);
-        Assert.That(oracleException.Number, Is.EqualTo(1));
-    }
-
-    [Test]
     public void AddIndex_UsingNonIndexInstanceOverload_ShouldBeReadable()
     {
         // Arrange

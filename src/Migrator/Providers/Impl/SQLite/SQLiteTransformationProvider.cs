@@ -1196,7 +1196,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
         List<Index> indexes = [];
 
-        var pragmaIndexListItems = GetPragmaIndexListItems(table);
+        var pragmaIndexListItems = GetPragmaIndexListItems(table).Where(x => x.Origin == "c");
 
         foreach (var pragmaIndexListItem in pragmaIndexListItems)
         {
@@ -1216,7 +1216,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 IncludeColumns = [],
                 KeyColumns = columnNames,
                 Name = pragmaIndexListItem.Name,
-                Unique = pragmaIndexListItem.Origin == "c"
+                Unique = pragmaIndexListItem.Unique
             };
 
             indexes.Add(index);

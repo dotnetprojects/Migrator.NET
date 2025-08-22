@@ -44,7 +44,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         );
 
         Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)");
-        Assert.Throws<Exception>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)"));
+        Assert.Throws<MigrationException>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)"));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
@@ -73,7 +73,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         );
 
         Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)");
-        Assert.Throws<Exception>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,2)"));
+        Assert.Throws<MigrationException>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,2)"));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
@@ -101,7 +101,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         );
 
         Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)");
-        Assert.Throws<Exception>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)"));
+        Assert.Throws<MigrationException>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)"));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
