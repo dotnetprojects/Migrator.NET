@@ -16,6 +16,8 @@ using DotNetProjects.Migrator.Framework.Loggers;
 using DotNetProjects.Migrator.Framework.SchemaBuilder;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DotNetProjects.Migrator.Providers.Models;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
+using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -2114,6 +2116,47 @@ public abstract class TransformationProvider : ITransformationProvider
 
         var uniqueString = index.Unique ? "UNIQUE" : null;
         var columnsString = $"({string.Join(", ", columns)})";
+        var filterString = string.Empty;
+
+        if (index.FilterItems != null && index.FilterItems.Length > 0)
+        {
+            List<string> singleFilterStrings = [];
+
+            foreach (var filterItem in index.FilterItems)
+            {
+                var comparisonString = _dialect.GetComparisonStringFilterIndex(filterItem.Filter);
+
+                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
+                string value = null;
+
+                if (filterItem.Value is bool booleanValue)
+                {
+                    value = booleanValue ? "1" : "0";
+                }
+                else if (filterItem.Value is string stringValue)
+                {
+                    value = $"'{stringValue}'";
+                }
+                else if (filterItem.Value is byte || filterItem.Value is short || filterItem.Value is int || filterItem.Value is long)
+                {
+                    value = Convert.ToInt64(filterItem.Value).ToString();
+                }
+                else if (filterItem.Value is sbyte || filterItem.Value is ushort || filterItem.Value is uint || filterItem.Value is ulong)
+                {
+                    value = Convert.ToUInt64(filterItem.Value).ToString();
+                }
+                else
+                {
+                    throw new NotImplementedException("Given type is not implemented. Please file an issue.");
+                }
+
+                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
+
+                singleFilterStrings.Add(singleFilterString);
+            }
+
+            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
+        }
 
         List<string> list = [];
         list.Add("CREATE");
@@ -2123,6 +2166,7 @@ public abstract class TransformationProvider : ITransformationProvider
         list.Add("ON");
         list.Add(table);
         list.Add(columnsString);
+        list.Add(filterString);
 
         var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
 
@@ -2131,13 +2175,9 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual void AddIndex(string name, string table, params string[] columns)
     {
-        name = QuoteConstraintNameIfRequired(name);
+        var index = new Index { Name = name, KeyColumns = columns };
 
-        table = QuoteTableNameIfRequired(table);
-
-        columns = QuoteColumnNamesIfRequired(columns);
-
-        ExecuteNonQuery(string.Format("CREATE INDEX {0} ON {1} ({2}) ", name, table, string.Join(", ", columns)));
+        AddIndex(table, index);
     }
 
     protected string QuoteConstraintNameIfRequired(string name)
