@@ -1,7 +1,8 @@
-using System;
+using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Framework.SchemaBuilder;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
+using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 using Oracle.ManagedDataAccess.Client;
@@ -22,16 +23,17 @@ public abstract class GenericAddIndexTestsBase : TransformationProviderBase
     [Test]
     public void AddIndex_UsingIndexInstanceOverload_ShouldBeReadable()
     {
+        // Arrange
         const string tableName = "TestTable";
         const string columnName = "TestColumn";
         const string indexName = "TestIndexName";
 
         Provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32));
 
-        // Arrange
+        // Act
         Provider.AddIndex(tableName, new Index { Name = indexName, KeyColumns = [columnName] });
 
-        // Act
+        // Assert
         var indexes = Provider.GetIndexes(tableName);
 
         var index = indexes.Single();
@@ -65,16 +67,17 @@ public abstract class GenericAddIndexTestsBase : TransformationProviderBase
     [Test]
     public void AddIndex_UsingNonIndexInstanceOverload_ShouldBeReadable()
     {
+        // Arrange
         const string tableName = "TestTable";
         const string columnName = "TestColumn";
         const string indexName = "TestIndexName";
 
         Provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32));
 
-        // Arrange
-        Provider.AddIndex(tableName, indexName, columnName);
-
         // Act
+        Provider.AddIndex(indexName, tableName, columnName);
+
+        // Assert
         var indexes = Provider.GetIndexes(tableName);
 
         var index = indexes.Single();
@@ -83,9 +86,5 @@ public abstract class GenericAddIndexTestsBase : TransformationProviderBase
         Assert.That(index.KeyColumns.Single(), Is.EqualTo(columnName).IgnoreCase);
     }
 
-    [Test]
-    public void AddIndex_FilteredIndexGreaterOrEqualThanNumber_Success()
-    {
 
-    }
 }
