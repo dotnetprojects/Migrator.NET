@@ -3,14 +3,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
-using Migrator.Tests.Providers.Base;
+using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
 [Category("SqlServer")]
-public class SQLServerTransformationProvider_AddIndexTests : TransformationProviderBase
+public class SQLServerTransformationProvider_AddIndexTests : Generic_AddIndexTestsBase
 {
     [SetUp]
     public async Task SetUpAsync()

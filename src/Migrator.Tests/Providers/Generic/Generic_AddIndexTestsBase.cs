@@ -2,7 +2,6 @@ using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
-using Oracle.ManagedDataAccess.Client;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace Migrator.Tests.Providers.Generic;
