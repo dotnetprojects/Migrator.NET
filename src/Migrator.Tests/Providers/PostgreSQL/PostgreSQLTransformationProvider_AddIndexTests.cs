@@ -10,7 +10,7 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
 [Category("Postgre")]
-public class PostgreSQLTransformationProvider_AddIndexTests : GenericAddIndexTestsBase
+public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTestsBase
 {
     [SetUp]
     public async Task SetUpAsync()

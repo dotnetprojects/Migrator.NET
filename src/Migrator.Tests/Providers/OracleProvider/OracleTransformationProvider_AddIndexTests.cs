@@ -10,7 +10,7 @@ namespace Migrator.Tests.Providers.OracleProvider;
 
 [TestFixture]
 [Category("Oracle")]
-public class OracleTransformationProvider_AddIndex_Tests : GenericAddIndexTestsBase
+public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTestsBase
 {
     [SetUp]
     public async Task SetUpAsync()

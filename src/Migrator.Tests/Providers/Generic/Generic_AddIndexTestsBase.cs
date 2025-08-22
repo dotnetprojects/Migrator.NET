@@ -7,7 +7,7 @@ using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace Migrator.Tests.Providers.Generic;
 
-public abstract class GenericAddIndexTestsBase : TransformationProviderBase
+public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
 {
     [Test]
     public void AddIndex_TableDoesNotExist()
