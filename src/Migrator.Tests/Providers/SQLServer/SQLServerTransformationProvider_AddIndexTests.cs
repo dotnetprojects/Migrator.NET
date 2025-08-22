@@ -19,6 +19,35 @@ public class SQLServerTransformationProvider_AddIndexTests : TransformationProvi
     }
 
     [Test]
+    public void AddIndex_Unique_Success()
+    {
+        // Arrange
+        const string tableName = "TestTable";
+        const string columnName = "TestColumn";
+        const string columnName2 = "TestColumn2";
+        const string indexName = "TestIndexName";
+
+        Provider.AddTable(tableName, new Column(columnName, DbType.Int32), new Column(columnName2, DbType.String));
+
+        // Act
+        Provider.AddIndex(tableName,
+            new Index
+            {
+                Name = indexName,
+                KeyColumns = [columnName],
+                Unique = true,
+            });
+
+        // Assert
+        Provider.Insert(tableName, [columnName, columnName2], [1, "Hello"]);
+        var sqlException = Assert.Throws<Microsoft.Data.SqlClient.SqlException>(() => Provider.Insert(tableName, [columnName, columnName2], [1, "Some other string"]));
+        var index = Provider.GetIndexes(tableName).Single();
+
+        Assert.That(index.Unique, Is.True);
+        Assert.That(sqlException.Number, Is.EqualTo(2601));
+    }
+
+    [Test]
     public void AddIndex_FilteredIndexGreaterOrEqualThanNumber_Success()
     {
         // Arrange
