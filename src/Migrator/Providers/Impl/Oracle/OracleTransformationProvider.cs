@@ -553,9 +553,13 @@ public class OracleTransformationProvider : TransformationProvider
                 {
                     column.MigratorDbType = MigratorDbType.String;
                 }
+                else if (dataTypeString.StartsWith("INTERVAL"))
+                {
+                    column.MigratorDbType = MigratorDbType.Interval;
+                }
                 else
                 {
-                    throw new NotImplementedException();
+                    throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
                 }
 
                 if (!string.IsNullOrWhiteSpace(dataDefaultString))
