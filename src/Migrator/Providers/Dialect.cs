@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 
 namespace DotNetProjects.Migrator.Providers;
 
@@ -404,6 +405,19 @@ public abstract class Dialect : IDialect
         }
 
         return mapper;
+    }
+
+    public string GetComparisonStringFilterIndex(FilterType filterType)
+    {
+        return filterType switch
+        {
+            FilterType.EqualTo => "=",
+            FilterType.GreaterThan => ">",
+            FilterType.GreaterThanOrEqualTo => ">=",
+            FilterType.SmallerThan => "<",
+            FilterType.SmallerThanOrEqualTo => "<=",
+            _ => throw new NotImplementedException("Filter is not implemented yet."),
+        };
     }
 
     /// <summary>
