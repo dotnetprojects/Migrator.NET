@@ -1,8 +1,5 @@
-using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Providers.Models.Indexes;
-using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 using Oracle.ManagedDataAccess.Client;
@@ -85,6 +82,4 @@ public abstract class GenericAddIndexTestsBase : TransformationProviderBase
         Assert.That(index.Name, Is.EqualTo(indexName).IgnoreCase);
         Assert.That(index.KeyColumns.Single(), Is.EqualTo(columnName).IgnoreCase);
     }
-
-
 }

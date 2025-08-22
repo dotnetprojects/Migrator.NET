@@ -886,7 +886,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual int ExecuteNonQuery(string sql, int timeout)
     {
-        return this.ExecuteNonQuery(sql, timeout, null);
+        return ExecuteNonQuery(sql, timeout, null);
     }
 
     public virtual int ExecuteNonQuery(string sql, int timeout, params object[] args)
@@ -903,6 +903,7 @@ public abstract class TransformationProvider : ITransformationProvider
         }
 
         using var cmd = BuildCommand(sql);
+
         try
         {
             cmd.CommandTimeout = timeout;
@@ -927,7 +928,7 @@ public abstract class TransformationProvider : ITransformationProvider
         catch (Exception ex)
         {
             Logger.Warn(ex.Message);
-            throw new Exception(string.Format("Error occured executing sql: {0}, see inner exception for details, error: " + ex, sql), ex);
+            throw new MigrationException(string.Format("Error occured executing sql: {0}, see inner exception for details, error: " + ex, sql), ex);
         }
     }
 

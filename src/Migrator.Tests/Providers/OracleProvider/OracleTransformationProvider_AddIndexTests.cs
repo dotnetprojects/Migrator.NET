@@ -1,9 +1,11 @@
 using System.Data;
+using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
-using Migrator.Tests.Providers.Base;
+using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
+using Oracle.ManagedDataAccess.Client;
 
 namespace Migrator.Tests.Providers.OracleProvider;
 
@@ -16,4 +18,6 @@ public class OracleTransformationProvider_AddIndex_Tests : GenericAddIndexTestsB
     {
         await BeginOracleTransactionAsync();
     }
+
+
 }
