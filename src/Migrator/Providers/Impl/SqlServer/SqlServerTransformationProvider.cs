@@ -137,23 +137,55 @@ public class SqlServerTransformationProvider : TransformationProvider
                       string.Join(",", QuoteColumnNamesIfRequired(columns))));
     }
 
+    public override void AddIndex(string name, string table, params string[] columns)
+    {
+        var index = new Index { Name = name, KeyColumns = columns };
+        AddIndex(table, index);
+    }
+
     public override void AddIndex(string table, Index index)
     {
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
+        foreach (var column in index.KeyColumns)
+        {
+            if (!ColumnExists(table, column))
+            {
+                throw new MigrationException($"Column '{column}' does not exist.");
+            }
+        }
+
+        if (IndexExists(table, index.Name))
+        {
+            throw new MigrationException($"Index '{index.Name}' in table {table} already exists");
+        }
+
+        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
         var name = QuoteConstraintNameIfRequired(index.Name);
-
         table = QuoteTableNameIfRequired(table);
-
         var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
 
-        if (index.IncludeColumns != null && index.IncludeColumns.Length > 0)
-        {
-            var include = QuoteColumnNamesIfRequired(index.IncludeColumns);
-            ExecuteNonQuery(string.Format("CREATE {0}{1} INDEX {2} ON {3} ({4}) INCLUDE ({5})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns), string.Join(", ", include)));
-        }
-        else
-        {
-            ExecuteNonQuery(string.Format("CREATE {0}{1} INDEX {2} ON {3} ({4})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns)));
-        }
+        var uniqueString = index.Unique ? "UNIQUE" : null;
+        var clusteredString = index.Clustered ? "CLUSTERED" : "NONCLUSTERED";
+        var columnsString = $"({string.Join(", ", columns)})";
+        var includedColumnsString = hasIncludedColumns ? $"INCLUDE ({string.Join(", ", QuoteColumnNamesIfRequired(index.IncludeColumns))})" : null;
+
+        List<string> list = [];
+        list.Add("CREATE");
+        list.Add(uniqueString);
+        list.Add(clusteredString);
+        list.Add("INDEX");
+        list.Add(name);
+        list.Add(table);
+        list.Add(columnsString);
+        list.Add(includedColumnsString);
+
+        var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        ExecuteNonQuery(sql);
     }
 
     public override void ChangeColumn(string table, Column column)
