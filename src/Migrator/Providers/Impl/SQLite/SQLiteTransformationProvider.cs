@@ -654,7 +654,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override bool PrimaryKeyExists(string table, string name)
     {
-        throw new NotSupportedException($"SQLite does not support named primary keys. You may wonder why there is a name in method '{nameof(AddPrimaryKey)}'. It is because of architectural decisions of the past. It is overridden in {nameof(SQLiteTransformationProvider)}.");
+        var sqliteTableInfo = GetSQLiteTableInfo(table);
+
+        // SQLite does not offer named primary keys BUT since there can only be one primary key we return true if there is any PK.
+
+        var hasPrimaryKey = sqliteTableInfo.Columns.Any(x => x.ColumnProperty.IsSet(ColumnProperty.PrimaryKey));
+
+        return hasPrimaryKey;
     }
 
     public override void AddUniqueConstraint(string name, string table, params string[] columns)
