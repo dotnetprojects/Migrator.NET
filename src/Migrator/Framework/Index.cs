@@ -1,4 +1,6 @@
-﻿namespace DotNetProjects.Migrator.Framework;
+﻿using DotNetProjects.Migrator.Providers.Models.Indexes;
+
+namespace DotNetProjects.Migrator.Framework;
 
 public class Index : IDbField
 {
@@ -15,4 +17,9 @@ public class Index : IDbField
     public string[] KeyColumns { get; set; } = [];
 
     public string[] IncludeColumns { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets items that represent filter expressions in filtered indexes. Currently string, integer and boolean values are supported.
+    /// </summary>
+    public FilterItem[] FilterItems { get; set; } = [];
 }
