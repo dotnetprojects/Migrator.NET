@@ -1198,12 +1198,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var pragmaIndexListItems = GetPragmaIndexListItems(table);
 
-        // Since unique indexes are supported but only by using unique constraints or primary keys we filter them out here. See "GetUniques()" for unique constraints.
-        var pragmaIndexListItemsFiltered = pragmaIndexListItems.Where(x => !x.Unique).ToList();
-
-        foreach (var pragmaIndexListItemFiltered in pragmaIndexListItemsFiltered)
+        foreach (var pragmaIndexListItem in pragmaIndexListItems)
         {
-            var indexInfos = GetPragmaIndexInfo(pragmaIndexListItemFiltered.Name);
+            var indexInfos = GetPragmaIndexInfo(pragmaIndexListItem.Name);
 
             var columnNames = indexInfos.OrderBy(x => x.SeqNo)
                 .Select(x => x.Name)
@@ -1218,10 +1215,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 // SQLite does not support include colums
                 IncludeColumns = [],
                 KeyColumns = columnNames,
-                Name = pragmaIndexListItemFiltered.Name,
-
-                // See GetUniques()
-                Unique = false,
+                Name = pragmaIndexListItem.Name,
+                Unique = pragmaIndexListItem.Origin == "c"
             };
 
             indexes.Add(index);
@@ -1419,8 +1414,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         // Here we filter for origin u and unique while in "GetIndexes()" we exclude them.
         // If "pk" is set then it was added by using a primary key. If so this is handled by "GetColumns()".
-        // If "c" is set it was created by using CREATE INDEX. At this moment in time this migrator does not support UNIQUE indexes but only normal indexes
-        // so "u" should never be set 30.06.2025).
+        // If "c" is set it was created by using CREATE INDEX.
         var uniqueConstraints = pragmaIndexListItems.Where(x => x.Unique && x.Origin == "u")
             .ToList();
 
