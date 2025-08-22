@@ -169,9 +169,49 @@ public class SqlServerTransformationProvider : TransformationProvider
         var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
 
         var uniqueString = index.Unique ? "UNIQUE" : null;
-        var clusteredString = index.Clustered ? "CLUSTERED" : "NONCLUSTERED";
         var columnsString = $"({string.Join(", ", columns)})";
-        var includedColumnsString = hasIncludedColumns ? $"INCLUDE ({string.Join(", ", QuoteColumnNamesIfRequired(index.IncludeColumns))})" : null;
+        var filterString = string.Empty;
+        var clusteredString = index.Clustered ? "CLUSTERED" : "NONCLUSTERED";
+
+        if (index.FilterItems != null && index.FilterItems.Length > 0)
+        {
+            List<string> singleFilterStrings = [];
+
+            foreach (var filterItem in index.FilterItems)
+            {
+                var comparisonString = _dialect.GetComparisonStringFilterIndex(filterItem.Filter);
+
+                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
+                string value = null;
+
+                if (filterItem.Value is bool booleanValue)
+                {
+                    value = booleanValue ? "1" : "0";
+                }
+                else if (filterItem.Value is string stringValue)
+                {
+                    value = $"'{stringValue}'";
+                }
+                else if (filterItem.Value is byte || filterItem.Value is short || filterItem.Value is int || filterItem.Value is long)
+                {
+                    value = Convert.ToInt64(filterItem.Value).ToString();
+                }
+                else if (filterItem.Value is sbyte || filterItem.Value is ushort || filterItem.Value is uint || filterItem.Value is ulong)
+                {
+                    value = Convert.ToUInt64(filterItem.Value).ToString();
+                }
+                else
+                {
+                    throw new NotImplementedException("Given type is not implemented. Please file an issue.");
+                }
+
+                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
+
+                singleFilterStrings.Add(singleFilterString);
+            }
+
+            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
+        }
 
         List<string> list = [];
         list.Add("CREATE");
@@ -179,11 +219,14 @@ public class SqlServerTransformationProvider : TransformationProvider
         list.Add(clusteredString);
         list.Add("INDEX");
         list.Add(name);
+        list.Add("ON");
         list.Add(table);
         list.Add(columnsString);
-        list.Add(includedColumnsString);
+        list.Add(filterString);
 
-        var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
+        list = [.. list.Where(x => !string.IsNullOrWhiteSpace(x))];
+
+        var sql = string.Join(" ", list);
 
         ExecuteNonQuery(sql);
     }

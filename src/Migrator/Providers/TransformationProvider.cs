@@ -1351,7 +1351,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         if (columns.Length != values.Length)
         {
-            throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+            throw new MigrationException(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
         }
 
         table = QuoteTableNameIfRequired(table);
