@@ -137,31 +137,9 @@ public class SqlServerTransformationProvider : TransformationProvider
                       string.Join(",", QuoteColumnNamesIfRequired(columns))));
     }
 
-    public override void AddIndex(string name, string table, params string[] columns)
-    {
-        var index = new Index { Name = name, KeyColumns = columns };
-        AddIndex(table, index);
-    }
-
     public override void AddIndex(string table, Index index)
     {
-        if (!TableExists(table))
-        {
-            throw new MigrationException($"Table '{table}' does not exist.");
-        }
-
-        foreach (var column in index.KeyColumns)
-        {
-            if (!ColumnExists(table, column))
-            {
-                throw new MigrationException($"Column '{column}' does not exist.");
-            }
-        }
-
-        if (IndexExists(table, index.Name))
-        {
-            throw new MigrationException($"Index '{index.Name}' in table {table} already exists");
-        }
+        ValidateIndex(tableName: table, index: index);
 
         var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
         var name = QuoteConstraintNameIfRequired(index.Name);

@@ -1396,23 +1396,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void AddIndex(string table, Index index)
     {
-        if (!TableExists(table))
-        {
-            throw new MigrationException($"Table '{table}' does not exist.");
-        }
-
-        foreach (var column in index.KeyColumns)
-        {
-            if (!ColumnExists(table, column))
-            {
-                throw new MigrationException($"Column '{column}' does not exist.");
-            }
-        }
-
-        if (IndexExists(table, index.Name))
-        {
-            throw new MigrationException($"Index '{index.Name}' in table {table} already exists");
-        }
+        ValidateIndex(table, index);
 
         var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
 
@@ -1424,7 +1408,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         if (index.Clustered)
         {
-            throw new MigrationException($"This migrator does not support clustered indexes at this point in time, sorry. File an issue if needed. Use 'if(Provider is {nameof(SQLiteTransformationProvider)}' if necessary.");
+            throw new MigrationException($"For SQLite this migrator does not support clustered indexes at this point in time, sorry. File an issue if needed. Use 'if(Provider is {nameof(SQLiteTransformationProvider)}' if necessary.");
         }
 
         var name = QuoteConstraintNameIfRequired(index.Name);

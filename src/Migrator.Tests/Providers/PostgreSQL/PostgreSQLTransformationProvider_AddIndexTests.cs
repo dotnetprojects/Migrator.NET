@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -94,9 +95,69 @@ public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTe
         Provider.Insert(tableName, [columnName, columnName2], [1, "Hello"]);
 
         Provider.Insert(tableName, [columnName, columnName2], [100, "Hello"]);
-        var sqliteException = Assert.Throws<PostgresException>(() => Provider.Insert(tableName, [columnName, columnName2], [100, "Hello"]));
+        var ex = Assert.Throws<PostgresException>(() => Provider.Insert(tableName, [columnName, columnName2], [100, "Hello"]));
 
         Assert.That(index.Unique, Is.True);
-        Assert.That(sqliteException.SqlState, Is.EqualTo("23505"));
+        Assert.That(ex.SqlState, Is.EqualTo("23505"));
+    }
+
+    [Test]
+    public void AddIndex_IncludeColumnsSingle_Success()
+    {
+        // Arrange
+        const string tableName = "TestTable";
+        const string columnName = "TestColumn";
+        const string columnName2 = "TestColumn2";
+        const string indexName = "TestIndexName";
+
+        Provider.AddTable(tableName, new Column(columnName, DbType.Int32), new Column(columnName2, DbType.String));
+
+        // Act
+        Provider.AddIndex(tableName,
+            new Index
+            {
+                Name = indexName,
+                KeyColumns = [columnName],
+                Unique = true,
+                IncludeColumns = [columnName2]
+            });
+
+        // Assert
+        var index = Provider.GetIndexes(tableName).Single();
+
+        Assert.That(index.Unique, Is.True);
+        Assert.That(index.KeyColumns.Single, Is.EqualTo(columnName).IgnoreCase);
+        Assert.That(index.IncludeColumns.Single, Is.EqualTo(columnName2).IgnoreCase);
+    }
+
+    [Test]
+    public void AddIndex_IncludeColumnsMultiple_Success()
+    {
+        // Arrange
+        const string tableName = "TestTable";
+        const string columnName = "TestColumn";
+        const string columnName2 = "TestColumn2";
+        const string columnName3 = "TestColumn3";
+        const string indexName = "TestIndexName";
+
+        Provider.AddTable(tableName, new Column(columnName, DbType.Int32), new Column(columnName2, DbType.String), new Column(columnName3, DbType.Boolean));
+
+        // Act
+        Provider.AddIndex(tableName,
+            new Index
+            {
+                Name = indexName,
+                KeyColumns = [columnName],
+                Unique = true,
+                IncludeColumns = [columnName2, columnName3]
+            });
+
+        // Assert
+        var index = Provider.GetIndexes(tableName).Single();
+
+        Assert.That(index.Unique, Is.True);
+        Assert.That(index.KeyColumns.Single, Is.EqualTo(columnName).IgnoreCase);
+        Assert.That(index.IncludeColumns, Is.EquivalentTo([columnName2, columnName3])
+            .Using<string>((x, y) => string.Compare(x, y, ignoreCase: true)));
     }
 }
