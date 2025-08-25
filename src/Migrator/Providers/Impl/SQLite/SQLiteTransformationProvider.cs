@@ -10,6 +10,8 @@ using System.Text.RegularExpressions;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = DotNetProjects.Migrator.Framework.Index;
 using DotNetProjects.Migrator.Framework.Extensions;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
+using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
@@ -656,7 +658,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
         var sqliteTableInfo = GetSQLiteTableInfo(table);
 
-        // SQLite does not offer named primary keys BUT since there can only be one primary key we return true if there is any PK.
+        // SQLite does not offer named primary keys BUT since there can only be one primary key per table we return true if there is any primary key.
 
         var hasPrimaryKey = sqliteTableInfo.Columns.Any(x => x.ColumnProperty.IsSet(ColumnProperty.PrimaryKey));
 
@@ -665,7 +667,18 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void AddUniqueConstraint(string name, string table, params string[] columns)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new MigrationException("Providing a constraint name is obligatory.");
+        }
+
         var sqliteTableInfo = GetSQLiteTableInfo(table);
+
+        if (sqliteTableInfo.Uniques.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new MigrationException("A unique constraint with the same name already exists.");
+        }
+
         var uniqueConstraint = new Unique() { KeyColumns = columns, Name = name };
         sqliteTableInfo.Uniques.Add(uniqueConstraint);
 
@@ -1194,9 +1207,14 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override Index[] GetIndexes(string table)
     {
+        var afterWhereRegex = new Regex("(?<= WHERE ).+");
         List<Index> indexes = [];
 
+        var indexCreateScripts = GetCreateIndexSqlStrings(table);
+
         var pragmaIndexListItems = GetPragmaIndexListItems(table).Where(x => x.Origin == "c");
+
+        var columns = GetColumns(table);
 
         foreach (var pragmaIndexListItem in pragmaIndexListItems)
         {
@@ -1218,6 +1236,47 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 Name = pragmaIndexListItem.Name,
                 Unique = pragmaIndexListItem.Unique
             };
+
+            var script = indexCreateScripts.FirstOrDefault(x => x.Contains(pragmaIndexListItem.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (script != null)
+            {
+                if (afterWhereRegex.Match(script) is Match match && match.Success)
+                {
+                    var andSplitted = Regex.Split(match.Value, " AND ");
+
+                    var filterSingleStrings = andSplitted
+                        .Select(x => x.Trim())
+                        .ToList();
+
+                    foreach (var filterSingleString in filterSingleStrings)
+                    {
+                        var splitted = filterSingleString.Split(' ')
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Select(x => x.Trim())
+                            .ToList();
+
+                        var filterItem = new FilterItem { ColumnName = splitted[0], Filter = _dialect.GetFilterTypeByComparisonString(splitted[1]) };
+
+                        var column = columns.Single(x => x.Name.Equals(splitted[0], StringComparison.OrdinalIgnoreCase));
+
+                        filterItem.Value = column.MigratorDbType switch
+                        {
+                            MigratorDbType.Int16 => short.Parse(splitted[2]),
+                            MigratorDbType.Int32 => int.Parse(splitted[2]),
+                            MigratorDbType.Int64 => long.Parse(splitted[2]),
+                            MigratorDbType.UInt16 => ushort.Parse(splitted[2]),
+                            MigratorDbType.UInt32 => uint.Parse(splitted[2]),
+                            MigratorDbType.UInt64 => ulong.Parse(splitted[2]),
+                            MigratorDbType.Boolean => splitted[2] == "1" || splitted[2].Equals("true", StringComparison.OrdinalIgnoreCase),
+                            MigratorDbType.String => splitted[2].Substring(1, splitted[2].Length - 2),
+                            _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),
+                        };
+
+                        index.FilterItems.Add(filterItem);
+                    }
+                }
+            }
 
             indexes.Add(index);
         }
@@ -1333,6 +1392,87 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             AddIndex(name, index);
         }
+    }
+
+    public override void AddIndex(string table, Index index)
+    {
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
+        foreach (var column in index.KeyColumns)
+        {
+            if (!ColumnExists(table, column))
+            {
+                throw new MigrationException($"Column '{column}' does not exist.");
+            }
+        }
+
+        if (IndexExists(table, index.Name))
+        {
+            throw new MigrationException($"Index '{index.Name}' in table {table} already exists");
+        }
+
+        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
+
+        if (hasIncludedColumns)
+        {
+            // This will be actived in the future.
+            // throw new MigrationException($"SQLite does not support included columns. Use 'if(Provider is {nameof(SQLiteTransformationProvider)}' if necessary.");
+        }
+
+        if (index.Clustered)
+        {
+            throw new MigrationException($"This migrator does not support clustered indexes at this point in time, sorry. File an issue if needed. Use 'if(Provider is {nameof(SQLiteTransformationProvider)}' if necessary.");
+        }
+
+        var name = QuoteConstraintNameIfRequired(index.Name);
+        table = QuoteTableNameIfRequired(table);
+        var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
+
+        var uniqueString = index.Unique ? "UNIQUE" : null;
+        var columnsString = $"({string.Join(", ", columns)})";
+        var filterString = string.Empty;
+
+        if (index.FilterItems != null && index.FilterItems.Count > 0)
+        {
+            List<string> singleFilterStrings = [];
+
+            foreach (var filterItem in index.FilterItems)
+            {
+                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
+
+                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
+                string value = null;
+
+                value = filterItem.Value switch
+                {
+                    bool booleanValue => booleanValue ? "1" : "0",
+                    string stringValue => $"'{stringValue}'",
+                    byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
+                    sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
+                    _ => throw new NotImplementedException("Given type is not implemented. Please file an issue."),
+                };
+
+                if ((filterItem.Value is string || filterItem.Value is bool) && filterItem.Filter != FilterType.EqualTo)
+                {
+                    throw new MigrationException($"Bool and string in {nameof(FilterItem)} can only be used with {nameof(FilterType.EqualTo)}.");
+                }
+
+                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
+
+                singleFilterStrings.Add(singleFilterString);
+            }
+
+            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
+        }
+
+        List<string> list = ["CREATE", uniqueString, "INDEX", name, "ON", table, columnsString, filterString];
+
+        var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        ExecuteNonQuery(sql);
     }
 
     protected override string GetPrimaryKeyConstraintName(string table)

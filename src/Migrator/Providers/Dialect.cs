@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models;
 using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 
 namespace DotNetProjects.Migrator.Providers;
@@ -16,6 +18,14 @@ public abstract class Dialect : IDialect
     private readonly HashSet<string> _reservedWords = [];
     private readonly TypeNames _typeNames = new();
     private readonly List<DbType> _unsignedCompatibleTypes = [];
+
+    private readonly List<FilterTypeToString> _filterTypeToStrings = [
+        new() { FilterType = FilterType.EqualTo, FilterString = "=" },
+        new() { FilterType = FilterType.GreaterThan, FilterString = ">" },
+        new() { FilterType = FilterType.GreaterThanOrEqualTo, FilterString = ">=" },
+        new() { FilterType = FilterType.SmallerThan, FilterString = "<" },
+        new() { FilterType = FilterType.SmallerThanOrEqualTo, FilterString = "<=" }
+    ];
 
     protected Dialect()
     {
@@ -407,17 +417,26 @@ public abstract class Dialect : IDialect
         return mapper;
     }
 
-    public string GetComparisonStringFilterIndex(FilterType filterType)
+    public string GetComparisonStringByFilterType(FilterType filterType)
     {
-        return filterType switch
-        {
-            FilterType.EqualTo => "=",
-            FilterType.GreaterThan => ">",
-            FilterType.GreaterThanOrEqualTo => ">=",
-            FilterType.SmallerThan => "<",
-            FilterType.SmallerThanOrEqualTo => "<=",
-            _ => throw new NotImplementedException("Filter is not implemented yet."),
-        };
+        var exceptionString = $"The {nameof(FilterType)} '{filterType}' is not implemented.";
+        var result = _filterTypeToStrings.FirstOrDefault(x => x.FilterType == filterType) ?? throw new NotImplementedException(exceptionString);
+
+        return result.FilterString;
+    }
+
+    /// <summary>
+    /// Resolves the comparison string for filtered indexes.
+    /// </summary>
+    /// <param name="filterType"></param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException"></exception>
+    public FilterType GetFilterTypeByComparisonString(string comparisonString)
+    {
+        var exceptionString = $"The {comparisonString} cannot be resolved.";
+        var result = _filterTypeToStrings.FirstOrDefault(x => x.FilterString == comparisonString) ?? throw new Exception(exceptionString);
+
+        return result.FilterType;
     }
 
     /// <summary>
