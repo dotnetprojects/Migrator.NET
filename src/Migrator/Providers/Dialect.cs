@@ -425,6 +425,11 @@ public abstract class Dialect : IDialect
         return result.FilterString;
     }
 
+    public string[] GetComparisonStrings()
+    {
+        return _filterTypeToStrings.Select(x => x.FilterString).ToArray();
+    }
+
     /// <summary>
     /// Resolves the comparison string for filtered indexes.
     /// </summary>
