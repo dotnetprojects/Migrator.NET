@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using DotNetProjects.Migrator.Providers;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Ingres;
 
