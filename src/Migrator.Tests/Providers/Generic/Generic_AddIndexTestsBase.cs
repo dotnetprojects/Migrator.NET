@@ -17,7 +17,7 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
     }
 
     [Test]
-    public void AddIndex_UsingIndexInstanceOverload_ShouldBeReadable()
+    public void AddIndex_UsingIndexInstanceOverload_NonUnique_ShouldBeReadable()
     {
         // Arrange
         const string tableName = "TestTable";
@@ -39,7 +39,7 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
     }
 
     [Test]
-    public void AddIndex_UsingNonIndexInstanceOverload_ShouldBeReadable()
+    public void AddIndex_UsingNonIndexInstanceOverload_NonUnique_ShouldBeReadable()
     {
         // Arrange
         const string tableName = "TestTable";

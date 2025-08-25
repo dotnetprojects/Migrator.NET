@@ -12,7 +12,7 @@ namespace Migrator.Tests.Providers.SQLite;
 public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationProviderTestBase
 {
     [Test]
-    public void AddTable_UniqueOnly_ContainsNull()
+    public void AddTable_UniqueOnlyOnColumnLevel_Obsolete_UniquesListIsEmpty()
     {
         const string tableName = "MyTableName";
         const string columnName = "MyColumnName";
@@ -22,7 +22,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That("CREATE TABLE MyTableName (MyColumnName INTEGER NULL UNIQUE)", Is.EqualTo(createScript));
+        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (MyColumnName INTEGER NULL UNIQUE)"));
 
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
 
@@ -43,12 +43,12 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
             new Column(columnName2, System.Data.DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.NotNull)
         );
 
-        Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)");
-        Assert.Throws<MigrationException>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)"));
+        Provider.Insert(tableName, [columnName1, columnName2], [1, 1]);
+        Assert.Throws<MigrationException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 1]));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That("CREATE TABLE MyTableName (Column1 INTEGER NULL, Column2 INTEGER NOT NULL, PRIMARY KEY (Column1, Column2))", Is.EqualTo(createScript));
+        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (Column1 INTEGER NULL, Column2 INTEGER NOT NULL, PRIMARY KEY (Column1, Column2))"));
 
         var pragmaTableInfos = ((SQLiteTransformationProvider)Provider).GetPragmaTableInfoItems(tableName);
         Assert.That(pragmaTableInfos.Single(x => x.Name == columnName1).NotNull, Is.False);
@@ -72,12 +72,12 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
             new Column(columnName2, System.Data.DbType.Int32, ColumnProperty.NotNull)
         );
 
-        Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)");
-        Assert.Throws<MigrationException>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,2)"));
+        Provider.Insert(tableName, [columnName1, columnName2], [1, 1]);
+        Assert.Throws<MigrationException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 2]));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That("CREATE TABLE MyTableName (Column1 INTEGER NOT NULL PRIMARY KEY, Column2 INTEGER NOT NULL)", Is.EqualTo(createScript));
+        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (Column1 INTEGER NOT NULL PRIMARY KEY, Column2 INTEGER NOT NULL)"));
 
         var pragmaTableInfos = ((SQLiteTransformationProvider)Provider).GetPragmaTableInfoItems(tableName);
         Assert.That(pragmaTableInfos.All(x => x.NotNull), Is.True);
@@ -100,12 +100,12 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
             new Column(columnName2, System.Data.DbType.Int32, ColumnProperty.Null | ColumnProperty.Unique)
         );
 
-        Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)");
-        Assert.Throws<MigrationException>(() => Provider.ExecuteNonQuery($"INSERT INTO {tableName} ({columnName1}, {columnName2}) VALUES (1,1)"));
+        Provider.Insert(tableName, [columnName1, columnName2], [1, 1]);
+        Assert.Throws<MigrationException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 1]));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That("CREATE TABLE MyTableName (Column1 INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, Column2 INTEGER NULL UNIQUE)", Is.EqualTo(createScript));
+        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (Column1 INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, Column2 INTEGER NULL UNIQUE)"));
 
         var pragmaTableInfos = ((SQLiteTransformationProvider)Provider).GetPragmaTableInfoItems(tableName);
         Assert.That(pragmaTableInfos.First().NotNull, Is.True);
