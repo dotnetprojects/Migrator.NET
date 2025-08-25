@@ -12,6 +12,7 @@
 #endregion
 
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -54,8 +55,82 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         using var cmd = CreateCommand();
         using var reader =
             ExecuteQuery(cmd, string.Format("SELECT conname FROM pg_constraint WHERE contype = 'p' AND conrelid = (SELECT oid FROM pg_class WHERE relname = lower('{0}'));", table));
+
         return reader.Read() ? reader.GetString(0) : null;
     }
+
+    public override void AddIndex(string table, Index index)
+    {
+        if (!TableExists(table))
+        {
+            throw new MigrationException($"Table '{table}' does not exist.");
+        }
+
+        foreach (var column in index.KeyColumns)
+        {
+            if (!ColumnExists(table, column))
+            {
+                throw new MigrationException($"Column '{column}' does not exist.");
+            }
+        }
+
+        if (IndexExists(table, index.Name))
+        {
+            throw new MigrationException($"Index '{index.Name}' in table {table} already exists");
+        }
+
+        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
+        var name = QuoteConstraintNameIfRequired(index.Name);
+        table = QuoteTableNameIfRequired(table);
+        var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
+
+        var uniqueString = index.Unique ? "UNIQUE" : null;
+        var columnsString = $"({string.Join(", ", columns)})";
+        var filterString = string.Empty;
+
+        if (index.FilterItems != null && index.FilterItems.Count > 0)
+        {
+            List<string> singleFilterStrings = [];
+
+            foreach (var filterItem in index.FilterItems)
+            {
+                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
+
+                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
+                string value = null;
+
+                value = filterItem.Value switch
+                {
+                    bool booleanValue => booleanValue ? "TRUE" : "FALSE",
+                    string stringValue => $"'{stringValue}'",
+                    byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
+                    sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
+                    _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),
+                };
+
+                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
+
+                singleFilterStrings.Add(singleFilterString);
+            }
+
+            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
+        }
+
+        List<string> list = [];
+        list.Add("CREATE");
+        list.Add(uniqueString);
+        list.Add("INDEX");
+        list.Add(name);
+        list.Add("ON");
+        list.Add(table);
+        list.Add(columnsString);
+        list.Add(filterString);
+
+        var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        ExecuteNonQuery(sql);
+    }
+
 
     public override Index[] GetIndexes(string table)
     {

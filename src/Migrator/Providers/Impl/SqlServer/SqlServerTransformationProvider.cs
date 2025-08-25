@@ -173,13 +173,13 @@ public class SqlServerTransformationProvider : TransformationProvider
         var filterString = string.Empty;
         var clusteredString = index.Clustered ? "CLUSTERED" : "NONCLUSTERED";
 
-        if (index.FilterItems != null && index.FilterItems.Length > 0)
+        if (index.FilterItems != null && index.FilterItems.Count > 0)
         {
             List<string> singleFilterStrings = [];
 
             foreach (var filterItem in index.FilterItems)
             {
-                var comparisonString = _dialect.GetComparisonStringFilterIndex(filterItem.Filter);
+                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
 
                 var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
                 string value = null;
