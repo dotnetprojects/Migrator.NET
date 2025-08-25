@@ -16,8 +16,6 @@ using DotNetProjects.Migrator.Framework.Loggers;
 using DotNetProjects.Migrator.Framework.SchemaBuilder;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DotNetProjects.Migrator.Providers.Models;
-using DotNetProjects.Migrator.Providers.Models.Indexes;
-using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -41,7 +39,7 @@ public abstract class TransformationProvider : ITransformationProvider
     private string _scope;
     protected readonly string _connectionString;
     protected readonly string _defaultSchema;
-    private readonly ForeignKeyConstraintMapper constraintMapper = new ForeignKeyConstraintMapper();
+    private readonly ForeignKeyConstraintMapper constraintMapper = new();
     protected List<long> _appliedMigrations;
     protected IDbConnection _connection;
     protected bool _outsideConnection = false;
@@ -2189,5 +2187,43 @@ public abstract class TransformationProvider : ITransformationProvider
         return from DataRow row in tables.Rows select (row["TABLE_NAME"] as string);
     }
 
+    protected void ValidateIndex(string tableName, Index index)
+    {
+        var hasFilterItems = index.FilterItems != null && index.FilterItems.Count > 0;
+        var columns = GetColumns(table: tableName);
 
+        if (!TableExists(tableName))
+        {
+            throw new MigrationException($"Table '{tableName}' does not exist.");
+        }
+
+        foreach (var keyColumn in index.KeyColumns)
+        {
+            if (!columns.Any(x => x.Name.Equals(keyColumn, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new MigrationException($"Column '{keyColumn}' does not exist.");
+            }
+        }
+
+        if (hasFilterItems)
+        {
+            if (!index.KeyColumns.Any(x => index.FilterItems.Any(y => x.Equals(y.ColumnName, StringComparison.OrdinalIgnoreCase))))
+            {
+                throw new MigrationException($"All columns in the {index.FilterItems} should exist in the {index.KeyColumns}.");
+            }
+        }
+
+        if (IndexExists(tableName, index.Name))
+        {
+            throw new MigrationException($"Index '{index.Name}' in table {tableName} already exists.");
+        }
+
+        if (index.IncludeColumns != null && index.IncludeColumns.Length > 0)
+        {
+            if (index.IncludeColumns.Any(x => index.KeyColumns.Any(y => x.Equals(y, StringComparison.OrdinalIgnoreCase))))
+            {
+                throw new MigrationException($"It is not allowed to use a column in {nameof(index.IncludeColumns)} that exist in {nameof(index.KeyColumns)}.");
+            }
+        }
+    }
 }
