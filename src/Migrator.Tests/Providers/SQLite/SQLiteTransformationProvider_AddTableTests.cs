@@ -1,4 +1,5 @@
 using System;
+using System.Data.SQLite;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
@@ -44,7 +45,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         );
 
         Provider.Insert(tableName, [columnName1, columnName2], [1, 1]);
-        Assert.Throws<MigrationException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 1]));
+        var ex = Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 1]));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
@@ -57,6 +58,9 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
         Assert.That(sqliteInfo.Columns.First().Name, Is.EqualTo(columnName1));
         Assert.That(sqliteInfo.Columns[1].Name, Is.EqualTo(columnName2));
+
+        // 19 = UNIQUE constraint failed
+        Assert.That(ex.ErrorCode, Is.EqualTo(19));
     }
 
     [Test]
