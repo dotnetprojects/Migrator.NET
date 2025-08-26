@@ -149,6 +149,7 @@ public class SqlServerTransformationProvider : TransformationProvider
 
         var uniqueString = index.Unique ? "UNIQUE" : null;
         var columnsString = $"({string.Join(", ", columns)})";
+        var includeString = hasIncludedColumns ? $"INCLUDE ({string.Join(", ", index.IncludeColumns)})" : null;
         var filterString = string.Empty;
         var clusteredString = index.Clustered ? "CLUSTERED" : "NONCLUSTERED";
 
@@ -201,6 +202,7 @@ public class SqlServerTransformationProvider : TransformationProvider
         list.Add("ON");
         list.Add(table);
         list.Add(columnsString);
+        list.Add(includeString);
         list.Add(filterString);
 
         list = [.. list.Where(x => !string.IsNullOrWhiteSpace(x))];
@@ -334,7 +336,8 @@ public class SqlServerTransformationProvider : TransformationProvider
                 {
                     Clustered = reader.GetString(indexTypeOrdinal) == "CLUSTERED",
                     ColumnName = reader.GetString(columnNameOrdinal),
-                    FilterString = reader.GetString(filterDefinitionOrdinal),
+                    ColumnOrder = reader.GetInt32(columnOrderOrdinal),
+                    FilterString = !reader.IsDBNull(filterDefinitionOrdinal) ? reader.GetString(filterDefinitionOrdinal) : null,
                     IsFilteredIndex = reader.GetBoolean(isFilteredIndexOrdinal),
                     IsIncludedColumn = reader.GetBoolean(isIncludedColumnOrdinal),
                     Name = reader.GetString(indexNameOrdinal),
