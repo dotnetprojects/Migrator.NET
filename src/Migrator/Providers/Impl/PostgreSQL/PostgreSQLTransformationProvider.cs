@@ -123,7 +123,6 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         ExecuteNonQuery(sql);
     }
 
-
     public override Index[] GetIndexes(string table)
     {
         var columns = GetColumns(table);
@@ -131,7 +130,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         // Since the migrator does not support schemas at this point in time we set the schema to "public"
         var schemaName = "public";
 
-        var retVal = new List<Index>();
+        var indexes = new List<Index>();
 
         var sql = @$"
             SELECT
@@ -172,42 +171,41 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         using (var cmd = CreateCommand())
         using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
         {
+            var includeColumnsOrdinal = reader.GetOrdinal("include_columns");
+            var indexColumnsOrdinal = reader.GetOrdinal("index_columns");
+            var indexDefinitionOrdinal = reader.GetOrdinal("index_definition");
+            var indexNameOrdinal = reader.GetOrdinal("index_name");
+            var isClusteredOrdinal = reader.GetOrdinal("is_clustered");
+            var isPrimaryConstraintOrdinal = reader.GetOrdinal("is_primary_constraint");
+            var isUniqueConstraintOrdinal = reader.GetOrdinal("is_unique_constraint");
+            var isUniqueOrdinal = reader.GetOrdinal("is_unique");
+            var partialFilterOrdinal = reader.GetOrdinal("partial_filter");
             var schemaNameOrdinal = reader.GetOrdinal("schema_name");
             var tableNameOrdinal = reader.GetOrdinal("table_name");
-            var indexNameOrdinal = reader.GetOrdinal("index_name");
-            var isUniqueOrdinal = reader.GetOrdinal("is_unique");
-            var isClusteredOrdinal = reader.GetOrdinal("is_clustered");
-            var isUniqueConstraintOrdinal = reader.GetOrdinal("is_unique_constraint");
-            var isPrimaryConstraintOrdinal = reader.GetOrdinal("is_primary_constraint");
-            var indexDefinitionOrdinal = reader.GetOrdinal("index_definition");
-            var indexColumnsOrdinal = reader.GetOrdinal("index_columns");
-            var includeColumnsOrdinal = reader.GetOrdinal("include_columns");
-            var partialFilterOrdinal = reader.GetOrdinal("partial_filter");
 
             while (reader.Read())
             {
                 if (!reader.IsDBNull(1))
                 {
-                    var indexDefinition = reader.GetString(indexDefinitionOrdinal);
-                    var indexColumns = !reader.IsDBNull(indexColumnsOrdinal) ? reader.GetString(indexColumnsOrdinal) : null;
-                    var partialColumns = !reader.IsDBNull(partialFilterOrdinal) ? reader.GetString(partialFilterOrdinal) : null;
                     var includeColumns = !reader.IsDBNull(includeColumnsOrdinal) ? reader.GetString(includeColumnsOrdinal) : null;
+                    var indexColumns = !reader.IsDBNull(indexColumnsOrdinal) ? reader.GetString(indexColumnsOrdinal) : null;
+                    var indexDefinition = reader.GetString(indexDefinitionOrdinal);
+                    var partialColumns = !reader.IsDBNull(partialFilterOrdinal) ? reader.GetString(partialFilterOrdinal) : null;
+                    List<FilterItem> filterItems = [];
 
                     if (!string.IsNullOrWhiteSpace(partialColumns))
                     {
                         partialColumns = partialColumns.Substring(1, partialColumns.Length - 2);
-                        var partialSplitted = Regex.Split(partialColumns, " AND ").Select(x => x.Trim()).Select(x => x.Substring(1, x.Length - 2)).ToList();
-
                         var comparisonStrings = _dialect.GetComparisonStrings();
-
-                        List<FilterItem> filterItems = [];
+                        var andSplitted = Regex.Split(partialColumns, " AND ").Select(x => x.Trim()).ToList();
+                        var partialSplitted = andSplitted.Select(x => x.Substring(1, x.Length - 2)).ToList();
 
                         foreach (var partialItemString in partialSplitted)
                         {
                             string[] splits = [];
                             var filterType = FilterType.None;
 
-                            foreach (var comparisonString in comparisonStrings)
+                            foreach (var comparisonString in comparisonStrings.OrderByDescending(x => x))
                             {
                                 splits = Regex.Split(partialItemString, $" {comparisonString} ");
 
@@ -220,24 +218,29 @@ public class PostgreSQLTransformationProvider : TransformationProvider
 
                             if (splits.Length != 2)
                             {
-                                throw new NotImplementedException($"Comparison string in '{partialItemString}'");
+                                throw new NotImplementedException($"Comparison string not found in '{partialItemString}'");
                             }
 
                             var columnNameString = splits[0];
-
                             var columnNameRegex = new Regex(@"(?<=^\().+(?=\)::(text|boolean|integer)$)");
+
                             if (columnNameRegex.Match(columnNameString) is Match matchColumnName && matchColumnName.Success)
                             {
                                 columnNameString = matchColumnName.Value;
                             }
 
                             var column = columns.First(x => columnNameString.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
-
-                            var stringValueRegex = new Regex("(?<=^').+(?='::(text|boolean|integer)$)");
-
                             var valueAsString = splits[1];
+                            var stringValueNumericRegex = new Regex(@"(?<=^\()[^\)]+(?=\)::numeric$)");
 
-                            if (stringValueRegex.Match(splits[1]) is Match match && match.Success)
+                            if (stringValueNumericRegex.Match(valueAsString) is Match valueNumericMatch && valueNumericMatch.Success)
+                            {
+                                valueAsString = valueNumericMatch.Value;
+                            }
+
+                            var stringValueRegex = new Regex("(?<=^').+(?='::(text|boolean|integer|bigint)$)");
+
+                            if (stringValueRegex.Match(valueAsString) is Match match && match.Success)
                             {
                                 valueAsString = match.Value;
                             }
@@ -246,42 +249,43 @@ public class PostgreSQLTransformationProvider : TransformationProvider
                             {
                                 ColumnName = column.Name,
                                 Filter = filterType,
-                            };
-
-                            filterItem.Value = column.MigratorDbType switch
-                            {
-                                MigratorDbType.Int16 => short.Parse(valueAsString),
-                                MigratorDbType.Int32 => int.Parse(valueAsString),
-                                MigratorDbType.Int64 => long.Parse(valueAsString),
-                                MigratorDbType.UInt16 => ushort.Parse(valueAsString),
-                                MigratorDbType.UInt32 => uint.Parse(valueAsString),
-                                MigratorDbType.UInt64 => ulong.Parse(valueAsString),
-                                MigratorDbType.Boolean => valueAsString == "1" || valueAsString.Equals("true", StringComparison.OrdinalIgnoreCase),
-                                MigratorDbType.String => valueAsString,
-                                _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),
+                                Value = column.MigratorDbType switch
+                                {
+                                    MigratorDbType.Int16 => short.Parse(valueAsString),
+                                    MigratorDbType.Int32 => int.Parse(valueAsString),
+                                    MigratorDbType.Int64 => long.Parse(valueAsString),
+                                    MigratorDbType.UInt16 => ushort.Parse(valueAsString),
+                                    MigratorDbType.UInt32 => uint.Parse(valueAsString),
+                                    MigratorDbType.UInt64 => ulong.Parse(valueAsString),
+                                    MigratorDbType.Decimal => decimal.Parse(valueAsString),
+                                    MigratorDbType.Boolean => valueAsString == "1" || valueAsString.Equals("true", StringComparison.OrdinalIgnoreCase),
+                                    MigratorDbType.String => valueAsString,
+                                    _ => throw new NotImplementedException($"Type '{column.MigratorDbType}' not yet supported - there are many variations. Please file an issue."),
+                                }
                             };
 
                             filterItems.Add(filterItem);
                         }
                     }
 
-                    var idx = new Index
+                    var index = new Index
                     {
+                        Clustered = !reader.IsDBNull(isClusteredOrdinal) && reader.GetBoolean(isClusteredOrdinal),
+                        FilterItems = filterItems,
+                        IncludeColumns = !string.IsNullOrWhiteSpace(includeColumns) ? [.. includeColumns.Split(',').Select(x => x.Trim())] : null,
+                        KeyColumns = !string.IsNullOrWhiteSpace(indexColumns) ? [.. indexColumns.Split(',').Select(x => x.Trim())] : null,
                         Name = reader.GetString(indexNameOrdinal),
                         PrimaryKey = !reader.IsDBNull(isPrimaryConstraintOrdinal) && reader.GetBoolean(isPrimaryConstraintOrdinal),
                         Unique = !reader.IsDBNull(isUniqueOrdinal) && reader.GetBoolean(isUniqueOrdinal),
                         UniqueConstraint = !reader.IsDBNull(isUniqueConstraintOrdinal) && reader.GetBoolean(isUniqueConstraintOrdinal),
-                        Clustered = !reader.IsDBNull(isClusteredOrdinal) && reader.GetBoolean(isClusteredOrdinal),
-                        IncludeColumns = !string.IsNullOrWhiteSpace(includeColumns) ? [.. includeColumns.Split(',').Select(x => x.Trim())] : null,
-                        KeyColumns = !string.IsNullOrWhiteSpace(indexColumns) ? [.. indexColumns.Split(',').Select(x => x.Trim())] : null,
                     };
 
-                    retVal.Add(idx);
+                    indexes.Add(index);
                 }
             }
         }
 
-        return retVal.ToArray();
+        return [.. indexes];
     }
 
     public override void RemoveTable(string name)

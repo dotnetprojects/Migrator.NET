@@ -22,6 +22,7 @@ public class PostgreDialectTests
     [TestCase(FilterType.SmallerThanOrEqualTo, "<=")]
     [TestCase(FilterType.SmallerThan, "<")]
     [TestCase(FilterType.GreaterThan, ">")]
+    [TestCase(FilterType.NotEqualTo, "<>")]
     public void GetComparisonStringByFilterType_Success(FilterType filterType, string expectedString)
     {
         var result = _postgreSQLDialect.GetComparisonStringByFilterType(filterType);
@@ -34,6 +35,7 @@ public class PostgreDialectTests
     [TestCase("<=", FilterType.SmallerThanOrEqualTo)]
     [TestCase("<", FilterType.SmallerThan)]
     [TestCase(">", FilterType.GreaterThan)]
+    [TestCase("<>", FilterType.NotEqualTo)]
     public void GetFilterTypeByComparisonString_Success(string comparisonString, FilterType expectedFilterType)
     {
         var result = _postgreSQLDialect.GetFilterTypeByComparisonString(comparisonString);

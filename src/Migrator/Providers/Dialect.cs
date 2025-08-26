@@ -24,7 +24,8 @@ public abstract class Dialect : IDialect
         new() { FilterType = FilterType.GreaterThan, FilterString = ">" },
         new() { FilterType = FilterType.GreaterThanOrEqualTo, FilterString = ">=" },
         new() { FilterType = FilterType.SmallerThan, FilterString = "<" },
-        new() { FilterType = FilterType.SmallerThanOrEqualTo, FilterString = "<=" }
+        new() { FilterType = FilterType.SmallerThanOrEqualTo, FilterString = "<=" },
+        new() { FilterType = FilterType.NotEqualTo, FilterString = "<>"}
     ];
 
     protected Dialect()

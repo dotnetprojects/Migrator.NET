@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,6 +6,7 @@ using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using Migrator.Tests.Providers.Generic;
 using Npgsql;
 using NUnit.Framework;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace Migrator.Tests.Providers.PostgreSQL;
 

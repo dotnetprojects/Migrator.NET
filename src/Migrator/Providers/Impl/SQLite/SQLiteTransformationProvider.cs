@@ -1260,18 +1260,39 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
                         var column = columns.Single(x => x.Name.Equals(splitted[0], StringComparison.OrdinalIgnoreCase));
 
-                        filterItem.Value = column.MigratorDbType switch
-                        {
-                            MigratorDbType.Int16 => short.Parse(splitted[2]),
-                            MigratorDbType.Int32 => int.Parse(splitted[2]),
-                            MigratorDbType.Int64 => long.Parse(splitted[2]),
-                            MigratorDbType.UInt16 => ushort.Parse(splitted[2]),
-                            MigratorDbType.UInt32 => uint.Parse(splitted[2]),
-                            MigratorDbType.UInt64 => ulong.Parse(splitted[2]),
-                            MigratorDbType.Boolean => splitted[2] == "1" || splitted[2].Equals("true", StringComparison.OrdinalIgnoreCase),
-                            MigratorDbType.String => splitted[2].Substring(1, splitted[2].Length - 2),
-                            _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),
+                        var sqliteIntegerDataTypes = new[] {
+                            MigratorDbType.Int16,
+                            MigratorDbType.Int32,
+                            MigratorDbType.Int64,
+                            MigratorDbType.UInt16,
+                            MigratorDbType.UInt32,
+                            MigratorDbType.UInt64
                         };
+
+                        if (sqliteIntegerDataTypes.Contains(column.MigratorDbType))
+                        {
+                            if (long.TryParse(splitted[2], out var longValue))
+                            {
+                                filterItem.Value = longValue;
+                            }
+                            else if (ulong.TryParse(splitted[2], out var uLongValue))
+                            {
+                                filterItem.Value = uLongValue;
+                            }
+                            else
+                            {
+                                throw new Exception();
+                            }
+                        }
+                        else
+                        {
+                            filterItem.Value = column.MigratorDbType switch
+                            {
+                                MigratorDbType.Boolean => splitted[2] == "1" || splitted[2].Equals("true", StringComparison.OrdinalIgnoreCase),
+                                MigratorDbType.String => splitted[2].Substring(1, splitted[2].Length - 2),
+                                _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),
+                            };
+                        }
 
                         index.FilterItems.Add(filterItem);
                     }
@@ -1439,9 +1460,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                     _ => throw new NotImplementedException("Given type is not implemented. Please file an issue."),
                 };
 
-                if ((filterItem.Value is string || filterItem.Value is bool) && filterItem.Filter != FilterType.EqualTo)
+                if ((filterItem.Value is string || filterItem.Value is bool) && filterItem.Filter != FilterType.EqualTo && filterItem.Filter != FilterType.NotEqualTo)
                 {
-                    throw new MigrationException($"Bool and string in {nameof(FilterItem)} can only be used with {nameof(FilterType.EqualTo)}.");
+                    throw new MigrationException($"Bool and string in {nameof(FilterItem)} can only be used with '{nameof(FilterType.EqualTo)}' or '{nameof(FilterType.EqualTo)}'.");
                 }
 
                 var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";

@@ -420,6 +420,7 @@ public class SqlServerTransformationProvider : TransformationProvider
                         MigratorDbType.UInt16 => ushort.Parse(valueAsString),
                         MigratorDbType.UInt32 => uint.Parse(valueAsString),
                         MigratorDbType.UInt64 => ulong.Parse(valueAsString),
+                        MigratorDbType.Decimal => decimal.Parse(valueAsString),
                         MigratorDbType.Boolean => valueAsString == "1" || valueAsString.Equals("true", StringComparison.OrdinalIgnoreCase),
                         MigratorDbType.String => valueAsString,
                         _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),

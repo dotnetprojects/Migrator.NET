@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
 using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
@@ -48,7 +50,7 @@ public class SQLServerTransformationProvider_AddIndexTests : Generic_AddIndexTes
     }
 
     [Test]
-    public void AddIndex_FilteredIndexGreaterOrEqualThanNumber_Success()
+    public void AddIndex_FilteredIndexGreaterOrEqualThanNumber_PartialIndexThrowsOnConditionMet()
     {
         // Arrange
         const string tableName = "TestTable";

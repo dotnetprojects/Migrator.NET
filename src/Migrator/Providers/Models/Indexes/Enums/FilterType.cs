@@ -27,5 +27,10 @@ public enum FilterType
     /// <summary>
     /// Smaller than or equal to
     /// </summary>
-    SmallerThanOrEqualTo
+    SmallerThanOrEqualTo,
+
+    /// <summary>
+    /// Not equal to
+    /// </summary>
+    NotEqualTo
 }
