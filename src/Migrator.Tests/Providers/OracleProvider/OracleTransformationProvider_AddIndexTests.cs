@@ -139,8 +139,8 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
         // Assert
         var indexesFromDatabase = Provider.GetIndexes(table: tableName);
 
-        // In Oracle it seems that functional expressions are stored as index. FilterItems are not implemented in GetIndexes for Oracle. No further 
-        // assert possible at this point in time.
+        // In Oracle it seems that functional expressions are stored as column with generated column name. FilterItems are not 
+        // implemented in Provider.GetIndexes() for Oracle. No further assert possible at this point in time.
         Assert.That(indexesFromDatabase.Single().KeyColumns.Count, Is.EqualTo(13));
 
 
