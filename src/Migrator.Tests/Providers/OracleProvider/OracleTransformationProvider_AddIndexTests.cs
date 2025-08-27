@@ -55,7 +55,8 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
 
     /// <summary>
     /// This test is located in the dedicated database type folder not in the base class since <see cref="OracleTransformationProvider.GetIndexes"/>
-    /// cannot read filter items.
+    /// cannot read filter items for Oracle and Oracle does not allow
+    /// Unique = true for indexes with functional expressions
     /// </summary>
     [Test]
     public void AddIndex_FilteredIndexMiscellaneousFilterTypesAndDataTypes_Success()

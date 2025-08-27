@@ -155,7 +155,8 @@ public class SQLiteTransformationProvider_AddIndexTests : Generic_AddIndexTestsB
     }
 
     /// <summary>
-    /// This test is located in the dedicated database type folder not in the base class since partial indexes (Oracle) are not supported in the migrator at this point in time.
+    /// This test is located in the dedicated database type folder not in the base class since <see cref="OracleTransformationProvider.GetIndexes"/>
+    /// cannot read filter items for Oracle.
     /// </summary>
     [Test]
     public void AddIndex_FilteredIndexMiscellaneousFilterTypesAndDataTypes_Success()
