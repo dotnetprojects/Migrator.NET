@@ -134,6 +134,8 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
                 FilterItems = filterItems
             });
 
+        Provider.Insert(table: tableName, [columnName1], [1]);
+
         // Assert
         var indexesFromDatabase = Provider.GetIndexes(table: tableName);
 
