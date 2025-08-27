@@ -2199,7 +2199,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         foreach (var keyColumn in index.KeyColumns)
         {
-            if (!columns.Any(x => x.Name.Equals(keyColumn, StringComparison.OrdinalIgnoreCase)))
+            if (!index.KeyColumns.All(x => columns.Any(y => y.Name.Equals(x, StringComparison.OrdinalIgnoreCase))))
             {
                 throw new MigrationException($"Column '{keyColumn}' does not exist.");
             }
@@ -2207,9 +2207,9 @@ public abstract class TransformationProvider : ITransformationProvider
 
         if (hasFilterItems)
         {
-            if (!index.KeyColumns.Any(x => index.FilterItems.Any(y => x.Equals(y.ColumnName, StringComparison.OrdinalIgnoreCase))))
+            if (!index.FilterItems.All(x => index.KeyColumns.Any(y => x.ColumnName.Equals(y, StringComparison.OrdinalIgnoreCase))))
             {
-                throw new MigrationException($"All columns in the {index.FilterItems} should exist in the {index.KeyColumns}.");
+                throw new MigrationException($"All columns in the {nameof(index.FilterItems)} should exist in the {nameof(index.KeyColumns)}.");
             }
         }
 

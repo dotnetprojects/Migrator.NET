@@ -23,6 +23,64 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
     }
 
     [Test]
+    public void AddIndex_AddAlreadyExistingIndex_Throws()
+    {
+        // Arrange
+        const string tableName = "TestTable";
+        const string columnName = "TestColumn";
+        const string indexName = "TestIndexName";
+
+        Provider.AddTable(tableName, new Column(columnName, DbType.Int32));
+        Provider.AddIndex(tableName, new Index { Name = indexName, KeyColumns = [columnName] });
+
+        // Act/Assert
+        // Add already existing index
+        Assert.Throws<MigrationException>(() => Provider.AddIndex(tableName, new Index { Name = indexName, KeyColumns = [columnName] }));
+    }
+
+    [Test]
+    public void AddIndex_IncludeColumnsContainsColumnThatExistInKeyColumns_Throws()
+    {
+        // Arrange
+        const string tableName = "TestTable";
+        const string columnName1 = "TestColumn1";
+        const string indexName = "TestIndexName";
+
+        Provider.AddTable(tableName, new Column(columnName1, DbType.Int32));
+
+        Assert.Throws<MigrationException>(() => Provider.AddIndex(tableName,
+            new Index
+            {
+                Name = indexName,
+                KeyColumns = [columnName1],
+                IncludeColumns = [columnName1]
+            }));
+    }
+
+    [Test]
+    public void AddIndex_ColumnNameUsedInFilterItemDoesNotExistInKeyColumns_Throws()
+    {
+        // Arrange
+        const string tableName = "TestTable";
+        const string columnName1 = "TestColumn1";
+        const string columnName2 = "TestColumn2";
+        const string indexName = "TestIndexName";
+
+        Provider.AddTable(tableName,
+            new Column(columnName1, DbType.Int32),
+            new Column(columnName2, DbType.Int32)
+        );
+
+        Assert.Throws<MigrationException>(() => Provider.AddIndex(tableName,
+            new Index
+            {
+                Name = indexName,
+                KeyColumns = [columnName1],
+                FilterItems = [new FilterItem { Filter = FilterType.GreaterThan, ColumnName = columnName2, Value = 12 }]
+            }));
+    }
+
+    [Test]
     public void AddIndex_UsingIndexInstanceOverload_NonUnique_ShouldBeReadable()
     {
         // Arrange
@@ -30,7 +88,7 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
         const string columnName = "TestColumn";
         const string indexName = "TestIndexName";
 
-        Provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32));
+        Provider.AddTable(tableName, new Column(columnName, DbType.Int32));
 
         // Act
         Provider.AddIndex(tableName, new Index { Name = indexName, KeyColumns = [columnName] });
