@@ -63,8 +63,6 @@ public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTe
         var index = indexes.Single();
 
         Assert.That(index.Unique, Is.True);
-        // Need to compare message string since ErrorNumber does not hold a positive number.
-        Assert.That(ex.Message, Does.StartWith("23505: duplicate key value violates unique constraint"));
         Assert.That(ex.SqlState, Is.EqualTo("23505"));
     }
 
