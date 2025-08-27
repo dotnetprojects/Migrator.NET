@@ -197,8 +197,12 @@ public class PostgreSQLTransformationProvider : TransformationProvider
                     {
                         partialColumns = partialColumns.Substring(1, partialColumns.Length - 2);
                         var comparisonStrings = _dialect.GetComparisonStrings();
-                        var andSplitted = Regex.Split(partialColumns, " AND ").Select(x => x.Trim()).ToList();
-                        var partialSplitted = andSplitted.Select(x => x.Substring(1, x.Length - 2)).ToList();
+                        var partialSplitted = Regex.Split(partialColumns, " AND ").Select(x => x.Trim()).ToList();
+
+                        if (partialSplitted.Count > 1)
+                        {
+                            partialSplitted = partialSplitted.Select(x => x.Substring(1, x.Length - 2)).ToList();
+                        }
 
                         foreach (var partialItemString in partialSplitted)
                         {

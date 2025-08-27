@@ -39,6 +39,7 @@ public class Index : IDbField
     /// <summary>
     /// Gets or sets items that represent filter expressions in filtered indexes. Currently string, integer and boolean values are supported.
     /// Attention: In SQL Server the column used in the filter must be NOT NULL.
+    /// Oracle: Not supported for Oracle
     /// </summary>
     public List<FilterItem> FilterItems { get; set; } = [];
 }

@@ -47,9 +47,9 @@ public abstract class Generic_GetIndexesTestsBase : TransformationProviderBase
         var filterItem2 = index.FilterItems.Single(x => x.ColumnName == columnName2);
 
         Assert.That(filterItem1.Filter, Is.EqualTo(FilterType.GreaterThanOrEqualTo));
-        Assert.That((int)filterItem1.Value, Is.EqualTo(100));
+        Assert.That((long)filterItem1.Value, Is.EqualTo(100));
 
-        Assert.That(filterItem1.Filter, Is.EqualTo(FilterType.EqualTo));
-        Assert.That((string)filterItem1.Value, Is.EqualTo("Hello"));
+        Assert.That(filterItem2.Filter, Is.EqualTo(FilterType.EqualTo));
+        Assert.That((string)filterItem2.Value, Is.EqualTo("Hello"));
     }
 }

@@ -3,6 +3,7 @@ using System.Data.SQLite;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
+using Microsoft.Data.Sqlite;
 using Migrator.Tests.Providers.SQLite.Base;
 using NUnit.Framework;
 
@@ -77,7 +78,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         );
 
         Provider.Insert(tableName, [columnName1, columnName2], [1, 1]);
-        Assert.Throws<MigrationException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 2]));
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 2]));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
@@ -105,7 +106,7 @@ public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationPr
         );
 
         Provider.Insert(tableName, [columnName1, columnName2], [1, 1]);
-        Assert.Throws<MigrationException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 1]));
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [1, 1]));
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);

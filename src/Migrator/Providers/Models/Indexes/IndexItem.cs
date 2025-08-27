@@ -12,9 +12,6 @@ public class IndexItem
     /// </summary>
     public int ColumnOrder { get; set; }
 
-
-
-
     /// <summary>
     /// Gets or sets the index name.
     /// </summary>
@@ -24,8 +21,6 @@ public class IndexItem
     /// Indicates whether the index is unique.
     /// </summary>
     public bool Unique { get; set; }
-
-
 
     /// <summary>
     /// Indicates whether it is a primary key constraint.

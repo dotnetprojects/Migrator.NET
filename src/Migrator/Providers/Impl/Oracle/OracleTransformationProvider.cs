@@ -1,6 +1,7 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Models;
 using DotNetProjects.Migrator.Providers.Models;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -133,6 +134,41 @@ public class OracleTransformationProvider : TransformationProvider
         var refColumnsSql = string.Join(",", refColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
 
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
+    }
+
+    public override void AddIndex(string table, Index index)
+    {
+        ValidateIndex(tableName: table, index: index);
+
+        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
+        // Included columns and Clustered indexes are not supported in Oracle. We ignore the values given in the properties silently.
+
+        var name = QuoteConstraintNameIfRequired(index.Name);
+        table = QuoteTableNameIfRequired(table);
+        var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
+
+        var uniqueString = index.Unique ? "UNIQUE" : null;
+        var columnsString = $"({string.Join(", ", columns)})";
+
+        if (index.FilterItems != null && index.FilterItems.Count > 0)
+        {
+            throw new NotSupportedException($"Oracle: This migrator does not support partial indexes for Oracle at this point in time. Please use 'if(Provider is {nameof(OracleTransformationProvider)})'");
+        }
+
+        List<string> list = [];
+        list.Add("CREATE");
+        list.Add(uniqueString);
+        list.Add("INDEX");
+        list.Add(name);
+        list.Add("ON");
+        list.Add(table);
+        list.Add(columnsString);
+
+        list = [.. list.Where(x => !string.IsNullOrWhiteSpace(x))];
+
+        var sql = string.Join(" ", list);
+
+        ExecuteNonQuery(sql);
     }
 
     private void GuardAgainstMaximumIdentifierLengthForOracle(string name)
@@ -839,55 +875,83 @@ public class OracleTransformationProvider : TransformationProvider
 
     public override Index[] GetIndexes(string table)
     {
-        var sql = "select user_indexes.index_name, constraint_type, uniqueness " +
-                    "from user_indexes left outer join user_constraints on user_indexes.index_name = user_constraints.constraint_name " +
-                    "where lower(user_indexes.table_name) = lower('{0}') and index_type = 'NORMAL'";
+        var sql = @$"SELECT
+                        i.table_name,
+                        i.index_name,
+                        i.uniqueness,
+                        ic.column_position,
+                        ic.column_name,
+                        CASE WHEN c.constraint_type = 'P' THEN 'YES' ELSE 'NO' END AS is_primary_key,
+                        CASE WHEN c.constraint_type = 'U' THEN 'YES' ELSE 'NO' END AS is_unique_key
+                    FROM
+                        user_indexes i
+                        JOIN 
+                            user_ind_columns ic ON i.index_name = ic.index_name AND 
+                            i.table_name = ic.table_name
+                        LEFT JOIN
+                            user_constraints c ON i.index_name = c.index_name AND
+                            i.table_name = c.table_name
+                    WHERE
+                        UPPER(i.table_name) = '{table.ToUpperInvariant()}' AND
+                        i.index_type = 'NORMAL'
+                    ORDER BY
+                        i.table_name, i.index_name, ic.column_position";
 
-        sql = string.Format(sql, table);
-
-        var indexes = new List<Index>();
+        List<IndexItem> indexItems = [];
 
         using (var cmd = CreateCommand())
         using (var reader = ExecuteQuery(cmd, sql))
         {
             while (reader.Read())
             {
-                var index = new Index
+                var tableNameOrdinal = reader.GetOrdinal("table_name");
+                var indexNameOrdinal = reader.GetOrdinal("index_name");
+                var uniquenessOrdinal = reader.GetOrdinal("uniqueness");
+                var columnPositionOrdinal = reader.GetOrdinal("column_position");
+                var columnNameOrdinal = reader.GetOrdinal("column_name");
+                var isPrimaryKeyOrdinal = reader.GetOrdinal("is_primary_key");
+                var isUniqueConstraintOrdinal = reader.GetOrdinal("is_unique_key");
+
+                var indexItem = new IndexItem
                 {
-                    Name = reader.GetString(0),
-                    Unique = reader.GetString(2) == "UNIQUE" ? true : false
+                    ColumnName = reader.GetString(columnNameOrdinal),
+                    ColumnOrder = reader.GetInt32(columnPositionOrdinal),
+                    Name = reader.GetString(indexNameOrdinal),
+                    PrimaryKey = reader.GetString(isPrimaryKeyOrdinal) == "YES",
+                    TableName = reader.GetString(tableNameOrdinal),
+                    Unique = reader.GetString(uniquenessOrdinal) == "UNIQUE",
+                    UniqueConstraint = reader.GetString(isUniqueConstraintOrdinal) == "YES"
                 };
 
-                if (!reader.IsDBNull(1))
-                {
-                    index.PrimaryKey = reader.GetString(1) == "P" ? true : false;
-                    index.UniqueConstraint = reader.GetString(1) == "C" ? true : false;
-                }
-                else
-                {
-                    index.PrimaryKey = false;
-                }
-
-                index.Clustered = false; //???
-
-                //if (!reader.IsDBNull(3)) index.KeyColumns = (reader.GetString(3).Split(','));
-                //if (!reader.IsDBNull(4)) index.IncludeColumns = (reader.GetString(4).Split(','));
-
-                indexes.Add(index);
+                indexItems.Add(indexItem);
             }
         }
 
-        foreach (var idx in indexes)
+        var indexGroups = indexItems.GroupBy(x => new { x.SchemaName, x.TableName, x.Name });
+        List<Index> indexes = [];
+
+        foreach (var indexGroup in indexGroups)
         {
-            sql = "SELECT column_Name FROM all_ind_columns WHERE lower(table_name) = lower('" + table + "') and lower(index_name) = lower('" + idx.Name + "')";
-            using var cmd = CreateCommand();
-            using var reader = ExecuteQuery(cmd, sql);
-            var columns = new List<string>();
-            while (reader.Read())
+            var first = indexGroup.First();
+
+            var index = new Index
             {
-                columns.Add(reader.GetString(0));
-            }
-            idx.KeyColumns = columns.ToArray();
+                KeyColumns = [.. indexGroup.OrderBy(x => x.ColumnOrder).Select(x => x.ColumnName).Distinct()],
+                Name = first.Name,
+                PrimaryKey = first.PrimaryKey,
+                UniqueConstraint = first.UniqueConstraint,
+                Unique = first.Unique,
+
+                // Oracle does not support clustered indexes at this point in time.
+                Clustered = false,
+
+                // Oracle does not support include columns at this point in time.
+                IncludeColumns = null,
+            };
+
+            // FilterItems is not supported in this migrator at this point in time.
+
+            indexes.Add(index);
         }
 
         return indexes.ToArray();
