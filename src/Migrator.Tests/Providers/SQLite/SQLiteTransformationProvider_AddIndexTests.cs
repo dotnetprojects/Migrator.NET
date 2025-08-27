@@ -108,9 +108,6 @@ public class SQLiteTransformationProvider_AddIndexTests : Generic_AddIndexTestsB
         Assert.That(indexScriptFromDatabase, Is.EqualTo("CREATE UNIQUE INDEX TestIndexName ON TestTable (TestColumn, TestColumn2, TestColumn3) WHERE TestColumn >= 100 AND TestColumn2 = 'Hello' AND TestColumn3 = 1"));
     }
 
-    /// <summary>
-    /// This test is located in the dedicated database type folder not in the base class since partial indexes (Oracle) are not supported in the migrator at this point in time.
-    /// </summary>
     [Test]
     public void AddIndex_FilteredIndexSingle_Success()
     {
