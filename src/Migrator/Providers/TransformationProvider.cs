@@ -2088,16 +2088,16 @@ public abstract class TransformationProvider : ITransformationProvider
         }
     }
 
-    public virtual void AddIndex(string table, Index index)
+    public virtual string AddIndex(string table, Index index)
     {
         throw new NotImplementedException($"{nameof(AddIndex)} is not overridden for the provider.");
     }
 
-    public virtual void AddIndex(string name, string table, params string[] columns)
+    public virtual string AddIndex(string name, string table, params string[] columns)
     {
         var index = new Index { Name = name, KeyColumns = columns };
 
-        AddIndex(table, index);
+        return AddIndex(table, index);
     }
 
     protected string QuoteConstraintNameIfRequired(string name)

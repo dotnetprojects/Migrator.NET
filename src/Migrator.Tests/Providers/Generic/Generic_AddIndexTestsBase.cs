@@ -52,7 +52,7 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
         const string columnName = "TestColumn";
         const string indexName = "TestIndexName";
 
-        Provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32));
+        Provider.AddTable(tableName, new Column(columnName, DbType.Int32));
 
         // Act
         Provider.AddIndex(indexName, tableName, columnName);

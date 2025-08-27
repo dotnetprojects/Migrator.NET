@@ -199,7 +199,7 @@ public class SQLServerTransformationProvider_AddIndexTests : Generic_AddIndexTes
     }
 
     /// <summary>
-    /// This test is located in the dedicated database type folder not in the base class since partial indexes (Oracle) are not supported in the migrator at this point in time.
+    /// This test is located in the dedicated database type folder not in the base class since partial indexes (Oracle) using unique are not supported in the migrator at this point in time.
     /// </summary>
     [Test]
     public void AddIndex_FilteredIndexMiscellaneousFilterTypesAndDataTypes_Success()
@@ -274,7 +274,7 @@ public class SQLServerTransformationProvider_AddIndexTests : Generic_AddIndexTes
                     columnName12,
                     columnName13
                 ],
-                Unique = false,
+                Unique = true,
                 FilterItems = filterItems
             });
 

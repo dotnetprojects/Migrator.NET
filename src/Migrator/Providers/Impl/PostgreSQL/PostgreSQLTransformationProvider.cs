@@ -60,7 +60,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         return reader.Read() ? reader.GetString(0) : null;
     }
 
-    public override void AddIndex(string table, Index index)
+    public override string AddIndex(string table, Index index)
     {
         ValidateIndex(tableName: table, index: index);
 
@@ -121,6 +121,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
 
         ExecuteNonQuery(sql);
+
+        return sql;
     }
 
     public override Index[] GetIndexes(string table)

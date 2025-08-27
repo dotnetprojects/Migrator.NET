@@ -136,24 +136,69 @@ public class OracleTransformationProvider : TransformationProvider
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
     }
 
-    public override void AddIndex(string table, Index index)
+    public override string AddIndex(string table, Index index)
     {
         ValidateIndex(tableName: table, index: index);
+        var hasFilterItems = index.FilterItems != null && index.FilterItems.Count > 0;
 
-        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
-        // Included columns and Clustered indexes are not supported in Oracle. We ignore the values given in the properties silently.
+        // Oracle does not support included columns and clustered indexes. We ignore the values given in the properties SILENTLY for backwards compatibility.
+
+        if (index.Unique && hasFilterItems)
+        {
+            throw new MigrationException($"You cannot use unique together with functional expressions in Oracle ({nameof(FilterItem)}).");
+        }
 
         var name = QuoteConstraintNameIfRequired(index.Name);
         table = QuoteTableNameIfRequired(table);
-        var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
+
+        List<string> singleFilterStrings = [];
+
+
+        if (hasFilterItems)
+        {
+            // In Oracle functional expressions replace the normal columns so we need to remove them
+            if (index.KeyColumns != null && index.KeyColumns.Length > 0)
+            {
+                var keyColumnsList = index.KeyColumns.ToList();
+
+                for (var i = keyColumnsList.Count - 1; i >= 0; i--)
+                {
+                    if (index.FilterItems.Any(x => keyColumnsList[i].Equals(x.ColumnName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        keyColumnsList.RemoveAt(i);
+                    }
+                }
+
+                index.KeyColumns = keyColumnsList.ToArray();
+            }
+
+            foreach (var filterItem in index.FilterItems)
+            {
+                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
+
+                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
+                string value = null;
+
+                value = filterItem.Value switch
+                {
+                    bool booleanValue => booleanValue ? "TRUE" : "FALSE",
+                    string stringValue => $"'{stringValue}'",
+                    byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
+                    sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
+                    _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),
+                };
+
+                var singleFilterString = $"CASE WHEN {filterColumnQuoted} {comparisonString} {value} THEN {filterColumnQuoted} ELSE NULL END";
+
+                singleFilterStrings.Add(singleFilterString);
+            }
+        }
+
+        var mixedColumnNamesAndFilters = QuoteColumnNamesIfRequired(index.KeyColumns).ToList();
+        mixedColumnNamesAndFilters.AddRange(singleFilterStrings);
+        var columnNamesAndFiltersString = $"({string.Join(", ", mixedColumnNamesAndFilters)})";
 
         var uniqueString = index.Unique ? "UNIQUE" : null;
-        var columnsString = $"({string.Join(", ", columns)})";
-
-        if (index.FilterItems != null && index.FilterItems.Count > 0)
-        {
-            throw new NotSupportedException($"Oracle: This migrator does not support partial indexes for Oracle at this point in time. Please use 'if(Provider is {nameof(OracleTransformationProvider)})'");
-        }
 
         List<string> list = [];
         list.Add("CREATE");
@@ -162,13 +207,15 @@ public class OracleTransformationProvider : TransformationProvider
         list.Add(name);
         list.Add("ON");
         list.Add(table);
-        list.Add(columnsString);
+        list.Add(columnNamesAndFiltersString);
 
         list = [.. list.Where(x => !string.IsNullOrWhiteSpace(x))];
 
         var sql = string.Join(" ", list);
 
         ExecuteNonQuery(sql);
+
+        return sql;
     }
 
     private void GuardAgainstMaximumIdentifierLengthForOracle(string name)
@@ -892,8 +939,9 @@ public class OracleTransformationProvider : TransformationProvider
                             user_constraints c ON i.index_name = c.index_name AND
                             i.table_name = c.table_name
                     WHERE
-                        UPPER(i.table_name) = '{table.ToUpperInvariant()}' AND
-                        i.index_type = 'NORMAL'
+                        UPPER(i.table_name) = '{table.ToUpperInvariant()}' 
+                       -- AND
+                       -- i.index_type = 'NORMAL'
                     ORDER BY
                         i.table_name, i.index_name, ic.column_position";
 

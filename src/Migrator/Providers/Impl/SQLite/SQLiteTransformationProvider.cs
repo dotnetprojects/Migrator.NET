@@ -1415,7 +1415,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
     }
 
-    public override void AddIndex(string table, Index index)
+    public override string AddIndex(string table, Index index)
     {
         ValidateIndex(table, index);
 
@@ -1478,6 +1478,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
 
         ExecuteNonQuery(sql);
+
+        return sql;
     }
 
     protected override string GetPrimaryKeyConstraintName(string table)

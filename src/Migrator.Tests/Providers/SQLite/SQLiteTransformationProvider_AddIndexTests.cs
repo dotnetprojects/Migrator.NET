@@ -214,7 +214,7 @@ public class SQLiteTransformationProvider_AddIndexTests : Generic_AddIndexTestsB
         ];
 
         // Act
-        Provider.AddIndex(tableName,
+        var addIndexSql = Provider.AddIndex(tableName,
             new Index
             {
                 Name = indexName,
@@ -233,7 +233,7 @@ public class SQLiteTransformationProvider_AddIndexTests : Generic_AddIndexTestsB
                     columnName12,
                     columnName13
                 ],
-                Unique = false,
+                Unique = true,
                 FilterItems = filterItems
             });
 
@@ -254,6 +254,10 @@ public class SQLiteTransformationProvider_AddIndexTests : Generic_AddIndexTestsB
             filteredItemsFromDatabase.Select(x => x.ColumnName.ToLowerInvariant()),
             Is.EquivalentTo(filterItems.Select(x => x.ColumnName.ToLowerInvariant()))
         );
+
+        var expectedSql = "CREATE UNIQUE INDEX TestIndexName ON TestTable (TestColumn1, TestColumn2, TestColumn3, TestColumn4, TestColumn5, TestColumn6, TestColumn7, TestColumn8, TestColumn9, TestColumn10, TestColumn11, TestColumn12, TestColumn13) WHERE TestColumn1 = 1 AND TestColumn2 > 2 AND TestColumn3 >= 2323 AND TestColumn4 <> 3434 AND TestColumn5 <> -3434 AND TestColumn6 < 3434345345 AND TestColumn7 <> 'asdf' AND TestColumn8 = 11 AND TestColumn9 > 22 AND TestColumn10 >= 33 AND TestColumn11 <> 44 AND TestColumn12 < 55 AND TestColumn13 <= 66";
+
+        Assert.That(addIndexSql, Is.EqualTo(expectedSql));
     }
 
     private string GetCreateIndexSqlString(string indexName)

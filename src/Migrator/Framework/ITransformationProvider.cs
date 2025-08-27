@@ -390,6 +390,11 @@ public interface ITransformationProvider : IDisposable
 
     List<string> ExecuteStringQuery(string sql, params object[] args);
 
+    /// <summary>
+    /// Oracle: The retrieval of filter items is not supported in this migrator. If functional expressions are used: they seem to be stored as separate columns (with generated names).
+    /// </summary>
+    /// <param name="table"></param>
+    /// <returns></returns>
     Index[] GetIndexes(string table);
 
     /// <summary>
@@ -719,7 +724,7 @@ public interface ITransformationProvider : IDisposable
     /// <param name="databaseName">Name of the database to delete</param>
     void DropDatabases(string databaseName);
 
-    void AddIndex(string table, Index index);
+    string AddIndex(string table, Index index);
 
     /// <summary>
     /// Add a multi-column index to a table
@@ -727,7 +732,7 @@ public interface ITransformationProvider : IDisposable
     /// <param name="name">The name of the index to add.</param>
     /// <param name="table">The name of the table that will get the index.</param>
     /// <param name="columns">The name of the column or columns that are in the index.</param>
-    void AddIndex(string name, string table, params string[] columns);
+    string AddIndex(string name, string table, params string[] columns);
 
     /// <summary>
     /// Check to see if an index exists

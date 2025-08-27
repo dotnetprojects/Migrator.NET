@@ -138,7 +138,7 @@ public class SqlServerTransformationProvider : TransformationProvider
                       string.Join(",", QuoteColumnNamesIfRequired(columns))));
     }
 
-    public override void AddIndex(string table, Index index)
+    public override string AddIndex(string table, Index index)
     {
         ValidateIndex(tableName: table, index: index);
 
@@ -210,6 +210,8 @@ public class SqlServerTransformationProvider : TransformationProvider
         var sql = string.Join(" ", list);
 
         ExecuteNonQuery(sql);
+
+        return sql;
     }
 
     public override void ChangeColumn(string table, Column column)
