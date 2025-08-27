@@ -403,7 +403,7 @@ public interface ITransformationProvider : IDisposable
     /// </summary>
     /// <param name="table">The table name that you want the columns for.</param>
     /// <returns></returns>
-    [Obsolete("We cannot resolve the DbType or MigratorDbType exactly so the result is nust a guess. Also the default value in the result is depending on DbType and therefore also a guess. Do not use this method any more. Look up the type in your migration history.")]
+    [Obsolete("We cannot resolve the DbType or MigratorDbType exactly so the result is just a guess. Also the default value in the result is depending on DbType and therefore also a guess. Do not use this method any more. Look up the type in your migration history.")]
     Column[] GetColumns(string table);
 
     /// <summary>
@@ -415,13 +415,13 @@ public interface ITransformationProvider : IDisposable
     int GetColumnContentSize(string table, string columnName);
 
     /// <summary>
-    /// Get information about a single column in a table.
+    /// Gets information about a single column in a table.
     /// <see cref="Column.MigratorDbType"/> and <see cref="Column.Type"/> can in some cases only be guessed. Do not rely on them. Same for <see cref="Column.DefaultValue"/>
     /// </summary>
     /// <param name="table">The table name that you want the columns for.</param>
     /// <param name="column">The column name for which you want information.</param>
     /// <returns></returns>
-    [Obsolete("We cannot resolve the DbType or MigratorDbType exactly so the result is nust a guess. Also the default value in the result is depending on DbType and therefore also a guess. Do not use this method any more. Look up the type in your migration history.")]
+    [Obsolete("We cannot resolve the DbType or MigratorDbType exactly so the result is just a guess. Also the default value in the result is depending on DbType and therefore also a guess. Do not use this method any more. Look up the type in your migration history.")]
     Column GetColumnByName(string table, string column);
 
     /// <summary>
