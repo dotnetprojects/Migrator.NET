@@ -149,9 +149,6 @@ public class SQLServerTransformationProvider_AddIndexTests : Generic_AddIndexTes
             .Using<string>((x, y) => string.Compare(x, y, ignoreCase: true)));
     }
 
-    /// <summary>
-    /// This test is located in the dedicated database type folder not in the base class since partial indexes (Oracle) are not supported in the migrator at this point in time.
-    /// </summary>
     [Test]
     public void AddIndex_FilteredIndexSingle_Success()
     {
