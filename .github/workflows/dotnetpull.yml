@@ -32,6 +32,7 @@ jobs:
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: testdb
+          POSTGRES_MAX_CONNECTIONS: 1000
         options: >-
           --health-cmd="pg_isready -U testuser"
           --health-interval=10s
