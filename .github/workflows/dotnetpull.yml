@@ -89,9 +89,11 @@ jobs:
       - name:
           Increase max connections (Postgre SQL).
           # Postgre < 16 cannot adjust it using env vars => Workaround: we use psql to adjust the max connections
+        env:
+          PGPASSWORD: testpass
         run: |
-          psql -h localhost -U postgres -d testdb -c "ALTER SYSTEM SET max_connections = 300;"
-          psql -h localhost -U postgres -d testdb -c "SELECT pg_reload_conf();"
+          psql -h localhost -U testuser -d testdb -c "ALTER SYSTEM SET max_connections = 300;"
+          psql -h localhost -U testuser -d testdb -c "SELECT pg_reload_conf();"
       - name: Create Oracle user
         run: |
           sql sys/adfkweflajdfglkj@localhost/FREEPDB1 as sysdba   <<EOF 
