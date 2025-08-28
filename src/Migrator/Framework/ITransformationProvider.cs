@@ -390,13 +390,20 @@ public interface ITransformationProvider : IDisposable
 
     List<string> ExecuteStringQuery(string sql, params object[] args);
 
+    /// <summary>
+    /// Oracle: The retrieval of filter items is not supported in this migrator. If functional expressions are used: they seem to be stored as separate columns (with generated names).
+    /// </summary>
+    /// <param name="table"></param>
+    /// <returns></returns>
     Index[] GetIndexes(string table);
 
     /// <summary>
-    /// Get the information about the columns in a table
+    /// Get the information about the columns in a table.
+    /// <see cref="Column.MigratorDbType"/> and <see cref="Column.Type"/> can in some cases only be guessed. Do not rely on them. Same for <see cref="Column.DefaultValue"/>  
     /// </summary>
     /// <param name="table">The table name that you want the columns for.</param>
     /// <returns></returns>
+    [Obsolete("We cannot resolve the DbType or MigratorDbType exactly so the result is just a guess. Also the default value in the result is depending on DbType and therefore also a guess. Do not use this method any more. Look up the type in your migration history.")]
     Column[] GetColumns(string table);
 
     /// <summary>
@@ -408,11 +415,13 @@ public interface ITransformationProvider : IDisposable
     int GetColumnContentSize(string table, string columnName);
 
     /// <summary>
-    /// Get information about a single column in a table
+    /// Gets information about a single column in a table.
+    /// <see cref="Column.MigratorDbType"/> and <see cref="Column.Type"/> can in some cases only be guessed. Do not rely on them. Same for <see cref="Column.DefaultValue"/>
     /// </summary>
     /// <param name="table">The table name that you want the columns for.</param>
     /// <param name="column">The column name for which you want information.</param>
     /// <returns></returns>
+    [Obsolete("We cannot resolve the DbType or MigratorDbType exactly so the result is just a guess. Also the default value in the result is depending on DbType and therefore also a guess. Do not use this method any more. Look up the type in your migration history.")]
     Column GetColumnByName(string table, string column);
 
     /// <summary>
@@ -715,7 +724,7 @@ public interface ITransformationProvider : IDisposable
     /// <param name="databaseName">Name of the database to delete</param>
     void DropDatabases(string databaseName);
 
-    void AddIndex(string table, Index index);
+    string AddIndex(string table, Index index);
 
     /// <summary>
     /// Add a multi-column index to a table
@@ -723,7 +732,7 @@ public interface ITransformationProvider : IDisposable
     /// <param name="name">The name of the index to add.</param>
     /// <param name="table">The name of the table that will get the index.</param>
     /// <param name="columns">The name of the column or columns that are in the index.</param>
-    void AddIndex(string name, string table, params string[] columns);
+    string AddIndex(string name, string table, params string[] columns);
 
     /// <summary>
     /// Check to see if an index exists

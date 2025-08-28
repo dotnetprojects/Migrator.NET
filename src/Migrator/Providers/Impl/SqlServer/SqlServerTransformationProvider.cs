@@ -12,6 +12,7 @@
 #endregion
 
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -137,23 +138,80 @@ public class SqlServerTransformationProvider : TransformationProvider
                       string.Join(",", QuoteColumnNamesIfRequired(columns))));
     }
 
-    public override void AddIndex(string table, Index index)
+    public override string AddIndex(string table, Index index)
     {
+        ValidateIndex(tableName: table, index: index);
+
+        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
         var name = QuoteConstraintNameIfRequired(index.Name);
-
         table = QuoteTableNameIfRequired(table);
-
         var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
 
-        if (index.IncludeColumns != null && index.IncludeColumns.Length > 0)
+        var uniqueString = index.Unique ? "UNIQUE" : null;
+        var columnsString = $"({string.Join(", ", columns)})";
+        var includeString = hasIncludedColumns ? $"INCLUDE ({string.Join(", ", index.IncludeColumns)})" : null;
+        var filterString = string.Empty;
+        var clusteredString = index.Clustered ? "CLUSTERED" : "NONCLUSTERED";
+
+        if (index.FilterItems != null && index.FilterItems.Count > 0)
         {
-            var include = QuoteColumnNamesIfRequired(index.IncludeColumns);
-            ExecuteNonQuery(string.Format("CREATE {0}{1} INDEX {2} ON {3} ({4}) INCLUDE ({5})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns), string.Join(", ", include)));
+            List<string> singleFilterStrings = [];
+
+            foreach (var filterItem in index.FilterItems)
+            {
+                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
+
+                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
+                string value = null;
+
+                if (filterItem.Value is bool booleanValue)
+                {
+                    value = booleanValue ? "1" : "0";
+                }
+                else if (filterItem.Value is string stringValue)
+                {
+                    value = $"'{stringValue}'";
+                }
+                else if (filterItem.Value is byte || filterItem.Value is short || filterItem.Value is int || filterItem.Value is long)
+                {
+                    value = Convert.ToInt64(filterItem.Value).ToString();
+                }
+                else if (filterItem.Value is sbyte || filterItem.Value is ushort || filterItem.Value is uint || filterItem.Value is ulong)
+                {
+                    value = Convert.ToUInt64(filterItem.Value).ToString();
+                }
+                else
+                {
+                    throw new NotImplementedException("Given type is not implemented. Please file an issue.");
+                }
+
+                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
+
+                singleFilterStrings.Add(singleFilterString);
+            }
+
+            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
         }
-        else
-        {
-            ExecuteNonQuery(string.Format("CREATE {0}{1} INDEX {2} ON {3} ({4})", (index.Unique ? "UNIQUE " : ""), (index.Clustered ? "CLUSTERED" : "NONCLUSTERED"), name, table, string.Join(", ", columns)));
-        }
+
+        List<string> list = [];
+        list.Add("CREATE");
+        list.Add(uniqueString);
+        list.Add(clusteredString);
+        list.Add("INDEX");
+        list.Add(name);
+        list.Add("ON");
+        list.Add(table);
+        list.Add(columnsString);
+        list.Add(includeString);
+        list.Add(filterString);
+
+        list = [.. list.Where(x => !string.IsNullOrWhiteSpace(x))];
+
+        var sql = string.Join(" ", list);
+
+        ExecuteNonQuery(sql);
+
+        return sql;
     }
 
     public override void ChangeColumn(string table, Column column)
@@ -222,75 +280,184 @@ public class SqlServerTransformationProvider : TransformationProvider
 
     public override Index[] GetIndexes(string table)
     {
-        var retVal = new List<Index>();
+        // This migrator does not support schemas so we fall back to dbo in SQL Server
+        var schemaName = "dbo";
 
-        var sql = @"SELECT  Tab.[name] AS TableName,
-                        Ind.[name] AS IndexName,
-                        Ind.[type_desc] AS IndexType,
-                        Ind.[is_primary_key] AS IndexPrimary,
-                        Ind.[is_unique] AS IndexUnique,
-                        Ind.[is_unique_constraint] AS ConstraintUnique,
-                        SUBSTRING(( SELECT  ',' + AC.name
-                    FROM    sys.[tables] AS T
-                            INNER JOIN sys.[indexes] I ON T.[object_id] = I.[object_id]
-                            INNER JOIN sys.[index_columns] IC ON I.[object_id] = IC.[object_id]
-                                                                 AND I.[index_id] = IC.[index_id]
-                            INNER JOIN sys.[all_columns] AC ON T.[object_id] = AC.[object_id]
-                                                               AND IC.[column_id] = AC.[column_id]
-                    WHERE   Ind.[object_id] = I.[object_id]
-                            AND Ind.index_id = I.index_id
-                            AND IC.is_included_column = 0
-                    ORDER BY IC.key_ordinal
-                  FOR
-                    XML PATH('') ), 2, 8000) AS KeyCols,
-        SUBSTRING(( SELECT  ',' + AC.name
-                    FROM    sys.[tables] AS T
-                            INNER JOIN sys.[indexes] I ON T.[object_id] = I.[object_id]
-                            INNER JOIN sys.[index_columns] IC ON I.[object_id] = IC.[object_id]
-                                                                 AND I.[index_id] = IC.[index_id]
-                            INNER JOIN sys.[all_columns] AC ON T.[object_id] = AC.[object_id]
-                                                               AND IC.[column_id] = AC.[column_id]
-                    WHERE   Ind.[object_id] = I.[object_id]
-                            AND Ind.index_id = I.index_id
-                            AND IC.is_included_column = 1
-                    ORDER BY IC.key_ordinal
-                  FOR
-                    XML PATH('') ), 2, 8000) AS IncludeCols
-FROM    sys.[indexes] Ind
-        INNER JOIN sys.[tables] AS Tab ON Tab.[object_id] = Ind.[object_id]
-        WHERE LOWER(Tab.[name]) = LOWER('{0}')";
+        var indexes = new List<Index>();
+
+        var sql = @$"SELECT
+                        s.name AS SchemaName,
+                        t.name AS TableName,
+                        i.name AS IndexName,
+                        i.type_desc AS IndexType,
+                        i.is_unique AS IsUnique,
+                        i.is_primary_key AS IsPrimaryKey,
+                        i.is_unique_constraint AS IsUniqueConstraint,
+                        ic.index_column_id AS ColumnOrder,
+                        col.name AS ColumnName,
+                        ic.is_descending_key AS IsDescending,
+                        ic.is_included_column AS IsIncludedColumn,
+                        i.has_filter AS IsFilteredIndex,
+                        i.filter_definition AS FilterDefinition
+                    FROM
+                        sys.indexes i
+                        JOIN sys.tables t ON i.object_id = t.object_id
+                        JOIN sys.schemas s ON t.schema_id = s.schema_id
+                        JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+                        JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
+                    WHERE
+                        LOWER(t.name) = '{table.ToLowerInvariant()}' AND
+                        LOWER(s.name) = '{schemaName.ToLowerInvariant()}'
+                    ORDER BY
+                        s.name, t.name, i.name, ic.index_column_id";
+
+        List<IndexItem> indexItems = [];
 
         using (var cmd = CreateCommand())
         using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
         {
+            var columnNameOrdinal = reader.GetOrdinal("ColumnName");
+            var columnOrderOrdinal = reader.GetOrdinal("ColumnOrder");
+            var filterDefinitionOrdinal = reader.GetOrdinal("FilterDefinition");
+            var indexNameOrdinal = reader.GetOrdinal("IndexName");
+            var indexTypeOrdinal = reader.GetOrdinal("IndexType");
+            var isDescendingOrdinal = reader.GetOrdinal("IsDescending");
+            var isFilteredIndexOrdinal = reader.GetOrdinal("IsFilteredIndex");
+            var isIncludedColumnOrdinal = reader.GetOrdinal("IsIncludedColumn");
+            var isPrimaryKeyOrdinal = reader.GetOrdinal("IsPrimaryKey");
+            var isUniqueConstraintOrdinal = reader.GetOrdinal("IsUniqueConstraint");
+            var isUniqueOrdinal = reader.GetOrdinal("IsUnique");
+            var schemaNameOrdinal = reader.GetOrdinal("SchemaName");
+            var tableNameOrdinal = reader.GetOrdinal("TableName");
+
+
+
             while (reader.Read())
             {
-                if (!reader.IsDBNull(1))
+                var indexItem = new IndexItem
                 {
-                    var idx = new Index
-                    {
-                        Name = reader.GetString(1),
-                        Clustered = reader.GetString(2) == "CLUSTERED",
-                        PrimaryKey = reader.GetBoolean(3),
-                        Unique = reader.GetBoolean(4),
-                        UniqueConstraint = reader.GetBoolean(5),
-                    };
+                    Clustered = reader.GetString(indexTypeOrdinal) == "CLUSTERED",
+                    ColumnName = reader.GetString(columnNameOrdinal),
+                    ColumnOrder = reader.GetInt32(columnOrderOrdinal),
+                    FilterString = !reader.IsDBNull(filterDefinitionOrdinal) ? reader.GetString(filterDefinitionOrdinal) : null,
+                    IsFilteredIndex = reader.GetBoolean(isFilteredIndexOrdinal),
+                    IsIncludedColumn = reader.GetBoolean(isIncludedColumnOrdinal),
+                    Name = reader.GetString(indexNameOrdinal),
+                    PrimaryKey = reader.GetBoolean(isPrimaryKeyOrdinal),
+                    SchemaName = reader.GetString(schemaNameOrdinal),
+                    TableName = reader.GetString(tableNameOrdinal),
+                    Unique = reader.GetBoolean(isUniqueOrdinal),
+                    UniqueConstraint = reader.GetBoolean(isUniqueConstraintOrdinal),
+                };
 
-                    if (!reader.IsDBNull(6))
-                    {
-                        idx.KeyColumns = reader.GetString(6).Split(',');
-                    }
-                    if (!reader.IsDBNull(7))
-                    {
-                        idx.IncludeColumns = reader.GetString(7).Split(',');
-                    }
-
-                    retVal.Add(idx);
-                }
+                indexItems.Add(indexItem);
             }
         }
 
-        return retVal.ToArray();
+        var indexGroups = indexItems.GroupBy(x => new
+        {
+            x.Name,
+            x.SchemaName,
+            x.TableName,
+        });
+
+        foreach (var indexGroup in indexGroups)
+        {
+            var first = indexGroup.First();
+
+            List<FilterItem> filterItems = [];
+
+            if (!string.IsNullOrWhiteSpace(first.FilterString))
+            {
+                const string unexpectedPatternString = "Unexpected pattern in filter string detected. Not implemented yet - please file an issue";
+                var comparisonStrings = _dialect.GetComparisonStrings();
+                var stripOuterBracesRegex = new Regex(@"(?<=^\().+(?=\)$)");
+                var stripBracesMatch = stripOuterBracesRegex.Match(first.FilterString.Trim());
+
+                if (!stripBracesMatch.Success)
+                {
+                    throw new NotImplementedException(unexpectedPatternString);
+                }
+
+                var andSplitted = Regex.Split(stripBracesMatch.Value, @" AND (?=\[)")
+                    .Select(x => x.Trim())
+                    .ToList();
+
+                var columns = GetColumns(table: table);
+
+                foreach (var andSplittedItem in andSplitted)
+                {
+                    var filterItem = new FilterItem();
+                    // We assume nobody uses column names with brackets in it.
+                    var columnRegex = new Regex(@"(?<=^\[)[^\]]+");
+                    var columnMatch = columnRegex.Match(andSplittedItem);
+
+                    if (!columnMatch.Success)
+                    {
+                        throw new NotImplementedException(unexpectedPatternString);
+                    }
+
+                    filterItem.ColumnName = columnMatch.Value;
+                    var column = columns.OrderByDescending(x => x.Name).First(x => x.Name.Equals(filterItem.ColumnName, StringComparison.OrdinalIgnoreCase));
+
+                    var remainingString = andSplittedItem.Substring(filterItem.ColumnName.Length + 2);
+                    var comparisonString = comparisonStrings.OrderByDescending(x => x.Length)
+                        .First(x => remainingString.StartsWith(x));
+
+                    filterItem.Filter = _dialect.GetFilterTypeByComparisonString(comparisonString);
+                    remainingString = remainingString.Substring(comparisonString.Length);
+
+                    var valueRegex = new Regex(@"(?<=^[\(|']).+(?=[\)|']$)");
+                    var valueStringMatch = valueRegex.Match(remainingString);
+
+                    if (!valueStringMatch.Success)
+                    {
+                        throw new NotImplementedException(unexpectedPatternString);
+                    }
+
+                    var valueAsString = valueStringMatch.Value;
+
+                    filterItem.Value = column.MigratorDbType switch
+                    {
+                        MigratorDbType.Int16 => short.Parse(valueAsString),
+                        MigratorDbType.Int32 => int.Parse(valueAsString),
+                        MigratorDbType.Int64 => long.Parse(valueAsString),
+                        MigratorDbType.UInt16 => ushort.Parse(valueAsString),
+                        MigratorDbType.UInt32 => uint.Parse(valueAsString),
+                        MigratorDbType.UInt64 => ulong.Parse(valueAsString),
+                        MigratorDbType.Decimal => decimal.Parse(valueAsString),
+                        MigratorDbType.Boolean => valueAsString == "1" || valueAsString.Equals("true", StringComparison.OrdinalIgnoreCase),
+                        MigratorDbType.String => valueAsString,
+                        _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),
+                    };
+
+                    filterItems.Add(filterItem);
+                }
+            }
+
+            var index = new Index
+            {
+                Clustered = first.Clustered,
+                FilterItems = filterItems,
+                IncludeColumns = [.. indexGroup.Where(x => x.IsIncludedColumn)
+                        .OrderBy(x => x.ColumnOrder)
+                        .Select(x => x.ColumnName)
+                        .Distinct()],
+                KeyColumns = [.. indexGroup.Where(x => !x.IsIncludedColumn)
+                       .OrderBy(x => x.ColumnOrder)
+                       .Select(x => x.ColumnName)
+                       .Distinct()],
+                Name = first.Name,
+                PrimaryKey = first.PrimaryKey,
+                Unique = first.Unique,
+                UniqueConstraint = first.UniqueConstraint,
+            };
+
+            indexes.Add(index);
+
+        }
+
+        return [.. indexes];
     }
 
     public override int GetColumnContentSize(string table, string columnName)

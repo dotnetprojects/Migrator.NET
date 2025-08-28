@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models;
+using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 
 namespace DotNetProjects.Migrator.Providers;
 
@@ -11,10 +14,19 @@ namespace DotNetProjects.Migrator.Providers;
 /// </summary>
 public abstract class Dialect : IDialect
 {
-    private readonly Dictionary<ColumnProperty, string> propertyMap = [];
-    private readonly HashSet<string> reservedWords = [];
-    private readonly TypeNames typeNames = new();
-    private readonly List<DbType> unsignedCompatibleTypes = [];
+    private readonly Dictionary<ColumnProperty, string> _propertyMap = [];
+    private readonly HashSet<string> _reservedWords = [];
+    private readonly TypeNames _typeNames = new();
+    private readonly List<DbType> _unsignedCompatibleTypes = [];
+
+    private readonly List<FilterTypeToString> _filterTypeToStrings = [
+        new() { FilterType = FilterType.EqualTo, FilterString = "=" },
+        new() { FilterType = FilterType.GreaterThan, FilterString = ">" },
+        new() { FilterType = FilterType.GreaterThanOrEqualTo, FilterString = ">=" },
+        new() { FilterType = FilterType.SmallerThan, FilterString = "<" },
+        new() { FilterType = FilterType.SmallerThanOrEqualTo, FilterString = "<=" },
+        new() { FilterType = FilterType.NotEqualTo, FilterString = "<>"}
+    ];
 
     protected Dialect()
     {
@@ -81,7 +93,7 @@ public abstract class Dialect : IDialect
 
     protected void AddReservedWord(string reservedWord)
     {
-        reservedWords.Add(reservedWord.ToUpperInvariant());
+        _reservedWords.Add(reservedWord.ToUpperInvariant());
     }
 
     protected void AddReservedWords(params string[] words)
@@ -93,7 +105,7 @@ public abstract class Dialect : IDialect
 
         foreach (var word in words)
         {
-            reservedWords.Add(word);
+            _reservedWords.Add(word);
         }
     }
 
@@ -104,12 +116,12 @@ public abstract class Dialect : IDialect
             throw new ArgumentNullException("reservedWord");
         }
 
-        if (reservedWords == null)
+        if (_reservedWords == null)
         {
             return false;
         }
 
-        var isReserved = reservedWords.Contains(reservedWord.ToUpperInvariant());
+        var isReserved = _reservedWords.Contains(reservedWord.ToUpperInvariant());
 
         if (isReserved)
         {
@@ -142,7 +154,7 @@ public abstract class Dialect : IDialect
     /// <param name="name">The database type name</param>
     protected void RegisterColumnType(DbType code, int capacity, string name)
     {
-        typeNames.Put(code, capacity, name);
+        _typeNames.Put(code, capacity, name);
     }
 
     /// <summary>
@@ -155,7 +167,7 @@ public abstract class Dialect : IDialect
     /// <param name="name">The database type name</param>
     protected void RegisterColumnType(MigratorDbType code, int capacity, string name)
     {
-        typeNames.Put(code, capacity, name);
+        _typeNames.Put(code, capacity, name);
     }
 
     /// <summary>
@@ -170,7 +182,7 @@ public abstract class Dialect : IDialect
     /// <param name="name">The database type name</param>
     protected void RegisterColumnTypeWithPrecision(DbType code, string name)
     {
-        typeNames.Put(code, -1, name);
+        _typeNames.Put(code, -1, name);
     }
 
     /// <summary>
@@ -181,7 +193,7 @@ public abstract class Dialect : IDialect
     /// <param name="name">The database type name</param>
     protected void RegisterColumnType(MigratorDbType code, string name)
     {
-        typeNames.Put(code, name);
+        _typeNames.Put(code, name);
     }
 
     /// <summary>
@@ -192,7 +204,7 @@ public abstract class Dialect : IDialect
     /// <param name="name">The database type name</param>
     protected void RegisterColumnType(DbType code, string name)
     {
-        typeNames.Put(code, name);
+        _typeNames.Put(code, name);
     }
 
     /// <summary>
@@ -204,13 +216,13 @@ public abstract class Dialect : IDialect
     /// <param name="name">The database type name</param>
     protected void RegisterColumnTypeWithParameters(DbType code, string name)
     {
-        typeNames.PutParametrized(code, name);
+        _typeNames.PutParametrized(code, name);
     }
 
 
     protected void RegisterColumnTypeAlias(DbType code, string alias)
     {
-        typeNames.PutAlias(code, alias);
+        _typeNames.PutAlias(code, alias);
     }
 
     public virtual ColumnPropertiesMapper GetColumnMapper(Column column)
@@ -232,7 +244,7 @@ public abstract class Dialect : IDialect
 
     public virtual DbType GetDbTypeFromString(string type)
     {
-        return typeNames.GetDbType(type);
+        return _typeNames.GetDbType(type);
     }
 
     /// <summary>
@@ -242,7 +254,7 @@ public abstract class Dialect : IDialect
     /// <returns>The database type name used by ddl.</returns>
     public virtual string GetTypeName(DbType type)
     {
-        var result = typeNames.Get(type);
+        var result = _typeNames.Get(type);
 
         if (result == null)
         {
@@ -273,7 +285,7 @@ public abstract class Dialect : IDialect
     /// <param name="scale"></param>
     public virtual string GetTypeName(DbType type, int length, int precision, int scale)
     {
-        var resultWithLength = typeNames.Get(type, length, precision, scale);
+        var resultWithLength = _typeNames.Get(type, length, precision, scale);
         if (resultWithLength != null)
         {
             return resultWithLength;
@@ -292,7 +304,7 @@ public abstract class Dialect : IDialect
     /// <param name="scale"></param>
     public virtual string GetTypeNameParametrized(DbType type, int length, int precision, int scale)
     {
-        var result = typeNames.GetParametrized(type);
+        var result = _typeNames.GetParametrized(type);
         if (result != null)
         {
             return result.Replace("{length}", length.ToString())
@@ -311,23 +323,23 @@ public abstract class Dialect : IDialect
     /// <returns>The <see cref="DbType"/>.</returns>
     public virtual DbType GetDbType(string databaseTypeName)
     {
-        return typeNames.GetDbType(databaseTypeName);
+        return _typeNames.GetDbType(databaseTypeName);
     }
 
     public void RegisterProperty(ColumnProperty property, string sql)
     {
-        if (!propertyMap.ContainsKey(property))
+        if (!_propertyMap.ContainsKey(property))
         {
-            propertyMap.Add(property, sql);
+            _propertyMap.Add(property, sql);
         }
-        propertyMap[property] = sql;
+        _propertyMap[property] = sql;
     }
 
     public virtual string SqlForProperty(ColumnProperty property, Column column)
     {
-        if (propertyMap.ContainsKey(property))
+        if (_propertyMap.ContainsKey(property))
         {
-            return propertyMap[property];
+            return _propertyMap[property];
         }
         return string.Empty;
     }
@@ -406,13 +418,40 @@ public abstract class Dialect : IDialect
         return mapper;
     }
 
+    public string GetComparisonStringByFilterType(FilterType filterType)
+    {
+        var exceptionString = $"The {nameof(FilterType)} '{filterType}' is not implemented.";
+        var result = _filterTypeToStrings.FirstOrDefault(x => x.FilterType == filterType) ?? throw new NotImplementedException(exceptionString);
+
+        return result.FilterString;
+    }
+
+    public string[] GetComparisonStrings()
+    {
+        return _filterTypeToStrings.Select(x => x.FilterString).ToArray();
+    }
+
+    /// <summary>
+    /// Resolves the comparison string for filtered indexes.
+    /// </summary>
+    /// <param name="filterType"></param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException"></exception>
+    public FilterType GetFilterTypeByComparisonString(string comparisonString)
+    {
+        var exceptionString = $"The {comparisonString} cannot be resolved.";
+        var result = _filterTypeToStrings.FirstOrDefault(x => x.FilterString == comparisonString) ?? throw new Exception(exceptionString);
+
+        return result.FilterType;
+    }
+
     /// <summary>
     /// Subclasses register which DbTypes are unsigned-compatible (ie, available in signed and unsigned variants)
     /// </summary>
     /// <param name="type"></param>
     protected void RegisterUnsignedCompatible(DbType type)
     {
-        unsignedCompatibleTypes.Add(type);
+        _unsignedCompatibleTypes.Add(type);
     }
 
     /// <summary>
@@ -422,7 +461,7 @@ public abstract class Dialect : IDialect
     /// <returns>True if the database type has an unsigned variant, otherwise false</returns>
     public bool IsUnsignedCompatible(DbType type)
     {
-        return unsignedCompatibleTypes.Contains(type);
+        return _unsignedCompatibleTypes.Contains(type);
     }
 
 }

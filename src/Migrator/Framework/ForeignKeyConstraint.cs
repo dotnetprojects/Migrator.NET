@@ -26,7 +26,7 @@ public class ForeignKeyConstraint : IDbField
     public string[] ChildColumns { get; set; }
 
     /// <summary>
-    /// Gets or sets the on update text. Currently only used for SQLite.
+    /// Gets or sets the on delete text. Currently only used for SQLite.
     /// </summary>
     public string OnDelete { get; set; }
 

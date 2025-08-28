@@ -44,14 +44,7 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     {
         AddPrimaryKey();
 
-        if (Provider is SQLiteTransformationProvider)
-        {
-            Assert.Throws<NotSupportedException>(() => Provider.PrimaryKeyExists("Test", "PK_Test"));
-        }
-        else
-        {
-            Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True);
-        }
+        Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True);
     }
 
     // [Test]

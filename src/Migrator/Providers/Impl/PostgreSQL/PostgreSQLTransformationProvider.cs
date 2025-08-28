@@ -12,6 +12,8 @@
 #endregion
 
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
+using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -54,64 +56,242 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         using var cmd = CreateCommand();
         using var reader =
             ExecuteQuery(cmd, string.Format("SELECT conname FROM pg_constraint WHERE contype = 'p' AND conrelid = (SELECT oid FROM pg_class WHERE relname = lower('{0}'));", table));
+
         return reader.Read() ? reader.GetString(0) : null;
+    }
+
+    public override string AddIndex(string table, Index index)
+    {
+        ValidateIndex(tableName: table, index: index);
+
+        var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
+        var name = QuoteConstraintNameIfRequired(index.Name);
+        table = QuoteTableNameIfRequired(table);
+        var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
+
+        var uniqueString = index.Unique ? "UNIQUE" : null;
+        var columnsString = $"({string.Join(", ", columns)})";
+        var filterString = string.Empty;
+        var includeString = string.Empty;
+
+        if (index.IncludeColumns != null && index.IncludeColumns.Length > 0)
+        {
+            includeString = $"INCLUDE ({string.Join(", ", index.IncludeColumns)})";
+        }
+
+        if (index.FilterItems != null && index.FilterItems.Count > 0)
+        {
+            List<string> singleFilterStrings = [];
+
+            foreach (var filterItem in index.FilterItems)
+            {
+                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
+
+                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
+                string value = null;
+
+                value = filterItem.Value switch
+                {
+                    bool booleanValue => booleanValue ? "TRUE" : "FALSE",
+                    string stringValue => $"'{stringValue}'",
+                    byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
+                    sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
+                    _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),
+                };
+
+                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
+
+                singleFilterStrings.Add(singleFilterString);
+            }
+
+            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
+        }
+
+        List<string> list = [];
+        list.Add("CREATE");
+        list.Add(uniqueString);
+        list.Add("INDEX");
+        list.Add(name);
+        list.Add("ON");
+        list.Add(table);
+        list.Add(columnsString);
+        list.Add(filterString);
+        list.Add(includeString);
+
+        var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        ExecuteNonQuery(sql);
+
+        return sql;
     }
 
     public override Index[] GetIndexes(string table)
     {
-        var retVal = new List<Index>();
+        var columns = GetColumns(table);
 
-        var sql = @"
-SELECT * FROM (
-SELECT i.relname as indname,
-       idx.indisprimary,
-       idx.indisunique,
-       idx.indisclustered,
-       i.relowner as indowner,
-       cast(idx.indrelid::regclass as varchar) as tablenm,
-       am.amname as indam,
-       idx.indkey,
-       ARRAY_TO_STRING(ARRAY(
-       SELECT pg_get_indexdef(idx.indexrelid, k + 1, true)
-       FROM generate_subscripts(idx.indkey, 1) as k
-       ORDER BY k
-       ), ',') as indkey_names,
-       idx.indexprs IS NOT NULL as indexprs,
-       idx.indpred IS NOT NULL as indpred
-FROM   pg_index as idx
-JOIN   pg_class as i
-ON     i.oid = idx.indexrelid
-JOIN   pg_am as am
-ON     i.relam = am.oid
-JOIN   pg_namespace as ns
-ON     ns.oid = i.relnamespace
-AND    ns.nspname = ANY(current_schemas(false))) AS t
-WHERE  lower(tablenm) = lower('{0}')
-;";
+        // Since the migrator does not support schemas at this point in time we set the schema to "public"
+        var schemaName = "public";
 
+        var indexes = new List<Index>();
+
+        var sql = @$"
+            SELECT
+                nsp.nspname AS schema_name,
+                tbl.relname AS table_name,
+                cls.relname AS index_name,
+                idx.indisunique AS is_unique,
+                idx.indisclustered AS is_clustered,
+                con.contype = 'u' AS is_unique_constraint,
+                con.contype = 'p' AS is_primary_constraint,
+                pg_get_indexdef(idx.indexrelid) AS index_definition,
+                (
+                    SELECT string_agg(att.attname, ', ')
+                    FROM unnest(idx.indkey) WITH ORDINALITY AS cols(attnum, ord)
+                    JOIN pg_attribute att
+                    ON att.attrelid = idx.indrelid
+                    AND att.attnum = cols.attnum
+                    WHERE cols.ord <= idx.indnkeyatts
+                ) AS index_columns,
+                (
+                    SELECT string_agg(att.attname, ', ')
+                    FROM unnest(idx.indkey) WITH ORDINALITY AS cols(attnum, ord)
+                    JOIN pg_attribute att
+                    ON att.attrelid = idx.indrelid
+                    AND att.attnum = cols.attnum
+                    WHERE cols.ord > idx.indnkeyatts
+                ) AS include_columns,
+                pg_get_expr(idx.indpred, idx.indrelid) AS partial_filter
+            FROM pg_index idx
+            JOIN pg_class cls ON cls.oid = idx.indexrelid
+            JOIN pg_class tbl ON tbl.oid = idx.indrelid
+            JOIN pg_namespace nsp ON nsp.oid = tbl.relnamespace
+            LEFT JOIN pg_constraint con ON con.conindid = idx.indexrelid
+            WHERE 
+                lower(tbl.relname) = '{table.ToLowerInvariant()}' AND
+                nsp.nspname = '{schemaName}'";
 
         using (var cmd = CreateCommand())
         using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
         {
+            var includeColumnsOrdinal = reader.GetOrdinal("include_columns");
+            var indexColumnsOrdinal = reader.GetOrdinal("index_columns");
+            var indexDefinitionOrdinal = reader.GetOrdinal("index_definition");
+            var indexNameOrdinal = reader.GetOrdinal("index_name");
+            var isClusteredOrdinal = reader.GetOrdinal("is_clustered");
+            var isPrimaryConstraintOrdinal = reader.GetOrdinal("is_primary_constraint");
+            var isUniqueConstraintOrdinal = reader.GetOrdinal("is_unique_constraint");
+            var isUniqueOrdinal = reader.GetOrdinal("is_unique");
+            var partialFilterOrdinal = reader.GetOrdinal("partial_filter");
+            var schemaNameOrdinal = reader.GetOrdinal("schema_name");
+            var tableNameOrdinal = reader.GetOrdinal("table_name");
+
             while (reader.Read())
             {
                 if (!reader.IsDBNull(1))
                 {
-                    var idx = new Index
+                    var includeColumns = !reader.IsDBNull(includeColumnsOrdinal) ? reader.GetString(includeColumnsOrdinal) : null;
+                    var indexColumns = !reader.IsDBNull(indexColumnsOrdinal) ? reader.GetString(indexColumnsOrdinal) : null;
+                    var indexDefinition = reader.GetString(indexDefinitionOrdinal);
+                    var partialColumns = !reader.IsDBNull(partialFilterOrdinal) ? reader.GetString(partialFilterOrdinal) : null;
+                    List<FilterItem> filterItems = [];
+
+                    if (!string.IsNullOrWhiteSpace(partialColumns))
                     {
-                        Name = reader.GetString(0),
-                        PrimaryKey = reader.GetBoolean(1),
-                        Unique = reader.GetBoolean(2),
-                        Clustered = reader.GetBoolean(3),
+                        partialColumns = partialColumns.Substring(1, partialColumns.Length - 2);
+                        var comparisonStrings = _dialect.GetComparisonStrings();
+                        var partialSplitted = Regex.Split(partialColumns, " AND ").Select(x => x.Trim()).ToList();
+
+                        if (partialSplitted.Count > 1)
+                        {
+                            partialSplitted = partialSplitted.Select(x => x.Substring(1, x.Length - 2)).ToList();
+                        }
+
+                        foreach (var partialItemString in partialSplitted)
+                        {
+                            string[] splits = [];
+                            var filterType = FilterType.None;
+
+                            foreach (var comparisonString in comparisonStrings.OrderByDescending(x => x))
+                            {
+                                splits = Regex.Split(partialItemString, $" {comparisonString} ");
+
+                                if (splits.Length == 2)
+                                {
+                                    filterType = _dialect.GetFilterTypeByComparisonString(comparisonString);
+                                    break;
+                                }
+                            }
+
+                            if (splits.Length != 2)
+                            {
+                                throw new NotImplementedException($"Comparison string not found in '{partialItemString}'");
+                            }
+
+                            var columnNameString = splits[0];
+                            var columnNameRegex = new Regex(@"(?<=^\().+(?=\)::(text|boolean|integer)$)");
+
+                            if (columnNameRegex.Match(columnNameString) is Match matchColumnName && matchColumnName.Success)
+                            {
+                                columnNameString = matchColumnName.Value;
+                            }
+
+                            var column = columns.First(x => columnNameString.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
+                            var valueAsString = splits[1];
+                            var stringValueNumericRegex = new Regex(@"(?<=^\()[^\)]+(?=\)::numeric$)");
+
+                            if (stringValueNumericRegex.Match(valueAsString) is Match valueNumericMatch && valueNumericMatch.Success)
+                            {
+                                valueAsString = valueNumericMatch.Value;
+                            }
+
+                            var stringValueRegex = new Regex("(?<=^').+(?='::(text|boolean|integer|bigint)$)");
+
+                            if (stringValueRegex.Match(valueAsString) is Match match && match.Success)
+                            {
+                                valueAsString = match.Value;
+                            }
+
+                            var filterItem = new FilterItem
+                            {
+                                ColumnName = column.Name,
+                                Filter = filterType,
+                                Value = column.MigratorDbType switch
+                                {
+                                    MigratorDbType.Int16 => short.Parse(valueAsString),
+                                    MigratorDbType.Int32 => int.Parse(valueAsString),
+                                    MigratorDbType.Int64 => long.Parse(valueAsString),
+                                    MigratorDbType.UInt16 => ushort.Parse(valueAsString),
+                                    MigratorDbType.UInt32 => uint.Parse(valueAsString),
+                                    MigratorDbType.UInt64 => ulong.Parse(valueAsString),
+                                    MigratorDbType.Decimal => decimal.Parse(valueAsString),
+                                    MigratorDbType.Boolean => valueAsString == "1" || valueAsString.Equals("true", StringComparison.OrdinalIgnoreCase),
+                                    MigratorDbType.String => valueAsString,
+                                    _ => throw new NotImplementedException($"Type '{column.MigratorDbType}' not yet supported - there are many variations. Please file an issue."),
+                                }
+                            };
+
+                            filterItems.Add(filterItem);
+                        }
+                    }
+
+                    var index = new Index
+                    {
+                        Clustered = !reader.IsDBNull(isClusteredOrdinal) && reader.GetBoolean(isClusteredOrdinal),
+                        FilterItems = filterItems,
+                        IncludeColumns = !string.IsNullOrWhiteSpace(includeColumns) ? [.. includeColumns.Split(',').Select(x => x.Trim())] : null,
+                        KeyColumns = !string.IsNullOrWhiteSpace(indexColumns) ? [.. indexColumns.Split(',').Select(x => x.Trim())] : null,
+                        Name = reader.GetString(indexNameOrdinal),
+                        PrimaryKey = !reader.IsDBNull(isPrimaryConstraintOrdinal) && reader.GetBoolean(isPrimaryConstraintOrdinal),
+                        Unique = !reader.IsDBNull(isUniqueOrdinal) && reader.GetBoolean(isUniqueOrdinal),
+                        UniqueConstraint = !reader.IsDBNull(isUniqueConstraintOrdinal) && reader.GetBoolean(isUniqueConstraintOrdinal),
                     };
-                    var cols = reader.GetString(8);
-                    idx.KeyColumns = cols.Split(',');
-                    retVal.Add(idx);
+
+                    indexes.Add(index);
                 }
             }
         }
 
-        return retVal.ToArray();
+        return [.. indexes];
     }
 
     public override void RemoveTable(string name)

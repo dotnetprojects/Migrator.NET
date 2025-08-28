@@ -479,9 +479,11 @@ public class NoOpTransformationProvider : ITransformationProvider
 
     }
 
-    public void AddIndex(string table, Index index)
+    public string AddIndex(string table, Index index)
     {
+        // Don't know what this is for...
 
+        return string.Empty;
     }
 
     public void Dispose()
@@ -508,9 +510,13 @@ public class NoOpTransformationProvider : ITransformationProvider
         // No Op
     }
 
-    public void AddIndex(string name, string table, params string[] columns)
+    public string AddIndex(string name, string table, params string[] columns)
     {
         // No Op
+
+        // Don't know what this is for...
+
+        return string.Empty;
     }
 
     public bool IndexExists(string table, string name)

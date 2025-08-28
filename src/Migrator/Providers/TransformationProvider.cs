@@ -39,7 +39,7 @@ public abstract class TransformationProvider : ITransformationProvider
     private string _scope;
     protected readonly string _connectionString;
     protected readonly string _defaultSchema;
-    private readonly ForeignKeyConstraintMapper constraintMapper = new ForeignKeyConstraintMapper();
+    private readonly ForeignKeyConstraintMapper constraintMapper = new();
     protected List<long> _appliedMigrations;
     protected IDbConnection _connection;
     protected bool _outsideConnection = false;
@@ -884,7 +884,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public virtual int ExecuteNonQuery(string sql, int timeout)
     {
-        return this.ExecuteNonQuery(sql, timeout, null);
+        return ExecuteNonQuery(sql, timeout, null);
     }
 
     public virtual int ExecuteNonQuery(string sql, int timeout, params object[] args)
@@ -901,6 +901,7 @@ public abstract class TransformationProvider : ITransformationProvider
         }
 
         using var cmd = BuildCommand(sql);
+
         try
         {
             cmd.CommandTimeout = timeout;
@@ -925,7 +926,7 @@ public abstract class TransformationProvider : ITransformationProvider
         catch (Exception ex)
         {
             Logger.Warn(ex.Message);
-            throw new Exception(string.Format("Error occured executing sql: {0}, see inner exception for details, error: " + ex, sql), ex);
+            throw new MigrationException(string.Format("Error occured executing sql: {0}, see inner exception for details, error: " + ex, sql), ex);
         }
     }
 
@@ -1349,7 +1350,7 @@ public abstract class TransformationProvider : ITransformationProvider
 
         if (columns.Length != values.Length)
         {
-            throw new Exception(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
+            throw new MigrationException(string.Format("The number of columns: {0} does not match the number of supplied values: {1}", columns.Length, values.Length));
         }
 
         table = QuoteTableNameIfRequired(table);
@@ -2087,20 +2088,16 @@ public abstract class TransformationProvider : ITransformationProvider
         }
     }
 
-    public virtual void AddIndex(string table, Index index)
+    public virtual string AddIndex(string table, Index index)
     {
-        AddIndex(index.Name, table, index.KeyColumns);
+        throw new NotImplementedException($"{nameof(AddIndex)} is not overridden for the provider.");
     }
 
-    public virtual void AddIndex(string name, string table, params string[] columns)
+    public virtual string AddIndex(string name, string table, params string[] columns)
     {
-        name = QuoteConstraintNameIfRequired(name);
+        var index = new Index { Name = name, KeyColumns = columns };
 
-        table = QuoteTableNameIfRequired(table);
-
-        columns = QuoteColumnNamesIfRequired(columns);
-
-        ExecuteNonQuery(string.Format("CREATE INDEX {0} ON {1} ({2}) ", name, table, string.Join(", ", columns)));
+        return AddIndex(table, index);
     }
 
     protected string QuoteConstraintNameIfRequired(string name)
@@ -2190,5 +2187,43 @@ public abstract class TransformationProvider : ITransformationProvider
         return from DataRow row in tables.Rows select (row["TABLE_NAME"] as string);
     }
 
+    protected void ValidateIndex(string tableName, Index index)
+    {
+        var hasFilterItems = index.FilterItems != null && index.FilterItems.Count > 0;
+        var columns = GetColumns(table: tableName);
 
+        if (!TableExists(tableName))
+        {
+            throw new MigrationException($"Table '{tableName}' does not exist.");
+        }
+
+        foreach (var keyColumn in index.KeyColumns)
+        {
+            if (!index.KeyColumns.All(x => columns.Any(y => y.Name.Equals(x, StringComparison.OrdinalIgnoreCase))))
+            {
+                throw new MigrationException($"Column '{keyColumn}' does not exist.");
+            }
+        }
+
+        if (hasFilterItems)
+        {
+            if (!index.FilterItems.All(x => index.KeyColumns.Any(y => x.ColumnName.Equals(y, StringComparison.OrdinalIgnoreCase))))
+            {
+                throw new MigrationException($"All columns in the {nameof(index.FilterItems)} should exist in the {nameof(index.KeyColumns)}.");
+            }
+        }
+
+        if (IndexExists(tableName, index.Name))
+        {
+            throw new MigrationException($"Index '{index.Name}' in table {tableName} already exists.");
+        }
+
+        if (index.IncludeColumns != null && index.IncludeColumns.Length > 0)
+        {
+            if (index.IncludeColumns.Any(x => index.KeyColumns.Any(y => x.Equals(y, StringComparison.OrdinalIgnoreCase))))
+            {
+                throw new MigrationException($"It is not allowed to use a column in {nameof(index.IncludeColumns)} that exist in {nameof(index.KeyColumns)}.");
+            }
+        }
+    }
 }

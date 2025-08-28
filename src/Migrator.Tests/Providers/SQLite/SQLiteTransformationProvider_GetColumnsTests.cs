@@ -1,3 +1,4 @@
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
@@ -22,7 +23,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvid
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.Unique));
+        Provider.AddTable(tableName, new Column("Id", DbType.Int32, ColumnProperty.Unique));
 
         // Act
         var columns = Provider.GetColumns(tableName);
@@ -36,7 +37,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvid
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.Unique | ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableName, new Column("Id", DbType.Int32, ColumnProperty.Unique | ColumnProperty.PrimaryKey));
 
         // Act
         var columns = Provider.GetColumns(tableName);
@@ -54,7 +55,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvid
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Id", System.Data.DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableName, new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey));
         Provider.GetColumns(tableName);
 
         // Act
@@ -73,8 +74,8 @@ public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvid
         const string tableName = "GetColumnsTest";
 
         Provider.AddTable(tableName,
-            new Column("Id", System.Data.DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("Id2", System.Data.DbType.Int32, ColumnProperty.PrimaryKey)
+            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column("Id2", DbType.Int32, ColumnProperty.PrimaryKey)
         );
 
         // Act
@@ -86,13 +87,17 @@ public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvid
     }
 
     [Test]
-    public void GetColumns_AddUniqueWithTwoColumns_NoUniqueOnColumnLevel()
+    public void GetColumns_AddUniqueConstraintWithTwoColumns_NoUniqueOnColumnLevel()
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Bla1", System.Data.DbType.Int32), new Column("Bla2", System.Data.DbType.Int32));
+        const string column1Name = "Column1";
+        const string column2Name = "Column2";
+        const string constraintName = "ConstraintName";
 
-        Provider.AddUniqueConstraint("IndexName", tableName, "Bla1", "Bla2");
+        Provider.AddTable(tableName, new Column(column1Name, DbType.Int32), new Column(column2Name, DbType.Int32));
+
+        Provider.AddUniqueConstraint(constraintName, tableName, column1Name, column2Name);
 
         // Act
         var columns = Provider.GetColumns(tableName);
@@ -106,7 +111,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : TransformationProvid
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Bla1", System.Data.DbType.Int32), new Column("Bla2", System.Data.DbType.Int32));
+        Provider.AddTable(tableName, new Column("Bla1", DbType.Int32), new Column("Bla2", DbType.Int32));
         Provider.AddIndex("IndexName", tableName, ["Bla1", "Bla2"]);
 
         // Act

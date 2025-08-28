@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
@@ -13,6 +14,7 @@ using Migrator.Tests.Database.Interfaces;
 using Migrator.Tests.Settings;
 using Migrator.Tests.Settings.Config;
 using Migrator.Tests.Settings.Models;
+using Npgsql;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.Base;
@@ -22,12 +24,24 @@ namespace Migrator.Tests.Providers.Base;
 /// </summary>
 public abstract class TransformationProviderBase
 {
+    private IDbConnection _dbConnection;
+
     [TearDown]
     public virtual void TearDown()
     {
         DropTestTables();
 
         Provider?.Rollback();
+
+        if (_dbConnection != null)
+        {
+            if (_dbConnection.State == ConnectionState.Open)
+            {
+                _dbConnection.Close();
+            }
+
+            _dbConnection.Dispose();
+        }
     }
 
     protected void DropTestTables()
@@ -108,7 +122,10 @@ public abstract class TransformationProviderBase
         var postgreIntegrationTestService = databaseIntegrationTestServiceFactory.Create(DatabaseProviderType.Postgres);
         var databaseInfo = await postgreIntegrationTestService.CreateTestDatabaseAsync(databaseConnectionConfig, cts.Token);
 
-        Provider = new PostgreSQLTransformationProvider(new PostgreSQLDialect(), databaseInfo.DatabaseConnectionConfig.ConnectionString, null, "default", "Npgsql");
+
+        _dbConnection = new NpgsqlConnection(databaseInfo.DatabaseConnectionConfig.ConnectionString);
+
+        Provider = new PostgreSQLTransformationProvider(new PostgreSQLDialect(), _dbConnection, null, "default", "Npgsql");
         Provider.BeginTransaction();
 
         await Task.CompletedTask;

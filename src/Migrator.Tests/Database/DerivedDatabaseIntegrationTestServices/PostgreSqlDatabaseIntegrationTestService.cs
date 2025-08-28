@@ -54,9 +54,8 @@ public class PostgreSqlDatabaseIntegrationTestService(TimeProvider timeProvider,
             await context.ExecuteAsync($"CREATE DATABASE \"{newDatabaseName}\"", cancellationToken);
         }
 
-        var connectionStringBuilder2 = new NpgsqlConnectionStringBuilder
+        var connectionStringBuilder2 = new NpgsqlConnectionStringBuilder(clonedDatabaseConnectionConfig.ConnectionString)
         {
-            ConnectionString = clonedDatabaseConnectionConfig.ConnectionString,
             Database = newDatabaseName
         };
 
