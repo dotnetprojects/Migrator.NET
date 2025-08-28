@@ -5,11 +5,9 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2019-latest
@@ -23,7 +21,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
-
       postgres:
         image: postgres:13
         ports:
@@ -31,7 +28,6 @@ jobs:
         env:
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: testdb
           # As of v16 we can use:
           # POSTGRES_INITDB_ARGS: "-c max_connections=300"
         options: >-
@@ -39,7 +35,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-
       oracle:
         image: gvenzl/oracle-free:latest
         ports:
@@ -51,7 +46,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
-
       mysql:
         image: mysql:8.0
         ports:
@@ -66,7 +60,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
-
     steps:
       - uses: actions/checkout@v4
       - uses: gvenzl/setup-oracle-sqlcl@v1
@@ -86,14 +79,6 @@ jobs:
       - name: Create SQLServer database
         run: |
           /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
-      - name:
-          Increase max connections (Postgre SQL).
-          # Postgre < 16 cannot adjust it using env vars => Workaround: we use psql to adjust the max connections
-        env:
-          PGPASSWORD: testpass
-        run: |
-          psql -h localhost -U testuser -d testdb -c "ALTER SYSTEM SET max_connections = 300;"
-          psql -h localhost -U testuser -d testdb -c "SELECT pg_reload_conf();"
       - name: Create Oracle user
         run: |
           sql sys/adfkweflajdfglkj@localhost/FREEPDB1 as sysdba   <<EOF 
