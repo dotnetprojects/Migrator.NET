@@ -25,14 +25,14 @@ jobs:
           --health-retries=10
 
       postgres:
-        image: postgres:13
+        image: postgres:16
         ports:
           - 5432:5432
         env:
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: testdb
-          POSTGRES_MAX_CONNECTIONS: 1000
+          POSTGRES_INITDB_ARGS: "-c max_connections=300"
         options: >-
           --health-cmd="pg_isready -U testuser"
           --health-interval=10s
