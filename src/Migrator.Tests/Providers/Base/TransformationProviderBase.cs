@@ -28,6 +28,7 @@ public abstract class TransformationProviderBase
         DropTestTables();
 
         Provider?.Rollback();
+        Provider?.Dispose();
     }
 
     protected void DropTestTables()
