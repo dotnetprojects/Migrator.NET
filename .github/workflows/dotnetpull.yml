@@ -88,11 +88,10 @@ jobs:
           /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
       - name:
           Increase max connections (Postgre SQL).
-          # Postgre < 16 cannot adjust it using env vars
+          # Postgre < 16 cannot adjust it using env vars => Workaround: we use psql to adjust the max connections
         run: |
-          docker exec postgres bash -c "echo \"max_connections = 300\" >> /var/lib/postgresql/data/postgresql.conf"
-          docker restart postgres
-          sleep 5
+          psql -h localhost -U postgres -d testdb -c "ALTER SYSTEM SET max_connections = 300;"
+          psql -h localhost -U postgres -d testdb -c "SELECT pg_reload_conf();"
       - name: Create Oracle user
         run: |
           sql sys/adfkweflajdfglkj@localhost/FREEPDB1 as sysdba   <<EOF 
