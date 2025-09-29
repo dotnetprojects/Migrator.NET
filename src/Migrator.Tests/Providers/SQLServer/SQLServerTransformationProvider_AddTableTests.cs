@@ -39,7 +39,7 @@ public class SQLServerTransformationProvider_AddTableTests : TransformationProvi
         Provider.AddTable(tableName, new Column(columnName, DbType.DateTime, ColumnProperty.NotNull));
         var column = Provider.GetColumnByName(tableName, columnName);
 
-        Assert.That(column.Type, Is.EqualTo(DataType.DateTime));
+        Assert.That(column.Type, Is.EqualTo(DbType.DateTime));
     }
 
     [Test]
