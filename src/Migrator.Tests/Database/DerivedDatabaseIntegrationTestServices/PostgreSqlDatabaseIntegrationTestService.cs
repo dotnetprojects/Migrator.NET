@@ -32,7 +32,7 @@ public class PostgreSqlDatabaseIntegrationTestService(TimeProvider timeProvider,
 
         using (var context = new DataConnection(new DataOptions().UsePostgreSQL(builder.ConnectionString)))
         {
-            databaseNames = await context.FromSql<string>("SELECT datname from pg_database WHERE datistemplate = false").ToListAsync(cancellationToken);
+            databaseNames = await context.QueryToListAsync<string>("SELECT datname from pg_database WHERE datistemplate = false", cancellationToken);
         }
 
         var toBeDeletedDatabaseNames = databaseNames.Where(x =>
@@ -86,27 +86,29 @@ public class PostgreSqlDatabaseIntegrationTestService(TimeProvider timeProvider,
 
         var dataOptions = new DataOptions().UsePostgreSQL(builder.ConnectionString);
 
-        using var context = new DataConnection(dataOptions);
-
-        try
+        using (var context = new DataConnection(dataOptions))
         {
-            await context.ExecuteAsync($"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{databaseInfo.DatabaseName}'", cancellationToken);
-            await context.ExecuteAsync($"DROP DATABASE \"{databaseInfo.DatabaseName}\"", cancellationToken);
-        }
-        catch
-        {
-            await Task.Delay(2000, cancellationToken);
 
-            var count = await context.ExecuteAsync<int>($"SELECT COUNT(*) from pg_database WHERE datistemplate = false AND datname = '{databaseInfo.DatabaseName}'", cancellationToken);
-
-            if (count == 1)
+            try
             {
-                throw;
+                await context.ExecuteAsync($"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{databaseInfo.DatabaseName}'", cancellationToken);
+                await context.ExecuteAsync($"DROP DATABASE \"{databaseInfo.DatabaseName}\"", cancellationToken);
             }
-            else
+            catch
             {
-                // The database was removed by another asynchronously running test that kicked in earlier.
-                // That's ok for us as we have achieved our objective.
+                await Task.Delay(2000, cancellationToken);
+
+                var count = await context.ExecuteAsync<int>($"SELECT COUNT(*) from pg_database WHERE datistemplate = false AND datname = '{databaseInfo.DatabaseName}'", cancellationToken);
+
+                if (count == 1)
+                {
+                    throw;
+                }
+                else
+                {
+                    // The database was removed by another asynchronously running test that kicked in earlier.
+                    // That's ok for us as we have achieved our objective.
+                }
             }
         }
     }
