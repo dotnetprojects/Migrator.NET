@@ -6,12 +6,12 @@ namespace DotNetProjects.Migrator.Framework.Models;
 public class ColumnPair
 {
     /// <summary>
-    /// Gets or sets the column name of the source table. Use the not quoted column name.
+    /// Gets or sets the column name of the source table. Use the unquoted column name.
     /// </summary>
-    public string ColumnNameSourceNotQuoted { get; set; }
+    public string ColumnNameSource { get; set; }
 
     /// <summary>
-    /// Gets or sets the column name of the target table. Use the not quoted column name.
+    /// Gets or sets the column name of the target table. Use the unquoted column name.
     /// </summary>
-    public string ColumnNameTargetNotQuoted { get; set; }
+    public string ColumnNameTarget { get; set; }
 }

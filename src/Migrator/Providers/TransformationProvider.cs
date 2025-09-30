@@ -1332,7 +1332,7 @@ public abstract class TransformationProvider : ITransformationProvider
         return command.ExecuteNonQuery();
     }
 
-    public virtual void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
+    public virtual void UpdateTargetFromSource(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
     {
         throw new NotImplementedException();
     }

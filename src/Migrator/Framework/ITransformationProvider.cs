@@ -647,13 +647,13 @@ public interface ITransformationProvider : IDisposable
     int Update(string table, string[] columns, object[] values, string[] whereColumns, object[] whereValues);
 
     /// <summary>
-    /// Updates the target table using data from the source table updating the target table. Make sure to only use primary keys or unique columns in <paramref name="conditionColumnPairs"/>
+    /// Updates the target table with data from the source table. Make sure to use primary key or unique columns in <paramref name="matchColumnPairs"/>
     /// </summary>
-    /// <param name="tableSourceNotQuoted"></param>
-    /// <param name="tableTargetNotQuoted"></param>
-    /// <param name="fromSourceToTargetColumnPairs">Pairs that represent the name of the source column and the column in the target table to be updated.</param>
-    /// <param name="conditionColumnPairs">Pairs that represent the name of the source column and the name of the target tabel used to match the rows.</param>
-    void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs);
+    /// <param name="tableNameSource">Source table name (unquoted).</param>
+    /// <param name="tableNameTarget">Target table name (unquoted).</param>
+    /// <param name="copyColumnPairs">Pairs of columns that are used to copy data from column in source table to column in target table.</param>
+    /// <param name="matchColumnPairs">Pairs of columns that are used to match rows in source and target table.</param>
+    void UpdateTargetFromSource(string tableNameSource, string tableNameTarget, ColumnPair[] copyColumnPairs, ColumnPair[] matchColumnPairs);
 
     /// <summary>
     /// Get a command instance
