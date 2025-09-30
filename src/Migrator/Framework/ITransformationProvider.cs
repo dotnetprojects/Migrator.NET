@@ -518,6 +518,7 @@ public interface ITransformationProvider : IDisposable
     /// Removes PK, FKs, Unique and CHECK constraints.
     /// </summary>
     /// <param name="table"></param>
+    [Obsolete("Drop all constraints separately.")]
     void RemoveAllConstraints(string table);
 
     /// <summary>
