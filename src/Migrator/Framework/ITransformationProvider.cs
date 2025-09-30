@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using DotNetProjects.Migrator.Framework.Models;
 
 namespace DotNetProjects.Migrator.Framework;
 
@@ -518,6 +519,7 @@ public interface ITransformationProvider : IDisposable
     /// Removes PK, FKs, Unique and CHECK constraints.
     /// </summary>
     /// <param name="table"></param>
+    [Obsolete("Drop all constraints separately.")]
     void RemoveAllConstraints(string table);
 
     /// <summary>
@@ -643,6 +645,15 @@ public interface ITransformationProvider : IDisposable
     int Update(string table, string[] columns, object[] values, string where);
 
     int Update(string table, string[] columns, object[] values, string[] whereColumns, object[] whereValues);
+
+    /// <summary>
+    /// Updates the target table using data from the source table updating the target table. Make sure to only use primary keys or unique columns in <paramref name="conditionColumnPairs"/>
+    /// </summary>
+    /// <param name="tableSourceNotQuoted"></param>
+    /// <param name="tableTargetNotQuoted"></param>
+    /// <param name="fromSourceToTargetColumnPairs">Pairs that represent the name of the source column and the column in the target table to be updated.</param>
+    /// <param name="conditionColumnPairs">Pairs that represent the name of the source column and the name of the target tabel used to match the rows.</param>
+    void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs);
 
     /// <summary>
     /// Get a command instance

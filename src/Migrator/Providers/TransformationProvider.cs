@@ -13,6 +13,7 @@
 
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Loggers;
+using DotNetProjects.Migrator.Framework.Models;
 using DotNetProjects.Migrator.Framework.SchemaBuilder;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DotNetProjects.Migrator.Providers.Models;
@@ -1329,6 +1330,11 @@ public abstract class TransformationProvider : ITransformationProvider
 
         Logger.Trace(command.CommandText);
         return command.ExecuteNonQuery();
+    }
+
+    public virtual void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
+    {
+        throw new NotImplementedException();
     }
 
     public virtual int Insert(string table, string[] columns, object[] values)

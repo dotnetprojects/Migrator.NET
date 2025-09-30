@@ -1,4 +1,5 @@
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Models;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Models;
 using DotNetProjects.Migrator.Providers.Models;
 using DotNetProjects.Migrator.Providers.Models.Indexes;
@@ -905,6 +906,52 @@ public class OracleTransformationProvider : TransformationProvider
         Logger.Log(sql);
         var scalar = ExecuteScalar(sql);
         return Convert.ToInt32(scalar) == 1;
+    }
+
+    public override void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
+    {
+        if (!TableExists(tableSourceNotQuoted))
+        {
+            throw new Exception($"Table '{tableSourceNotQuoted}' given in '{nameof(tableSourceNotQuoted)}' does not exist");
+        }
+
+        if (!TableExists(tableTargetNotQuoted))
+        {
+            throw new Exception($"Table '{tableTargetNotQuoted}' given in '{nameof(tableTargetNotQuoted)}' does not exist");
+        }
+
+        if (fromSourceToTargetColumnPairs.Length == 0)
+        {
+            throw new Exception($"{nameof(fromSourceToTargetColumnPairs)} is empty.");
+        }
+
+        if (fromSourceToTargetColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        {
+            throw new Exception($"One of the strings in {nameof(fromSourceToTargetColumnPairs)} is null or empty");
+        }
+
+        if (conditionColumnPairs.Length == 0)
+        {
+            throw new Exception($"{nameof(conditionColumnPairs)} is empty.");
+        }
+
+        if (conditionColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        {
+            throw new Exception($"One of the strings in {nameof(conditionColumnPairs)} is null or empty");
+        }
+
+        var tableNameSource = QuoteTableNameIfRequired(tableSourceNotQuoted);
+        var tableNameTarget = QuoteTableNameIfRequired(tableTargetNotQuoted);
+
+        var conditionStrings = conditionColumnPairs.Select(x => $"t.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}");
+
+        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
+
+        var conditionStringsJoined = string.Join(" AND ", conditionStrings);
+        var assignStringsJoined = string.Join(", ", assignStrings);
+
+        var sql = $"MERGE INTO {tableNameTarget} t USING {tableNameSource} s ON ({conditionStringsJoined}) WHEN MATCHED THEN UPDATE SET {assignStringsJoined}";
+        ExecuteNonQuery(sql);
     }
 
     private string SchemaInfoTableName

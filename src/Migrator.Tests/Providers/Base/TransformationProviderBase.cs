@@ -25,6 +25,7 @@ namespace Migrator.Tests.Providers.Base;
 public abstract class TransformationProviderBase
 {
     private IDbConnection _dbConnection;
+    protected ITransformationProvider Provider;
 
     [TearDown]
     public virtual void TearDown()
@@ -33,15 +34,7 @@ public abstract class TransformationProviderBase
 
         Provider?.Rollback();
 
-        if (_dbConnection != null)
-        {
-            if (_dbConnection.State == ConnectionState.Open)
-            {
-                _dbConnection.Close();
-            }
-
-            _dbConnection.Dispose();
-        }
+        _dbConnection?.Dispose();
     }
 
     protected void DropTestTables()
@@ -71,7 +64,6 @@ public abstract class TransformationProviderBase
         }
     }
 
-    protected ITransformationProvider Provider;
 
     protected async Task BeginOracleTransactionAsync()
     {
@@ -102,7 +94,7 @@ public abstract class TransformationProviderBase
 
     protected async Task BeginPostgreSQLTransactionAsync()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(1));
         var configReader = new ConfigurationReader();
 
         var databaseConnectionConfig = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL);
