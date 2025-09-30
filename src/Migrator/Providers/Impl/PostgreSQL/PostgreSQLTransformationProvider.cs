@@ -851,14 +851,14 @@ where LOWER(t.relname) = LOWER('{0}')", table)))
         var tableNameSource = QuoteTableNameIfRequired(tableSourceNotQuoted);
         var tableNameTarget = QuoteTableNameIfRequired(tableTargetNotQuoted);
 
-        var conditionStrings = conditionColumnPairs.Select(x => $"t.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}");
+        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = {tableNameSource}.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
 
-        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
+        var conditionStrings = conditionColumnPairs.Select(x => $"{tableNameSource}.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)} = {tableNameTarget}.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)}");
 
-        var conditionStringsJoined = string.Join(" AND ", conditionStrings);
         var assignStringsJoined = string.Join(", ", assignStrings);
+        var conditionStringsJoined = string.Join(" AND ", conditionStrings);
 
-        var sql = $"MERGE INTO {tableNameTarget} t USING {tableNameSource} s ON ({conditionStringsJoined}) WHEN MATCHED THEN UPDATE SET {assignStringsJoined}";
+        var sql = $"UPDATE {tableNameTarget} SET {assignStringsJoined} FROM {tableNameSource} WHERE {conditionStringsJoined}";
         ExecuteNonQuery(sql);
     }
 
