@@ -851,14 +851,14 @@ where LOWER(t.relname) = LOWER('{0}')", table)))
         var tableNameSource = QuoteTableNameIfRequired(tableSourceNotQuoted);
         var tableNameTarget = QuoteTableNameIfRequired(tableTargetNotQuoted);
 
-        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)} = t.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)}").ToList();
-
         var conditionStrings = conditionColumnPairs.Select(x => $"t.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}");
 
-        var assignStringsJoined = string.Join(", ", assignStrings);
-        var conditionStringsJoined = string.Join(" AND ", conditionStrings);
+        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
 
-        var sql = $"MERGE INTO {tableNameTarget} t ON ({conditionStringsJoined}) WHEN MATCHED THEN UPDATE SET {assignStringsJoined}";
+        var conditionStringsJoined = string.Join(" AND ", conditionStrings);
+        var assignStringsJoined = string.Join(", ", assignStrings);
+
+        var sql = $"MERGE INTO {tableNameTarget} t USING {tableNameSource} s ON ({conditionStringsJoined}) WHEN MATCHED THEN UPDATE SET {assignStringsJoined}";
         ExecuteNonQuery(sql);
     }
 

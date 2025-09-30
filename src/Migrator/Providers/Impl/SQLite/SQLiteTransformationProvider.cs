@@ -245,7 +245,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var tableNameSource = QuoteTableNameIfRequired(tableSourceNotQuoted);
         var tableNameTarget = QuoteTableNameIfRequired(tableTargetNotQuoted);
 
-        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)} = {tableNameSource}.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
+        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = {tableNameSource}.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
 
         var conditionStrings = conditionColumnPairs.Select(x => $"{tableNameSource}.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)} = {tableNameTarget}.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)}");
 
