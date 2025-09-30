@@ -89,9 +89,15 @@ dotnet_naming_style.interface_style.required_prefix = I
 dotnet_naming_style.async_method_style.capitalization = pascal_case
 dotnet_naming_style.async_method_style.required_suffix = Async
 
+dotnet_naming_style.underscore_pascalcase.capitalization = pascal_case
+dotnet_naming_style.underscore_pascalcase.required_prefix = _
+
 # === Symbols ===
 dotnet_naming_symbols.public_api_symbols.applicable_kinds = class, struct, enum, property, method, event, field, delegate, namespace
 dotnet_naming_symbols.public_api_symbols.applicable_accessibilities = public, protected, protected_internal
+
+dotnet_naming_symbols.protected_fields.applicable_kinds = field
+dotnet_naming_symbols.protected_fields.applicable_accessibilities = protected
 
 dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
@@ -112,6 +118,10 @@ dotnet_naming_symbols.async_methods.required_modifiers = async
 dotnet_naming_rule.public_api_should_be_pascal_case.symbols = public_api_symbols
 dotnet_naming_rule.public_api_should_be_pascal_case.style = pascal_case_style
 dotnet_naming_rule.public_api_should_be_pascal_case.severity = warning
+
+dotnet_naming_rule.protected_fields_should_be_prefixed_with_underscore_and_pascalcase.symbols = protected_fields
+dotnet_naming_rule.protected_fields_should_be_prefixed_with_underscore_and_pascalcase.style = underscore_pascalcase
+dotnet_naming_rule.protected_fields_should_be_prefixed_with_underscore_and_pascalcase.severity = warning
 
 dotnet_naming_rule.private_fields_should_be_underscore_camel.symbols = private_fields
 dotnet_naming_rule.private_fields_should_be_underscore_camel.style = underscore_camel_case_style
@@ -167,7 +177,7 @@ csharp_new_line_between_query_expression_clauses = true
 csharp_indent_block_contents = true
 csharp_indent_braces = false
 csharp_indent_case_contents = true
-csharp_indent_case_contents_when_block = true
+csharp_indent_case_contents_when_block = false
 csharp_indent_switch_labels = true
 csharp_indent_labels = flush_left
 
@@ -229,6 +239,7 @@ dotnet_diagnostic.SA1600.severity = suggestion # Elements must be documented
 dotnet_diagnostic.SA1623.severity = suggestion # Property summary must match accessor
 
 # Code quality
+dotnet_diagnostic.IDE0005.severity = error       # Unused usings
 dotnet_diagnostic.IDE0040.severity = warning     # Accessibility modifiers
 dotnet_diagnostic.IDE0052.severity = warning     # Remove unread private members
 dotnet_diagnostic.IDE0059.severity = warning     # Unused assignment
