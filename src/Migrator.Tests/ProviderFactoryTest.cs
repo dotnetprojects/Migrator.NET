@@ -41,11 +41,9 @@ public class ProviderFactoryTest
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.MySQLId)?.ConnectionString;
-        if (!String.IsNullOrEmpty(connectionString))
-        {
-            using var provider = ProviderFactory.Create(ProviderTypes.Mysql, connectionString, null);
-            Assert.That(provider, Is.Not.Null);
-        }
+
+        using var provider = ProviderFactory.Create(ProviderTypes.Mysql, connectionString, null);
+        Assert.That(provider, Is.Not.Null);
     }
 
     [Test]
@@ -54,11 +52,9 @@ public class ProviderFactoryTest
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.OracleId)?.ConnectionString;
-        if (!String.IsNullOrEmpty(connectionString))
-        {
-            using var provider = ProviderFactory.Create(ProviderTypes.Oracle, connectionString, null);
-            Assert.That(provider, Is.Not.Null);
-        }
+
+        using var provider = ProviderFactory.Create(ProviderTypes.Oracle, connectionString, null);
+        Assert.That(provider, Is.Not.Null);
     }
 
     [Test]
@@ -67,11 +63,9 @@ public class ProviderFactoryTest
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.PostgreSQL)?.ConnectionString;
-        if (!String.IsNullOrEmpty(connectionString))
-        {
-            using var provider = ProviderFactory.Create(ProviderTypes.PostgreSQL, connectionString, null);
-            Assert.That(provider, Is.Not.Null);
-        }
+
+        using var provider = ProviderFactory.Create(ProviderTypes.PostgreSQL, connectionString, null);
+        Assert.That(provider, Is.Not.Null);
     }
 
     [Test]
@@ -80,11 +74,9 @@ public class ProviderFactoryTest
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLiteId)?.ConnectionString;
-        if (!String.IsNullOrEmpty(connectionString))
-        {
-            using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connectionString, null);
-            Assert.That(provider, Is.Not.Null);
-        }
+
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connectionString, null);
+        Assert.That(provider, Is.Not.Null);
     }
 
     [Test]
@@ -93,10 +85,8 @@ public class ProviderFactoryTest
     {
         var configReader = new ConfigurationReader();
         var connectionString = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.SQLServerId)?.ConnectionString;
-        if (!String.IsNullOrEmpty(connectionString))
-        {
-            using var provider = ProviderFactory.Create(ProviderTypes.SqlServer, connectionString, null);
-            Assert.That(provider, Is.Not.Null);
-        }
+
+        using var provider = ProviderFactory.Create(ProviderTypes.SqlServer, connectionString, null);
+        Assert.That(provider, Is.Not.Null);
     }
 }
