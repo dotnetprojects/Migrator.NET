@@ -12,6 +12,7 @@
 #endregion
 
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Models;
 using DotNetProjects.Migrator.Providers.Models.Indexes;
 using System;
 using System.Collections.Generic;
@@ -798,6 +799,52 @@ public class SqlServerTransformationProvider : TransformationProvider
         }
 
         ExecuteNonQuery(string.Format("EXEC sp_rename '{0}', '{1}'", oldName, newName));
+    }
+
+    public override void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
+    {
+        if (!TableExists(tableSourceNotQuoted))
+        {
+            throw new Exception($"Table '{tableSourceNotQuoted}' given in '{nameof(tableSourceNotQuoted)}' does not exist");
+        }
+
+        if (!TableExists(tableTargetNotQuoted))
+        {
+            throw new Exception($"Table '{tableTargetNotQuoted}' given in '{nameof(tableTargetNotQuoted)}' does not exist");
+        }
+
+        if (fromSourceToTargetColumnPairs.Length == 0)
+        {
+            throw new Exception($"{nameof(fromSourceToTargetColumnPairs)} is empty.");
+        }
+
+        if (fromSourceToTargetColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        {
+            throw new Exception($"One of the strings in {nameof(fromSourceToTargetColumnPairs)} is null or empty");
+        }
+
+        if (conditionColumnPairs.Length == 0)
+        {
+            throw new Exception($"{nameof(conditionColumnPairs)} is empty.");
+        }
+
+        if (conditionColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        {
+            throw new Exception($"One of the strings in {nameof(conditionColumnPairs)} is null or empty");
+        }
+
+        var tableNameSource = QuoteTableNameIfRequired(tableSourceNotQuoted);
+        var tableNameTarget = QuoteTableNameIfRequired(tableTargetNotQuoted);
+
+        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)} = t.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)}").ToList();
+
+        var conditionStrings = conditionColumnPairs.Select(x => $"t.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}");
+
+        var assignStringsJoined = string.Join(", ", assignStrings);
+        var conditionStringsJoined = string.Join(" AND ", conditionStrings);
+
+        var sql = $"MERGE INTO {tableNameTarget} t ON ({conditionStringsJoined}) WHEN MATCHED THEN UPDATE SET {assignStringsJoined}";
+        ExecuteNonQuery(sql);
     }
 
     // Deletes all constraints linked to a column. Sql Server

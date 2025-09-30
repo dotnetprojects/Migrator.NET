@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Models;
 using DotNetProjects.Migrator.Framework.SchemaBuilder;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = DotNetProjects.Migrator.Framework.Index;
@@ -588,6 +589,11 @@ public class NoOpTransformationProvider : ITransformationProvider
     }
 
     public void AddColumn(string table, string column, MigratorDbType type, object defaultValue)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
     {
         throw new NotImplementedException();
     }

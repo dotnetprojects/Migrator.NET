@@ -12,6 +12,7 @@ using Index = DotNetProjects.Migrator.Framework.Index;
 using DotNetProjects.Migrator.Framework.Extensions;
 using DotNetProjects.Migrator.Providers.Models.Indexes;
 using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
+using DotNetProjects.Migrator.Framework.Models;
 
 namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
@@ -207,6 +208,52 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         return foreignKeyConstraints.ToArray();
+    }
+
+    public override void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
+    {
+        if (!TableExists(tableSourceNotQuoted))
+        {
+            throw new Exception($"Table '{tableSourceNotQuoted}' given in '{nameof(tableSourceNotQuoted)}' does not exist");
+        }
+
+        if (!TableExists(tableTargetNotQuoted))
+        {
+            throw new Exception($"Table '{tableTargetNotQuoted}' given in '{nameof(tableTargetNotQuoted)}' does not exist");
+        }
+
+        if (fromSourceToTargetColumnPairs.Length == 0)
+        {
+            throw new Exception($"{nameof(fromSourceToTargetColumnPairs)} is empty.");
+        }
+
+        if (fromSourceToTargetColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        {
+            throw new Exception($"One of the strings in {nameof(fromSourceToTargetColumnPairs)} is null or empty");
+        }
+
+        if (conditionColumnPairs.Length == 0)
+        {
+            throw new Exception($"{nameof(conditionColumnPairs)} is empty.");
+        }
+
+        if (conditionColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        {
+            throw new Exception($"One of the strings in {nameof(conditionColumnPairs)} is null or empty");
+        }
+
+        var tableNameSource = QuoteTableNameIfRequired(tableSourceNotQuoted);
+        var tableNameTarget = QuoteTableNameIfRequired(tableTargetNotQuoted);
+
+        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)} = {tableNameSource}.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
+
+        var conditionStrings = conditionColumnPairs.Select(x => $"{tableNameSource}.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)} = {tableNameTarget}.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)}");
+
+        var assignStringsJoined = string.Join(", ", assignStrings);
+        var conditionStringsJoined = string.Join(" AND ", conditionStrings);
+
+        var sql = $"UPDATE {tableNameTarget} SET {assignStringsJoined} FROM {tableNameSource} WHERE {conditionStringsJoined}";
+        ExecuteNonQuery(sql);
     }
 
     private List<PragmaForeignKeyListItem> GetForeignKeyListItems(string tableNameNotQuoted)
