@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Globalization;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Models.Indexes;

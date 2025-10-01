@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using Migrator.Tests.Providers.Generic;
-using Migrator.Tests.Providers.SQLite.Base;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 

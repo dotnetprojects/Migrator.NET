@@ -1,16 +1,8 @@
-
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Globalization;
-using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Providers.Models.Indexes;
-using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
-using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace Migrator.Tests.Providers.SQLServer;
 

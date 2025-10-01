@@ -13,7 +13,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator;

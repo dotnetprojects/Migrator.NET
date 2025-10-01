@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LinqToDB;
-using LinqToDB.Async;
 using LinqToDB.Data;
 using Mapster;
 using Microsoft.Data.SqlClient;

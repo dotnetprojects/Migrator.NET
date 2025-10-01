@@ -1,7 +1,5 @@
-using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
-using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.Base;
 

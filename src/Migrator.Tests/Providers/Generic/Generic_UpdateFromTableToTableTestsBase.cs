@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Framework.Models;
 using Migrator.Tests.Providers.Base;
 using Migrator.Tests.Providers.Generic.Models;
 using NUnit.Framework;
