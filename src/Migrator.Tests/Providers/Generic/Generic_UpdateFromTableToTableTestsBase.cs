@@ -56,19 +56,18 @@ public abstract class Generic_UpdateFromTableToTableTestsBase : TransformationPr
         Provider.Insert(tableNameTarget, [columnName1Target, columnName2Target, columnName3Target, columnName4Target, columnName5Target], [1, 3, "target no update", "target no update", "target no update"]);
 
         // Act
-        Provider.UpdateFromTableToTable(
+        Provider.UpdateTargetFromSource(
             tableNameSource,
             tableNameTarget,
             [
-                new ColumnPair { ColumnNameSourceNotQuoted = columnName3Source, ColumnNameTargetNotQuoted = columnName3Target },
-                new ColumnPair { ColumnNameSourceNotQuoted = columnName4Source, ColumnNameTargetNotQuoted = columnName4Target },
-                new ColumnPair { ColumnNameSourceNotQuoted = columnName5Source, ColumnNameTargetNotQuoted = columnName5Target }
+                new () { ColumnNameSource = columnName3Source, ColumnNameTarget = columnName3Target },
+                new () { ColumnNameSource = columnName4Source, ColumnNameTarget = columnName4Target },
+                new () { ColumnNameSource = columnName5Source, ColumnNameTarget = columnName5Target }
             ],
             [
-                new ColumnPair { ColumnNameSourceNotQuoted = columnName1Source, ColumnNameTargetNotQuoted = columnName1Target },
-                new ColumnPair { ColumnNameSourceNotQuoted = columnName2Source, ColumnNameTargetNotQuoted = columnName2Target }
-            ]
-            );
+                new () { ColumnNameSource = columnName1Source, ColumnNameTarget = columnName1Target },
+                new () { ColumnNameSource = columnName2Source, ColumnNameTarget = columnName2Target }
+            ]);
 
         // Assert
         List<UpdateFromTableToTableModel> targetRows = [];

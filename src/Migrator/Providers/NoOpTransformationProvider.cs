@@ -593,7 +593,7 @@ public class NoOpTransformationProvider : ITransformationProvider
         throw new NotImplementedException();
     }
 
-    public void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
+    public void UpdateTargetFromSource(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
     {
         throw new NotImplementedException();
     }

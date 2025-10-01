@@ -801,7 +801,7 @@ public class SqlServerTransformationProvider : TransformationProvider
         ExecuteNonQuery(string.Format("EXEC sp_rename '{0}', '{1}'", oldName, newName));
     }
 
-    public override void UpdateFromTableToTable(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
+    public override void UpdateTargetFromSource(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)
     {
         if (!TableExists(tableSourceNotQuoted))
         {
@@ -818,7 +818,7 @@ public class SqlServerTransformationProvider : TransformationProvider
             throw new Exception($"{nameof(fromSourceToTargetColumnPairs)} is empty.");
         }
 
-        if (fromSourceToTargetColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        if (fromSourceToTargetColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSource) || string.IsNullOrWhiteSpace(x.ColumnNameTarget)))
         {
             throw new Exception($"One of the strings in {nameof(fromSourceToTargetColumnPairs)} is null or empty");
         }
@@ -828,7 +828,7 @@ public class SqlServerTransformationProvider : TransformationProvider
             throw new Exception($"{nameof(conditionColumnPairs)} is empty.");
         }
 
-        if (conditionColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSourceNotQuoted) || string.IsNullOrWhiteSpace(x.ColumnNameTargetNotQuoted)))
+        if (conditionColumnPairs.Any(x => string.IsNullOrWhiteSpace(x.ColumnNameSource) || string.IsNullOrWhiteSpace(x.ColumnNameTarget)))
         {
             throw new Exception($"One of the strings in {nameof(conditionColumnPairs)} is null or empty");
         }
@@ -836,9 +836,9 @@ public class SqlServerTransformationProvider : TransformationProvider
         var tableNameSource = QuoteTableNameIfRequired(tableSourceNotQuoted);
         var tableNameTarget = QuoteTableNameIfRequired(tableTargetNotQuoted);
 
-        var conditionStrings = conditionColumnPairs.Select(x => $"t.{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}");
+        var conditionStrings = conditionColumnPairs.Select(x => $"t.{QuoteColumnNameIfRequired(x.ColumnNameTarget)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSource)}");
 
-        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameTargetNotQuoted)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSourceNotQuoted)}").ToList();
+        var assignStrings = fromSourceToTargetColumnPairs.Select(x => $"{QuoteColumnNameIfRequired(x.ColumnNameTarget)} = s.{QuoteColumnNameIfRequired(x.ColumnNameSource)}").ToList();
 
         var conditionStringsJoined = string.Join(" AND ", conditionStrings);
         var assignStringsJoined = string.Join(", ", assignStrings);
