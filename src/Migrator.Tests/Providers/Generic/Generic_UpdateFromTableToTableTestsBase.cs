@@ -56,13 +56,15 @@ public abstract class Generic_UpdateFromTableToTableTestsBase : TransformationPr
 
         // Act
         Provider.UpdateTargetFromSource(
-            tableNameSource,
-            tableNameTarget,
+            tableNameSource: tableNameSource,
+            tableNameTarget: tableNameTarget,
+            copyColumnPairs:
             [
                 new () { ColumnNameSource = columnName3Source, ColumnNameTarget = columnName3Target },
                 new () { ColumnNameSource = columnName4Source, ColumnNameTarget = columnName4Target },
                 new () { ColumnNameSource = columnName5Source, ColumnNameTarget = columnName5Target }
             ],
+            matchColumnPairs:
             [
                 new () { ColumnNameSource = columnName1Source, ColumnNameTarget = columnName1Target },
                 new () { ColumnNameSource = columnName2Source, ColumnNameTarget = columnName2Target }

@@ -54,8 +54,9 @@ public enum ColumnProperty
     // ForeignKey = 1 << 7,
 
     /// <summary>
-    /// Primary Key.
+    /// Primary Key. For compound PKs use AddPrimaryKey instead.
     /// </summary>
+    [Obsolete("Use AddPrimaryKey instead.")]
     PrimaryKey = 1 << 8,
 
     /// <summary>
