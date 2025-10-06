@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Providers;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Firebird;
 

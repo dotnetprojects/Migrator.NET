@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Providers;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Firebird;
 

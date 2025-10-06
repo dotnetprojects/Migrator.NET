@@ -57,7 +57,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new Exception("A FK name is mandatory");
+            throw new Exception("The foreign key name is mandatory");
         }
 
         var sqliteTableInfo = GetSQLiteTableInfo(childTable);
@@ -692,11 +692,25 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         foreach (var column in sqliteTableInfo.Columns)
         {
-            if (columnNames.Contains(column.Name))
+            if (columnNames.Any(x => x.Equals(column.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                column.ColumnProperty |= ColumnProperty.PrimaryKey;
+                column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
+            }
+            else
+            {
+                column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.PrimaryKey);
             }
         }
+
+        var columnNamesList = columnNames.ToList();
+
+        var columnsReordered = sqliteTableInfo.Columns.OrderBy(x =>
+        {
+            var index = columnNamesList.IndexOf(x.Name);
+            return index >= 0 ? index : int.MaxValue;
+        }).ToList();
+
+        sqliteTableInfo.Columns = columnsReordered;
 
         RecreateTable(sqliteTableInfo);
     }

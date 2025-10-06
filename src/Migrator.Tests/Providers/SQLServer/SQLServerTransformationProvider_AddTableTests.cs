@@ -1,10 +1,8 @@
-using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
-using Org.BouncyCastle.Security;
 
 namespace Migrator.Tests.Providers.SQLServer;
 

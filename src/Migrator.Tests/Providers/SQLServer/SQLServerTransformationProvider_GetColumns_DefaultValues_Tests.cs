@@ -1,7 +1,6 @@
 using System;
 using System.Data;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using Migrator.Tests.Providers.Base;

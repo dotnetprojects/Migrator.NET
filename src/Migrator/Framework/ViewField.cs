@@ -11,8 +11,6 @@
 
 #endregion
 
-using System.Data;
-
 namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using Migrator.Tests.Providers.Base;
-using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.OracleProvider;
