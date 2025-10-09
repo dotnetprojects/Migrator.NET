@@ -70,7 +70,7 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
     }
 
     [Test]
-    public void ChangeColumn_StringFromNullToNotNull_Ok()
+    public void ChangeColumn_StringFromNullToNotNull_StillNotNull()
     {
         // Arrange
         const string testTableName = "MyDefaultTestTable";
@@ -79,7 +79,7 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
 
         Provider.AddTable(testTableName,
             new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.String, ColumnProperty.Null)
+            new Column(propertyName2, DbType.String, 100, ColumnProperty.Null)
         );
 
         // Act
