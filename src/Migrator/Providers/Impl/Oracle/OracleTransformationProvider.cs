@@ -887,9 +887,12 @@ public class OracleTransformationProvider : TransformationProvider
 
         base.AddTable(name, fields);
 
-        if (columns.Any(c => c.ColumnProperty == ColumnProperty.PrimaryKeyWithIdentity))
+        // Should be refactored
+        if (columns.Any(c => c.ColumnProperty == ColumnProperty.PrimaryKeyWithIdentity ||
+            (c.ColumnProperty.HasFlag(ColumnProperty.Identity) && c.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey))))
         {
-            var identityColumn = columns.First(c => c.ColumnProperty == ColumnProperty.PrimaryKeyWithIdentity);
+            var identityColumn = columns.First(c => c.ColumnProperty == ColumnProperty.PrimaryKeyWithIdentity ||
+                (c.ColumnProperty.HasFlag(ColumnProperty.Identity) && c.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey)));
 
             var seqTName = name.Length > 21 ? name.Substring(0, 21) : name;
             if (seqTName.EndsWith("_"))

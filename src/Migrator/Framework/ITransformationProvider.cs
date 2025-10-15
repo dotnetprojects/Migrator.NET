@@ -272,6 +272,7 @@ public interface ITransformationProvider : IDisposable
     /// <param name="table">The name of the table that will get the primary key.</param>
     /// <param name="columns">The name of the column or columns that are in the primary key.</param>
     void AddPrimaryKey(string name, string table, params string[] columns);
+
     void AddPrimaryKeyNonClustered(string name, string table, params string[] columns);
     /// <summary>
     /// Add a constraint to a table
