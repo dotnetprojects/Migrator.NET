@@ -597,4 +597,9 @@ public class NoOpTransformationProvider : ITransformationProvider
     {
         throw new NotImplementedException();
     }
+
+    public virtual void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns)
+    {
+        throw new NotImplementedException();
+    }
 }

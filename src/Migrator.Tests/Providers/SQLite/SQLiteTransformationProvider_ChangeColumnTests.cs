@@ -43,6 +43,9 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
         Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (2, 3)");
 
         // Assert
+        var createScriptAfter = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
+        Assert.That(createScriptAfter, Does.Contain("Color2 TEXT NULL UNIQUE"));
+
         using var command = Provider.GetCommand();
         using var reader = Provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
         reader.Read();
@@ -64,5 +67,27 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
         CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
+    }
+
+    [Test]
+    public void ChangeColumn_StringFromNullToNotNull_StillNotNull()
+    {
+        // Arrange
+        const string testTableName = "MyDefaultTestTable";
+        const string propertyName1 = "Color1";
+        const string propertyName2 = "Color2";
+
+        Provider.AddTable(testTableName,
+            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(propertyName2, DbType.String, 100, ColumnProperty.Null)
+        );
+
+        // Act
+        Provider.ChangeColumn(table: testTableName, new Column(propertyName2, DbType.String, ColumnProperty.NotNull));
+
+
+        // Assert
+        var createScriptAfter = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
+        Assert.That(createScriptAfter, Does.Contain("Color2 TEXT NOT NULL"));
     }
 }

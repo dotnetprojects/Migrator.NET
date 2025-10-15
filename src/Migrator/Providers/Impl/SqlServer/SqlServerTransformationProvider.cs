@@ -69,6 +69,59 @@ public class SqlServerTransformationProvider : TransformationProvider
         Dialect.RegisterProperty(ColumnProperty.CaseSensitive, "COLLATE " + collationString.Replace("_CI_", "_CS_"));
     }
 
+    public override void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns)
+    {
+        orderBySourceColumns ??= [];
+
+        if (!TableExists(sourceTableName))
+        {
+            throw new Exception($"Source table '{QuoteTableNameIfRequired(sourceTableName)}' does not exist");
+        }
+
+        if (!TableExists(targetTableName))
+        {
+            throw new Exception($"Target table '{QuoteTableNameIfRequired(targetTableName)}' does not exist");
+        }
+
+        var sourceColumnsConcatenated = sourceColumnNames.Concat(orderBySourceColumns);
+
+        foreach (var column in sourceColumnsConcatenated)
+        {
+            if (!ColumnExists(sourceTableName, column))
+            {
+                throw new Exception($"Column {column} in source table does not exist.");
+            }
+        }
+
+        foreach (var column in targetColumnNames)
+        {
+            if (!ColumnExists(targetTableName, column))
+            {
+                throw new Exception($"Column {column} in target table does not exist.");
+            }
+        }
+
+        if (!orderBySourceColumns.All(x => sourceColumnNames.Contains(x)))
+        {
+            throw new Exception($"All columns in {nameof(orderBySourceColumns)} must be in {nameof(sourceColumnNames)}");
+        }
+
+        var sourceTableNameQuoted = QuoteTableNameIfRequired(sourceTableName);
+        var targetTableNameQuoted = QuoteTableNameIfRequired(targetTableName);
+
+        var sourceColumnNamesQuoted = sourceColumnNames.Select(QuoteColumnNameIfRequired).ToList();
+        var targetColumnNamesQuoted = targetColumnNames.Select(QuoteColumnNameIfRequired).ToList();
+        var orderBySourceColumnsQuoted = orderBySourceColumns.Select(QuoteColumnNameIfRequired).ToList();
+
+        var sourceColumnsJoined = string.Join(", ", sourceColumnNamesQuoted);
+        var targetColumnsJoined = string.Join(", ", targetColumnNamesQuoted);
+        var orderBySourceColumnsJoined = string.Join(", ", orderBySourceColumnsQuoted);
+
+
+        var sql = $"INSERT INTO {targetTableNameQuoted} ({targetColumnsJoined}) SELECT {sourceColumnsJoined} FROM {sourceTableNameQuoted} ORDER BY {orderBySourceColumnsJoined}";
+        ExecuteNonQuery(sql);
+    }
+
     public override bool TableExists(string tableName)
     {
         // This is not clean! Usually you should use schema as well as this query will find tables in other tables as well!
