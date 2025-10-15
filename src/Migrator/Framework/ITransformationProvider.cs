@@ -344,6 +344,16 @@ public interface ITransformationProvider : IDisposable
     bool ConstraintExists(string table, string name);
 
     /// <summary>
+    /// Copies data from source table to target table using INSERT INTO...SELECT..FROM
+    /// </summary>
+    /// <param name="sourceTableName"></param>
+    /// <param name="sourceColumnNames"></param>
+    /// <param name="targetTableName"></param>
+    /// <param name="targetColumnNames"></param>
+    /// <param name="orderBySourceColumns">Sort source by these columns. <paramref name="sourceColumnNames"/> must contain the <paramref name="orderBySourceColumns"/>.
+    void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns);
+
+    /// <summary>
     /// Check to see if a primary key constraint exists on the table
     /// </summary>
     /// <param name="name">The name of the primary key</param>
