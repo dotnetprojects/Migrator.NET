@@ -2233,7 +2233,7 @@ public abstract class TransformationProvider : ITransformationProvider
         }
     }
 
-    public virtual void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns)
+    public virtual void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns = null)
     {
         throw new NotImplementedException();
     }
