@@ -818,7 +818,7 @@ public class OracleTransformationProvider : TransformationProvider
         }
     }
 
-    public override void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns)
+    public override void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns = null)
     {
         orderBySourceColumns ??= [];
 
@@ -866,8 +866,15 @@ public class OracleTransformationProvider : TransformationProvider
         var targetColumnsJoined = string.Join(", ", targetColumnNamesQuoted);
         var orderBySourceColumnsJoined = string.Join(", ", orderBySourceColumnsQuoted);
 
+        var orderByComponent = !string.IsNullOrWhiteSpace(orderBySourceColumnsJoined) ? $"ORDER BY {orderBySourceColumnsJoined}" : null;
 
-        var sql = $"INSERT INTO {targetTableNameQuoted} ({targetColumnsJoined}) SELECT {sourceColumnsJoined} FROM {sourceTableNameQuoted} ORDER BY {orderBySourceColumnsJoined}";
+        List<string> sqlComponents =
+        [
+            $"INSERT INTO {targetTableNameQuoted} ({targetColumnsJoined}) SELECT {sourceColumnsJoined} FROM {sourceTableNameQuoted}",
+            orderByComponent
+        ];
+
+        var sql = string.Join(" ", sqlComponents.Where(x => x != null));
         ExecuteNonQuery(sql);
     }
 

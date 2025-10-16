@@ -346,13 +346,14 @@ public interface ITransformationProvider : IDisposable
 
     /// <summary>
     /// Copies data from source table to target table using INSERT INTO...SELECT..FROM
+    /// Be aware that the order of <paramref name="sourceColumnNames"/> and <paramref name="targetColumnNames"/> matters.
     /// </summary>
     /// <param name="sourceTableName"></param>
     /// <param name="sourceColumnNames"></param>
     /// <param name="targetTableName"></param>
     /// <param name="targetColumnNames"></param>
     /// <param name="orderBySourceColumns">Sort source by these columns. <paramref name="sourceColumnNames"/> must contain the <paramref name="orderBySourceColumns"/>.
-    void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns);
+    void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns = null);
 
     /// <summary>
     /// Check to see if a primary key constraint exists on the table
