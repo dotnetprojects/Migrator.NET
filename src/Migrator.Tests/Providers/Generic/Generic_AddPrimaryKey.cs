@@ -44,4 +44,28 @@ public abstract class Generic_AddPrimaryTestsBase : TransformationProviderBase
         Assert.That(list[0].Item1, Is.EqualTo(1));
         Assert.That(list[1].Item1, Is.EqualTo(2));
     }
+
+    [Test]
+    public void AddPrimaryKey_AddPrimaryKey_ShouldStillBeNotNull()
+    {
+        // Arrange
+        const string tableName = "TestTable";
+        const string columnName1 = "TestColumn1";
+        const string columnName2 = "TestColumn2";
+
+        Provider.AddTable(tableName,
+            new Column(columnName1, DbType.Int32, property: ColumnProperty.NotNull),
+            new Column(columnName2, DbType.DateTime, property: ColumnProperty.NotNull)
+        );
+
+        // Act
+        Provider.AddPrimaryKey(name: "MyPkName", table: tableName, columnName1);
+
+        // Assert
+        var column1 = Provider.GetColumnByName(table: tableName, column: columnName1);
+        var column2 = Provider.GetColumnByName(table: tableName, column: columnName2);
+
+        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+    }
 }

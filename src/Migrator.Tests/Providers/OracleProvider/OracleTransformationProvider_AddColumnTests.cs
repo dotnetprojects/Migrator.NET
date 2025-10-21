@@ -1,29 +1,39 @@
 using System.Data;
+using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using Migrator.Tests.Providers.Base;
 using NUnit.Framework;
 
-namespace Migrator.Tests.Providers.Generic;
+namespace Migrator.Tests.Providers.OracleProvider;
 
-public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
+[TestFixture]
+[Category("Oracle")]
+public class OracleTransformationProvider_AddColumn_Tests : TransformationProviderBase
 {
+    [SetUp]
+    public async Task SetUpAsync()
+    {
+        await BeginOracleTransactionAsync();
+    }
+
     [Test]
-    public void ChangeColumn_NotNullAndNullToNotNull_Success()
+    public void AddTable_NotNull_OtherColumnStillNotNull()
     {
         // Arrange
         var tableName = "TableName";
         var column1Name = "Column1";
         var column2Name = "Column2";
 
-        // Act
+
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.DateTime, ColumnProperty.NotNull),
-            new Column(column2Name, DbType.DateTime, ColumnProperty.Null)
+            new Column(column1Name, DbType.Int32, ColumnProperty.NotNull)
         );
 
+        // Act
+        Provider.AddColumn(table: tableName, column: new Column(column2Name, DbType.DateTime, ColumnProperty.NotNull));
+
+
         // Assert
-        Provider.ChangeColumn(tableName, new Column(column1Name, DbType.DateTime2, ColumnProperty.NotNull));
-        Provider.ChangeColumn(tableName, new Column(column2Name, DbType.DateTime2, ColumnProperty.NotNull));
         var column1 = Provider.GetColumnByName(tableName, column1Name);
         var column2 = Provider.GetColumnByName(tableName, column2Name);
 
