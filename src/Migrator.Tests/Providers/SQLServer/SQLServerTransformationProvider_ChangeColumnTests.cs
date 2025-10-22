@@ -8,7 +8,7 @@ namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
 [Category("SqlServer")]
-public class SQLServerTransformationProvider_ChangeColumnTests : Generic_AddIndexTestsBase
+public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeColumnTestsBase
 {
     [SetUp]
     public async Task SetUpAsync()
