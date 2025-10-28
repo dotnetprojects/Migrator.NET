@@ -1,16 +1,23 @@
 using System.Data.SQLite;
 using System.Linq;
+using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using Migrator.Tests.Providers.SQLite.Base;
+using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLite;
 
 [TestFixture]
 [Category("SQLite")]
-public class SQLiteTransformationProvider_AddTableTests : SQLiteTransformationProviderTestBase
+public class SQLiteTransformationProvider_AddTableTests : Generic_AddTableTestsBase
 {
+    [SetUp]
+    public async Task SetUpAsync()
+    {
+        await BeginSQLiteTransactionAsync();
+    }
+
     [Test]
     public void AddTable_UniqueOnlyOnColumnLevel_Obsolete_UniquesListIsEmpty()
     {

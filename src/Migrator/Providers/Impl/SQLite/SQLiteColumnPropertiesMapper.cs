@@ -41,6 +41,6 @@ public class SQLiteColumnPropertiesMapper : ColumnPropertiesMapper
 
     protected virtual void AddValueIfSelected(Column column, ColumnProperty property, ICollection<string> vals)
     {
-        vals.Add(dialect.SqlForProperty(property, column));
+        vals.Add(_Dialect.SqlForProperty(property, column));
     }
 }

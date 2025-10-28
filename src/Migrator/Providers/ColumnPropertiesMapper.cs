@@ -12,30 +12,30 @@ public class ColumnPropertiesMapper
     /// <summary>
     /// the type of the column
     /// </summary>
-    protected string columnSql;
+    protected string _ColumnSql;
 
     /// <summary>
     /// Sql if this column has a default value
     /// </summary>
-    protected object defaultVal;
+    protected object _DefaultVal;
 
-    protected Dialect dialect;
+    protected Dialect _Dialect;
 
     /// <summary>
     /// Sql if This column is Indexed
     /// </summary>
-    protected bool indexed;
+    protected bool _Indexed;
 
     /// <summary>The name of the column</summary>
-    protected string name;
+    protected string _Name;
 
     /// <summary>The SQL type</summary>
-    public string type { get; private set; }
+    public string Type { get; private set; }
 
-    public ColumnPropertiesMapper(Dialect dialect, string type)
+    public ColumnPropertiesMapper(Dialect dialect, string typeString)
     {
-        this.dialect = dialect;
-        this.type = type;
+        _Dialect = dialect;
+        Type = typeString;
     }
 
     /// <summary>
@@ -43,33 +43,33 @@ public class ColumnPropertiesMapper
     /// </summary>
     public virtual string ColumnSql
     {
-        get { return columnSql; }
+        get { return _ColumnSql; }
     }
 
     public string Name
     {
-        get { return name; }
-        set { name = value; }
+        get { return _Name; }
+        set { _Name = value; }
     }
 
     public object Default
     {
-        get { return defaultVal; }
-        set { defaultVal = value; }
+        get { return _DefaultVal; }
+        set { _DefaultVal = value; }
     }
 
     public string QuotedName
     {
-        get { return dialect.Quote(Name); }
+        get { return _Dialect.Quote(Name); }
     }
 
     public string IndexSql
     {
         get
         {
-            if (dialect.SupportsIndex && indexed)
+            if (_Dialect.SupportsIndex && _Indexed)
             {
-                return string.Format("INDEX({0})", dialect.Quote(name));
+                return string.Format("INDEX({0})", _Dialect.Quote(_Name));
             }
 
             return null;
@@ -80,7 +80,7 @@ public class ColumnPropertiesMapper
     {
         Name = column.Name;
 
-        indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
 
         var vals = new List<string>();
 
@@ -110,14 +110,14 @@ public class ColumnPropertiesMapper
 
         AddDefaultValue(column, vals);
 
-        columnSql = string.Join(" ", vals.ToArray());
+        _ColumnSql = string.Join(" ", vals.ToArray());
     }
 
     public virtual void MapColumnPropertiesWithoutDefault(Column column)
     {
         Name = column.Name;
 
-        indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
 
         var vals = new List<string>();
 
@@ -145,7 +145,7 @@ public class ColumnPropertiesMapper
 
         AddForeignKey(column, vals);
 
-        columnSql = string.Join(" ", vals.ToArray());
+        _ColumnSql = string.Join(" ", vals.ToArray());
     }
 
     protected virtual void AddCaseSensitive(Column column, List<string> vals)
@@ -157,7 +157,7 @@ public class ColumnPropertiesMapper
     {
         if (column.DefaultValue != null)
         {
-            vals.Add(dialect.Default(column.DefaultValue));
+            vals.Add(_Dialect.Default(column.DefaultValue));
         }
     }
 
@@ -174,14 +174,14 @@ public class ColumnPropertiesMapper
 
     protected virtual void AddIdentityAgain(Column column, List<string> vals)
     {
-        if (dialect.IdentityNeedsType)
+        if (_Dialect.IdentityNeedsType)
         {
             AddValueIfSelected(column, ColumnProperty.Identity, vals);
         }
     }
     protected virtual void AddPrimaryKeyNonClustered(Column column, List<string> vals)
     {
-        if (dialect.SupportsNonClustered)
+        if (_Dialect.SupportsNonClustered)
         {
             AddValueIfSelected(column, ColumnProperty.PrimaryKeyNonClustered, vals);
         }
@@ -195,7 +195,7 @@ public class ColumnPropertiesMapper
     {
         if (!PropertySelected(column.ColumnProperty, ColumnProperty.PrimaryKey))
         {
-            if (dialect.NeedsNullForNullableWhenAlteringTable)
+            if (_Dialect.NeedsNullForNullableWhenAlteringTable)
             {
                 AddValueIfSelected(column, ColumnProperty.Null, vals);
             }
@@ -204,7 +204,7 @@ public class ColumnPropertiesMapper
 
     protected virtual void AddNotNull(Column column, List<string> vals)
     {
-        if (!PropertySelected(column.ColumnProperty, ColumnProperty.Null) && (!PropertySelected(column.ColumnProperty, ColumnProperty.PrimaryKey) || dialect.NeedsNotNullForIdentity))
+        if (!PropertySelected(column.ColumnProperty, ColumnProperty.Null) && (!PropertySelected(column.ColumnProperty, ColumnProperty.PrimaryKey) || _Dialect.NeedsNotNullForIdentity))
         {
             AddValueIfSelected(column, ColumnProperty.NotNull, vals);
         }
@@ -212,7 +212,7 @@ public class ColumnPropertiesMapper
 
     protected virtual void AddUnsigned(Column column, List<string> vals)
     {
-        if (dialect.IsUnsignedCompatible(column.Type))
+        if (_Dialect.IsUnsignedCompatible(column.Type))
         {
             AddValueIfSelected(column, ColumnProperty.Unsigned, vals);
         }
@@ -220,7 +220,7 @@ public class ColumnPropertiesMapper
 
     protected virtual void AddIdentity(Column column, List<string> vals)
     {
-        if (!dialect.IdentityNeedsType)
+        if (!_Dialect.IdentityNeedsType)
         {
             AddValueIfSelected(column, ColumnProperty.Identity, vals);
         }
@@ -228,19 +228,19 @@ public class ColumnPropertiesMapper
 
     protected virtual void AddType(List<string> vals)
     {
-        vals.Add(type);
+        vals.Add(Type);
     }
 
     protected virtual void AddName(List<string> vals)
     {
-        vals.Add(dialect.ColumnNameNeedsQuote || dialect.IsReservedWord(Name) ? QuotedName : Name);
+        vals.Add(_Dialect.ColumnNameNeedsQuote || _Dialect.IsReservedWord(Name) ? QuotedName : Name);
     }
 
     protected virtual void AddValueIfSelected(Column column, ColumnProperty property, ICollection<string> vals)
     {
         if (PropertySelected(column.ColumnProperty, property))
         {
-            vals.Add(dialect.SqlForProperty(property, column));
+            vals.Add(_Dialect.SqlForProperty(property, column));
         }
     }
 

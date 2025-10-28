@@ -1,7 +1,9 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Models;
+using DotNetProjects.Migrator.Providers.Impl.Oracle.Data;
+using DotNetProjects.Migrator.Providers.Impl.Oracle.Data.Interfaces;
+using DotNetProjects.Migrator.Providers.Impl.Oracle.Interfaces;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Models;
-using DotNetProjects.Migrator.Providers.Models;
 using DotNetProjects.Migrator.Providers.Models.Indexes;
 using System;
 using System.Collections.Generic;
@@ -15,19 +17,22 @@ using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 
-public class OracleTransformationProvider : TransformationProvider
+public class OracleTransformationProvider : TransformationProvider, IOracleTransformationProvider
 {
+    private IOracleSystemDataLoader _oracleSystemDataLoader;
     public const string TemporaryColumnName = "TEMPCOL";
 
     public OracleTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
         : base(dialect, connectionString, defaultSchema, scope)
     {
         CreateConnection(providerName);
+        Initialize();
     }
 
     public OracleTransformationProvider(Dialect dialect, IDbConnection connection, string defaultSchema, string scope, string providerName)
        : base(dialect, connection, defaultSchema, scope)
     {
+        Initialize();
     }
 
     protected virtual void CreateConnection(string providerName)
@@ -54,46 +59,7 @@ public class OracleTransformationProvider : TransformationProvider
     public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
     {
         var constraints = new List<ForeignKeyConstraint>();
-        var sb = new StringBuilder();
-        sb.AppendLine("SELECT");
-        sb.AppendLine("  a.OWNER AS TABLE_SCHEMA,");
-        sb.AppendLine("  c.CONSTRAINT_NAME AS FK_KEY,");
-        sb.AppendLine("  a.TABLE_NAME AS CHILD_TABLE,");
-        sb.AppendLine("  a.COLUMN_NAME AS CHILD_COLUMN,");
-        sb.AppendLine("  c_pk.TABLE_NAME AS PARENT_TABLE,");
-        sb.AppendLine("  col_pk.COLUMN_NAME AS PARENT_COLUMN");
-        sb.AppendLine("FROM ");
-        sb.AppendLine("  ALL_CONS_COLUMNS a ");
-        sb.AppendLine("JOIN ALL_CONSTRAINTS c");
-        sb.AppendLine("  ON a.owner = c.owner AND a.CONSTRAINT_NAME = c.CONSTRAINT_NAME");
-        sb.AppendLine("JOIN ALL_CONSTRAINTS c_pk");
-        sb.AppendLine("  ON c.R_OWNER = c_pk.OWNER AND c.R_CONSTRAINT_NAME = c_pk.CONSTRAINT_NAME");
-        sb.AppendLine("JOIN ALL_CONS_COLUMNS col_pk");
-        sb.AppendLine("  ON c_pk.CONSTRAINT_NAME = col_pk.CONSTRAINT_NAME AND c_pk.OWNER = col_pk.OWNER AND a.POSITION = col_pk.POSITION");
-        sb.AppendLine($"WHERE LOWER(a.TABLE_NAME) = LOWER('{table}') AND c.CONSTRAINT_TYPE  = 'R'");
-        sb.AppendLine("ORDER BY a.POSITION");
-
-        var sql = sb.ToString();
-        List<ForeignKeyConstraintItem> foreignKeyConstraintItems = [];
-
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, sql))
-        {
-            while (reader.Read())
-            {
-                var constraintItem = new ForeignKeyConstraintItem
-                {
-                    SchemaName = reader.GetString(reader.GetOrdinal("TABLE_SCHEMA")),
-                    ForeignKeyName = reader.GetString(reader.GetOrdinal("FK_KEY")),
-                    ChildTableName = reader.GetString(reader.GetOrdinal("CHILD_TABLE")),
-                    ChildColumnName = reader.GetString(reader.GetOrdinal("CHILD_COLUMN")),
-                    ParentTableName = reader.GetString(reader.GetOrdinal("PARENT_TABLE")),
-                    ParentColumnName = reader.GetString(reader.GetOrdinal("PARENT_COLUMN"))
-                };
-
-                foreignKeyConstraintItems.Add(constraintItem);
-            }
-        }
+        var foreignKeyConstraintItems = _oracleSystemDataLoader.GetForeignKeyConstraintItems(table);
 
         var schemaChildTableGroups = foreignKeyConstraintItems.GroupBy(x => new { x.SchemaName, x.ChildTableName }).Count();
 
@@ -266,7 +232,7 @@ public class OracleTransformationProvider : TransformationProvider
             if (((existingColumn.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull)
                 && ((column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull))
             {
-                // was not null, 	and is being change to not-null - drop the not-null all together
+                // was not null, and is being change to not-null - drop the not-null all together
                 column.ColumnProperty = column.ColumnProperty & ~ColumnProperty.NotNull;
             }
             else if
@@ -500,6 +466,9 @@ public class OracleTransformationProvider : TransformationProvider
         stringBuilder2.AppendLine("      data_default VARCHAR2(4000) PATH 'DATA_DEFAULT'");
         stringBuilder2.AppendLine(") x");
 
+        var userTabIdentityCols = _oracleSystemDataLoader.GetUserTabIdentityCols(tableName: table);
+        var primaryKeyItems = _oracleSystemDataLoader.GetPrimaryKeyItems(tableName: table);
+
         List<UserTabColumns> userTabColumns = [];
 
         using (var cmd = CreateCommand())
@@ -548,6 +517,22 @@ public class OracleTransformationProvider : TransformationProvider
                 {
                     ColumnProperty = isNullable ? ColumnProperty.Null : ColumnProperty.NotNull
                 };
+
+                var isIdentity = userTabIdentityCols.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+                var isPrimaryKey = primaryKeyItems.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+
+                if (isIdentity && isPrimaryKey)
+                {
+                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKeyWithIdentity);
+                }
+                else if (isIdentity)
+                {
+                    column.ColumnProperty.Set(ColumnProperty.Identity);
+                }
+                else if (isPrimaryKey)
+                {
+                    column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
+                }
 
                 // Oracle does not have unsigned types. All NUMBER types can hold positive or negative values so we do not return DbType.UIntX types.
                 if (dataTypeString.StartsWith("NUMBER") || dataTypeString.StartsWith("FLOAT"))
@@ -645,7 +630,8 @@ public class OracleTransformationProvider : TransformationProvider
                     throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
                 }
 
-                if (!string.IsNullOrWhiteSpace(dataDefaultString))
+                // dataDefaultString contains ISEQ$$ if the column is an identity column
+                if (!string.IsNullOrWhiteSpace(dataDefaultString) && !dataDefaultString.Contains("ISEQ$$") && !dataDefaultString.Contains(".nextval"))
                 {
                     // This is only necessary because older versions of this migrator added single quotes for numerics.
                     var singleQuoteStrippedString = dataDefaultString.Replace("'", "");
@@ -887,6 +873,7 @@ public class OracleTransformationProvider : TransformationProvider
     public override void AddTable(string name, params IDbField[] fields)
     {
         GuardAgainstMaximumIdentifierLengthForOracle(name);
+        name = QuoteTableNameIfRequired(name);
 
         var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
 
@@ -898,29 +885,27 @@ public class OracleTransformationProvider : TransformationProvider
         if (columns.Any(c => c.ColumnProperty == ColumnProperty.PrimaryKeyWithIdentity ||
             (c.ColumnProperty.HasFlag(ColumnProperty.Identity) && c.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey))))
         {
-            var identityColumn = columns.First(c => c.ColumnProperty == ColumnProperty.PrimaryKeyWithIdentity ||
-                (c.ColumnProperty.HasFlag(ColumnProperty.Identity) && c.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey)));
+            var identityColumn = columns.First(x => x.ColumnProperty.HasFlag(ColumnProperty.Identity) && x.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey));
 
-            var seqTName = name.Length > 21 ? name.Substring(0, 21) : name;
-            if (seqTName.EndsWith("_"))
+            List<DbType> allowedIdentityDbTypes = [DbType.Int16, DbType.Int32, DbType.Int64];
+
+            if (!allowedIdentityDbTypes.Contains(identityColumn.Type))
             {
-                seqTName = seqTName.Substring(0, seqTName.Length - 1);
+                throw new MigrationException($"Identity columns can only be used with {nameof(DbType.Int16)}, {nameof(DbType.Int32)} and {nameof(DbType.Int64)}");
             }
 
-            // Create a sequence for the table
-            using (var cmd = CreateCommand())
-            {
-                ExecuteQuery(cmd, string.Format("CREATE SEQUENCE {0}_SEQUENCE NOCACHE", seqTName));
-            }
+            var identityColumnNameQuoted = QuoteColumnNameIfRequired(identityColumn.Name);
 
-            // Create identity trigger (This all has to be in one line (no whitespace), I learned the hard way :) )
-            using (var cmd = CreateCommand())
-            {
-                ExecuteQuery(cmd, string.Format(
-                @"CREATE OR REPLACE TRIGGER {0}_TRIGGER BEFORE INSERT ON {1} FOR EACH ROW BEGIN SELECT {0}_SEQUENCE.NEXTVAL INTO :NEW.{2} FROM DUAL; END;", seqTName, name, identityColumn.Name));
-            }
+            using var cmd = CreateCommand();
+            // We use ALWAYS in order to prevent sequence problems in cases of misuse of the column by an unexperienced user. Inserting data will result in an exception.
+            ExecuteQuery(cmd, $"ALTER TABLE {name} MODIFY {identityColumnNameQuoted} GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE)");
+        }
+        else if (columns.Any(x => x.ColumnProperty.HasFlag(ColumnProperty.Identity) && !x.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey)))
+        {
+            throw new MigrationException("Identity without Primary is currently not supported by this migrator");
         }
     }
+
     public override void RemoveTable(string name)
     {
         base.RemoveTable(name);
@@ -1117,5 +1102,10 @@ public class OracleTransformationProvider : TransformationProvider
     public override string Concatenate(params string[] strings)
     {
         return string.Join(" || ", strings);
+    }
+
+    private void Initialize()
+    {
+        _oracleSystemDataLoader = new OracleSystemDataLoader(this);
     }
 }

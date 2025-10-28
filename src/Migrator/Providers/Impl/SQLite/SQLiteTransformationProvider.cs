@@ -1304,6 +1304,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             {
                 if (afterWhereRegex.Match(script) is Match match && match.Success)
                 {
+                    // We cannot use GeneratedRegexAttribute due to old .NET version
                     var andSplitted = Regex.Split(match.Value, " AND ");
 
                     var filterSingleStrings = andSplitted

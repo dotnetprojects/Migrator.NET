@@ -50,8 +50,10 @@ public class OracleDialect : Dialect
         RegisterColumnType(DbType.Guid, "RAW(16)");
         RegisterColumnType(MigratorDbType.Interval, "interval day (9) to second (9)");
 
+        RegisterProperty(ColumnProperty.Identity, "GENERATED ALWAYS AS IDENTITY");
+
         // the original Migrator.Net code had this, but it's a bad idea - when
-        // apply a "null" migration to a "not-null" field, it just leaves it as "not-null" and silent fails
+        // apply a "null" migration to a "not-null" field, it just leaves it as "not-null" and it silently fails
         // because Oracle doesn't consider ALTER TABLE <table> MODIFY (column <type>) as being a request to make the field null.
 
         //RegisterProperty(ColumnProperty.Null, String.Empty);
@@ -61,34 +63,14 @@ public class OracleDialect : Dialect
 
     // in Oracle, this:  ALTER TABLE EXTERNALSYSTEMREFERENCES MODIFY (TestScriptId RAW(16)) will no make the column nullable, it just leaves it at it's current null/not-null state
 
-    public override int MaxFieldNameLength
-    {
-        get { return 30; }
-    }
 
-    public override int MaxKeyLength
-    {
-        get { return 767; }
-    }
-
-    public override bool NeedsNullForNullableWhenAlteringTable
-    {
-        get { return true; }
-    }
-
-    public override bool ColumnNameNeedsQuote
-    {
-        get { return false; }
-    }
-
-    public override bool ConstraintNameNeedsQuote
-    {
-        get { return false; }
-    }
-    public override bool TableNameNeedsQuote
-    {
-        get { return false; }
-    }
+    public override bool ColumnNameNeedsQuote => false;
+    public override bool ConstraintNameNeedsQuote => false;
+    public override bool IdentityNeedsType => false;
+    public override bool NeedsNullForNullableWhenAlteringTable => true;
+    public override bool TableNameNeedsQuote => false;
+    public override int MaxFieldNameLength => 30;
+    public override int MaxKeyLength => 767;
 
     public override ITransformationProvider GetTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
     {
@@ -104,19 +86,15 @@ public class OracleDialect : Dialect
 
     public override ColumnPropertiesMapper GetColumnMapper(Column column)
     {
-        var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
+        var typeString = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
 
         if (column.Precision.HasValue || column.Scale.HasValue)
         {
-            type = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 0, column.Scale ?? 0);
+            typeString = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 0, column.Scale ?? 0);
         }
 
-        if (!IdentityNeedsType && column.IsIdentity)
-        {
-            type = string.Empty;
-        }
 
-        return new OracleColumnPropertiesMapper(this, type);
+        return new OracleColumnPropertiesMapper(this, typeString);
     }
 
     public override string Default(object defaultValue)

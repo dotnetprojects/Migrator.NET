@@ -51,8 +51,9 @@ public interface IDialect
     DbType GetDbType(string databaseTypeName);
 
     void RegisterProperty(ColumnProperty property, string sql);
+
     string SqlForProperty(ColumnProperty property, Column column);
-    string Quote(string value);
+
     string Default(object defaultValue);
 
     /// <summary>
@@ -61,4 +62,25 @@ public interface IDialect
     /// <param name="type">The DbType</param>
     /// <returns>True if the database type has an unsigned variant, otherwise false</returns>
     bool IsUnsignedCompatible(DbType type);
+
+    /// <summary>
+    /// Quotes the string.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    string Quote(string value);
+
+    /// <summary>
+    /// Quotes the table name if necessary.
+    /// </summary>
+    /// <param name="tableName"></param>
+    /// <returns></returns>
+    string QuoteTableNameIfRequired(string tableName);
+
+    /// <summary>
+    /// Quotes the column name if necessary.
+    /// </summary>
+    /// <param name="columnName"></param>
+    /// <returns></returns>
+    string QuoteColumnNameIfRequired(string columnName);
 }

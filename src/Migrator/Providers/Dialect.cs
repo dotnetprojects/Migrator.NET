@@ -349,6 +349,26 @@ public abstract class Dialect : IDialect
         return string.Format(QuoteTemplate, value);
     }
 
+    public virtual string QuoteColumnNameIfRequired(string columnName)
+    {
+        if (ColumnNameNeedsQuote || IsReservedWord(columnName))
+        {
+            return Quote(columnName);
+        }
+
+        return columnName;
+    }
+
+    public virtual string QuoteTableNameIfRequired(string tableName)
+    {
+        if (TableNameNeedsQuote || IsReservedWord(tableName))
+        {
+            return Quote(tableName);
+        }
+
+        return tableName;
+    }
+
     public virtual string Default(object defaultValue)
     {
         if (defaultValue is string && defaultValue.ToString() == string.Empty)

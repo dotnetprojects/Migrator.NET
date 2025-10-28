@@ -359,7 +359,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider
 
         var mapper = _dialect.GetAndMapColumnProperties(column);
 
-        var change1 = string.Format("{0} TYPE {1}", QuoteColumnNameIfRequired(mapper.Name), mapper.type);
+        var change1 = string.Format("{0} TYPE {1}", QuoteColumnNameIfRequired(mapper.Name), mapper.Type);
 
         if ((oldColumn.MigratorDbType == MigratorDbType.Int16 || oldColumn.MigratorDbType == MigratorDbType.Int32 || oldColumn.MigratorDbType == MigratorDbType.Int64 || oldColumn.MigratorDbType == MigratorDbType.Decimal) && column.MigratorDbType == MigratorDbType.Boolean)
         {
