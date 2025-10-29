@@ -94,7 +94,7 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
             var columnDefaultOrdinal = reader.GetOrdinal("COLUMN_DEFAULT");
             var columnNameOrdinal = reader.GetOrdinal("COLUMN_NAME");
             var dataTypeOrdinal = reader.GetOrdinal("DATA_TYPE");
-            var dateTimePrecision = reader.GetOrdinal("DATETIME_PRECISION");
+            var dateTimePrecisionOrdinal = reader.GetOrdinal("DATETIME_PRECISION");
             var identityGenerationOrdinal = reader.GetOrdinal("IDENTITY_GENERATION");
             var isIdentityOrdinal = reader.GetOrdinal("IS_IDENTITY");
             var isNullableOrdinal = reader.GetOrdinal("IS_NULLABLE");
@@ -106,16 +106,16 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
 
             var columnInfo = new ColumnInfo
             {
-                CharacterMaximumLength = !reader.IsDBNull(columnDefaultOrdinal) ? reader.GetInt32(characterMaximumLength) : null,
+                CharacterMaximumLength = !reader.IsDBNull(characterMaximumLength) ? reader.GetInt32(characterMaximumLength) : null,
                 ColumnDefault = !reader.IsDBNull(columnDefaultOrdinal) ? reader.GetString(columnDefaultOrdinal) : null,
                 ColumnName = reader.GetString(columnNameOrdinal),
                 DataType = reader.GetString(dataTypeOrdinal),
-                DateTimePrecision = !reader.IsDBNull(columnDefaultOrdinal) ? reader.GetInt32(dateTimePrecision) : null,
-                IdentityGeneration = !reader.IsDBNull(columnDefaultOrdinal) ? reader.GetString(identityGenerationOrdinal) : null,
+                DateTimePrecision = !reader.IsDBNull(dateTimePrecisionOrdinal) ? reader.GetInt32(dateTimePrecisionOrdinal) : null,
+                IdentityGeneration = !reader.IsDBNull(identityGenerationOrdinal) ? reader.GetString(identityGenerationOrdinal) : null,
                 IsIdentity = reader.GetString(isIdentityOrdinal),
                 IsNullable = reader.GetString(isNullableOrdinal),
-                NumericPrecision = !reader.IsDBNull(columnDefaultOrdinal) ? reader.GetInt32(numericPrecisionOrdinal) : null,
-                NumericScale = !reader.IsDBNull(columnDefaultOrdinal) ? reader.GetInt32(numericScaleOrdinal) : null,
+                NumericPrecision = !reader.IsDBNull(numericPrecisionOrdinal) ? reader.GetInt32(numericPrecisionOrdinal) : null,
+                NumericScale = !reader.IsDBNull(numericScaleOrdinal) ? reader.GetInt32(numericScaleOrdinal) : null,
                 OrdinalPosition = reader.GetInt32(ordinalPositionOrdinal),
                 TableName = reader.GetString(tableNameOrdinal),
                 TableSchema = reader.GetString(tableSchemaOrdinal),
