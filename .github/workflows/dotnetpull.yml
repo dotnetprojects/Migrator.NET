@@ -70,7 +70,8 @@ jobs:
             9.0.x
       - name: Install Microsoft GPG apt-key
         run: |
-          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+          wget https://packages.microsoft.com/keys/microsoft.asc -O microsoft.gpg
+          gpg --dearmor < microsoft.asc > microsoft.gpg
           sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
       - name: Add Microsoft SQL Server repo
         run: |
