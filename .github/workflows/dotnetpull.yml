@@ -73,7 +73,7 @@ jobs:
           curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
       - name: Add Microsoft SQL Server repo
         run: |
-          curl https://packages.microsoft.com/config/ubuntu/25.10/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+          curl https://packages.microsoft.com/config/ubuntu/24.10/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
           sudo apt-get update
       - name: Install SQLCMD tools
         run: |
