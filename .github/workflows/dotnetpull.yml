@@ -76,7 +76,8 @@ jobs:
           sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
       - name: Add Microsoft SQL Server repo
         run: |
-          sudo tee /etc/apt/sources.list.d/mssql-release.list > /dev/null <<EOF deb [arch=amd64] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main EOF
+          sudo apt-key add /etc/apt/trusted.gpg.d/microsoft.gpg
+          curl https://packages.microsoft.com/config/ubuntu/25.10/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
           sudo apt-get update
       - name: Install SQLCMD tools
         run: |
