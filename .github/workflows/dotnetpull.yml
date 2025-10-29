@@ -7,7 +7,7 @@ on:
     branches: [master]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2019-latest
@@ -70,10 +70,13 @@ jobs:
             9.0.x
       - name: Install Microsoft GPG apt-key
         run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          wget https://packages.microsoft.com/keys/microsoft.asc -O microsoft.asc
+          gpg --dearmor microsoft.asc 
+          chmod 644 microsoft.asc.gpg
+          sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
       - name: Add Microsoft SQL Server repo
         run: |
-          curl https://packages.microsoft.com/config/ubuntu/24.10/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+          echo "deb [arch=amd64] https://packages.microsoft.com/config/ubuntu/22.04/prod jammy main"
           sudo apt-get update
       - name: Install SQLCMD tools
         run: |
