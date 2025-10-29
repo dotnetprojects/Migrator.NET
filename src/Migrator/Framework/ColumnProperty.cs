@@ -62,10 +62,10 @@ public enum ColumnProperty
     /// <summary>
     /// Primary key with identity. This is shorthand for <see cref="PrimaryKey"/> and <see cref="Identity"/>
     /// </summary>
-    PrimaryKeyWithIdentity = 1 << 9 | PrimaryKey | Identity,
+    PrimaryKeyWithIdentity = PrimaryKey | Identity,
 
     /// <summary>
-    /// Primary key non clustered. 
+    /// Primary key non clustered.
     /// </summary>
     PrimaryKeyNonClustered = 1 << 10 | PrimaryKey
 }
