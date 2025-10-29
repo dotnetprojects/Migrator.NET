@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using DotNetProjects.Migrator.Framework.Data.Common;
+using DotNetProjects.Migrator.Framework.Data.Models.Oracle;
 using LinqToDB;
+using LinqToDB.Async;
 using LinqToDB.Data;
+using LinqToDB.Mapping;
 using Mapster;
 using Migrator.Tests.Database.DatabaseName.Interfaces;
 using Migrator.Tests.Database.Interfaces;
@@ -16,15 +21,15 @@ namespace Migrator.Tests.Database.DerivedDatabaseIntegrationTestServices;
 
 public class OracleDatabaseIntegrationTestService(
     TimeProvider timeProvider,
-    IDatabaseNameService databaseNameService
-    // IImportExportMappingSchemaFactory importExportMappingSchemaFactory
-    )
+    IDatabaseNameService databaseNameService)
         : DatabaseIntegrationTestServiceBase(databaseNameService), IDatabaseIntegrationTestService
 {
+    private const string TableSpacePrefix = "TS_";
     private const string UserStringKey = "User Id";
     private const string PasswordStringKey = "Password";
     private const string ReplaceString = "RandomStringThatIsNotQuotedByTheBuilderDoNotChange";
-    // private readonly IImportExportMappingSchemaFactory _importExportMappingSchemaFactory = importExportMappingSchemaFactory;
+    private readonly MappingSchema _mappingSchema = new MappingSchemaFactory().CreateOracleMappingSchema();
+    private Regex _tablespaceRegex = new("^TS_TESTS_");
 
     /// <summary>
     /// Creates an oracle database for test purposes.
@@ -90,7 +95,7 @@ public class OracleDatabaseIntegrationTestService(
         {
             var creationDate = DatabaseNameService.ReadTimeStampFromString(x);
 
-            return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(MinTimeSpanBeforeDatabaseDeletion);
+            return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
         }).ToList();
 
         await Parallel.ForEachAsync(
@@ -108,6 +113,25 @@ public class OracleDatabaseIntegrationTestService(
                 await DropDatabaseAsync(databaseInfoToBeDeleted, cancellationTokenInner);
 
             });
+
+        // To be on the safe side we check for table spaces used in tests that have not been deleted for any reason (possible connection issues/concurrent deletion attempts - there is
+        // no transaction for DDL in Oracle etc.).
+        var tableSpaceNames = await context.GetTable<DBADataFiles>()
+            .Select(x => x.TablespaceName)
+            .ToListAsync(cancellationToken);
+
+        var toBeDeletedTableSpaces = tableSpaceNames
+            .Where(x =>
+            {
+                var replacedTablespaceString = _tablespaceRegex.Replace(x, "");
+                var creationDate = DatabaseNameService.ReadTimeStampFromString(replacedTablespaceString);
+                return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
+            });
+
+        foreach (var toBeDeletedTableSpace in toBeDeletedTableSpaces)
+        {
+            await context.ExecuteAsync($"DROP TABLESPACE {toBeDeletedTableSpace} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
+        }
 
         using (context = new DataConnection(dataOptions))
         {
@@ -145,61 +169,56 @@ public class OracleDatabaseIntegrationTestService(
     {
         var creationDate = ReadTimeStampFromDatabaseName(databaseInfo.SchemaName);
 
-        var dataOptions = new DataOptions().UseOracle(databaseInfo.DatabaseConnectionConfigMaster.ConnectionString);
-        // .UseMappingSchema(_importExportMappingSchemaFactory.CreateOracleMappingSchema());
+        var dataOptions = new DataOptions().UseOracle(databaseInfo.DatabaseConnectionConfigMaster.ConnectionString)
+            .UseMappingSchema(_mappingSchema);
 
         using var context = new DataConnection(dataOptions);
 
-        // var vSessions = await context.GetTable<VSession>()
-        //     .Where(x => x.UserName == databaseInfo.SchemaName)
-        //     .ToListAsync(cancellationToken);
+        var maxAttempts = 4;
+        var delayBetweenAttempts = TimeSpan.FromSeconds(1);
 
-        // await Parallel.ForEachAsync(
-        //     vSessions,
-        //     new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = cancellationToken },
-        //     async (x, cancellationTokenInner) =>
-        //     {
-        //         using var killSessionContext = new DataConnection(dataOptions);
-
-        //         var killStatement = $"ALTER SYSTEM KILL SESSION '{x.SID},{x.SerialHashTag}' IMMEDIATE";
-        //         try
-        //         {
-        //             await killSessionContext.ExecuteAsync(killStatement, cancellationToken);
-
-        //             // Oracle does not close the session immediately as they pretend so we need to wait a while
-        //             // Since this happens only in very rare cases we accept waiting for a while. 
-        //             // If nobody connects to the database this will never happen.
-        //             await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
-        //         }
-        //         catch
-        //         {
-        //             // Most probably killed by another parallel running integration test. If not, the DROP USER exception will show the details.
-        //         }
-        //     });
-
-        try
+        for (var i = 0; i < maxAttempts; i++)
         {
-            await context.ExecuteAsync($"DROP USER \"{databaseInfo.SchemaName}\" CASCADE", cancellationToken);
-        }
-        catch
-        {
-            await Task.Delay(2000, cancellationToken);
-
-            // In next Linq2db version this can be replaced by ...FromSql().First();
-            // https://github.com/linq2db/linq2db/issues/2779
-            // TODO CK create issue in Redmine and refer to it here
-            var countList = await context.QueryToListAsync<int>($"SELECT COUNT(*) FROM all_users WHERE username = '{databaseInfo.SchemaName}'", cancellationToken);
-            var count = countList.First();
-
-            if (count == 1)
+            try
             {
-                throw;
+                var vSessions = await context.GetTable<VSession>()
+                  .Where(x => x.UserName == databaseInfo.SchemaName)
+                  .ToListAsync(cancellationToken);
+
+                foreach (var session in vSessions)
+                {
+                    var killStatement = $"ALTER SYSTEM KILL SESSION '{session.SID},{session.SerialHashTag}' IMMEDIATE";
+                    await context.ExecuteAsync(killStatement, cancellationToken);
+                }
+
+                await context.ExecuteAsync($"DROP USER \"{databaseInfo.SchemaName}\" CASCADE", cancellationToken);
             }
-            else
+            catch
             {
-                // The user was removed by another asynchronously running test that kicked in earlier.
-                // That's ok for us as we have achieved the goal.
+                if (i + 1 == maxAttempts)
+                {
+                    throw;
+                }
+
+                var userExists = await context.GetTable<AllUsers>().AnyAsync(x => x.UserName == databaseInfo.SchemaName, token: cancellationToken);
+
+                if (!userExists)
+                {
+                    break;
+                }
             }
+
+            await Task.Delay(delayBetweenAttempts, cancellationToken);
+
+            delayBetweenAttempts = delayBetweenAttempts.Add(TimeSpan.FromSeconds(1));
         }
+
+        var tablespaceName = $"{TableSpacePrefix}{databaseInfo.SchemaName}";
+
+        var tablespaces = await context.GetTable<DBADataFiles>().ToListAsync(cancellationToken);
+
+        await context.ExecuteAsync($"DROP TABLESPACE {tablespaceName} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
+
+        await context.ExecuteAsync($"PURGE RECYCLEBIN", cancellationToken);
     }
 }

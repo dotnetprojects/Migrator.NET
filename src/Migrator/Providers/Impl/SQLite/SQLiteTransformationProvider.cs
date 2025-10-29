@@ -1236,6 +1236,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             var hasCompoundPrimaryKey = tableInfoPrimaryKeys.Count > 1;
 
+            // Implicit in SQLite
             if (columnTableInfoItem.Type == "INTEGER" && columnTableInfoItem.Pk == 1 && !hasCompoundPrimaryKey)
             {
                 column.ColumnProperty |= ColumnProperty.Identity;
