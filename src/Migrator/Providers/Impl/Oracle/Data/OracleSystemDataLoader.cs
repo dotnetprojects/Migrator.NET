@@ -4,6 +4,7 @@ using DotNetProjects.Migrator.Providers.Impl.Oracle.Data.Interfaces;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Interfaces;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Models;
 using DotNetProjects.Migrator.Providers.Models;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Oracle.Data;
 
@@ -95,22 +96,22 @@ public class OracleSystemDataLoader(IOracleTransformationProvider oracleTransfor
         var tableNameQuoted = _oracleTransformationProvider.QuoteTableNameIfRequired(tableName);
 
         var sql = $@"
-        SELECT
-            ucc.TABLE_NAME,
-            ucc.COLUMN_NAME,
-            ucc.POSITION,
-            uc.CONSTRAINT_NAME,
-            uc.STATUS
-        FROM
-            USER_CONSTRAINTS uc
-        JOIN
-            USER_CONS_COLUMNS ucc
-            ON uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME
-        WHERE
-            uc.CONSTRAINT_TYPE = 'P'
-            AND ucc.TABLE_NAME = '{tableNameQuoted.ToUpperInvariant()}'
-        ORDER BY
-            ucc.POSITION
+            SELECT
+                ucc.TABLE_NAME,
+                ucc.COLUMN_NAME,
+                ucc.POSITION,
+                uc.CONSTRAINT_NAME,
+                uc.STATUS
+            FROM
+                USER_CONSTRAINTS uc
+            JOIN
+                USER_CONS_COLUMNS ucc
+                ON uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME
+            WHERE
+                uc.CONSTRAINT_TYPE = 'P'
+                AND ucc.TABLE_NAME = '{tableNameQuoted.ToUpperInvariant()}'
+            ORDER BY
+                ucc.POSITION
         ";
 
         List<PrimaryKeyItem> primaryKeyItems = [];
@@ -133,5 +134,65 @@ public class OracleSystemDataLoader(IOracleTransformationProvider oracleTransfor
         }
 
         return primaryKeyItems;
+    }
+
+    public List<IndexItem> GetIndexItems(string tableName)
+    {
+        var tableNameQuoted = _oracleTransformationProvider.QuoteTableNameIfRequired(tableName);
+
+        var sql = @$"
+            SELECT
+                i.table_name,
+                i.index_name,
+                i.uniqueness,
+                ic.column_position,
+                ic.column_name,
+                CASE WHEN c.constraint_type = 'P' THEN 'YES' ELSE 'NO' END AS is_primary_key,
+                CASE WHEN c.constraint_type = 'U' THEN 'YES' ELSE 'NO' END AS is_unique_key
+            FROM
+                user_indexes i
+                JOIN 
+                    user_ind_columns ic ON i.index_name = ic.index_name AND 
+                    i.table_name = ic.table_name
+                LEFT JOIN
+                    user_constraints c ON i.index_name = c.index_name AND
+                    i.table_name = c.table_name
+            WHERE
+                UPPER(i.table_name) = '{tableNameQuoted.ToUpperInvariant()}' 
+            -- AND
+            -- i.index_type = 'NORMAL'
+            ORDER BY
+                i.table_name, i.index_name, ic.column_position";
+
+        List<IndexItem> indexItems = [];
+
+        using var cmd = _oracleTransformationProvider.CreateCommand();
+        using var reader = _oracleTransformationProvider.ExecuteQuery(cmd, sql);
+
+        while (reader.Read())
+        {
+            var tableNameOrdinal = reader.GetOrdinal("table_name");
+            var indexNameOrdinal = reader.GetOrdinal("index_name");
+            var uniquenessOrdinal = reader.GetOrdinal("uniqueness");
+            var columnPositionOrdinal = reader.GetOrdinal("column_position");
+            var columnNameOrdinal = reader.GetOrdinal("column_name");
+            var isPrimaryKeyOrdinal = reader.GetOrdinal("is_primary_key");
+            var isUniqueConstraintOrdinal = reader.GetOrdinal("is_unique_key");
+
+            var indexItem = new IndexItem
+            {
+                ColumnName = reader.GetString(columnNameOrdinal),
+                ColumnOrder = reader.GetInt32(columnPositionOrdinal),
+                Name = reader.GetString(indexNameOrdinal),
+                PrimaryKey = reader.GetString(isPrimaryKeyOrdinal) == "YES",
+                TableName = reader.GetString(tableNameOrdinal),
+                Unique = reader.GetString(uniquenessOrdinal) == "UNIQUE",
+                UniqueConstraint = reader.GetString(isUniqueConstraintOrdinal) == "YES"
+            };
+
+            indexItems.Add(indexItem);
+        }
+
+        return indexItems;
     }
 }

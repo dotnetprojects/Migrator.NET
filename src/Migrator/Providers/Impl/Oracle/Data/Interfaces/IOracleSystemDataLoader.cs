@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Models;
 using DotNetProjects.Migrator.Providers.Models;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Oracle.Data.Interfaces;
 
@@ -26,4 +27,11 @@ public interface IOracleSystemDataLoader
     /// <param name="tableName"></param>
     /// <returns></returns>
     List<PrimaryKeyItem> GetPrimaryKeyItems(string tableName);
+
+    /// <summary>
+    /// Gets index items from USER_INDEXES, USER_IND_COLUMNS and USER_CONSTRAINTS
+    /// </summary>
+    /// <param name="tableName"></param>
+    /// <returns></returns>
+    List<IndexItem> GetIndexItems(string tableName);
 }

@@ -328,7 +328,6 @@ public abstract class TransformationProvider : ITransformationProvider
         ExecuteNonQuery(sql);
     }
 
-
     public virtual void AddView(string name, string tableName, params IViewElement[] viewElements)
     {
         var selectedColumns = viewElements.Where(x => x is ViewColumn)
@@ -383,15 +382,6 @@ public abstract class TransformationProvider : ITransformationProvider
     /// </summary>
     /// <param name="name">Table name</param>
     /// <param name="columns">Columns</param>
-    /// <example>
-    /// Adds the Test table with two columns:
-    /// <code>
-    /// Database.AddTable("Test",
-    ///	                  new Column("Id", typeof(int), ColumnProperty.PrimaryKey),
-    ///	                  new Column("Title", typeof(string), 100)
-    ///	                 );
-    /// </code>
-    /// </example>
     public virtual void AddTable(string name, params IDbField[] columns)
     {
         if (this is not SQLiteTransformationProvider && columns.Any(x => x is CheckConstraint))
@@ -404,20 +394,11 @@ public abstract class TransformationProvider : ITransformationProvider
     }
 
     /// <summary>
-    /// Add a new table
+    /// Adds a new table
     /// </summary>
     /// <param name="name">Table name</param>
     /// <param name="columns">Columns</param>
     /// <param name="engine">the database storage engine to use</param>
-    /// <example>
-    /// Adds the Test table with two columns:
-    /// <code>
-    /// Database.AddTable("Test", "INNODB",
-    ///	                  new Column("Id", typeof(int), ColumnProperty.PrimaryKey),
-    ///	                  new Column("Title", typeof(string), 100)
-    ///	                 );
-    /// </code>
-    /// </example>
     public virtual void AddTable(string name, string engine, params IDbField[] fields)
     {
         var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
@@ -441,11 +422,12 @@ public abstract class TransformationProvider : ITransformationProvider
         }
 
         var columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
+
         AddTable(name, engine, columnsAndIndexes);
 
         if (compoundPrimaryKey)
         {
-            AddPrimaryKey(getPrimaryKeyname(name), name, pks.ToArray());
+            AddPrimaryKey(GetPrimaryKeyname(name), name, pks.ToArray());
         }
 
         var indexes = fields.Where(x => x is Index).Cast<Index>().ToArray();
@@ -463,7 +445,7 @@ public abstract class TransformationProvider : ITransformationProvider
         }
     }
 
-    protected virtual string getPrimaryKeyname(string tableName)
+    protected virtual string GetPrimaryKeyname(string tableName)
     {
         return "PK_" + tableName;
     }

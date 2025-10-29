@@ -190,11 +190,11 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
         if (utf8Bytes.Length > 128)
         {
-            throw new MigrationException($"The name '{name}' is {utf8Bytes.Length} bytes in length, but maximum length for Oracle identifiers is 128 bytes for Oracle versions  12.1+.");
+            throw new MigrationException($"The name '{name}' is {utf8Bytes.Length} bytes in length, but maximum length for Oracle identifiers is 128 bytes for Oracle versions 12.1+.");
         }
     }
 
-    protected override string getPrimaryKeyname(string tableName)
+    protected override string GetPrimaryKeyname(string tableName)
     {
         return tableName.Length > 27 ? "PK_" + tableName.Substring(0, 27) : "PK_" + tableName;
     }
@@ -301,16 +301,17 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     {
         if (string.IsNullOrEmpty(table))
         {
-            throw new ArgumentNullException("table");
+            throw new ArgumentNullException(nameof(table));
         }
 
         if (string.IsNullOrEmpty(table))
         {
-            throw new ArgumentNullException("sqlColumn");
+            throw new ArgumentNullException(nameof(sqlColumn));
         }
 
         table = QuoteTableNameIfRequired(table);
         sqlColumn = QuoteColumnNameIfRequired(sqlColumn);
+
         ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
     }
 
@@ -319,6 +320,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         GuardAgainstMaximumIdentifierLengthForOracle(table);
         table = QuoteTableNameIfRequired(table);
         sqlColumn = QuoteColumnNameIfRequired(sqlColumn);
+
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
     }
 
@@ -365,8 +367,10 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
             string.Format(
                 "SELECT COUNT(constraint_name) FROM user_constraints WHERE lower(constraint_name) = '{0}' AND lower(table_name) = '{1}'",
                 name.ToLower(), table.ToLower());
+
         Logger.Log(sql);
         var scalar = ExecuteScalar(sql);
+
         return Convert.ToInt32(scalar) == 1;
     }
 
@@ -909,6 +913,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     public override void RemoveTable(string name)
     {
         base.RemoveTable(name);
+
         try
         {
             using var cmd = CreateCommand();
@@ -916,9 +921,10 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         }
         catch (Exception)
         {
-            // swallow this because sequence may not have originally existed.
+            // swallow this because sequence may not have existed.
         }
     }
+
     private void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
     {
         foreach (var column in columns)
@@ -1016,58 +1022,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override Index[] GetIndexes(string table)
     {
-        var sql = @$"SELECT
-                        i.table_name,
-                        i.index_name,
-                        i.uniqueness,
-                        ic.column_position,
-                        ic.column_name,
-                        CASE WHEN c.constraint_type = 'P' THEN 'YES' ELSE 'NO' END AS is_primary_key,
-                        CASE WHEN c.constraint_type = 'U' THEN 'YES' ELSE 'NO' END AS is_unique_key
-                    FROM
-                        user_indexes i
-                        JOIN 
-                            user_ind_columns ic ON i.index_name = ic.index_name AND 
-                            i.table_name = ic.table_name
-                        LEFT JOIN
-                            user_constraints c ON i.index_name = c.index_name AND
-                            i.table_name = c.table_name
-                    WHERE
-                        UPPER(i.table_name) = '{table.ToUpperInvariant()}' 
-                       -- AND
-                       -- i.index_type = 'NORMAL'
-                    ORDER BY
-                        i.table_name, i.index_name, ic.column_position";
-
-        List<IndexItem> indexItems = [];
-
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, sql))
-        {
-            while (reader.Read())
-            {
-                var tableNameOrdinal = reader.GetOrdinal("table_name");
-                var indexNameOrdinal = reader.GetOrdinal("index_name");
-                var uniquenessOrdinal = reader.GetOrdinal("uniqueness");
-                var columnPositionOrdinal = reader.GetOrdinal("column_position");
-                var columnNameOrdinal = reader.GetOrdinal("column_name");
-                var isPrimaryKeyOrdinal = reader.GetOrdinal("is_primary_key");
-                var isUniqueConstraintOrdinal = reader.GetOrdinal("is_unique_key");
-
-                var indexItem = new IndexItem
-                {
-                    ColumnName = reader.GetString(columnNameOrdinal),
-                    ColumnOrder = reader.GetInt32(columnPositionOrdinal),
-                    Name = reader.GetString(indexNameOrdinal),
-                    PrimaryKey = reader.GetString(isPrimaryKeyOrdinal) == "YES",
-                    TableName = reader.GetString(tableNameOrdinal),
-                    Unique = reader.GetString(uniquenessOrdinal) == "UNIQUE",
-                    UniqueConstraint = reader.GetString(isUniqueConstraintOrdinal) == "YES"
-                };
-
-                indexItems.Add(indexItem);
-            }
-        }
+        var indexItems = _oracleSystemDataLoader.GetIndexItems(table);
 
         var indexGroups = indexItems.GroupBy(x => new { x.SchemaName, x.TableName, x.Name });
         List<Index> indexes = [];

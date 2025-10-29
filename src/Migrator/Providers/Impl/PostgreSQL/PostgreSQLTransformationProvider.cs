@@ -361,7 +361,12 @@ public class PostgreSQLTransformationProvider : TransformationProvider
 
         var change1 = string.Format("{0} TYPE {1}", QuoteColumnNameIfRequired(mapper.Name), mapper.Type);
 
-        if ((oldColumn.MigratorDbType == MigratorDbType.Int16 || oldColumn.MigratorDbType == MigratorDbType.Int32 || oldColumn.MigratorDbType == MigratorDbType.Int64 || oldColumn.MigratorDbType == MigratorDbType.Decimal) && column.MigratorDbType == MigratorDbType.Boolean)
+        if (
+            (oldColumn.MigratorDbType == MigratorDbType.Int16 ||
+             oldColumn.MigratorDbType == MigratorDbType.Int32 ||
+             oldColumn.MigratorDbType == MigratorDbType.Int64 ||
+             oldColumn.MigratorDbType == MigratorDbType.Decimal) &&
+             column.MigratorDbType == MigratorDbType.Boolean)
         {
             change1 += string.Format(" USING CASE {0} WHEN 1 THEN true ELSE false END", QuoteColumnNameIfRequired(mapper.Name));
         }
@@ -369,7 +374,6 @@ public class PostgreSQLTransformationProvider : TransformationProvider
         {
             change1 += string.Format(" USING CASE {0} WHEN '1' THEN true ELSE false END", QuoteColumnNameIfRequired(mapper.Name));
         }
-
 
         ChangeColumn(table, change1);
 
@@ -427,7 +431,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider
                 tables.Add((string)reader[0]);
             }
         }
-        return tables.ToArray();
+        return [.. tables];
     }
 
     public override int GetColumnContentSize(string table, string columnName)
@@ -768,7 +772,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider
                     }
                     else
                     {
-                        throw new NotImplementedException();
+                        throw new NotImplementedException($"{nameof(DbType)} {column.MigratorDbType} not implemented.");
                     }
                 }
 
