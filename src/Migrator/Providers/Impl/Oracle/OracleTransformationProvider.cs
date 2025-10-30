@@ -891,11 +891,14 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         {
             var identityColumn = columns.First(x => x.ColumnProperty.HasFlag(ColumnProperty.Identity) && x.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey));
 
-            List<DbType> allowedIdentityDbTypes = [DbType.Int16, DbType.Int32, DbType.Int64];
+            List<DbType> allowedIdentityDbTypes = [DbType.Int16, DbType.Int32, DbType.Int64, DbType.UInt16, DbType.UInt32, DbType.UInt64];
 
             if (!allowedIdentityDbTypes.Contains(identityColumn.Type))
             {
-                throw new MigrationException($"Identity columns can only be used with {nameof(DbType.Int16)}, {nameof(DbType.Int32)} and {nameof(DbType.Int64)}");
+                var allowedIdentityDbTypesStringList = allowedIdentityDbTypes.Select(x => x.ToString()).ToList();
+                var allowedIdentityDbTypesString = $"{string.Join(", ", allowedIdentityDbTypesStringList[..^1])} and {allowedIdentityDbTypesStringList[^1..]}";
+
+                throw new MigrationException($"Identity columns can only be used with {allowedIdentityDbTypesString}");
             }
 
             var identityColumnNameQuoted = QuoteColumnNameIfRequired(identityColumn.Name);
