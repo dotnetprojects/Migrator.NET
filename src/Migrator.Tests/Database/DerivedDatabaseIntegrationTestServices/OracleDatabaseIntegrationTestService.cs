@@ -84,7 +84,8 @@ public class OracleDatabaseIntegrationTestService(
 
         List<string> userNames;
 
-        var dataOptions = new DataOptions().UseOracle(databaseConnectionConfig.ConnectionString);
+        var dataOptions = new DataOptions().UseOracle(databaseConnectionConfig.ConnectionString)
+            .UseMappingSchema(_mappingSchema);
 
         using (context = new DataConnection(dataOptions))
         {
