@@ -114,27 +114,27 @@ public class OracleDatabaseIntegrationTestService(
 
             });
 
-        // To be on the safe side we check for table spaces used in tests that have not been deleted for any reason (possible connection issues/concurrent deletion attempts - there is
-        // no transaction for DDL in Oracle etc.).
-        var tableSpaceNames = await context.GetTable<DBADataFiles>()
-            .Select(x => x.TablespaceName)
-            .ToListAsync(cancellationToken);
-
-        var toBeDeletedTableSpaces = tableSpaceNames
-            .Where(x =>
-            {
-                var replacedTablespaceString = _tablespaceRegex.Replace(x, "");
-                var creationDate = DatabaseNameService.ReadTimeStampFromString(replacedTablespaceString);
-                return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
-            });
-
-        foreach (var toBeDeletedTableSpace in toBeDeletedTableSpaces)
-        {
-            await context.ExecuteAsync($"DROP TABLESPACE {toBeDeletedTableSpace} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
-        }
-
         using (context = new DataConnection(dataOptions))
         {
+            // To be on the safe side we check for table spaces used in tests that have not been deleted for any reason (possible connection issues/concurrent deletion attempts - there is
+            // no transaction for DDL in Oracle etc.).
+            var tableSpaceNames = await context.GetTable<DBADataFiles>()
+                .Select(x => x.TablespaceName)
+                .ToListAsync(cancellationToken);
+
+            var toBeDeletedTableSpaces = tableSpaceNames
+                .Where(x =>
+                {
+                    var replacedTablespaceString = _tablespaceRegex.Replace(x, "");
+                    var creationDate = DatabaseNameService.ReadTimeStampFromString(replacedTablespaceString);
+                    return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
+                });
+
+            foreach (var toBeDeletedTableSpace in toBeDeletedTableSpaces)
+            {
+                await context.ExecuteAsync($"DROP TABLESPACE {toBeDeletedTableSpace} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
+            }
+
             await context.ExecuteAsync($"CREATE USER \"{tempUserName}\" IDENTIFIED BY \"{tempUserName}\"", cancellationToken);
 
             var privileges = new[]
@@ -172,10 +172,10 @@ public class OracleDatabaseIntegrationTestService(
         var dataOptions = new DataOptions().UseOracle(databaseInfo.DatabaseConnectionConfigMaster.ConnectionString)
             .UseMappingSchema(_mappingSchema);
 
-        using var context = new DataConnection(dataOptions);
-
         var maxAttempts = 4;
         var delayBetweenAttempts = TimeSpan.FromSeconds(1);
+
+        using var context = new DataConnection(dataOptions);
 
         for (var i = 0; i < maxAttempts; i++)
         {
