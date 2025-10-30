@@ -58,7 +58,7 @@ public class SQLiteDatabaseIntegrationTestService(TimeProvider timeProvider, IDa
 
             var creationDate = DatabaseNameService.ReadTimeStampFromString(fileName);
 
-            if (creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(MinTimeSpanBeforeDatabaseDeletion))
+            if (creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion))
             {
                 var builderExistingFile = new SqliteConnectionStringBuilder { DataSource = filePath };
                 var dataConnectionConfigExistingFile = databaseConnectionConfig.Adapt<DatabaseConnectionConfig>();

@@ -14,7 +14,7 @@ public abstract class DatabaseIntegrationTestServiceBase(IDatabaseNameService da
     /// Deletes all integration test databases older than the given time span.
     /// </summary>
     // TODO CK time span!
-    protected readonly TimeSpan MinTimeSpanBeforeDatabaseDeletion = TimeSpan.FromMinutes(1); // TimeSpan.FromMinutes(60);
+    protected readonly TimeSpan _MinTimeSpanBeforeDatabaseDeletion = TimeSpan.FromMinutes(1); // TimeSpan.FromMinutes(60);
 
     protected IDatabaseNameService DatabaseNameService { get; private set; } = databaseNameService;
 

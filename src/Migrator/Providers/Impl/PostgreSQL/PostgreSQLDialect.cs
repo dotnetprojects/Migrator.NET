@@ -88,20 +88,11 @@ public class PostgreSQLDialect : Dialect
                          "WITHOUT", "WORK", "WRITE", "XMAX", "XMIN", "YEAR", "ZONE");
     }
 
-    public override bool TableNameNeedsQuote
-    {
-        get { return false; }
-    }
+    public override bool TableNameNeedsQuote => false;
 
-    public override bool ConstraintNameNeedsQuote
-    {
-        get { return false; }
-    }
+    public override bool ConstraintNameNeedsQuote => false;
 
-    //public override bool IdentityNeedsType
-    //{
-    //	get { return false; }
-    //}
+    public override bool IdentityNeedsType => false;
 
     public override ITransformationProvider GetTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
     {
@@ -111,6 +102,18 @@ public class PostgreSQLDialect : Dialect
     public override ITransformationProvider GetTransformationProvider(Dialect dialect, IDbConnection connection, string defaultSchema, string scope, string providerName)
     {
         return new PostgreSQLTransformationProvider(dialect, connection, defaultSchema, scope, providerName);
+    }
+
+    public override ColumnPropertiesMapper GetColumnMapper(Column column)
+    {
+        var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
+
+        if (column.Precision.HasValue || column.Scale.HasValue)
+        {
+            type = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 0, column.Scale ?? 0);
+        }
+
+        return new ColumnPropertiesMapper(this, type);
     }
 
     public override string Default(object defaultValue)

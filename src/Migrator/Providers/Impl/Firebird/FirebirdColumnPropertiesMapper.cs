@@ -14,7 +14,7 @@ public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
     {
         Name = column.Name;
 
-        indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
 
         var vals = new List<string>();
 
@@ -38,6 +38,6 @@ public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
 
         AddNull(column, vals);
 
-        columnSql = string.Join(" ", vals.ToArray());
+        _ColumnSql = string.Join(" ", vals.ToArray());
     }
 }

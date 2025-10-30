@@ -1236,6 +1236,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             var hasCompoundPrimaryKey = tableInfoPrimaryKeys.Count > 1;
 
+            // Implicit in SQLite
             if (columnTableInfoItem.Type == "INTEGER" && columnTableInfoItem.Pk == 1 && !hasCompoundPrimaryKey)
             {
                 column.ColumnProperty |= ColumnProperty.Identity;
@@ -1304,6 +1305,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             {
                 if (afterWhereRegex.Match(script) is Match match && match.Success)
                 {
+                    // We cannot use GeneratedRegexAttribute due to old .NET version
                     var andSplitted = Regex.Split(match.Value, " AND ");
 
                     var filterSingleStrings = andSplitted

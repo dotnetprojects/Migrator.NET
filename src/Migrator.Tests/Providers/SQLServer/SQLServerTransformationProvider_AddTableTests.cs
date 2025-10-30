@@ -1,14 +1,14 @@
 using System.Data;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
-using Migrator.Tests.Providers.Base;
+using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
 [Category("SqlServer")]
-public class SQLServerTransformationProvider_AddTableTests : TransformationProviderBase
+public class SQLServerTransformationProvider_AddTableTests : Generic_AddTableTestsBase
 {
     [SetUp]
     public async Task SetUpAsync()

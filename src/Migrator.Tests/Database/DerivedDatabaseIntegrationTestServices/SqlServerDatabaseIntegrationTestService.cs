@@ -29,7 +29,7 @@ public class SqlServerDatabaseIntegrationTestService(TimeProvider timeProvider, 
         var toBeDeletedDatabaseNames = databaseNames.Where(x =>
             {
                 var creationDate = DatabaseNameService.ReadTimeStampFromString(x);
-                return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(MinTimeSpanBeforeDatabaseDeletion);
+                return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
             }).ToList();
 
         foreach (var databaseName in toBeDeletedDatabaseNames)

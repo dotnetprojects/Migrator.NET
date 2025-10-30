@@ -5,7 +5,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 
 public class OracleColumnPropertiesMapper : ColumnPropertiesMapper
 {
-    public OracleColumnPropertiesMapper(Dialect dialect, string type) : base(dialect, type)
+    public OracleColumnPropertiesMapper(Dialect dialect, string typeString) : base(dialect, typeString)
     {
     }
 
@@ -13,7 +13,7 @@ public class OracleColumnPropertiesMapper : ColumnPropertiesMapper
     {
         Name = column.Name;
 
-        indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
 
         var vals = new List<string>();
 
@@ -42,6 +42,6 @@ public class OracleColumnPropertiesMapper : ColumnPropertiesMapper
 
         AddNull(column, vals);
 
-        columnSql = string.Join(" ", vals.ToArray());
+        _ColumnSql = string.Join(" ", vals.ToArray());
     }
 }
