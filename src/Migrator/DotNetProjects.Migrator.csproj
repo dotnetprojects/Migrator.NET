@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net40;net9.0</TargetFrameworks>
+    <TargetFrameworks>net9.0</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AssemblyName>DotNetProjects.Migrator</AssemblyName>
     <RootNamespace>DotNetProjects.Migrator</RootNamespace>
