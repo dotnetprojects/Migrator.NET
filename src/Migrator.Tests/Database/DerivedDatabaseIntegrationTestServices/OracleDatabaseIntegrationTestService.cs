@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +19,7 @@ using Oracle.ManagedDataAccess.Client;
 
 namespace Migrator.Tests.Database.DerivedDatabaseIntegrationTestServices;
 
-public class OracleDatabaseIntegrationTestService(
+public partial class OracleDatabaseIntegrationTestService(
     TimeProvider timeProvider,
     IDatabaseNameService databaseNameService)
         : DatabaseIntegrationTestServiceBase(databaseNameService), IDatabaseIntegrationTestService
@@ -61,8 +61,6 @@ public class OracleDatabaseIntegrationTestService(
     /// <exception cref="NotImplementedException"></exception>
     public override async Task<DatabaseInfo> CreateTestDatabaseAsync(DatabaseConnectionConfig databaseConnectionConfig, CancellationToken cancellationToken)
     {
-        DataConnection context;
-
         var tempDatabaseConnectionConfig = databaseConnectionConfig.Adapt<DatabaseConnectionConfig>();
 
         var connectionStringBuilder = new OracleConnectionStringBuilder()
@@ -82,15 +80,12 @@ public class OracleDatabaseIntegrationTestService(
 
         var tempUserName = DatabaseNameService.CreateDatabaseName();
 
-        List<string> userNames;
-
         var dataOptions = new DataOptions().UseOracle(databaseConnectionConfig.ConnectionString)
             .UseMappingSchema(_mappingSchema);
 
-        using (context = new DataConnection(dataOptions))
-        {
-            userNames = await context.QueryToListAsync<string>("SELECT username FROM all_users", cancellationToken);
-        }
+        using var context = new DataConnection(dataOptions);
+
+        var userNames = await context.GetTable<AllUsers>().Select(x => x.UserName).ToListAsync(cancellationToken);
 
         var toBeDeletedUsers = userNames.Where(x =>
         {
@@ -112,49 +107,84 @@ public class OracleDatabaseIntegrationTestService(
                 };
 
                 await DropDatabaseAsync(databaseInfoToBeDeleted, cancellationTokenInner);
-
             });
 
-        using (context = new DataConnection(dataOptions))
+        // To be on the safe side we check for table spaces used in tests that have not been deleted for any reason (possible connection issues/concurrent deletion attempts - there is
+        // no transaction for DDL in Oracle etc.).
+        var tableSpaceNames = await context.GetTable<DBADataFiles>()
+            .Select(x => x.TablespaceName)
+            .ToListAsync(cancellationToken);
+
+        var toBeDeletedTableSpaces = tableSpaceNames
+            .Where(x =>
+            {
+                var replacedTablespaceString = TableSpacePrefixRegex().Replace(x, "");
+                var creationDate = DatabaseNameService.ReadTimeStampFromString(replacedTablespaceString);
+                return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
+            });
+
+        foreach (var toBeDeletedTableSpace in toBeDeletedTableSpaces)
         {
-            // To be on the safe side we check for table spaces used in tests that have not been deleted for any reason (possible connection issues/concurrent deletion attempts - there is
-            // no transaction for DDL in Oracle etc.).
-            var tableSpaceNames = await context.GetTable<DBADataFiles>()
-                .Select(x => x.TablespaceName)
-                .ToListAsync(cancellationToken);
+            var maxAttempts = 4;
+            var delayBetweenAttempts = TimeSpan.FromSeconds(1);
 
-            var toBeDeletedTableSpaces = tableSpaceNames
-                .Where(x =>
+            for (var i = 0; i < maxAttempts; i++)
+            {
+                try
                 {
-                    var replacedTablespaceString = _tablespaceRegex.Replace(x, "");
-                    var creationDate = DatabaseNameService.ReadTimeStampFromString(replacedTablespaceString);
-                    return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
-                });
+                    await context.ExecuteAsync($"DROP TABLESPACE {toBeDeletedTableSpace} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
+                }
+                catch
+                {
+                    var exists = await context.GetTable<DBADataFiles>().AnyAsync(x => x.TablespaceName == toBeDeletedTableSpace, cancellationToken);
 
-            foreach (var toBeDeletedTableSpace in toBeDeletedTableSpaces)
-            {
-                await context.ExecuteAsync($"DROP TABLESPACE {toBeDeletedTableSpace} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
+                    if (!exists)
+                    {
+                        break;
+                    }
+
+                    if (i + 1 == maxAttempts)
+                    {
+                        throw;
+                    }
+
+                    await Task.Delay(delayBetweenAttempts, cancellationToken);
+
+                    delayBetweenAttempts = delayBetweenAttempts.Add(TimeSpan.FromSeconds(1));
+                }
             }
-
-            await context.ExecuteAsync($"CREATE USER \"{tempUserName}\" IDENTIFIED BY \"{tempUserName}\"", cancellationToken);
-
-            var privileges = new[]
-            {
-                "CONNECT",
-                "CREATE SESSION",
-                "RESOURCE",
-                "UNLIMITED TABLESPACE"
-            };
-
-            await context.ExecuteAsync($"GRANT {string.Join(", ", privileges)} TO \"{tempUserName}\"", cancellationToken);
-            await context.ExecuteAsync($"GRANT SELECT ON SYS.V_$SESSION TO \"{tempUserName}\"", cancellationToken);
         }
+
+        var tableSpaceName = $"{TableSpacePrefix}{tempUserName}";
+
+        var createTablespaceSql = $"CREATE TABLESPACE {tableSpaceName}";
+        await context.ExecuteAsync(createTablespaceSql, cancellationToken: cancellationToken);
+
+        var stringBuilder = new StringBuilder();
+        stringBuilder.Append($"CREATE USER \"{tempUserName}\" IDENTIFIED BY \"{tempUserName}\"");
+        stringBuilder.AppendLine($"DEFAULT TABLESPACE {tableSpaceName}");
+        stringBuilder.AppendLine($"TEMPORARY TABLESPACE TEMP");
+        stringBuilder.AppendLine($"QUOTA UNLIMITED ON {tableSpaceName}");
+
+        await context.ExecuteAsync(stringBuilder.ToString(), cancellationToken);
+
+        var privileges = new[]
+        {
+            "CONNECT",
+            "CREATE SESSION",
+            "RESOURCE",
+            "UNLIMITED TABLESPACE"
+        };
+
+        await context.ExecuteAsync($"GRANT {string.Join(", ", privileges)} TO \"{tempUserName}\"", cancellationToken);
+        await context.ExecuteAsync($"GRANT SELECT ON SYS.GV_$SESSION TO \"{tempUserName}\"", cancellationToken);
 
         connectionStringBuilder.Add(UserStringKey, ReplaceString);
         connectionStringBuilder.Add(PasswordStringKey, ReplaceString);
 
         tempDatabaseConnectionConfig.ConnectionString = connectionStringBuilder.ConnectionString;
         tempDatabaseConnectionConfig.ConnectionString = tempDatabaseConnectionConfig.ConnectionString.Replace(ReplaceString, $"\"{tempUserName}\"");
+        tempDatabaseConnectionConfig.Schema = tempUserName;
 
         var databaseInfo = new DatabaseInfo
         {
@@ -168,15 +198,17 @@ public class OracleDatabaseIntegrationTestService(
 
     public override async Task DropDatabaseAsync(DatabaseInfo databaseInfo, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(databaseInfo);
+
         var creationDate = ReadTimeStampFromDatabaseName(databaseInfo.SchemaName);
 
         var dataOptions = new DataOptions().UseOracle(databaseInfo.DatabaseConnectionConfigMaster.ConnectionString)
             .UseMappingSchema(_mappingSchema);
 
+        using var context = new DataConnection(dataOptions);
+
         var maxAttempts = 4;
         var delayBetweenAttempts = TimeSpan.FromSeconds(1);
-
-        using var context = new DataConnection(dataOptions);
 
         for (var i = 0; i < maxAttempts; i++)
         {
@@ -190,6 +222,13 @@ public class OracleDatabaseIntegrationTestService(
                 {
                     var killStatement = $"ALTER SYSTEM KILL SESSION '{session.SID},{session.SerialHashTag}' IMMEDIATE";
                     await context.ExecuteAsync(killStatement, cancellationToken);
+                }
+
+                var userExists = context.GetTable<AllUsers>().Any(x => x.UserName == databaseInfo.SchemaName);
+
+                if (!userExists)
+                {
+                    break;
                 }
 
                 await context.ExecuteAsync($"DROP USER \"{databaseInfo.SchemaName}\" CASCADE", cancellationToken);
@@ -207,19 +246,47 @@ public class OracleDatabaseIntegrationTestService(
                 {
                     break;
                 }
+
+                await Task.Delay(delayBetweenAttempts, cancellationToken);
+
+                delayBetweenAttempts = delayBetweenAttempts.Add(TimeSpan.FromSeconds(1));
             }
-
-            await Task.Delay(delayBetweenAttempts, cancellationToken);
-
-            delayBetweenAttempts = delayBetweenAttempts.Add(TimeSpan.FromSeconds(1));
         }
 
         var tablespaceName = $"{TableSpacePrefix}{databaseInfo.SchemaName}";
 
-        var tablespaces = await context.GetTable<DBADataFiles>().ToListAsync(cancellationToken);
+        maxAttempts = 4;
+        delayBetweenAttempts = TimeSpan.FromSeconds(1);
 
-        await context.ExecuteAsync($"DROP TABLESPACE {tablespaceName} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
+        for (var i = 0; i < maxAttempts; i++)
+        {
+            try
+            {
+                await context.ExecuteAsync($"DROP TABLESPACE {tablespaceName} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
+            }
+            catch
+            {
+                var exists = await context.GetTable<DBADataFiles>().AnyAsync(x => x.TablespaceName == tablespaceName, cancellationToken);
+
+                if (!exists)
+                {
+                    break;
+                }
+
+                if (i + 1 == maxAttempts)
+                {
+                    throw;
+                }
+
+                await Task.Delay(delayBetweenAttempts, cancellationToken);
+
+                delayBetweenAttempts = delayBetweenAttempts.Add(TimeSpan.FromSeconds(1));
+            }
+        }
 
         await context.ExecuteAsync($"PURGE RECYCLEBIN", cancellationToken);
     }
+
+    [GeneratedRegex("^TS_TESTS_")]
+    private static partial Regex TableSpacePrefixRegex();
 }

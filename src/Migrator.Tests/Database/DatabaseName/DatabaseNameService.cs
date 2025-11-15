@@ -1,16 +1,15 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.Linq;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Migrator.Tests.Database.DatabaseName.Interfaces;
-using Migrator.Tests.Database.GuidServices.Interfaces;
 
 namespace Migrator.Test.Shared.Database;
 
-public partial class DatabaseNameService(TimeProvider timeProvider, IGuidService guidService) : IDatabaseNameService
+public partial class DatabaseNameService(TimeProvider timeProvider) : IDatabaseNameService
 {
-    private const string TestDatabaseString = "Test";
+    private const string TestDatabaseString = "T";
     private const string TimeStampPattern = "yyyyMMddHHmmssfff";
 
     public DateTime? ReadTimeStampFromString(string name)
@@ -33,14 +32,25 @@ public partial class DatabaseNameService(TimeProvider timeProvider, IGuidService
         var dateTimePattern = timeProvider.GetUtcNow()
             .ToString(TimeStampPattern);
 
-        var randomString = string.Concat(guidService.NewGuid()
-            .ToString("N")
-            .Reverse()
-            .Take(9));
+        var randomString = CreateRandomChars(7);
 
         return $"{dateTimePattern}{TestDatabaseString}{randomString}";
     }
 
-    [GeneratedRegex(@"^(\d+)(?=Test.{9}$)")]
+    private string CreateRandomChars(int length)
+    {
+        var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var stringChars = new char[length];
+
+        for (var i = 0; i < length; i++)
+        {
+            var index = RandomNumberGenerator.GetInt32(chars.Length);
+            stringChars[i] = chars[index];
+        }
+
+        return new string(stringChars);
+    }
+
+    [GeneratedRegex(@"^([\d]+)(?=T.{7}$)")]
     private static partial Regex DateTimeRegex();
 }
