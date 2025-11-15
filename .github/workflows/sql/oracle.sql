@@ -14,7 +14,7 @@ grant resource to k with admin option;
 grant connect to k with admin option;
 grant unlimited tablespace to k with admin option;
 grant select on v_$session to k with grant option;
-grant select on sys.gv_$session to k with grant option
+grant select on sys.gv_$session to k with grant option;
 grant alter system to k;
 
 exit;
