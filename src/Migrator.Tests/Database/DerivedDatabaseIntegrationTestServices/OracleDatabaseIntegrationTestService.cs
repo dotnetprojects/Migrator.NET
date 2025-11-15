@@ -1,7 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework.Data.Common;
@@ -19,17 +18,21 @@ using Oracle.ManagedDataAccess.Client;
 
 namespace Migrator.Tests.Database.DerivedDatabaseIntegrationTestServices;
 
+
+/// <summary>
+/// We use the tablespace users since the server container is recreated before the test runs (once per github workflow run)
+/// </summary>
+/// <param name="timeProvider"></param>
+/// <param name="databaseNameService"></param>
 public class OracleDatabaseIntegrationTestService(
     TimeProvider timeProvider,
     IDatabaseNameService databaseNameService)
         : DatabaseIntegrationTestServiceBase(databaseNameService), IDatabaseIntegrationTestService
 {
-    private const string TableSpacePrefix = "TS_";
     private const string UserStringKey = "User Id";
     private const string PasswordStringKey = "Password";
     private const string ReplaceString = "RandomStringThatIsNotQuotedByTheBuilderDoNotChange";
     private readonly MappingSchema _mappingSchema = new MappingSchemaFactory().CreateOracleMappingSchema();
-    private Regex _tablespaceRegex = new("^TS_TESTS_");
 
     /// <summary>
     /// Creates an oracle database for test purposes.
@@ -61,8 +64,6 @@ public class OracleDatabaseIntegrationTestService(
     /// <exception cref="NotImplementedException"></exception>
     public override async Task<DatabaseInfo> CreateTestDatabaseAsync(DatabaseConnectionConfig databaseConnectionConfig, CancellationToken cancellationToken)
     {
-        DataConnection context;
-
         var tempDatabaseConnectionConfig = databaseConnectionConfig.Adapt<DatabaseConnectionConfig>();
 
         var connectionStringBuilder = new OracleConnectionStringBuilder()
@@ -82,15 +83,12 @@ public class OracleDatabaseIntegrationTestService(
 
         var tempUserName = DatabaseNameService.CreateDatabaseName();
 
-        List<string> userNames;
-
         var dataOptions = new DataOptions().UseOracle(databaseConnectionConfig.ConnectionString)
             .UseMappingSchema(_mappingSchema);
 
-        using (context = new DataConnection(dataOptions))
-        {
-            userNames = await context.QueryToListAsync<string>("SELECT username FROM all_users", cancellationToken);
-        }
+        using var context = new DataConnection(dataOptions);
+
+        var userNames = await context.GetTable<AllUsers>().Select(x => x.UserName).ToListAsync(cancellationToken);
 
         var toBeDeletedUsers = userNames.Where(x =>
         {
@@ -112,49 +110,33 @@ public class OracleDatabaseIntegrationTestService(
                 };
 
                 await DropDatabaseAsync(databaseInfoToBeDeleted, cancellationTokenInner);
-
             });
 
-        using (context = new DataConnection(dataOptions))
+        var stringBuilder = new StringBuilder();
+        stringBuilder.Append($"CREATE USER \"{tempUserName}\" IDENTIFIED BY \"{tempUserName}\"");
+        stringBuilder.AppendLine($"DEFAULT TABLESPACE users");
+        stringBuilder.AppendLine($"TEMPORARY TABLESPACE TEMP");
+        stringBuilder.AppendLine($"QUOTA UNLIMITED ON users");
+
+        await context.ExecuteAsync(stringBuilder.ToString(), cancellationToken);
+
+        var privileges = new[]
         {
-            // To be on the safe side we check for table spaces used in tests that have not been deleted for any reason (possible connection issues/concurrent deletion attempts - there is
-            // no transaction for DDL in Oracle etc.).
-            var tableSpaceNames = await context.GetTable<DBADataFiles>()
-                .Select(x => x.TablespaceName)
-                .ToListAsync(cancellationToken);
+            "CONNECT",
+            "CREATE SESSION",
+            "RESOURCE",
+            "UNLIMITED TABLESPACE"
+        };
 
-            var toBeDeletedTableSpaces = tableSpaceNames
-                .Where(x =>
-                {
-                    var replacedTablespaceString = _tablespaceRegex.Replace(x, "");
-                    var creationDate = DatabaseNameService.ReadTimeStampFromString(replacedTablespaceString);
-                    return creationDate.HasValue && creationDate.Value < timeProvider.GetUtcNow().Subtract(_MinTimeSpanBeforeDatabaseDeletion);
-                });
-
-            foreach (var toBeDeletedTableSpace in toBeDeletedTableSpaces)
-            {
-                await context.ExecuteAsync($"DROP TABLESPACE {toBeDeletedTableSpace} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
-            }
-
-            await context.ExecuteAsync($"CREATE USER \"{tempUserName}\" IDENTIFIED BY \"{tempUserName}\"", cancellationToken);
-
-            var privileges = new[]
-            {
-                "CONNECT",
-                "CREATE SESSION",
-                "RESOURCE",
-                "UNLIMITED TABLESPACE"
-            };
-
-            await context.ExecuteAsync($"GRANT {string.Join(", ", privileges)} TO \"{tempUserName}\"", cancellationToken);
-            await context.ExecuteAsync($"GRANT SELECT ON SYS.V_$SESSION TO \"{tempUserName}\"", cancellationToken);
-        }
+        await context.ExecuteAsync($"GRANT {string.Join(", ", privileges)} TO \"{tempUserName}\"", cancellationToken);
+        await context.ExecuteAsync($"GRANT SELECT ON SYS.GV_$SESSION TO \"{tempUserName}\"", cancellationToken);
 
         connectionStringBuilder.Add(UserStringKey, ReplaceString);
         connectionStringBuilder.Add(PasswordStringKey, ReplaceString);
 
         tempDatabaseConnectionConfig.ConnectionString = connectionStringBuilder.ConnectionString;
         tempDatabaseConnectionConfig.ConnectionString = tempDatabaseConnectionConfig.ConnectionString.Replace(ReplaceString, $"\"{tempUserName}\"");
+        tempDatabaseConnectionConfig.Schema = tempUserName;
 
         var databaseInfo = new DatabaseInfo
         {
@@ -168,15 +150,17 @@ public class OracleDatabaseIntegrationTestService(
 
     public override async Task DropDatabaseAsync(DatabaseInfo databaseInfo, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(databaseInfo);
+
         var creationDate = ReadTimeStampFromDatabaseName(databaseInfo.SchemaName);
 
         var dataOptions = new DataOptions().UseOracle(databaseInfo.DatabaseConnectionConfigMaster.ConnectionString)
             .UseMappingSchema(_mappingSchema);
 
+        using var context = new DataConnection(dataOptions);
+
         var maxAttempts = 4;
         var delayBetweenAttempts = TimeSpan.FromSeconds(1);
-
-        using var context = new DataConnection(dataOptions);
 
         for (var i = 0; i < maxAttempts; i++)
         {
@@ -190,6 +174,13 @@ public class OracleDatabaseIntegrationTestService(
                 {
                     var killStatement = $"ALTER SYSTEM KILL SESSION '{session.SID},{session.SerialHashTag}' IMMEDIATE";
                     await context.ExecuteAsync(killStatement, cancellationToken);
+                }
+
+                var userExists = context.GetTable<AllUsers>().Any(x => x.UserName == databaseInfo.SchemaName);
+
+                if (!userExists)
+                {
+                    break;
                 }
 
                 await context.ExecuteAsync($"DROP USER \"{databaseInfo.SchemaName}\" CASCADE", cancellationToken);
@@ -207,18 +198,12 @@ public class OracleDatabaseIntegrationTestService(
                 {
                     break;
                 }
+
+                await Task.Delay(delayBetweenAttempts, cancellationToken);
+
+                delayBetweenAttempts = delayBetweenAttempts.Add(TimeSpan.FromSeconds(1));
             }
-
-            await Task.Delay(delayBetweenAttempts, cancellationToken);
-
-            delayBetweenAttempts = delayBetweenAttempts.Add(TimeSpan.FromSeconds(1));
         }
-
-        var tablespaceName = $"{TableSpacePrefix}{databaseInfo.SchemaName}";
-
-        var tablespaces = await context.GetTable<DBADataFiles>().ToListAsync(cancellationToken);
-
-        await context.ExecuteAsync($"DROP TABLESPACE {tablespaceName} INCLUDING CONTENTS AND DATAFILES", cancellationToken);
 
         await context.ExecuteAsync($"PURGE RECYCLEBIN", cancellationToken);
     }

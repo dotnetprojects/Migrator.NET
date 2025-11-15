@@ -635,7 +635,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 }
 
                 // dataDefaultString contains ISEQ$$ if the column is an identity column
-                if (!string.IsNullOrWhiteSpace(dataDefaultString) && !dataDefaultString.Contains("ISEQ$$") && !dataDefaultString.Contains(".nextval"))
+                if (!string.IsNullOrWhiteSpace(dataDefaultString) && !dataDefaultString.Equals("null", StringComparison.OrdinalIgnoreCase) && !dataDefaultString.Contains("ISEQ$$") && !dataDefaultString.Contains(".nextval"))
                 {
                     // This is only necessary because older versions of this migrator added single quotes for numerics.
                     var singleQuoteStrippedString = dataDefaultString.Replace("'", "");
