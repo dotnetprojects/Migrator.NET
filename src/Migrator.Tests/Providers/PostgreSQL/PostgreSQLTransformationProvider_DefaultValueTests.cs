@@ -6,7 +6,7 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
 [Category("Postgre")]
-public class PostgreSQLTransformationProvider_ChangeColumnTests : Generic_ChangeColumnTestsBase
+public class PostgreSQLTransformationProvider_DefaultValueTests : Generic_DefaultValueTestsBase
 {
     [SetUp]
     public async Task SetUpAsync()

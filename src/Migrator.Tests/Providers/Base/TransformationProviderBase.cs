@@ -64,10 +64,9 @@ public abstract class TransformationProviderBase
         }
     }
 
-
     protected async Task BeginOracleTransactionAsync()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(1));
         var configReader = new ConfigurationReader();
 
         var databaseConnectionConfig = configReader.GetDatabaseConnectionConfigById(DatabaseConnectionConfigIds.OracleId);
