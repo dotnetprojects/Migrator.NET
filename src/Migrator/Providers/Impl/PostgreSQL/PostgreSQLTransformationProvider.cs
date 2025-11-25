@@ -607,14 +607,29 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             {
                 if (column.MigratorDbType == MigratorDbType.Int16 || column.MigratorDbType == MigratorDbType.Int32 || column.MigratorDbType == MigratorDbType.Int64)
                 {
+                    var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
+                    if (match.Success)
+                    {
+                        columnInfo.ColumnDefault = match.Value;
+                    }
                     column.DefaultValue = long.Parse(columnInfo.ColumnDefault.ToString());
                 }
                 else if (column.MigratorDbType == MigratorDbType.UInt16 || column.MigratorDbType == MigratorDbType.UInt32 || column.MigratorDbType == MigratorDbType.UInt64)
                 {
+                    var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
+                    if (match.Success)
+                    {
+                        columnInfo.ColumnDefault = match.Value;
+                    }
                     column.DefaultValue = ulong.Parse(columnInfo.ColumnDefault.ToString());
                 }
                 else if (column.MigratorDbType == MigratorDbType.Double || column.MigratorDbType == MigratorDbType.Single)
                 {
+                    var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
+                    if (match.Success)
+                    {
+                        columnInfo.ColumnDefault = match.Value;
+                    }
                     column.DefaultValue = double.Parse(columnInfo.ColumnDefault.ToString(), CultureInfo.InvariantCulture);
                 }
                 else if (column.MigratorDbType == MigratorDbType.Interval)
@@ -711,6 +726,11 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                 }
                 else if (column.MigratorDbType == MigratorDbType.Decimal)
                 {
+                    var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
+                    if (match.Success)
+                    {
+                        columnInfo.ColumnDefault = match.Value;
+                    }
                     column.DefaultValue = decimal.Parse(columnInfo.ColumnDefault, CultureInfo.InvariantCulture);
                 }
                 else if (column.MigratorDbType == MigratorDbType.String)
