@@ -612,7 +612,10 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                     {
                         columnInfo.ColumnDefault = match.Value;
                     }
-                    column.DefaultValue = long.Parse(columnInfo.ColumnDefault.ToString());
+                    if (!columnInfo.ColumnDefault.Contains(table, StringComparison.OrdinalIgnoreCase))
+                    {
+                        column.DefaultValue = long.Parse(columnInfo.ColumnDefault.ToString());
+                    }
                 }
                 else if (column.MigratorDbType == MigratorDbType.UInt16 || column.MigratorDbType == MigratorDbType.UInt32 || column.MigratorDbType == MigratorDbType.UInt64)
                 {
@@ -621,7 +624,10 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                     {
                         columnInfo.ColumnDefault = match.Value;
                     }
-                    column.DefaultValue = ulong.Parse(columnInfo.ColumnDefault.ToString());
+                    if (!columnInfo.ColumnDefault.Contains(table, StringComparison.OrdinalIgnoreCase))
+                    {
+                        column.DefaultValue = ulong.Parse(columnInfo.ColumnDefault.ToString());
+                    }
                 }
                 else if (column.MigratorDbType == MigratorDbType.Double || column.MigratorDbType == MigratorDbType.Single)
                 {
@@ -630,7 +636,10 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                     {
                         columnInfo.ColumnDefault = match.Value;
                     }
-                    column.DefaultValue = double.Parse(columnInfo.ColumnDefault.ToString(), CultureInfo.InvariantCulture);
+                    if (!columnInfo.ColumnDefault.Contains(table, StringComparison.OrdinalIgnoreCase))
+                    {
+                        column.DefaultValue = double.Parse(columnInfo.ColumnDefault.ToString(), CultureInfo.InvariantCulture);
+                    }
                 }
                 else if (column.MigratorDbType == MigratorDbType.Interval)
                 {
@@ -731,7 +740,10 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                     {
                         columnInfo.ColumnDefault = match.Value;
                     }
-                    column.DefaultValue = decimal.Parse(columnInfo.ColumnDefault, CultureInfo.InvariantCulture);
+                    if (!columnInfo.ColumnDefault.Contains(table, StringComparison.OrdinalIgnoreCase))
+                    {
+                        column.DefaultValue = decimal.Parse(columnInfo.ColumnDefault, CultureInfo.InvariantCulture);
+                    }
                 }
                 else if (column.MigratorDbType == MigratorDbType.String)
                 {
