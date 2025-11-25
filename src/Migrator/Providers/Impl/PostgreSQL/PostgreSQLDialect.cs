@@ -129,6 +129,11 @@ public class PostgreSQLDialect : Dialect
             var convertedString = BitConverter.ToString(byteArray).Replace("-", "").ToLower();
             return @$"DEFAULT E'\\x{convertedString}'";
         }
+        else if (defaultValue is DateTimeOffset offset)
+        {
+            var convertedString = offset.ToString("yyyy-MM-dd HH:mm:ss.fffzzz");
+            return @$"DEFAULT '{convertedString}'";
+        }
 
         return base.Default(defaultValue);
     }

@@ -55,6 +55,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
     {
         // Arrange
         var dateTimeDefaultValue = new DateTime(2000, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var dateTimeOffsetDefaultValue = new DateTimeOffset(2022, 2, 2, 3, 3, 4, 4, TimeSpan.FromHours(1));
         var guidDefaultValue = Guid.NewGuid();
         var decimalDefaultValue = 14.56565m;
 
@@ -62,6 +63,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
 
         const string dateTimeColumnName1 = "datetimecolumn1";
         const string dateTimeColumnName2 = "datetimecolumn2";
+        const string dateTimeOffsetColumnName1 = "datetimeoffset1";
         const string decimalColumnName1 = "decimalcolumn";
         const string guidColumnName1 = "guidcolumn1";
         const string booleanColumnName1 = "booleancolumn1";
@@ -76,6 +78,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
         Provider.AddTable(testTableName,
             new Column(dateTimeColumnName1, DbType.DateTime, dateTimeDefaultValue),
             new Column(dateTimeColumnName2, DbType.DateTime2, dateTimeDefaultValue),
+            new Column(dateTimeOffsetColumnName1, DbType.DateTimeOffset, dateTimeOffsetDefaultValue),
             new Column(decimalColumnName1, DbType.Decimal, decimalDefaultValue),
             new Column(guidColumnName1, DbType.Guid, guidDefaultValue),
 
@@ -96,6 +99,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
         // Assert
         var dateTimeColumn1 = columns.Single(x => x.Name.Equals(dateTimeColumnName1, StringComparison.OrdinalIgnoreCase));
         var dateTimeColumn2 = columns.Single(x => x.Name.Equals(dateTimeColumnName2, StringComparison.OrdinalIgnoreCase));
+        var dateTimeOffsetColumn1 = columns.Single(x => x.Name.Equals(dateTimeOffsetColumnName1, StringComparison.OrdinalIgnoreCase));
         var decimalColumn1 = columns.Single(x => x.Name.Equals(decimalColumnName1, StringComparison.OrdinalIgnoreCase));
         var guidColumn1 = columns.Single(x => x.Name.Equals(guidColumnName1, StringComparison.OrdinalIgnoreCase));
         var booleanColumn1 = columns.Single(x => x.Name.Equals(booleanColumnName1, StringComparison.OrdinalIgnoreCase));
@@ -108,6 +112,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
 
         Assert.That(dateTimeColumn1.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
         Assert.That(dateTimeColumn2.DefaultValue, Is.EqualTo(dateTimeDefaultValue));
+        Assert.That(dateTimeOffsetColumn1.DefaultValue, Is.EqualTo(dateTimeOffsetDefaultValue));
         Assert.That(decimalColumn1.DefaultValue, Is.EqualTo(decimalDefaultValue));
         Assert.That(guidColumn1.DefaultValue, Is.EqualTo(guidDefaultValue));
         Assert.That(booleanColumn1.DefaultValue, Is.True);

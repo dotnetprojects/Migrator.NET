@@ -762,6 +762,65 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                         throw new NotImplementedException($"Cannot parse {columnInfo.ColumnDefault} in column '{column.Name}'");
                     }
                 }
+                else if (column.MigratorDbType == MigratorDbType.DateTimeOffset)
+                {
+                    if (columnInfo.ColumnDefault.StartsWith("'"))
+                    {
+                        var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
+
+                        if (!match.Success)
+                        {
+                            throw new NotImplementedException($"Cannot parse {columnInfo.ColumnDefault} in column '{column.Name}'");
+                        }
+
+                        var singleQuoteString = match.Value;
+
+                        // 1) Normalize "Z" at the end → "+00:00"
+                        singleQuoteString = Regex.Replace(singleQuoteString, @"Z$", "+00:00");
+
+                        // 2) Normalize offset at the end of the string
+                        // Cases handled:
+                        //   +HH       → +HH:00
+                        //   +HHMM     → +HH:MM
+                        //   +HH:MM    → stays unchanged
+                        //   -HH / -HHMM → same logic
+                        singleQuoteString = Regex.Replace(
+                            singleQuoteString,
+                            @"([+-])(\d{2})(?::?(\d{2}))?$",
+                            m =>
+                            {
+                                var sign = m.Groups[1].Value;      // "+" or "-"
+                                var hh = m.Groups[2].Value;        // hours
+                                var hasMm = m.Groups[3].Success;   // minutes present?
+                                var mm = hasMm ? m.Groups[3].Value : "00";
+                                return $"{sign}{hh}:{mm}";
+                            }
+                        );
+
+                        // 3) Parse using multiple possible formats
+                        // Supports both space and "T" separator, with/without milliseconds
+                        var formats = new[]
+                        {
+                            "yyyy-MM-dd HH:mm:ss.fffzzz",  // space separator, with ms
+                            "yyyy-MM-dd HH:mm:sszzz",      // space separator, no ms
+                            "yyyy-MM-ddTHH:mm:ss.fffzzz",  // ISO8601, with ms
+                            "yyyy-MM-ddTHH:mm:sszzz"       // ISO8601, no ms
+                        };
+
+                        var dateTimeOffset = DateTimeOffset.ParseExact(
+                            singleQuoteString,
+                            formats,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.None
+                        );
+
+                        column.DefaultValue = dateTimeOffset;
+                    }
+                    else
+                    {
+                        throw new NotImplementedException($"Cannot parse {columnInfo.ColumnDefault} in column '{column.Name}'");
+                    }
+                }
                 else
                 {
                     throw new NotImplementedException($"{nameof(DbType)} {column.MigratorDbType} not implemented.");
