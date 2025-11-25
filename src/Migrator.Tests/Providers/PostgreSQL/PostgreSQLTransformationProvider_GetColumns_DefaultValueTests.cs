@@ -70,6 +70,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
         const string int32ColumnName1 = "int32column1";
         const string int64ColumnName1 = "int64column1";
         const string int64ColumnName2 = "int64column2";
+        const string int64ColumnName3 = "int64column3";
         const string stringColumnName1 = "stringcolumn1";
         const string binaryColumnName1 = "binarycolumn1";
         const string doubleColumnName1 = "doublecolumn1";
@@ -88,6 +89,8 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
             new Column(int32ColumnName1, DbType.Int32, defaultValue: 43),
             new Column(int64ColumnName1, DbType.Int64, defaultValue: 88),
             new Column(int64ColumnName2, DbType.Int64, defaultValue: 0),
+            // converted in postgre to ''0'::bigint'
+            new Column(int64ColumnName3, DbType.Int64, defaultValue: "0"),
             new Column(stringColumnName1, DbType.String, defaultValue: "Hello"),
             new Column(binaryColumnName1, DbType.Binary, defaultValue: new byte[] { 12, 32, 34 }),
             new Column(doubleColumnName1, DbType.Double, defaultValue: 84.874596567) { Precision = 19, Scale = 10 }
