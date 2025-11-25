@@ -2033,6 +2033,16 @@ public abstract class TransformationProvider : ITransformationProvider
             parameter.DbType = DbType.DateTime;
             parameter.Value = value;
         }
+        else if (value is DateTimeOffset dateTimeOffset)
+        {
+            parameter.DbType = DbType.DateTimeOffset;
+            parameter.Value = dateTimeOffset.ToUniversalTime();
+        }
+        else if (value is DateTimeOffset?)
+        {
+            parameter.DbType = DbType.DateTimeOffset;
+            parameter.Value = value == null ? null : ((DateTimeOffset?)value).Value.ToUniversalTime();
+        }
         else if (value is bool || value is bool?)
         {
             parameter.DbType = DbType.Boolean;

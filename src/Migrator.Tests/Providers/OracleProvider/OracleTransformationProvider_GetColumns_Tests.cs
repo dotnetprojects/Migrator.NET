@@ -3,14 +3,14 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
-using Migrator.Tests.Providers.Base;
+using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
 
 namespace Migrator.Tests.Providers.OracleProvider;
 
 [TestFixture]
 [Category("Oracle")]
-public class OracleTransformationProvider_GetColumns_Tests : TransformationProviderBase
+public class OracleTransformationProvider_GetColumns_Tests : Generic_GetColumnsTestsBase
 {
     [SetUp]
     public async Task SetUpAsync()
@@ -109,5 +109,34 @@ public class OracleTransformationProvider_GetColumns_Tests : TransformationProvi
         Assert.That(stringColumn1.DefaultValue, Is.EqualTo("Hello"));
         Assert.That(binarycolumn1.DefaultValue, Is.EqualTo(new byte[] { 12, 32, 34 }));
         Assert.That(doubleColumn1.DefaultValue, Is.EqualTo(84.874596567));
+    }
+
+    [Test]
+    public void GetColumns_GetIdentity_Succeeds()
+    {
+        // Arrange
+        var tableName1 = "Table1";
+        var tableName2 = "Table2";
+        var tableName3 = "Table3";
+        var tableName4 = "Table4";
+        var columnName1 = "ColumnName1";
+
+        Provider.ExecuteNonQuery($"CREATE TABLE {tableName1} ({columnName1} NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY)");
+        Provider.ExecuteNonQuery($"CREATE TABLE {tableName2} ({columnName1} NUMBER PRIMARY KEY)");
+
+        Provider.AddTable(name: tableName3, new Column(columnName1, DbType.Int32, ColumnProperty.Identity | ColumnProperty.PrimaryKey));
+        Provider.AddTable(name: tableName4, new Column(columnName1, DbType.Int32, ColumnProperty.PrimaryKey));
+
+        // Act
+        var columnTable1 = Provider.GetColumnByName(table: tableName1, column: columnName1);
+        var columnTable2 = Provider.GetColumnByName(table: tableName2, column: columnName1);
+        var columnTable3 = Provider.GetColumnByName(table: tableName3, column: columnName1);
+        var columnTable4 = Provider.GetColumnByName(table: tableName4, column: columnName1);
+
+        // Assert
+        Assert.That(columnTable1.IsIdentity, Is.True);
+        Assert.That(columnTable2.IsIdentity, Is.False);
+        Assert.That(columnTable3.IsIdentity, Is.True);
+        Assert.That(columnTable4.IsIdentity, Is.False);
     }
 }
