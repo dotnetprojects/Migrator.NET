@@ -240,7 +240,10 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual Column GetColumnByName(string table, string columnName)
     {
         var columns = GetColumns(table);
-        return columns.First(column => column.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
+        var column = columns.FirstOrDefault(x => x.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase)) ??
+            throw new Exception($"Cannot find column '{columnName}' in table '{table}'");
+
+        return column;
     }
 
     public virtual int GetColumnContentSize(string table, string columnName)
