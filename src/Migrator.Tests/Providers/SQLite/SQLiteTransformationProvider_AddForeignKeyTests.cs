@@ -1,3 +1,4 @@
+using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
@@ -65,5 +66,27 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
 
         var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();
         Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void AddForeignKey_3_Success()
+    {
+        Provider.AddTable("Task",
+           new Column(name: "BinId", type: DbType.Int32, property: ColumnProperty.NotNull),
+           new Column(name: "CreationTimeStamp", type: DbType.DateTime2, property: ColumnProperty.NotNull),
+           new Column(name: "EstimatedPickTime", type: DbType.Int32, property: ColumnProperty.Null),
+           new Column(name: "Id", type: DbType.Int32, property: ColumnProperty.NotNull),
+           new Column(name: "Item", type: DbType.Int32, property: ColumnProperty.Null),
+           new Column(name: "Order", type: DbType.Int32, property: ColumnProperty.Null),
+           new Column(name: "TaskGroupId", type: DbType.Int32, property: ColumnProperty.Null)
+       );
+
+        Provider.AddTable("TaskGroup",
+             new Column(name: "CreationTimeStamp", type: DbType.DateTime2, property: ColumnProperty.NotNull),
+             new Column(name: "Id", type: DbType.Int32)
+         );
+
+        // TODO CK add more columns.
+        Provider.AddForeignKey(name: "FK_Task_TaskGroup", childTable: "Task", childColumn: "TaskGroupId", parentTable: "TaskGroup", parentColumn: "Id");
     }
 }
