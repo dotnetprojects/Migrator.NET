@@ -76,4 +76,22 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         // Assert        
         Assert.That(hasNull, Is.False);
     }
+
+    [Test]
+    public void AddColumn_HavingNotNullInPrimaryKey_Succeds()
+    {
+        // Arrange/Act
+        Provider.ExecuteNonQuery("CREATE TABLE Common_Language (LanguageID INT NOT NULL PRIMARY KEY)");
+
+        Provider.AddColumn("Common_Language", "Enabled", DbType.Boolean);
+
+        var tableInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Language");
+        var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Language");
+
+        var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
+        var hasNull = columnProperty.IsSet(ColumnProperty.Null);
+
+        // Assert        
+        Assert.That(hasNull, Is.False);
+    }
 }
