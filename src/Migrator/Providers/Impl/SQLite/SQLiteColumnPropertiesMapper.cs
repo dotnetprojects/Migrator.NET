@@ -21,6 +21,13 @@ public class SQLiteColumnPropertiesMapper : ColumnPropertiesMapper
         }
     }
 
+    protected override void AddNotNull(Column column, List<string> vals)
+    {
+        if (column.IsIdentity)
+        {
+            AddValueIfSelected(column, ColumnProperty.NotNull, vals);
+        }
+    }
 
     protected virtual void AddValueIfSelected(Column column, ColumnProperty property, ICollection<string> vals)
     {
