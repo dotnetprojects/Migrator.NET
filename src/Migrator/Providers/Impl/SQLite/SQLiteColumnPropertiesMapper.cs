@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using DotNetProjects.Migrator.Framework;
 
@@ -24,16 +23,7 @@ public class SQLiteColumnPropertiesMapper : ColumnPropertiesMapper
 
     protected override void AddNotNull(Column column, List<string> vals)
     {
-        var isPrimaryKeySelected = PropertySelected(column.ColumnProperty, ColumnProperty.PrimaryKey);
-        var isNullSelected = PropertySelected(column.ColumnProperty, ColumnProperty.Null);
-        var isNotNullSelected = PropertySelected(column.ColumnProperty, ColumnProperty.NotNull);
-
-        if (isNullSelected && isPrimaryKeySelected)
-        {
-            throw new Exception("This is currently not supported by the migrator see issue #44. You need to use NOT NULL for a PK column.");
-        }
-
-        if (isNotNullSelected || isPrimaryKeySelected)
+        if (column.ColumnProperty.HasFlag(ColumnProperty.NotNull))
         {
             AddValueIfSelected(column, ColumnProperty.NotNull, vals);
         }

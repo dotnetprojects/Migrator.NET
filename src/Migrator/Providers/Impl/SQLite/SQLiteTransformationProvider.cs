@@ -1212,7 +1212,16 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             if (pragmaTableInfoItem.Pk > 0)
             {
-                column.ColumnProperty |= ColumnProperty.PrimaryKey;
+                if (new[] { DbType.UInt16, DbType.UInt32, DbType.UInt64, DbType.Int16, DbType.Int32, DbType.Int64 }.Contains(column.Type))
+                {
+                    column.ColumnProperty |= ColumnProperty.PrimaryKey;
+                    column.ColumnProperty |= ColumnProperty.NotNull;
+                    column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Null);
+                }
+                else
+                {
+                    column.ColumnProperty |= ColumnProperty.PrimaryKey;
+                }
             }
 
             var indexListItems = GetPragmaIndexListItems(tableName);

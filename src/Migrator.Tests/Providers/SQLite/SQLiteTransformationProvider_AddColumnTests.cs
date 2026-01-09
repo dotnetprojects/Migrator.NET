@@ -58,4 +58,57 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
         CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
     }
+
+    [Test]
+    public void AddColumn_HavingNullInPrimaryKey_HasNULLAfterAddAnotherColumn()
+    {
+        // Arrange/Act
+        Provider.ExecuteNonQuery("CREATE TABLE Common_Language (LanguageID TEXT PRIMARY KEY)");
+
+        Provider.AddColumn("Common_Language", "Enabled", DbType.Boolean);
+
+        var tableInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Language");
+        var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Language");
+
+        var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
+
+        // Assert        
+        Assert.That(script, Does.Contain("LanguageID TEXT NULL PRIMARY KEY"));
+    }
+
+    [Test]
+    public void AddColumn_HavingNullInPrimaryKey_HasNOTNULLAfterAddAnotherColumn()
+    {
+        // Arrange/Act
+        Provider.ExecuteNonQuery("CREATE TABLE Common_Language (LanguageID TEXT NOT NULL PRIMARY KEY)");
+
+        Provider.AddColumn("Common_Language", "Enabled", DbType.Boolean);
+
+        var tableInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Language");
+        var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Language");
+
+        var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
+
+        // Assert        
+        Assert.That(script, Does.Contain("LanguageID TEXT NOT NULL PRIMARY KEY"));
+    }
+
+    [Test]
+    public void AddColumn_HavingNotNullInPrimaryKey_Succeds()
+    {
+        // Arrange/Act
+        Provider.ExecuteNonQuery("CREATE TABLE Common_Language (LanguageID INT NOT NULL PRIMARY KEY)");
+
+        Provider.AddColumn("Common_Language", "Enabled", DbType.Boolean);
+
+        var tableInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Language");
+        var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Language");
+
+        var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
+        var hasNull = columnProperty.IsSet(ColumnProperty.Null);
+
+        // Assert  
+        Assert.That(script, Does.Contain("LanguageID INTEGER NOT NULL PRIMARY KEY"));
+        Assert.That(hasNull, Is.False);
+    }
 }

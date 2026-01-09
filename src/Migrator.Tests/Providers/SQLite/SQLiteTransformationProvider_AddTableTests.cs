@@ -87,10 +87,9 @@ public class SQLiteTransformationProvider_AddTableTests : Generic_AddTableTestsB
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (Column1 INTEGER NOT NULL PRIMARY KEY, Column2 INTEGER NOT NULL)"));
 
-        var pragmaTableInfos = ((SQLiteTransformationProvider)Provider).GetPragmaTableInfoItems(tableName);
-        Assert.That(pragmaTableInfos.All(x => x.NotNull), Is.True);
+        // In SQLite an INTEGER PRIMARY KEY column is NOT NULL implicitly (see insert asserts above)
+        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (Column1 INTEGER PRIMARY KEY, Column2 INTEGER NOT NULL)"));
 
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
         Assert.That(sqliteInfo.Columns.First().Name, Is.EqualTo(columnName1));
