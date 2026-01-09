@@ -25,6 +25,7 @@ public class SQLiteTransformationProvider_PropertyColumnIdentityTests : SQLiteTr
 
         var sql = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
 
-        Assert.That(sql, Does.Contain("Color1 INTEGER NOT NULL PRIMARY KEY"));
+        // NOT NULL implicitly set in SQLite
+        Assert.That(sql, Does.Contain("Color1 INTEGER PRIMARY KEY"));
     }
 }

@@ -23,7 +23,7 @@ public class SQLiteColumnPropertiesMapper : ColumnPropertiesMapper
 
     protected override void AddNotNull(Column column, List<string> vals)
     {
-        if (column.IsIdentity)
+        if (column.ColumnProperty.HasFlag(ColumnProperty.NotNull))
         {
             AddValueIfSelected(column, ColumnProperty.NotNull, vals);
         }
