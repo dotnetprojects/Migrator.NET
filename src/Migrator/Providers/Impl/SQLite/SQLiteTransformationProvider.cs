@@ -1213,6 +1213,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             if (pragmaTableInfoItem.Pk > 0)
             {
                 column.ColumnProperty |= ColumnProperty.PrimaryKey;
+
+                if (column.ColumnProperty.IsSet(ColumnProperty.Null))
+                {
+                    column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Null);
+                }
             }
 
             var indexListItems = GetPragmaIndexListItems(tableName);

@@ -33,6 +33,7 @@ public class SQLServerTransformationProvider_GetColumns_DefaultValues_Tests : Tr
         const string decimalColumnName1 = "decimalcolumn";
         const string guidColumnName1 = "guidcolumn1";
         const string booleanColumnName1 = "booleancolumn1";
+        const string booleanColumnName2 = "booleancolumn2";
         const string int32ColumnName1 = "int32column1";
         const string int64ColumnName1 = "int64column1";
         const string int64ColumnName2 = "int64column2";
@@ -50,6 +51,7 @@ public class SQLServerTransformationProvider_GetColumns_DefaultValues_Tests : Tr
 
             // other boolean default values are tested in another test
             new Column(booleanColumnName1, DbType.Boolean, true),
+            new Column(booleanColumnName2, DbType.Boolean, false),
 
             new Column(int32ColumnName1, DbType.Int32, defaultValue: 43),
             new Column(int64ColumnName1, DbType.Int64, defaultValue: 88),
@@ -69,6 +71,7 @@ public class SQLServerTransformationProvider_GetColumns_DefaultValues_Tests : Tr
         var decimalColumn1 = columns.Single(x => x.Name.Equals(decimalColumnName1, StringComparison.OrdinalIgnoreCase));
         var guidColumn1 = columns.Single(x => x.Name.Equals(guidColumnName1, StringComparison.OrdinalIgnoreCase));
         var booleanColumn1 = columns.Single(x => x.Name.Equals(booleanColumnName1, StringComparison.OrdinalIgnoreCase));
+        var booleanColumn2 = columns.Single(x => x.Name.Equals(booleanColumnName2, StringComparison.OrdinalIgnoreCase));
         var int32Column1 = columns.Single(x => x.Name.Equals(int32ColumnName1, StringComparison.OrdinalIgnoreCase));
         var int64Column1 = columns.Single(x => x.Name.Equals(int64ColumnName1, StringComparison.OrdinalIgnoreCase));
         var int64Column2 = columns.Single(x => x.Name.Equals(int64ColumnName2, StringComparison.OrdinalIgnoreCase));
@@ -82,6 +85,7 @@ public class SQLServerTransformationProvider_GetColumns_DefaultValues_Tests : Tr
         Assert.That(decimalColumn1.DefaultValue, Is.EqualTo(decimalDefaultValue));
         Assert.That(guidColumn1.DefaultValue, Is.EqualTo(guidDefaultValue));
         Assert.That(booleanColumn1.DefaultValue, Is.True);
+        Assert.That(booleanColumn2.DefaultValue, Is.False);
         Assert.That(int32Column1.DefaultValue, Is.EqualTo(43));
         Assert.That(int64Column1.DefaultValue, Is.EqualTo(88));
         Assert.That(stringColumn1.DefaultValue, Is.EqualTo("Hello"));
