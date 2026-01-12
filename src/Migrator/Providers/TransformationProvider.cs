@@ -725,6 +725,9 @@ public abstract class TransformationProvider : ITransformationProvider
     /// <param name="columns">Primary column names</param>
     public virtual void AddPrimaryKey(string name, string table, params string[] columns)
     {
+        QuoteColumnNames(columns);
+        table = QuoteTableNameIfRequired(table);
+
         ExecuteNonQuery(
             string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY ({2}) ", table, name,
                           string.Join(",", QuoteColumnNamesIfRequired(columns))));
