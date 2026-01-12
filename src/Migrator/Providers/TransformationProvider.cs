@@ -724,7 +724,6 @@ public abstract class TransformationProvider : ITransformationProvider
     /// <param name="columns">Primary column names</param>
     public virtual void AddPrimaryKey(string name, string table, params string[] columns)
     {
-        QuoteColumnNamesIfRequired(columns);
         table = QuoteTableNameIfRequired(table);
 
         ExecuteNonQuery(
@@ -737,10 +736,10 @@ public abstract class TransformationProvider : ITransformationProvider
     }
     public virtual void AddUniqueConstraint(string name, string table, params string[] columns)
     {
-        QuoteColumnNamesIfRequired(columns);
         table = QuoteTableNameIfRequired(table);
 
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} UNIQUE({2}) ", table, name, string.Join(", ", columns)));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} UNIQUE({2}) ", table, name,
+                          string.Join(", ", QuoteColumnNamesIfRequired(columns))));
     }
 
     public virtual void AddCheckConstraint(string name, string table, string checkSql)
@@ -2234,3 +2233,4 @@ public abstract class TransformationProvider : ITransformationProvider
         throw new NotImplementedException();
     }
 }
+
