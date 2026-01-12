@@ -1390,6 +1390,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         foreach (var column in columns)
         {
+            if (!hasCompoundPrimaryKey && column.IsPrimaryKey)
+            {
+                // We implicitly set NOT NULL for non-composite primary keys like in other RDBMS.
+                column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Null);
+                column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.NotNull);
+            }
+
             if (hasCompoundPrimaryKey && column.IsPrimaryKey)
             {
                 // We remove PrimaryKey here and readd it as compound later ("...PRIMARY KEY(column1,column2)");

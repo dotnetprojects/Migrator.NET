@@ -59,8 +59,11 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         CollectionAssert.AreEquivalent(indexAfter.KeyColumns, new string[] { propertyName1, propertyName2 });
     }
 
+    /// <summary>
+    /// NOT NULL is implicitly set by the migrator for non-composite primary key
+    /// </summary>
     [Test]
-    public void AddColumn_HavingNullInPrimaryKey_HasNULLAfterAddAnotherColumn()
+    public void AddColumn_HavingNullInPrimaryKey_HasNotNullAfterAddAnotherColumn()
     {
         // Arrange/Act
         Provider.ExecuteNonQuery("CREATE TABLE Common_Language (LanguageID TEXT PRIMARY KEY)");
@@ -73,7 +76,7 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
 
         // Assert        
-        Assert.That(script, Does.Contain("LanguageID TEXT NULL PRIMARY KEY"));
+        Assert.That(script, Does.Contain("LanguageID TEXT NOT NULL PRIMARY KEY"));
     }
 
     [Test]
