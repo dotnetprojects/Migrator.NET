@@ -391,8 +391,6 @@ public class SqlServerTransformationProvider : TransformationProvider
             var schemaNameOrdinal = reader.GetOrdinal("SchemaName");
             var tableNameOrdinal = reader.GetOrdinal("TableName");
 
-
-
             while (reader.Read())
             {
                 var indexItem = new IndexItem

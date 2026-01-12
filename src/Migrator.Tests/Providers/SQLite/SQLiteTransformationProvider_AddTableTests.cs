@@ -1,3 +1,4 @@
+using System;
 using System.Data.SQLite;
 using System.Linq;
 using System.Threading.Tasks;
@@ -89,7 +90,7 @@ public class SQLiteTransformationProvider_AddTableTests : Generic_AddTableTestsB
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
 
         // In SQLite an INTEGER PRIMARY KEY column is NOT NULL implicitly (see insert asserts above)
-        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (Column1 INTEGER PRIMARY KEY, Column2 INTEGER NOT NULL)"));
+        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (Column1 INTEGER NOT NULL PRIMARY KEY, Column2 INTEGER NOT NULL)"));
 
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
         Assert.That(sqliteInfo.Columns.First().Name, Is.EqualTo(columnName1));
@@ -123,5 +124,59 @@ public class SQLiteTransformationProvider_AddTableTests : Generic_AddTableTestsB
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
         Assert.That(sqliteInfo.Columns.First().Name, Is.EqualTo(columnName1));
         Assert.That(sqliteInfo.Columns[1].Name, Is.EqualTo(columnName2));
+    }
+
+    /// <summary>
+    /// NOT NULL is implicitly set by SQLite
+    /// </summary>
+    [Test]
+    public void AddTable_GuidPrimaryKeyOneColumnPKImplicitlyUsingNotNull_ThrowsOnNullAndOnDuplicates()
+    {
+        const string tableName = "MyTableName";
+        const string columnName1 = "Column1";
+        var guid = Guid.NewGuid();
+
+        // Arrange/Act
+        Provider.AddTable(tableName,
+            new Column(columnName1, System.Data.DbType.Guid, ColumnProperty.PrimaryKey)
+        );
+
+        Provider.Insert(tableName, [columnName1], [guid]);
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1], [guid]));
+
+        // The migrator sets NotNull on PrimaryKey (non composite) so this line throws.
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1], [null]));
+    }
+
+    /// <summary>
+    /// Composite PK with Guids
+    /// </summary>
+    [Test]
+    public void AddTable_GuidPrimaryKeyCompositeWithGuid_DoesNotThrowOnDuplicateNULLEntries()
+    {
+        const string tableName = "MyTableName";
+        const string columnName1 = "Column1";
+        const string columnName2 = "Column2";
+        var guid = Guid.NewGuid();
+        var guid2 = Guid.NewGuid();
+
+        // Arrange/Act
+        Provider.AddTable(tableName,
+            new Column(columnName1, System.Data.DbType.Guid, ColumnProperty.PrimaryKey),
+            new Column(columnName2, System.Data.DbType.Guid, ColumnProperty.PrimaryKey)
+        );
+
+        // This is a normal SQLite behavior! 
+        // NULL != NULL
+        // (A, NULL) != (A, NULL)
+        // Duplicates! You need to set NotNull if you want to prevent it!
+        Provider.Insert(tableName, [columnName1, columnName2], [guid, null]);
+        Provider.Insert(tableName, [columnName1, columnName2], [guid, null]);
+
+        Provider.Insert(tableName, [columnName1, columnName2], [null, guid]);
+        Provider.Insert(tableName, [columnName1, columnName2], [null, guid]);
+
+        Provider.Insert(tableName, [columnName1, columnName2], [guid2, guid2]);
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [guid2, guid2]));
     }
 }
