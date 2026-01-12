@@ -23,7 +23,6 @@ using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using ForeignKeyConstraintType = DotNetProjects.Migrator.Framework.ForeignKeyConstraintType;
@@ -738,7 +737,7 @@ public abstract class TransformationProvider : ITransformationProvider
     }
     public virtual void AddUniqueConstraint(string name, string table, params string[] columns)
     {
-        QuoteColumnNames(columns);
+        QuoteColumnNamesIfRequired(columns);
         table = QuoteTableNameIfRequired(table);
 
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} UNIQUE({2}) ", table, name, string.Join(", ", columns)));
