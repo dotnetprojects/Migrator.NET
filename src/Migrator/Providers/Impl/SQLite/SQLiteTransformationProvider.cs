@@ -152,7 +152,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var createTableScript = GetSqlCreateTableScript(tableName);
         // GeneratedRegex
-        var regEx = new Regex(@"CONSTRAINT\s+\w+\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+\w+\s*\([^)]+\)");
+        var regEx = new Regex(@"CONSTRAINT\s+\w+\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+[\w""]+\s*\([^)]+\)");
         var matchesCollection = regEx.Matches(createTableScript);
         var fkParts = matchesCollection.Cast<Match>().ToList().Where(x => x.Success).Select(x => x.Value).ToList();
 
