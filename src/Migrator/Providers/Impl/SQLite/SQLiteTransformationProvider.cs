@@ -446,6 +446,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         // In SQLite we need to recreate the table even if we only want to add, alter or drop a foreign key. So we not only recreate the table given 
         // as parameter but also the tables with FKs pointing to the column you want to remove.
         // In order to perform it smoothly, the PRAGMA foreign keys should be set off.
+        //
+        // Note: SQLite 3.35.0+ added native ALTER TABLE ... DROP COLUMN support, but it has limitations:
+        // - Cannot drop PRIMARY KEY columns
+        // - Cannot drop UNIQUE columns
+        // - Cannot drop columns that are part of a foreign key or index  
+        // Therefore, we continue using the RecreateTable approach for maximum compatibility and features.
 
         var isPragmaForeignKeysOn = IsPragmaForeignKeysOn();
 
@@ -578,88 +584,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteInfoMainTable);
     }
 
-    public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
-    {
-        if (!TableExists(tableName))
-        {
-            throw new Exception($"Table {tableName} does not exist");
-        }
-
-        var isPragmaForeignKeysOn = IsPragmaForeignKeysOn();
-
-        if (isPragmaForeignKeysOn)
-        {
-            throw new Exception($"{nameof(RenameColumn)} requires foreign keys off.");
-        }
-
-        // Due to old .Net versions we cannot use ThrowIfNullOrWhitespace
-        if (string.IsNullOrWhiteSpace(newColumnName))
-        {
-            throw new Exception("New column name is null or empty");
-        }
-
-        if (ColumnExists(tableName, newColumnName))
-        {
-            throw new MigrationException(string.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
-        }
-
-        if (ColumnExists(tableName, oldColumnName))
-        {
-            var sqliteTableInfo = GetSQLiteTableInfo(tableName);
-
-            var columnMapping = sqliteTableInfo.ColumnMappings.First(x => x.OldName.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase));
-            columnMapping.NewName = newColumnName;
-
-            var column = sqliteTableInfo.Columns.First(x => x.Name.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase));
-            column.Name = newColumnName;
-
-            foreach (var foreignKey in sqliteTableInfo.ForeignKeys)
-            {
-                foreignKey.ChildColumns = [.. foreignKey.ChildColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
-            }
-
-            foreach (var index in sqliteTableInfo.Indexes)
-            {
-                index.KeyColumns = [.. index.KeyColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
-            }
-
-            foreach (var unique in sqliteTableInfo.Uniques)
-            {
-                unique.KeyColumns = [.. unique.KeyColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
-            }
-
-            RecreateTable(sqliteTableInfo);
-
-            var allTables = GetTables();
-
-            // Rename in foreign keys of depending tables
-            foreach (var allTablesItem in allTables)
-            {
-                if (allTablesItem == tableName)
-                {
-                    continue;
-                }
-
-                var sqliteTableInfoOther = GetSQLiteTableInfo(allTablesItem);
-
-                foreach (var foreignKey in sqliteTableInfoOther.ForeignKeys)
-                {
-                    if (foreignKey.ParentTable != tableName)
-                    {
-                        continue;
-                    }
-
-                    foreignKey.ParentColumns = foreignKey.ParentColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
-
-                    RecreateTable(sqliteTableInfoOther);
-                }
-            }
-        }
-        else
-        {
-            throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
-        }
-    }
+    // SQLite 3.25.0+ supports ALTER TABLE ... RENAME COLUMN natively
+    // Use the base implementation which generates the correct SQL
+    // public override void RenameColumn removed to use base class implementation
 
     public override void RemoveColumnDefaultValue(string tableName, string columnName)
     {
@@ -900,6 +827,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void AddColumn(string table, Column column)
     {
+        // SQLite 3.1.3+ (2005) supports ALTER TABLE ADD COLUMN natively, but with limitations:
+        // - Cannot add columns with PRIMARY KEY constraint
+        // - Cannot add columns with UNIQUE constraint  
+        // - Cannot add columns with generated/expression default values
+        // The RecreateTable approach allows us to handle these cases and provides schema normalization.
+        // For simple column additions, native ADD COLUMN would work, but RecreateTable ensures consistency.
+        
         if (!TableExists(table))
         {
             throw new Exception("Table does not exist.");
