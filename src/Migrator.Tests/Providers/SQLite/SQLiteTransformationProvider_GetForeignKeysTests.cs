@@ -55,7 +55,7 @@ public class SQLiteTransformationProvider_GetForeignKeysTests : SQLiteTransforma
     }
 
     [Test]
-    public void GetForeignKeyConstraints_WithReservedWordTableName_ReturnsCorrectForeignKeys()
+    public void GetForeignKeyConstraints_WithReservedWordGroup_ReturnsCorrectForeignKeys()
     {
         // Arrange - Testing with SQLite reserved word "group" as parent table name
         const string parentTable = "group";
