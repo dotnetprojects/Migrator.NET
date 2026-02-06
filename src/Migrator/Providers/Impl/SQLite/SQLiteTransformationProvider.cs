@@ -827,6 +827,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void AddColumn(string table, Column column)
     {
+        // SQLite 3.1.3+ (2005) supports ALTER TABLE ADD COLUMN natively, but with limitations:
+        // - Cannot add columns with PRIMARY KEY constraint
+        // - Cannot add columns with UNIQUE constraint  
+        // - Cannot add columns with generated/expression default values
+        // The RecreateTable approach allows us to handle these cases and provides schema normalization.
+        // For simple column additions, native ADD COLUMN would work, but RecreateTable ensures consistency.
+        
         if (!TableExists(table))
         {
             throw new Exception("Table does not exist.");
