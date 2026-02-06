@@ -53,4 +53,139 @@ public class SQLiteTransformationProvider_GetForeignKeysTests : SQLiteTransforma
         Assert.That(foreignKeyConstraints.Single(x => x.Name == foreignKeyStringB).ChildColumns, Is.EqualTo([childColumnFKToParentBProperty1, childColumnFKToParentBProperty2]));
         Assert.That(foreignKeyConstraints.Single(x => x.Name == foreignKeyStringB).ParentColumns, Is.EqualTo([parentBProperty1, parentBProperty2]));
     }
+
+    [Test]
+    public void GetForeignKeyConstraints_WithReservedWordTableName_ReturnsCorrectForeignKeys()
+    {
+        // Arrange - Testing with SQLite reserved word "group" as parent table name
+        const string parentTable = "group";
+        const string parentColumn = "Id";
+        const string childTable = "Orders";
+        const string childColumn = "GroupId";
+        const string foreignKeyName = "FK_Orders_Group";
+
+        Provider.AddTable(parentTable, new Column(parentColumn, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(childTable,
+            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(childColumn, DbType.Int32)
+        );
+
+        Provider.AddForeignKey(foreignKeyName, childTable, childColumn, parentTable, parentColumn);
+
+        // Act
+        var foreignKeyConstraints = Provider.GetForeignKeyConstraints(childTable);
+
+        // Assert
+        Assert.That(foreignKeyConstraints.Length, Is.EqualTo(1));
+        var fk = foreignKeyConstraints.Single();
+        Assert.That(fk.Name, Is.EqualTo(foreignKeyName));
+        Assert.That(fk.ParentTable, Is.EqualTo(parentTable));
+        Assert.That(fk.ParentColumns, Is.EqualTo(new[] { parentColumn }));
+        Assert.That(fk.ChildTable, Is.EqualTo(childTable));
+        Assert.That(fk.ChildColumns, Is.EqualTo(new[] { childColumn }));
+    }
+
+    [Test]
+    public void GetForeignKeyConstraints_WithReservedWordOrder_ReturnsCorrectForeignKeys()
+    {
+        // Arrange - Testing with SQLite reserved word "order" as parent table name
+        const string parentTable = "order";
+        const string parentColumn = "OrderId";
+        const string childTable = "LineItems";
+        const string childColumn = "OrderRef";
+        const string foreignKeyName = "FK_LineItems_Order";
+
+        Provider.AddTable(parentTable, new Column(parentColumn, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(childTable,
+            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(childColumn, DbType.Int32)
+        );
+
+        Provider.AddForeignKey(foreignKeyName, childTable, childColumn, parentTable, parentColumn);
+
+        // Act
+        var foreignKeyConstraints = Provider.GetForeignKeyConstraints(childTable);
+
+        // Assert
+        Assert.That(foreignKeyConstraints.Length, Is.EqualTo(1));
+        var fk = foreignKeyConstraints.Single();
+        Assert.That(fk.Name, Is.EqualTo(foreignKeyName));
+        Assert.That(fk.ParentTable, Is.EqualTo(parentTable));
+        Assert.That(fk.ParentColumns, Is.EqualTo(new[] { parentColumn }));
+        Assert.That(fk.ChildTable, Is.EqualTo(childTable));
+        Assert.That(fk.ChildColumns, Is.EqualTo(new[] { childColumn }));
+    }
+
+    [Test]
+    public void GetForeignKeyConstraints_WithReservedWordKey_ReturnsCorrectForeignKeys()
+    {
+        // Arrange - Testing with SQLite reserved word "key" as parent table name
+        const string parentTable = "key";
+        const string parentColumn = "KeyId";
+        const string childTable = "Locks";
+        const string childColumn = "KeyRef";
+        const string foreignKeyName = "FK_Locks_Key";
+
+        Provider.AddTable(parentTable, new Column(parentColumn, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(childTable,
+            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(childColumn, DbType.Int32)
+        );
+
+        Provider.AddForeignKey(foreignKeyName, childTable, childColumn, parentTable, parentColumn);
+
+        // Act
+        var foreignKeyConstraints = Provider.GetForeignKeyConstraints(childTable);
+
+        // Assert
+        Assert.That(foreignKeyConstraints.Length, Is.EqualTo(1));
+        var fk = foreignKeyConstraints.Single();
+        Assert.That(fk.Name, Is.EqualTo(foreignKeyName));
+        Assert.That(fk.ParentTable, Is.EqualTo(parentTable));
+        Assert.That(fk.ParentColumns, Is.EqualTo(new[] { parentColumn }));
+        Assert.That(fk.ChildTable, Is.EqualTo(childTable));
+        Assert.That(fk.ChildColumns, Is.EqualTo(new[] { childColumn }));
+    }
+
+    [Test]
+    public void GetForeignKeyConstraints_WithMultipleForeignKeysIncludingQuoted_ReturnsAllCorrectly()
+    {
+        // Arrange - Testing combination of regular and quoted table names
+        const string regularParent = "NormalTable";
+        const string quotedParent = "order";
+        const string regularColumn = "NormalId";
+        const string quotedColumn = "OrderId";
+        const string childTable = "MixedChild";
+        const string childColumnRegular = "NormalRef";
+        const string childColumnQuoted = "OrderRef";
+        const string fkRegular = "FK_Mixed_Normal";
+        const string fkQuoted = "FK_Mixed_Order";
+
+        Provider.AddTable(regularParent, new Column(regularColumn, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(quotedParent, new Column(quotedColumn, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(childTable,
+            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(childColumnRegular, DbType.Int32),
+            new Column(childColumnQuoted, DbType.Int32)
+        );
+
+        Provider.AddForeignKey(fkRegular, childTable, childColumnRegular, regularParent, regularColumn);
+        Provider.AddForeignKey(fkQuoted, childTable, childColumnQuoted, quotedParent, quotedColumn);
+
+        // Act
+        var foreignKeyConstraints = Provider.GetForeignKeyConstraints(childTable);
+
+        // Assert
+        Assert.That(foreignKeyConstraints.Length, Is.EqualTo(2));
+
+        var fkReg = foreignKeyConstraints.Single(x => x.Name == fkRegular);
+        Assert.That(fkReg.ParentTable, Is.EqualTo(regularParent));
+        Assert.That(fkReg.ParentColumns, Is.EqualTo(new[] { regularColumn }));
+        Assert.That(fkReg.ChildColumns, Is.EqualTo(new[] { childColumnRegular }));
+
+        var fkQuo = foreignKeyConstraints.Single(x => x.Name == fkQuoted);
+        Assert.That(fkQuo.ParentTable, Is.EqualTo(quotedParent));
+        Assert.That(fkQuo.ParentColumns, Is.EqualTo(new[] { quotedColumn }));
+        Assert.That(fkQuo.ChildColumns, Is.EqualTo(new[] { childColumnQuoted }));
+    }
 }
