@@ -55,4 +55,9 @@ public class MigrationAttribute : Attribute
         get { return _ignore; }
         set { _ignore = value; }
     }
+
+    /// <summary>
+    /// Disable Foreign Keys in Sqlite
+    /// </summary>
+    public bool DisableForeignKeysInSqlite { get; set; }
 }

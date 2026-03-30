@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Providers.Impl.SQLite;
 
 namespace DotNetProjects.Migrator;
 
@@ -63,13 +64,17 @@ public class MigrateAnywhere : BaseMigrate
 
     public override void Migrate(IMigration migration)
     {
-        _provider.BeginTransaction();
 #if NETSTANDARD
         var attr = migration.GetType().GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
 #else
         var attr = (MigrationAttribute)Attribute.GetCustomAttribute(migration.GetType(), typeof(MigrationAttribute));
 #endif
+        if (attr.DisableForeignKeysInSqlite && _provider is SQLiteTransformationProvider sqlite)
+        {
+            sqlite.SetPragmaForeignKeys(false);
+        }
 
+        _provider.BeginTransaction();
 
         if (_provider.AppliedMigrations.Contains(attr.Version))
         {
@@ -78,6 +83,11 @@ public class MigrateAnywhere : BaseMigrate
         else
         {
             ApplyMigration(migration, attr);
+        }
+
+        if (attr.DisableForeignKeysInSqlite && _provider is SQLiteTransformationProvider sqlite2)
+        {
+            sqlite2.SetPragmaForeignKeys(true);
         }
     }
 
