@@ -1,5 +1,4 @@
 using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Providers.Impl.SQLite;
 
 namespace Migrator.Tests.Data;
 
@@ -62,25 +61,6 @@ public class SecondTestMigration : IMigration
     /// This gets called once on the first migration object.
     /// </summary>
     public virtual void InitializeOnce(string[] args)
-    {
-    }
-}
-
-[Migration(3, DisableForeignKeysInSqlite = true)]
-public class ThirdTestMigration : Migration
-{
-    public override void Up()
-    {
-        if (this.Database is SQLiteTransformationProvider sqlite)
-        {
-            if (sqlite.IsPragmaForeignKeysOn())
-            {
-                throw new System.Exception("Disableling of Foreign keys was not possible");
-            }
-        }
-    }
-
-    public override void Down()
     {
     }
 }

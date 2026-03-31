@@ -69,7 +69,7 @@ public class MigrateAnywhere : BaseMigrate
         var attr = (MigrationAttribute)Attribute.GetCustomAttribute(migration.GetType(), typeof(MigrationAttribute));
 #endif
         var foreignKeysWasOn = false;
-        if (attr.DisableForeignKeysInSqlite && _provider is SQLiteTransformationProvider sqlite)
+        if (_provider is SQLiteTransformationProvider sqlite)
         {
             foreignKeysWasOn = sqlite.IsPragmaForeignKeysOn();
             if (foreignKeysWasOn)
