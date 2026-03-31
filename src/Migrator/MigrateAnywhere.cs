@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
@@ -69,9 +68,14 @@ public class MigrateAnywhere : BaseMigrate
 #else
         var attr = (MigrationAttribute)Attribute.GetCustomAttribute(migration.GetType(), typeof(MigrationAttribute));
 #endif
+        var foreignKeysWasOn = false;
         if (attr.DisableForeignKeysInSqlite && _provider is SQLiteTransformationProvider sqlite)
         {
-            sqlite.SetPragmaForeignKeys(false);
+            foreignKeysWasOn = sqlite.IsPragmaForeignKeysOn();
+            if (foreignKeysWasOn)
+            {
+                sqlite.SetPragmaForeignKeys(false);
+            }
         }
 
         _provider.BeginTransaction();
@@ -85,7 +89,7 @@ public class MigrateAnywhere : BaseMigrate
             ApplyMigration(migration, attr);
         }
 
-        if (attr.DisableForeignKeysInSqlite && _provider is SQLiteTransformationProvider sqlite2)
+        if (foreignKeysWasOn && _provider is SQLiteTransformationProvider sqlite2)
         {
             sqlite2.SetPragmaForeignKeys(true);
         }
