@@ -557,7 +557,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             {
                 dbType = MigratorDbType.Xml;
             }
-            else if (columnInfo.DataType == "time")
+            else if (columnInfo.DataType == "time" || columnInfo.DataType == "time without time zone")
             {
                 dbType = MigratorDbType.Time;
             }
