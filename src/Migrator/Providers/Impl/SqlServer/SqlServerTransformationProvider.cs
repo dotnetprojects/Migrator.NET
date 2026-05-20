@@ -649,6 +649,10 @@ public class SqlServerTransformationProvider : TransformationProvider
                 {
                     column.MigratorDbType = MigratorDbType.DateTimeOffset;
                 }
+                else if (dataTypeString == "time")
+                {
+                    column.MigratorDbType = MigratorDbType.Time;
+                }
                 else if (dataTypeString == "binary" || dataTypeString == "varbinary")
                 {
                     column.MigratorDbType = MigratorDbType.Binary;
