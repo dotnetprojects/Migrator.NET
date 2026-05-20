@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using System.Data.SQLite;
 using System.Linq;
 using System.Threading.Tasks;
@@ -68,6 +69,18 @@ public class SQLiteTransformationProvider_AddTableTests : Generic_AddTableTestsB
 
         // 19 = UNIQUE constraint failed
         Assert.That(ex.ErrorCode, Is.EqualTo(19));
+    }
+
+    [Test]
+    public void AddTableTime()
+    {
+        const string tableName = "MyTableName";
+        const string columnName = "MyColumnName";
+
+        Provider.AddTable(tableName, new Column(columnName, DbType.Time, ColumnProperty.NotNull));
+        var column = Provider.GetColumnByName(tableName, columnName);
+
+        Assert.That(column.Type, Is.EqualTo(DbType.Time));
     }
 
     [Test]

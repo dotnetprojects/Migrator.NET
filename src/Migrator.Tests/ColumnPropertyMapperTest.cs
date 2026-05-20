@@ -4,6 +4,7 @@ using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.Oracle;
 using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
+using DotNetProjects.Migrator.Providers.Impl.Mysql;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using NUnit.Framework;
@@ -105,6 +106,30 @@ public class ColumnPropertyMapperTest
     }
 
     [Test]
+    public void PostgreSqlCreatesSqlWithTimeSpanDefault()
+    {
+        var mapper = new ColumnPropertiesMapper(new PostgreSQLDialect(), "time");
+        mapper.MapColumnProperties(new Column("foo", DbType.Time, new TimeSpan(1, 2, 3)));
+        Assert.That("foo time DEFAULT '01:02:03.000'", Is.EqualTo(mapper.ColumnSql));
+    }
+
+    [Test]
+    public void SQLiteCreatesSqlWithTimeSpanDefault()
+    {
+        var mapper = new ColumnPropertiesMapper(new SQLiteDialect(), "TIME");
+        mapper.MapColumnProperties(new Column("foo", DbType.Time, new TimeSpan(1, 2, 3)));
+        Assert.That("foo TIME DEFAULT '01:02:03'", Is.EqualTo(mapper.ColumnSql));
+    }
+
+    [Test]
+    public void MySqlCreatesSqlWithTimeSpanDefault()
+    {
+        var mapper = new ColumnPropertiesMapper(new MysqlDialect(), "TIME");
+        mapper.MapColumnProperties(new Column("foo", DbType.Time, new TimeSpan(1, 2, 3)));
+        Assert.That("foo TIME DEFAULT '01:02:03'", Is.EqualTo(mapper.ColumnSql));
+    }
+
+    [Test]
     public void SqlServerCreatesSql()
     {
         var mapper = new ColumnPropertiesMapper(new SqlServerDialect(), "varchar(30)");
@@ -116,6 +141,33 @@ public class ColumnPropertyMapperTest
     public void SqlServerMapsTimeType()
     {
         var dialect = new SqlServerDialect();
+
+        Assert.That(dialect.GetTypeName(DbType.Time), Is.EqualTo("TIME"));
+        Assert.That(dialect.GetDbType("time"), Is.EqualTo(DbType.Time));
+    }
+
+    [Test]
+    public void PostgreSqlMapsTimeType()
+    {
+        var dialect = new PostgreSQLDialect();
+
+        Assert.That(dialect.GetTypeName(DbType.Time), Is.EqualTo("time"));
+        Assert.That(dialect.GetDbType("time"), Is.EqualTo(DbType.Time));
+    }
+
+    [Test]
+    public void SQLiteMapsTimeType()
+    {
+        var dialect = new SQLiteDialect();
+
+        Assert.That(dialect.GetTypeName(DbType.Time), Is.EqualTo("TIME"));
+        Assert.That(dialect.GetDbType("time"), Is.EqualTo(DbType.Time));
+    }
+
+    [Test]
+    public void MySqlMapsTimeType()
+    {
+        var dialect = new MysqlDialect();
 
         Assert.That(dialect.GetTypeName(DbType.Time), Is.EqualTo("TIME"));
         Assert.That(dialect.GetDbType("time"), Is.EqualTo(DbType.Time));

@@ -57,7 +57,25 @@ public class TypeNames
     public DbType GetDbType(string type)
     {
         type = type.Trim().ToLower();
-        var retval = defaults.Where(x => x.Value.Trim().ToLower().StartsWith(type)).Select(x => x.Key);
+        var retval = defaults.Where(x => x.Value.Trim().ToLower() == type).Select(x => x.Key);
+        if (retval.Any())
+        {
+            return (DbType)retval.First();
+        }
+
+        retval = weighted.Where(x => x.Value.Where(y => y.Value.Trim().ToLower() == type).Any()).Select(x => x.Key);
+        if (retval.Any())
+        {
+            return (DbType)retval.First();
+        }
+
+        var alias = aliases.Where(x => x.Key.Trim().ToLower() == type);
+        if (alias.Any())
+        {
+            return (DbType)alias.First().Value;
+        }
+
+        retval = defaults.Where(x => x.Value.Trim().ToLower().StartsWith(type)).Select(x => x.Key);
         if (retval.Any())
         {
             return (DbType)retval.First();
@@ -69,7 +87,7 @@ public class TypeNames
             return (DbType)retval.First();
         }
 
-        var alias = aliases.Where(x => x.Key.Trim().ToLower().StartsWith(type));
+        alias = aliases.Where(x => x.Key.Trim().ToLower().StartsWith(type));
 
         if (alias.Any())
         {

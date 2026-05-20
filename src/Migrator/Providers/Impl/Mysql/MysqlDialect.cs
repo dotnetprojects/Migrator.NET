@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 
@@ -283,6 +284,10 @@ public class MysqlDialect : Dialect
         if (defaultValue.GetType().Equals(typeof(bool)))
         {
             defaultValue = ((bool)defaultValue) ? 1 : 0;
+        }
+        else if (defaultValue.GetType().Equals(typeof(TimeSpan)))
+        {
+            return $"DEFAULT '{defaultValue}'";
         }
 
         return base.Default(defaultValue);
