@@ -281,11 +281,11 @@ public class MysqlDialect : Dialect
 
     public override string Default(object defaultValue)
     {
-        if (defaultValue.GetType().Equals(typeof(bool)))
+        if (defaultValue is bool booleanValue)
         {
-            defaultValue = ((bool)defaultValue) ? 1 : 0;
+            defaultValue = booleanValue ? 1 : 0;
         }
-        else if (defaultValue.GetType().Equals(typeof(TimeSpan)))
+        else if (defaultValue is TimeSpan)
         {
             return $"DEFAULT '{defaultValue}'";
         }
