@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
@@ -93,6 +94,14 @@ public class ColumnPropertyMapperTest
         var mapper = new ColumnPropertiesMapper(new SqlServerDialect(), "varchar(30)");
         mapper.MapColumnProperties(new Column("foo", DbType.String, 0, "NULL"));
         Assert.That("[foo] varchar(30) DEFAULT 'NULL'", Is.EqualTo(mapper.ColumnSql));
+    }
+
+    [Test]
+    public void SqlServerCreatesSqlWithTimeSpanDefault()
+    {
+        var mapper = new ColumnPropertiesMapper(new SqlServerDialect(), "TIME");
+        mapper.MapColumnProperties(new Column("foo", DbType.Time, new TimeSpan(1, 2, 3)));
+        Assert.That("[foo] TIME DEFAULT '01:02:03'", Is.EqualTo(mapper.ColumnSql));
     }
 
     [Test]

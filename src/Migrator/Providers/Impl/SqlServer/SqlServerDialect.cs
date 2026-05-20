@@ -144,6 +144,10 @@ public class SqlServerDialect : Dialect
                 + ((DateTimeOffset)defaultValue).Millisecond.ToString("D3")
                 + "',121)";
         }
+        else if (defaultValue.GetType().Equals(typeof(TimeSpan)))
+        {
+            return "DEFAULT '" + defaultValue + "'";
+        }
 
         return base.Default(defaultValue);
     }
