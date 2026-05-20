@@ -104,6 +104,15 @@ public class ColumnPropertyMapperTest
     }
 
     [Test]
+    public void SqlServerMapsTimeType()
+    {
+        var dialect = new SqlServerDialect();
+
+        Assert.That(dialect.GetTypeName(DbType.Time), Is.EqualTo("TIME"));
+        Assert.That(dialect.GetDbType("time"), Is.EqualTo(DbType.Time));
+    }
+
+    [Test]
     public void SqlServerIndexSqlIsNoNullWhenIndexed()
     {
         var mapper = new ColumnPropertiesMapper(new SqlServerDialect(), "char(1)");
