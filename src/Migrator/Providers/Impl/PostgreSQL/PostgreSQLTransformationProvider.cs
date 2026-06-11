@@ -83,7 +83,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
         if (index.IncludeColumns != null && index.IncludeColumns.Length > 0)
         {
-            includeString = $"INCLUDE ({string.Join(", ", index.IncludeColumns)})";
+            includeString = $"INCLUDE ({string.Join(", ", columns)})";
         }
 
         if (index.FilterItems != null && index.FilterItems.Count > 0)
