@@ -48,7 +48,7 @@ public class SqlServerDialect : Dialect
         RegisterColumnType(DbType.String, 4000, "NVARCHAR($l)");
         RegisterColumnType(DbType.String, int.MaxValue, "NVARCHAR(max)");
         //RegisterColumnType(DbType.String, 1073741823, "NTEXT");
-        RegisterColumnType(DbType.Time, "DATETIME");
+        RegisterColumnType(DbType.Time, "TIME");
         RegisterColumnType(DbType.VarNumeric, "NUMERIC(18,0)");
         RegisterColumnType(DbType.VarNumeric, 38, "NUMERIC($l,0)");
         RegisterColumnType(MigratorDbType.Interval, "BIGINT");
@@ -143,6 +143,10 @@ public class SqlServerDialect : Dialect
                 + ((DateTimeOffset)defaultValue).Second.ToString("D2") + '.'
                 + ((DateTimeOffset)defaultValue).Millisecond.ToString("D3")
                 + "',121)";
+        }
+        else if (defaultValue.GetType().Equals(typeof(TimeSpan)))
+        {
+            return "DEFAULT '" + defaultValue + "'";
         }
 
         return base.Default(defaultValue);

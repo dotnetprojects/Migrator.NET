@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 
@@ -61,6 +62,10 @@ public class SQLiteDialect : Dialect
         if (defaultValue is bool)
         {
             return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
+        }
+        else if (defaultValue is TimeSpan)
+        {
+            return $"DEFAULT '{defaultValue}'";
         }
 
         return base.Default(defaultValue);

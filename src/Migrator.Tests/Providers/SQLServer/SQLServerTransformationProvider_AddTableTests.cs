@@ -51,4 +51,16 @@ public class SQLServerTransformationProvider_AddTableTests : Generic_AddTableTes
 
         Assert.That(column.Type, Is.EqualTo(DbType.DateTime2));
     }
+
+    [Test]
+    public void AddTableTime()
+    {
+        var tableName = "Table1";
+        var columnName = "Column1";
+
+        Provider.AddTable(tableName, new Column(columnName, DbType.Time, ColumnProperty.NotNull));
+        var column = Provider.GetColumnByName(tableName, columnName);
+
+        Assert.That(column.Type, Is.EqualTo(DbType.Time));
+    }
 }
