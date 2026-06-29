@@ -312,4 +312,33 @@ public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTe
 
         Assert.That(addIndexSql, Is.EqualTo(expectedSql));
     }
+
+    /// <summary>
+    /// Reserved word used as table name.
+    /// </summary>
+    [Test]
+    public void AddIndex_TableNameIsReservedWord_Succeeds()
+    {
+        // Arrange
+        Provider.AddTable("trigger",
+            new Column(name: "id", type: DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
+            new Column(name: "test_run_id", type: DbType.Int32, ColumnProperty.NotNull)
+        );
+
+        Provider.AddTable("statistics",
+            new Column(name: "id", type: DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
+            new Column(name: "test_run_id", type: DbType.Int32, ColumnProperty.NotNull)
+        );
+
+        // Act
+        var addIndexTriggerSql = Provider.AddIndex(name: "IX_trigger__test_run_id", table: "trigger", "test_run_id");
+        var addIndexStatisticsSql = Provider.AddIndex(name: "IX_statistics__test_run_id", table: "statistics", "test_run_id");
+
+        // Assert
+        var expectedSQLTableTrigger = "CREATE INDEX IX_trigger__test_run_id ON \"trigger\" (test_run_id)";
+        var expectedSQLTableStatistics = "CREATE INDEX IX_statistics__test_run_id ON \"statistics\" (test_run_id)";
+
+        Assert.That(addIndexTriggerSql, Is.EqualTo(expectedSQLTableTrigger));
+        Assert.That(addIndexStatisticsSql, Is.EqualTo(expectedSQLTableStatistics));
+    }
 }

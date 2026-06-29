@@ -60,8 +60,6 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
 
     public List<ColumnInfo> GetColumnInfos(string tableName, string schemaName = "public")
     {
-        var quotedTableName = _postgreSQLTransformationProvider.QuoteTableNameIfRequired(tableName);
-
         var sql = $@"
             SELECT
                 c.CHARACTER_MAXIMUM_LENGTH,
@@ -79,7 +77,7 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
                 c.TABLE_NAME
             FROM information_schema.columns c
             WHERE 
-                LOWER(c.table_name) = '{quotedTableName.ToLowerInvariant()}' AND
+                LOWER(c.table_name) = '{tableName.ToLowerInvariant()}' AND
                 c.TABLE_SCHEMA = '{schemaName}' 
         ";
 
