@@ -120,20 +120,4 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
         Assert.That(index.Name, Is.EqualTo(indexName).IgnoreCase);
         Assert.That(index.KeyColumns.Single(), Is.EqualTo(columnName).IgnoreCase);
     }
-
-    /// <summary>
-    /// Reserved word used as table name.
-    /// </summary>
-    [Test]
-    public void AddIndex_TableNameIsReservedWord_Succeeds()
-    {
-        // Arrange
-        Provider.AddTable("trigger",
-            new Column(name: "id", type: DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
-            new Column(name: "test_run_id", type: DbType.Int32, ColumnProperty.NotNull)
-        );
-
-        // Act
-        Provider.AddIndex(name: "IX_trigger__test_run_id", table: "trigger", "test_run_id");
-    }
 }

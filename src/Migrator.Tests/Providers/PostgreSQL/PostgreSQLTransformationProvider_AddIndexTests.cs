@@ -312,4 +312,20 @@ public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTe
 
         Assert.That(addIndexSql, Is.EqualTo(expectedSql));
     }
+
+    /// <summary>
+    /// Reserved word used as table name.
+    /// </summary>
+    [Test]
+    public void AddIndex_TableNameIsReservedWord_Succeeds()
+    {
+        // Arrange
+        Provider.AddTable("trigger",
+            new Column(name: "id", type: DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
+            new Column(name: "test_run_id", type: DbType.Int32, ColumnProperty.NotNull)
+        );
+
+        // Act
+        Provider.AddIndex(name: "IX_trigger__test_run_id", table: "trigger", "test_run_id");
+    }
 }
