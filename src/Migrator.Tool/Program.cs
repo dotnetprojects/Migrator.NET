@@ -90,6 +90,16 @@ public static class MigratorCommand
                 ProviderTypes.Oracle => "Oracle.ManagedDataAccess.Client", ProviderTypes.Firebird => "FirebirdSql.Data.FirebirdClient",
                 _ => throw new NotSupportedException()
             };
+            System.Data.Common.DbProviderFactories.RegisterFactory(providerName, providerType switch
+            {
+                ProviderTypes.SQLite => Microsoft.Data.Sqlite.SqliteFactory.Instance,
+                ProviderTypes.SqlServer or ProviderTypes.SqlServer2005 => Microsoft.Data.SqlClient.SqlClientFactory.Instance,
+                ProviderTypes.PostgreSQL or ProviderTypes.PostgreSQL82 => Npgsql.NpgsqlFactory.Instance,
+                ProviderTypes.Mysql or ProviderTypes.MariaDB => MySql.Data.MySqlClient.MySqlClientFactory.Instance,
+                ProviderTypes.Oracle => Oracle.ManagedDataAccess.Client.OracleClientFactory.Instance,
+                ProviderTypes.Firebird => FirebirdSql.Data.FirebirdClient.FirebirdClientFactory.Instance,
+                _ => throw new NotSupportedException()
+            });
             using var provider = ProviderFactory.Create(providerType, connectionString, Value("--schema"), scope, providerName);
             if (values.ContainsKey("--timeout")) provider.CommandTimeout = Seconds("--timeout", "30");
             var runner = new Migrator(provider, false, new Logger(false), types);
