@@ -446,7 +446,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             {
                 // SQLite itself validates trigger/view dependencies atomically. A rejection is
                 // surfaced rather than retrying with a potentially lossy reconstruction.
-                ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} DROP COLUMN {Dialect.Quote(definition.Name)}");
+                ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} DROP COLUMN {Dialect.QuoteIdentifier(definition.Name)}");
                 return;
             }
         }
@@ -598,7 +598,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         if (Version.Parse(Convert.ToString(ExecuteScalar("SELECT sqlite_version()"))) >= new Version(3, 26, 0))
         {
             if (string.IsNullOrWhiteSpace(newColumnName)) throw new ArgumentException("A column name is required.");
-            ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} RENAME COLUMN {Dialect.Quote(oldColumnName)} TO {Dialect.Quote(newColumnName)}");
+            ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} RENAME COLUMN {Dialect.QuoteIdentifier(oldColumnName)} TO {Dialect.QuoteIdentifier(newColumnName)}");
             return;
         }
 
@@ -1161,7 +1161,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public bool ColumnMatch(string column, string columnDef)
     {
-        return columnDef.StartsWith(column + " ") || columnDef.StartsWith(_dialect.Quote(column));
+        return columnDef.StartsWith(column + " ") || columnDef.StartsWith(_dialect.QuoteIdentifier(column));
     }
 
     public override bool IndexExists(string table, string name)
@@ -1540,11 +1540,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is TimeSpan time)
+        if (value is TimeOnly time)
         {
             // SQLite stores times as text; System.Data.SQLite cannot bind TimeSpan as DbType.Time.
             parameter.DbType = DbType.String;
-            parameter.Value = time.ToString("c", CultureInfo.InvariantCulture);
+            parameter.Value = time.ToString("HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
         }
         else if (value is ushort)
         {

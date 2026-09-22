@@ -41,6 +41,10 @@ public class ColumnPropertiesMapper
     }
     protected virtual void AddDefaultValue(Column column, List<string> values)
     {
+        if (column.Type == System.Data.DbType.Time && column.DefaultValue is TimeSpan)
+            throw new ArgumentException("Use TimeOnly for a Time default; TimeSpan represents MigratorDbType.Interval.");
+        if (column.MigratorDbType == MigratorDbType.Interval && column.DefaultValue is TimeOnly)
+            throw new ArgumentException("Use TimeSpan for an Interval default; TimeOnly represents a time of day.");
         if (column.DefaultValue != null) values.Add(_Dialect.Default(column.DefaultValue));
     }
     protected virtual void AddIdentity(Column column, List<string> values)

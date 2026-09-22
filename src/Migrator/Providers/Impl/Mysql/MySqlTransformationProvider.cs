@@ -241,7 +241,7 @@ public class MySqlTransformationProvider : TransformationProvider
             return new DatabaseDefault(value);
         return type switch
         {
-            DbType.Time => TimeSpan.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Time => TimeOnly.Parse(value, CultureInfo.InvariantCulture),
             DbType.Boolean => value != "0",
             DbType.Byte => byte.Parse(value, CultureInfo.InvariantCulture),
             DbType.Int16 => short.Parse(value, CultureInfo.InvariantCulture),

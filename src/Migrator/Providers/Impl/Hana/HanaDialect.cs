@@ -48,7 +48,6 @@ public class HanaDialect : Dialect
     public override string Default(object value) => value switch
     {
         bool boolean => boolean ? "DEFAULT TRUE" : "DEFAULT FALSE",
-        TimeSpan time when time >= TimeSpan.Zero && time < TimeSpan.FromDays(1) => "DEFAULT '" + time.ToString("c", System.Globalization.CultureInfo.InvariantCulture) + "'",
         byte[] bytes => "DEFAULT X'" + Convert.ToHexString(bytes) + "'",
         _ => base.Default(value)
     };

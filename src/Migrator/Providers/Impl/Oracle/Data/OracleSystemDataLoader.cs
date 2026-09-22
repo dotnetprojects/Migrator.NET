@@ -46,8 +46,6 @@ public class OracleSystemDataLoader(IOracleTransformationProvider oracleTransfor
 
     public List<ForeignKeyConstraintItem> GetForeignKeyConstraintItems(string tableName)
     {
-        var tablePredicate = OracleCatalog.Predicate(_oracleTransformationProvider, tableName);
-
         var sb = new StringBuilder();
         sb.AppendLine("SELECT");
         sb.AppendLine("  a.OWNER AS TABLE_SCHEMA,");
@@ -93,8 +91,6 @@ public class OracleSystemDataLoader(IOracleTransformationProvider oracleTransfor
 
     public List<PrimaryKeyItem> GetPrimaryKeyItems(string tableName)
     {
-        var tablePredicate = OracleCatalog.Predicate(_oracleTransformationProvider, tableName);
-
         var sql = $@"
             SELECT
                 ucc.TABLE_NAME,
@@ -138,8 +134,6 @@ public class OracleSystemDataLoader(IOracleTransformationProvider oracleTransfor
 
     public List<IndexItem> GetIndexItems(string tableName)
     {
-        var tablePredicate = OracleCatalog.Predicate(_oracleTransformationProvider, tableName);
-
         var sql = @$"
             SELECT
                 i.table_name,
@@ -151,14 +145,14 @@ public class OracleSystemDataLoader(IOracleTransformationProvider oracleTransfor
                 CASE WHEN c.constraint_type = 'U' THEN 'YES' ELSE 'NO' END AS is_unique_key
             FROM
                 all_indexes i
-                JOIN 
-                    all_ind_columns ic ON i.owner = ic.index_owner AND i.index_name = ic.index_name AND 
+                JOIN
+                    all_ind_columns ic ON i.owner = ic.index_owner AND i.index_name = ic.index_name AND
                     i.table_name = ic.table_name
                 LEFT JOIN
                     all_constraints c ON i.owner = c.index_owner AND i.index_name = c.index_name AND
                     i.table_name = c.table_name
             WHERE
-                {OracleCatalog.Predicate(_oracleTransformationProvider, tableName, "i.table_name", "i.table_owner")} 
+                {OracleCatalog.Predicate(_oracleTransformationProvider, tableName, "i.table_name", "i.table_owner")}
             -- AND
             -- i.index_type = 'NORMAL'
             ORDER BY

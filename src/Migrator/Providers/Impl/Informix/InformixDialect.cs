@@ -31,7 +31,7 @@ public class InformixDialect : Dialect
         RegisterColumnType(DbType.Int32, "INTEGER");
         RegisterColumnType(DbType.Int64, "BIGINT");
         RegisterColumnType(DbType.Single, "SMALLFLOAT");
-        RegisterColumnType(DbType.Time, "INTERVAL HOUR TO SECOND");
+        RegisterColumnType(DbType.Time, "DATETIME HOUR TO SECOND");
         RegisterColumnType(DbType.String, 255, "VARCHAR($l)");
         RegisterColumnType(DbType.String, 32739, "LVARCHAR($l)");
         RegisterColumnType(DbType.AnsiString, 255, "VARCHAR($l)");
@@ -58,7 +58,13 @@ public class InformixDialect : Dialect
         return body + " CONSTRAINT " + QuoteIdentifier(constraint.Name);
     }
 
-    public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 't'" : "DEFAULT 'f'") : base.Default(value);
+    public override string Default(object value) => value switch
+    {
+        bool boolean => boolean ? "DEFAULT 't'" : "DEFAULT 'f'",
+        TimeOnly time when time.Ticks % TimeSpan.TicksPerSecond == 0 => "DEFAULT DATETIME(" + time.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) + ") HOUR TO SECOND",
+        TimeOnly => throw new NotSupportedException("Informix Time has whole-second precision."),
+        _ => base.Default(value)
+    };
 
     public override ColumnPropertiesMapper GetColumnMapper(Column column)
     {

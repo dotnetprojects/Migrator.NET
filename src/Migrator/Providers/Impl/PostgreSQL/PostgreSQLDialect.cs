@@ -128,7 +128,13 @@ public class PostgreSQLDialect : Dialect
     {
         if (defaultValue is TimeSpan timeSpan)
         {
-            var intervalPostgreNotation = timeSpan.ToString("c", System.Globalization.CultureInfo.InvariantCulture);
+            var ticks = Math.Abs((decimal)timeSpan.Ticks);
+            var hours = decimal.Truncate(ticks / TimeSpan.TicksPerHour);
+            var minutes = decimal.Truncate(ticks % TimeSpan.TicksPerHour / TimeSpan.TicksPerMinute);
+            var seconds = ticks % TimeSpan.TicksPerMinute / TimeSpan.TicksPerSecond;
+            var intervalPostgreNotation = (timeSpan.Ticks < 0 ? "-" : "") + hours.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + ":" + minutes.ToString("00", System.Globalization.CultureInfo.InvariantCulture)
+                + ":" + seconds.ToString("00.#######", System.Globalization.CultureInfo.InvariantCulture);
 
             return $"DEFAULT '{intervalPostgreNotation}'";
         }

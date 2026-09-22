@@ -10,6 +10,9 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTransformationProviderTestBase
 {
     [Test]
+    public void NegativeMultiDayIntervalDefaultsAndParametersPersist() => IntervalRegression.Verify(Provider, true);
+
+    [Test]
     public void QualifiedMetadataDoesNotMixSameNamedTablesOrConstraints()
     {
         Provider.ExecuteNonQuery("CREATE SCHEMA metadata_a; CREATE SCHEMA metadata_b");
@@ -41,12 +44,12 @@ public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTra
     [Test]
     public void NativeTimeRoundTripsThroughMetadataDefaultsAndParameters()
     {
-        var value = new TimeSpan(0, 12, 34, 56, 789);
+        var value = new TimeOnly(12, 34, 56, 789);
         Provider.AddTable("NativeTimeRoundTrip", new Column("Value", DbType.Time, value));
         var column = Provider.GetColumns("NativeTimeRoundTrip").Single();
         Assert.That(column.MigratorDbType, Is.EqualTo(MigratorDbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(value));
         Provider.Insert("NativeTimeRoundTrip", new[] { "Value" }, new object[] { value });
-        Assert.That(Provider.ExecuteScalar("SELECT * FROM NativeTimeRoundTrip"), Is.EqualTo(value));
+        Assert.That(Provider.ExecuteScalar("SELECT * FROM NativeTimeRoundTrip"), Is.EqualTo(value.ToTimeSpan()));
     }
 }

@@ -121,11 +121,6 @@ public class SqlServerDialect : Dialect
 
     public override string Default(object defaultValue)
     {
-        if (defaultValue is TimeSpan time)
-        {
-            if (time < TimeSpan.Zero || time >= TimeSpan.FromDays(1)) throw new ArgumentOutOfRangeException(nameof(defaultValue), "SQL Server TIME must be within one day.");
-            return "DEFAULT '" + time.ToString("c", System.Globalization.CultureInfo.InvariantCulture) + "'";
-        }
         if (defaultValue.GetType().Equals(typeof(bool)))
         {
             return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");

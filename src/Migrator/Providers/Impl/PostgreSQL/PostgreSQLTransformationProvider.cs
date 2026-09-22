@@ -671,7 +671,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                 else if (column.MigratorDbType == MigratorDbType.Time)
                 {
                     var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
-                    if (!match.Success || !TimeSpan.TryParse(match.Value, CultureInfo.InvariantCulture, out var time))
+                    if (!match.Success || !TimeOnly.TryParse(match.Value, CultureInfo.InvariantCulture, out var time))
                         throw new NotSupportedException("Cannot parse PostgreSQL time default: " + columnInfo.ColumnDefault);
                     column.DefaultValue = time;
                 }
@@ -686,20 +686,13 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                             throw new Exception("Postgre default value for interval: Single quotes around the interval string are expected.");
                         }
 
-                        column.DefaultValue = match.Value;
-                        var splitted = match.Value.Split(':');
-                        if (splitted.Length != 3)
-                        {
-                            throw new NotImplementedException($"Cannot interpret {columnInfo.ColumnDefault} in column '{column.Name}' unexpected pattern.");
-                        }
-
-                        var hours = int.Parse(splitted[0], CultureInfo.InvariantCulture);
-                        var minutes = int.Parse(splitted[1], CultureInfo.InvariantCulture);
-                        var splitted2 = splitted[2].Split('.');
-                        var seconds = int.Parse(splitted2[0], CultureInfo.InvariantCulture);
-                        var milliseconds = int.Parse(splitted2[1], CultureInfo.InvariantCulture);
-
-                        column.DefaultValue = new TimeSpan(0, hours, minutes, seconds, milliseconds);
+                        var interval = Regex.Match(match.Value, @"^([+-]?)(\d+):(\d{2}):(\d{2}(?:\.\d{1,7})?)$");
+                        if (!interval.Success) throw new NotSupportedException("Cannot parse interval default: " + columnInfo.ColumnDefault);
+                        var ticks = decimal.Parse(interval.Groups[2].Value, CultureInfo.InvariantCulture) * TimeSpan.TicksPerHour
+                            + decimal.Parse(interval.Groups[3].Value, CultureInfo.InvariantCulture) * TimeSpan.TicksPerMinute
+                            + decimal.Parse(interval.Groups[4].Value, CultureInfo.InvariantCulture) * TimeSpan.TicksPerSecond;
+                        if (interval.Groups[1].Value == "-") ticks = -ticks;
+                        column.DefaultValue = TimeSpan.FromTicks(checked((long)ticks));
                     }
                     else
                     {
@@ -1022,7 +1015,12 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is ushort)
+        if (value is TimeSpan interval)
+        {
+            // Npgsql infers interval from TimeSpan; setting DbType.Time would change its meaning.
+            parameter.Value = interval;
+        }
+        else if (value is ushort)
         {
             parameter.DbType = DbType.Int32;
             parameter.Value = Convert.ToInt32(value);

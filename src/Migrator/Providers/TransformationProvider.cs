@@ -1802,10 +1802,17 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             parameter.DbType = DbType.DateTime;
             parameter.Value = value;
         }
-        else if (value is TimeSpan timeSpan)
+        else if (value is TimeOnly time)
         {
             parameter.DbType = DbType.Time;
-            parameter.Value = timeSpan;
+            parameter.Value = time.ToTimeSpan(); // ADO.NET drivers commonly carry SQL TIME as TimeSpan.
+        }
+        else if (value is TimeSpan interval)
+        {
+            var type = _dialect.GetTypeName((DbType)MigratorDbType.Interval);
+            if (type is not ("BIGINT" or "INTEGER")) throw new NotSupportedException("This provider requires native interval parameter handling.");
+            parameter.DbType = DbType.Int64;
+            parameter.Value = interval.Ticks;
         }
         else if (value is DateTimeOffset dateTimeOffset)
         {

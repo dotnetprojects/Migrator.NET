@@ -65,7 +65,7 @@ public class InformixTransformationProvider : TransformationProvider
             {
                 1 => DbType.Int16, 2 or 6 => DbType.Int32, 17 or 18 or 52 or 53 => DbType.Int64,
                 3 => DbType.Double, 4 => DbType.Single, 5 or 8 => DbType.Decimal,
-                7 => DbType.Date, 10 => DbType.DateTime, 11 => DbType.Binary, 14 => DbType.Time,
+                7 => DbType.Date, 10 => ((Convert.ToInt32(reader.GetValue(2)) >> 4) & 15) == 6 ? DbType.Time : DbType.DateTime, 11 => DbType.Binary, 14 => (DbType)MigratorDbType.Interval,
                 0 or 15 => DbType.StringFixedLength,
                 45 => DbType.Boolean, _ => DbType.String
             };

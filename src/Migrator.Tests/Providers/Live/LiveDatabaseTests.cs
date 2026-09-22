@@ -30,17 +30,18 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     [Test]
     public void TimeOfDayDefaultsAndParametersPersist()
     {
-        var time = new TimeSpan(12, 34, 56);
+        var time = new TimeOnly(12, 34, 56);
         provider.AddTable("clock_values", new Column("id", DbType.Int32), new Column("value", DbType.Time) { DefaultValue = time });
         provider.Insert("clock_values", ["id"], [1]);
         provider.Insert("clock_values", ["id", "value"], [2, time]);
         foreach (var id in new[] { 1, 2 })
         {
-            var stored = provider.ExecuteScalar("SELECT value FROM clock_values WHERE id=" + id);
+            var stored = provider.ExecuteScalar("SELECT " + provider.QuoteColumnNameIfRequired("value") + " FROM clock_values WHERE id=" + id);
             var actual = stored is DateTime date ? date.TimeOfDay : stored is TimeSpan span ? span : TimeSpan.Parse(Convert.ToString(stored), System.Globalization.CultureInfo.InvariantCulture);
-            Assert.That(actual, Is.EqualTo(time));
+            Assert.That(actual, Is.EqualTo(time.ToTimeSpan()));
         }
         Assert.That(provider.GetColumns("clock_values").Single(c => c.Name.Equals("value", StringComparison.OrdinalIgnoreCase)).Type, Is.EqualTo(DbType.Time));
+        if (providerType is ProviderTypes.Mysql or ProviderTypes.MariaDB) IntervalRegression.Verify(provider, false);
     }
 
     [Test]

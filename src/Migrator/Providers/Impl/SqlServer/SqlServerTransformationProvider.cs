@@ -641,7 +641,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                     }
                     else if (column.Type == DbType.Time)
                     {
-                        column.DefaultValue = TimeSpan.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = TimeOnly.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {
@@ -953,11 +953,10 @@ AND CU.COLUMN_NAME = '{1}'",
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is TimeSpan time && _dialect is SqlServer2005Dialect)
+        if (value is TimeOnly time && _dialect is SqlServer2005Dialect)
         {
-            if (time < TimeSpan.Zero || time >= TimeSpan.FromDays(1)) throw new ArgumentOutOfRangeException(nameof(value));
             parameter.DbType = DbType.DateTime;
-            parameter.Value = new DateTime(1900, 1, 1).Add(time);
+            parameter.Value = new DateTime(1900, 1, 1).Add(time.ToTimeSpan());
         }
         else if (value is ushort)
         {

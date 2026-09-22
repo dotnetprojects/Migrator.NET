@@ -109,4 +109,20 @@ See [live database tests](live-database-tests.md) for the full matrix. Provider-
 
 An auxiliary-only `MigrateToLastVersion()` run preserves existing version history while executing selected profiles and maintenance. A completely empty run does not create a history table. Post-commit callbacks receive their migration context in both per-migration and whole-session modes; callback failure cannot undo a committed migration.
 
-PostgreSQL column and constraint metadata resolves the requested relation through the database, including schema-qualified or explicitly quoted names and the connection search path. The lookup is parameterized and distinguishes same-named tables in different schemas. This does not imply complete schema qualification for every provider operation. Native `time without time zone` metadata and literal defaults map to `TimeSpan`.
+PostgreSQL column and constraint metadata resolves the requested relation through the database, including schema-qualified or explicitly quoted names and the connection search path. The lookup is parameterized and distinguishes same-named tables in different schemas. This does not imply complete schema qualification for every provider operation. Native `time without time zone` metadata and literal defaults map to `TimeOnly`.
+
+
+### Time of day and intervals
+
+`DbType.Time` / `MigratorDbType.Time` is a time of day. Use `TimeOnly` for defaults and values passed to `Insert`/`Update`. `MigratorDbType.Interval` is a duration; use `TimeSpan`, including negative and multi-day values. A `TimeSpan` default on a Time column is rejected instead of silently treating a duration as a clock time.
+
+```csharp
+new Column("job_time", DbType.Time, new TimeOnly(12, 34, 56));
+new Column("elapsed", MigratorDbType.Interval, TimeSpan.FromDays(2));
+```
+
+PostgreSQL and Oracle use native intervals. SQL Server, SQLite, MySQL and MariaDB represent intervals as signed .NET ticks (100 ns units). Integer catalog metadata cannot distinguish an interval from an ordinary integer column, so retain the migration definition when that semantic distinction matters. Other dialects without an Interval mapping reject it.
+
+Oracle's Time representation remains DATE with a fixed 1970-01-01 date and whole-second precision; fractional defaults/parameters are rejected. SQL Server 2005 uses DATETIME with its native precision. Informix Time now uses DATETIME HOUR TO SECOND (whole seconds), not INTERVAL. Existing Informix columns created with the old mapping require an explicit migration. SQLite stores clock times as invariant text. Raw ADO.NET scalar results retain driver-specific CLR types; a driver may return SQL TIME as TimeSpan or DateTime even though the public input is TimeOnly.
+
+This changes the old shared parameter inference: TimeSpan now means Interval. Migrate time-of-day inputs with `TimeOnly.FromTimeSpan(value)`; it rejects negative or multi-day durations. Do not convert genuine intervals this way.

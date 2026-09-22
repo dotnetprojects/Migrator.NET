@@ -14,18 +14,21 @@ namespace Migrator.Tests.Providers.SQLServer;
 public class SqlServerTransformationProviderTests : SQLServerTransformationProviderTestBase
 {
     [Test]
+    public void NegativeMultiDayIntervalDefaultsAndParametersPersist() => IntervalRegression.Verify(Provider, false);
+
+    [Test]
     public void TimeTypeDefaultAndValueRoundTripThroughMetadata()
     {
-        var time = new TimeSpan(0, 12, 34, 56, 789);
+        var time = new TimeOnly(12, 34, 56, 789);
         Provider.AddTable("ClockValues", new Column("Moment",DbType.Time,time));
         var column = Provider.GetColumns("ClockValues").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(time));
         Provider.AddTable("CopiedClock", column);
         Provider.ExecuteNonQuery("INSERT INTO CopiedClock DEFAULT VALUES");
-        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM CopiedClock"), Is.EqualTo(time));
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM CopiedClock"), Is.EqualTo(time.ToTimeSpan()));
         Provider.Insert("ClockValues", new[] { "Moment" }, new object[] { time });
-        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM ClockValues"), Is.EqualTo(time));
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM ClockValues"), Is.EqualTo(time.ToTimeSpan()));
     }
 
     [Test]

@@ -15,6 +15,21 @@ namespace Migrator.Tests;
 
 public class IdentifierAndTimeRegressionTests
 {
+    [TestCase(-51)]
+    [TestCase(51)]
+    public void SQLiteIntervalsKeepTheirSignAndDaysSeparateFromTimeOfDay(int hours)
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        var duration = TimeSpan.FromHours(hours).Add(TimeSpan.FromTicks(1234567));
+        provider.AddTable("Durations", new Column("Id", DbType.Int32), new Column("Elapsed", MigratorDbType.Interval, duration));
+        provider.Insert("Durations", ["Id"], [1]);
+        provider.Insert("Durations", ["Id", "Elapsed"], [2, duration]);
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT Elapsed FROM Durations WHERE Id=1")), Is.EqualTo(duration.Ticks));
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT Elapsed FROM Durations WHERE Id=2")), Is.EqualTo(duration.Ticks));
+        Assert.Throws<ArgumentException>(() => provider.AddTable("WrongTime", new Column("Moment", DbType.Time, duration)));
+        Assert.That(provider.TableExists("WrongTime"), Is.False);
+    }
+
     [TestCase("sales.Orders", "[sales].[Orders]")]
     [TestCase("[sales.region].[Order]]Lines]", "[sales.region].[Order]]Lines]")]
     [TestCase("[sales].[O'Brien]", "[sales].[O'Brien]")]
@@ -38,7 +53,7 @@ public class IdentifierAndTimeRegressionTests
     [Test]
     public void TimeDefaultsAreQuotedAndPreserveSubMillisecondPrecision()
     {
-        var time = new TimeSpan(0, 12, 34, 56).Add(TimeSpan.FromTicks(1234560));
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1234560));
         foreach (var dialect in new Dialect[] { new SQLiteDialect(), new MysqlDialect(), new PostgreSQLDialect(), new SqlServerDialect() })
             Assert.That(dialect.Default(time), Is.EqualTo("DEFAULT '12:34:56.1234560'"));
     }
@@ -47,15 +62,15 @@ public class IdentifierAndTimeRegressionTests
     public void TimeDefaultsAndValuesSurviveSQLiteReconstruction()
     {
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
-        var time = new TimeSpan(0, 12, 34, 56).Add(TimeSpan.FromTicks(1234560));
+        var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1234560));
         provider.AddTable("Times", new Column("Id", DbType.Int32), new Column("Value", DbType.Time) { DefaultValue = time });
         var column = provider.GetColumns("Times").Single(c => c.Name == "Value");
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(time));
         provider.ChangeColumn("Times", new Column("Id", DbType.Int64));
         provider.Insert("Times", ["Id"], [1]);
-        Assert.That(TimeSpan.Parse(Convert.ToString(provider.ExecuteScalar("SELECT CAST(Value AS TEXT) FROM Times"))), Is.EqualTo(time));
+        Assert.That(TimeOnly.Parse(Convert.ToString(provider.ExecuteScalar("SELECT CAST(Value AS TEXT) FROM Times"))), Is.EqualTo(time));
         provider.Insert("Times", ["Id", "Value"], [2, time]);
-        Assert.That(TimeSpan.Parse(Convert.ToString(provider.ExecuteScalar("SELECT CAST(Value AS TEXT) FROM Times WHERE Id=2"))), Is.EqualTo(time));
+        Assert.That(TimeOnly.Parse(Convert.ToString(provider.ExecuteScalar("SELECT CAST(Value AS TEXT) FROM Times WHERE Id=2"))), Is.EqualTo(time));
     }
 }

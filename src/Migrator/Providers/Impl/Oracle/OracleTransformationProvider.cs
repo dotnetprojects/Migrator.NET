@@ -193,11 +193,15 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void RenameTable(string oldName, string newName)
     {
-        GuardAgainstMaximumIdentifierLengthForOracle(newName);
-        GuardAgainstExistingTableWithSameName(newName, oldName);
-
+        var oldRelation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(oldName), true);
+        var newRelation = SqlIdentifier.Catalog(newName, true);
+        if (newRelation.Schema != null && newRelation.Schema != oldRelation.Schema)
+            throw new NotSupportedException("Oracle RENAME does not move a table between schemas.");
+        GuardAgainstMaximumIdentifierLengthForOracle(newRelation.Name);
+        var target = (oldRelation.Schema == null ? "" : _dialect.QuoteIdentifier(oldRelation.Schema) + ".") + _dialect.QuoteIdentifier(newRelation.Name);
+        GuardAgainstExistingTableWithSameName(target, oldName);
         oldName = QuoteTableNameIfRequired(oldName);
-        newName = QuoteTableNameIfRequired(newName);
+        newName = _dialect.QuoteIdentifier(newRelation.Name);
 
         ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
     }
@@ -249,7 +253,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void AddColumn(string table, string sqlColumn)
     {
-        GuardAgainstMaximumIdentifierLengthForOracle(table);
+        foreach (var part in SqlIdentifier.Parse(table)) GuardAgainstMaximumIdentifierLengthForOracle(part.Value);
         table = QuoteTableNameIfRequired(table);
 
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
@@ -638,10 +642,15 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is TimeSpan time)
+        if (value is TimeOnly time)
         {
             parameter.DbType = DbType.Date;
             parameter.Value = OracleDialect.TimeValue(time);
+        }
+        else if (value is TimeSpan interval)
+        {
+            // ODP.NET infers IntervalDS from a TimeSpan value.
+            parameter.Value = interval;
         }
         else if (value is Guid || value is Guid?)
         {
@@ -742,7 +751,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void RemoveColumnDefaultValue(string table, string column)
     {
-        var sql = string.Format("ALTER TABLE {0} MODIFY {1} DEFAULT NULL", table, column);
+        var sql = string.Format("ALTER TABLE {0} MODIFY {1} DEFAULT NULL", QuoteTableNameIfRequired(table), QuoteColumnNameIfRequired(column));
         ExecuteNonQuery(sql);
     }
 
@@ -808,13 +817,9 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override bool IndexExists(string table, string name)
     {
-        var sql =
-            string.Format(
-                "SELECT COUNT(index_name) FROM user_indexes WHERE lower(index_name) = '{0}' AND lower(table_name) = '{1}'",
-                name.ToLower(), table.ToLower());
-        Logger.Log(sql);
-        var scalar = ExecuteScalar(sql);
-        return Convert.ToInt32(scalar) == 1;
+        var sql = "SELECT COUNT(*) FROM ALL_INDEXES WHERE " + OracleCatalog.Predicate(this, table, "TABLE_NAME", "TABLE_OWNER")
+            + " AND INDEX_NAME=" + OracleCatalog.Literal(SqlIdentifier.Catalog(QuoteConstraintNameIfRequired(name), true).Name);
+        return Convert.ToInt32(ExecuteScalar(sql)) == 1;
     }
 
     public override void UpdateTargetFromSource(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)

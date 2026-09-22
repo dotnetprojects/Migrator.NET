@@ -405,9 +405,16 @@ public abstract class Dialect : IDialect
         {
             defaultValue = "''";
         }
-        else if (defaultValue is TimeSpan time)
+        else if (defaultValue is TimeOnly time)
         {
-            return "DEFAULT '" + time.ToString("c", CultureInfo.InvariantCulture) + "'";
+            return "DEFAULT '" + time.ToString("HH:mm:ss.fffffff", CultureInfo.InvariantCulture) + "'";
+        }
+        else if (defaultValue is TimeSpan interval)
+        {
+            // The portable interval representation on these dialects is signed .NET ticks.
+            var type = GetTypeName((DbType)MigratorDbType.Interval);
+            if (type is not ("BIGINT" or "INTEGER")) throw new NotSupportedException("This dialect requires native interval default handling.");
+            return "DEFAULT " + interval.Ticks.ToString(CultureInfo.InvariantCulture);
         }
         else if (defaultValue is Guid)
         {
