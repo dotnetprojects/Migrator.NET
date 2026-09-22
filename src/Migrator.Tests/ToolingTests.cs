@@ -70,6 +70,25 @@ public class ToolingTests
         }
         finally { Environment.SetEnvironmentVariable(environmentName, null); File.Delete(file); }
     }
+    [Test, Category("SQLite")]
+    public void RollbackCommandRejectsAnUpwardTargetWithoutCreatingUserTables()
+    {
+        var file = Path.Combine(Path.GetTempPath(), "migrator-rollback-" + Guid.NewGuid().ToString("N") + ".db");
+        var variable = "MIGRATOR_TEST_" + Guid.NewGuid().ToString("N");
+        Environment.SetEnvironmentVariable(variable, "Data Source=" + file + ";Pooling=False");
+        try
+        {
+            using var output = new StringWriter(); using var error = new StringWriter();
+            Assert.That(MigratorCommand.Run(new[] { "rollback", "--assembly", typeof(ToolingTests).Assembly.Location,
+                "--provider", "SQLite", "--scope", "cli-spec", "--connection-env", variable,
+                "--target", "900002" }, output, error), Is.EqualTo(1));
+            using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + file + ";Pooling=False"); connection.Open();
+            using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null, "cli-spec");
+            Assert.That(provider.TableExists("CliExample"), Is.False);
+            Assert.That(((IMigrationHistory)provider).ReadAppliedMigrations(), Is.Empty);
+        }
+        finally { Environment.SetEnvironmentVariable(variable, null); File.Delete(file); }
+    }
     [Migration(900003, Scope = "cli-errors")]
     public class FailingCliMigration : Migration
     {

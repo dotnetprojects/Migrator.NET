@@ -115,6 +115,7 @@ public static class MigratorCommand
                 case "validate": _ = runner.Plan(target); output.WriteLine("Migration plan is valid."); break;
                 case "plan": foreach (var step in runner.Plan(target)) output.WriteLine(step.Version + (step.IsUp ? " up" : " down")); break;
                 case "sql": Write(runner.PreviewSql(target, providerType, values.ContainsKey("--allow-legacy-preview"))); break;
+                case "rollback": runner.RollbackTo(target); output.WriteLine("Rollback completed."); break;
                 default: runner.MigrateTo(target); output.WriteLine("Migration completed."); break;
             }
             return 0;

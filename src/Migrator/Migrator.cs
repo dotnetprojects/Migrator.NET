@@ -249,11 +249,18 @@ public class Migrator
             table => _provider.TableExists(table) ? _provider.GetColumns(table) : throw new MigrationException("Preview table does not exist: " + table));
     }
 
-    public void MigrateTo(long version)
+    public void MigrateTo(long version) => MigrateTo(version, false);
+
+    /// <summary>Run only downward steps; validate the target after acquiring the configured lock.</summary>
+    public void RollbackTo(long version) => MigrateTo(version, true);
+
+    private void MigrateTo(long version, bool downOnly)
     {
         if (DryRun)
         {
-            foreach (var step in Plan(version))
+            var preview = Plan(version);
+            if (downOnly && preview.Any(step => step.IsUp)) throw new MigrationException("Rollback cannot apply upward migrations.");
+            foreach (var step in preview)
                 if (step.IsUp) Logger.MigrateUp(step.Version, "Preview"); else Logger.MigrateDown(step.Version, "Preview");
             return;
         }
@@ -275,6 +282,8 @@ public class Migrator
             var history = new List<long>(_provider.AppliedMigrations);
             var initialHistory = new List<long>(history);
             var plan = CreatePlan(history, version);
+            if (downOnly && (version >= history.DefaultIfEmpty(0).Max() || plan.Any(step => step.IsUp)))
+                throw new MigrationException("Rollback requires a lower target and cannot apply upward migrations.");
             var profiles = _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<ProfileAttribute>() is { } p && Options.Profiles.Contains(p.Name) && _migrationLoader.InScope(p.Scope))
                 .OrderBy(t => t.GetCustomAttribute<ProfileAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal).ToArray();
             foreach (var name in Options.Profiles)
