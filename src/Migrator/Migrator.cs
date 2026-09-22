@@ -26,6 +26,7 @@ namespace DotNetProjects.Migrator;
 /// </summary>
 public class Migrator
 {
+    public RunnerOptions Options { get; } = new();
     private readonly MigrationLoader _migrationLoader;
     private readonly ITransformationProvider _provider;
 
@@ -182,12 +183,7 @@ public class Migrator
     /// </summary>
     public void MigrateToLastVersion()
     {
-        if (_migrationLoader.GetAvailableMigrations().Count == 0)
-        {
-            Logger.Warn("No migrations found for the effective scope.");
-            return;
-        }
-        MigrateTo(_migrationLoader.LastVersion);
+        MigrateTo(SelectedMigrationTypes.Select(MigrationLoader.GetMigrationVersion).DefaultIfEmpty(0).Max());
     }
 
     /// <summary>
@@ -201,43 +197,84 @@ public class Migrator
     /// If <c>dryrun</c> is set, don't write any changes to the database.
     /// </summary>
     /// <param name="version">The version that must became the current one</param>
-    public IReadOnlyList<MigrationStep> Plan(long version)
+    private IEnumerable<Type> SelectedMigrationTypes => _migrationLoader.SelectedTypes.Where(t =>
+    {
+        if (Options.Tags.Count == 0) return true;
+        var tags = t.GetCustomAttribute<TagsAttribute>()?.Tags ?? Array.Empty<string>();
+        return Options.TagMatch == TagMatchMode.All ? Options.Tags.All(tags.Contains) : Options.Tags.Any(tags.Contains);
+    });
+
+    private IReadOnlyList<MigrationStep> CreatePlan(IEnumerable<long> applied, long version)
     {
         _migrationLoader.CheckForDuplicatedVersion();
+        var selected = SelectedMigrationTypes.Select(MigrationLoader.GetMigrationVersion).ToHashSet();
+        var known = _migrationLoader.GetAvailableMigrations().ToHashSet();
+        // Filtered migrations stay applied; unknown history must still fail a downgrade.
+        return MigrationPlanner.Create(selected, applied.Where(v => selected.Contains(v) || !known.Contains(v)), version);
+    }
+
+    public IReadOnlyList<MigrationStep> Plan(long version)
+    {
         if (_provider is not IMigrationHistory history)
             throw new NotSupportedException("Read-only planning requires IMigrationHistory on custom providers.");
-        return MigrationPlanner.Create(_migrationLoader.GetAvailableMigrations(), history.ReadAppliedMigrations(), version);
+        return CreatePlan(history.ReadAppliedMigrations(), version);
     }
 
     public void MigrateTo(long version)
     {
-        _migrationLoader.CheckForDuplicatedVersion();
-        var history = DryRun
-            ? _provider is IMigrationHistory reader ? reader.ReadAppliedMigrations().ToList()
-                : throw new NotSupportedException("DryRun requires IMigrationHistory on custom providers.")
-            : new List<long>(_provider.AppliedMigrations);
-        var plan = MigrationPlanner.Create(_migrationLoader.GetAvailableMigrations(), history, version);
-        Logger.Started(history, version);
-        var firstRun = true;
-        foreach (var step in plan)
+        if (DryRun)
         {
-            if (DryRun)
-            {
-                if (step.IsUp) Logger.MigrateUp(step.Version, "Preview");
-                else Logger.MigrateDown(step.Version, "Preview");
-                continue;
-            }
-            var migration = _migrationLoader.GetMigration(step.Version);
-            if (firstRun)
-            {
-                migration.InitializeOnce(_args);
-                firstRun = false;
-            }
-            MigrationExecution.Execute(_provider, migration, step, Logger);
-            if (step.IsUp) history.Add(step.Version);
-            else history.Remove(step.Version);
+            foreach (var step in Plan(version))
+                if (step.IsUp) Logger.MigrateUp(step.Version, "Preview"); else Logger.MigrateDown(step.Version, "Preview");
+            return;
         }
+        if (Options.LockTimeout < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(Options.LockTimeout));
+        var session = Options.TransactionMode == MigrationTransactionMode.WholeSession;
+        if (session && _provider.Dialect is not (Providers.Impl.SQLite.SQLiteDialect or Providers.Impl.PostgreSQL.PostgreSQLDialect or Providers.Impl.SqlServer.SqlServerDialect))
+            throw new NotSupportedException("Whole-session transactions require a verified transactional DDL provider (SQLite, PostgreSQL or SQL Server).");
+        _migrationLoader.Activator = Options.Activator;
+        using var lease = Options.Lock?.Acquire(_provider, (_provider as IMigrationHistory)?.Scope, Options.LockTimeout);
+        (_provider as IMigrationHistory)?.InvalidateHistory();
+        var history = new List<long>(_provider.AppliedMigrations);
+        var plan = CreatePlan(history, version);
+        var profiles = _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<ProfileAttribute>() is { } p && Options.Profiles.Contains(p.Name) && _migrationLoader.InScope(p.Scope))
+            .OrderBy(t => t.GetCustomAttribute<ProfileAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal).ToArray();
+        foreach (var name in Options.Profiles)
+            if (!profiles.Any(t => t.GetCustomAttribute<ProfileAttribute>().Name == name)) throw new MigrationException("Unknown profile: " + name);
+        var afterCommit = new List<Action>();
+        var firstRun = true;
+        void Execute(IMigration migration, MigrationStep step, bool record)
+        {
+            migration.Database = _provider;
+            if (firstRun) { migration.InitializeOnce(_args); firstRun = false; }
+            MigrationExecution.Execute(_provider, migration, step, Logger,
+                Options.TransactionMode == MigrationTransactionMode.PerMigration, session, record, !session);
+            if (session) afterCommit.Add(() => MigrationExecution.After(migration, step.IsUp));
+        }
+        void Maintenance(MaintenanceStage stage)
+        {
+            foreach (var type in _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<MaintenanceAttribute>() is { } a && a.Stage == stage && _migrationLoader.InScope(a.Scope))
+                .OrderBy(t => t.GetCustomAttribute<MaintenanceAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal))
+                Execute(_migrationLoader.CreateInstance(type), new MigrationStep(0, true), false);
+        }
+        void Run()
+        {
+            Maintenance(MaintenanceStage.BeforeRun);
+            foreach (var step in plan)
+            {
+                Maintenance(MaintenanceStage.BeforeMigration);
+                Execute(_migrationLoader.GetMigration(step.Version), step, true);
+                if (step.IsUp) history.Add(step.Version); else history.Remove(step.Version);
+                Maintenance(MaintenanceStage.AfterMigration);
+            }
+            foreach (var type in profiles) Execute(_migrationLoader.CreateInstance(type), new MigrationStep(0, true), false);
+            Maintenance(MaintenanceStage.AfterRun);
+        }
+        Logger.Started(history, version);
+        if (session) MigrationExecution.InTransaction(_provider, true, Run); else Run();
+        foreach (var callback in afterCommit) callback();
         history.Sort();
         Logger.Finished(history, version);
     }
 }
+
