@@ -1,4 +1,5 @@
 using System.Data;
+using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
@@ -28,7 +29,8 @@ public class SQLiteTransformationProvider_GetUniquesTests : SQLiteTransformation
 
         Provider.AddTable(tableNameA,
             new Column(property1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(property2, DbType.Int32, ColumnProperty.Unique),
+            new Column(property2, DbType.Int32),
+            new UniqueConstraint("UniqueConstraint0", property2),
             new Column(property3, DbType.Int32),
             new Column(property4, DbType.Int32),
             new Column(property5, DbType.Int32)
@@ -54,7 +56,7 @@ public class SQLiteTransformationProvider_GetUniquesTests : SQLiteTransformation
 
         Assert.That(sql, Does.Contain("CONSTRAINT UniqueConstraint1 UNIQUE (Property3)"));
         Assert.That(sql, Does.Contain("CONSTRAINT UniqueConstraint2 UNIQUE (Property4, Property5)"));
-        Assert.That(sql, Does.Contain("CONSTRAINT sqlite_autoindex_TableA_1 UNIQUE (Property2)"));
+        Assert.That(sql, Does.Contain("CONSTRAINT UniqueConstraint0 UNIQUE (Property2)"));
 
         var retrievedUniqueIndex1 = indexes.Single(x => x.Name == uniqueIndexName1);
 

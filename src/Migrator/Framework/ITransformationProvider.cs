@@ -10,6 +10,9 @@ namespace DotNetProjects.Migrator.Framework;
 /// </summary>
 public interface ITransformationProvider : IDisposable
 {
+    /// <summary>Read named table constraints with ordered key columns; indexes are separate objects.</summary>
+    TableConstraint[] GetTableConstraints(string table);
+
     /// <summary>
     /// Get this provider or a NoOp provider if you are not running in the context of 'provider'.
     /// </summary>

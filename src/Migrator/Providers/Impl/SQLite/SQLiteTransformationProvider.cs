@@ -3,6 +3,7 @@ using DotNetProjects.Migrator.Providers.Impl.SQLite.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -123,16 +124,21 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
         string sqlCreateTableScript = null;
 
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format("SELECT sql FROM sqlite_master WHERE type='table' AND lower(name)=lower('{0}')", table)))
-        {
-            if (reader.Read())
-            {
-                sqlCreateTableScript = reader.IsDBNull(0) ? null : (string)reader[0];
-            }
-        }
+        using var cmd = CreateCommand();
+        var parameter = cmd.CreateParameter(); parameter.ParameterName = "@name"; parameter.Value = table; cmd.Parameters.Add(parameter);
+        using var reader = ExecuteQuery(cmd, "SELECT sql FROM sqlite_master WHERE type='table' AND name=@name COLLATE NOCASE");
+        if (reader.Read()) sqlCreateTableScript = reader.IsDBNull(0) ? null : reader.GetString(0);
 
         return sqlCreateTableScript;
+    }
+
+    public override TableConstraint[] GetTableConstraints(string table)
+    {
+        var script = GetSqlCreateTableScript(table);
+        if (string.IsNullOrWhiteSpace(script)) throw new MigrationException("Table does not exist: " + table);
+        var constraints = SQLiteConstraintParser.Parse(script);
+        foreach (var foreignKey in constraints.OfType<ForeignKeyConstraint>()) foreignKey.ChildTable = table;
+        return constraints;
     }
 
     public override ForeignKeyConstraint[] GetForeignKeyConstraints(string tableName)
@@ -166,61 +172,16 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             return [];
         }
 
-        var createTableScript = GetSqlCreateTableScript(tableName);
-        // GeneratedRegex
-        var regEx = new Regex(@"CONSTRAINT\s+\w+\s+FOREIGN\s+KEY\s*\([^)]+\)\s+REFERENCES\s+[\w""]+\s*\([^)]+\)");
-        var matchesCollection = regEx.Matches(createTableScript);
-        var fkParts = matchesCollection.Cast<Match>().ToList().Where(x => x.Success).Select(x => x.Value).ToList();
-
-        if (fkParts.Count != foreignKeyConstraints.Count)
+        var declared = GetTableConstraints(tableName).OfType<ForeignKeyConstraint>().ToList();
+        foreach (var foreignKey in foreignKeyConstraints)
         {
-            throw new Exception($"Cannot extract all foreign keys out of the create table script in SQLite. Did you use a name as foreign key constraint for all constraints in table '{tableName}' in this or older migrations?");
-        }
-
-        List<ForeignKeyExtract> foreignKeyExtracts = [];
-
-        foreach (var fkPart in fkParts)
-        {
-            var regexParenthesis = new Regex(@"\(([^)]+)\)");
-            var parenthesisContents = regexParenthesis.Matches(fkPart).Cast<Match>().Select(x => x.Groups[1].Value).ToList();
-
-            if (parenthesisContents.Count != 2)
-            {
-                throw new Exception("Cannot extract parenthesis of foreign key constraint");
-            }
-
-            var foreignKeyExtract = new ForeignKeyExtract()
-            {
-                ChildColumnNames = parenthesisContents[0].Split(',').Select(x => x.Trim()).ToList(),
-                ForeignKeyString = fkPart,
-                ParentColumnNames = parenthesisContents[1].Split(',').Select(x => x.Trim()).ToList(),
-            };
-
-            var foreignKeyConstraintNameRegex = new Regex(@"CONSTRAINT\s+(\w+)\s+FOREIGN\s+KEY");
-            var foreignKeyNameMatch = foreignKeyConstraintNameRegex.Match(fkPart);
-
-            if (!foreignKeyNameMatch.Success)
-            {
-                throw new Exception("Could not extract the foreign key constraint name");
-            }
-
-            foreignKeyExtract.ForeignKeyName = foreignKeyNameMatch.Groups[1].Value;
-
-            foreignKeyExtracts.Add(foreignKeyExtract);
-        }
-
-        foreach (var foreignKeyConstraint in foreignKeyConstraints)
-        {
-            foreach (var foreignKeyExtract in foreignKeyExtracts)
-            {
-                if (
-                    foreignKeyExtract.ChildColumnNames.SequenceEqual(foreignKeyConstraint.ChildColumns) &&
-                    foreignKeyExtract.ParentColumnNames.SequenceEqual(foreignKeyConstraint.ParentColumns)
-                )
-                {
-                    foreignKeyConstraint.Name = foreignKeyExtract.ForeignKeyName;
-                }
-            }
+            var definition = declared.FirstOrDefault(candidate =>
+                candidate.ChildColumns.SequenceEqual(foreignKey.ChildColumns, StringComparer.OrdinalIgnoreCase) &&
+                candidate.ParentTable.Equals(foreignKey.ParentTable, StringComparison.OrdinalIgnoreCase) &&
+                (candidate.ParentColumns.Length == 0 || candidate.ParentColumns.SequenceEqual(foreignKey.ParentColumns, StringComparer.OrdinalIgnoreCase)));
+            if (definition == null) throw new MigrationException("Cannot match a SQLite foreign key to its declaration.");
+            foreignKey.Name = definition.Name;
+            declared.Remove(definition);
         }
 
         return foreignKeyConstraints.ToArray();
@@ -783,7 +744,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             throw new MigrationException("A unique constraint with the same name already exists.");
         }
 
-        var uniqueConstraint = new Unique() { KeyColumns = columns, Name = name };
+        var uniqueConstraint = new UniqueConstraint() { KeyColumns = columns, Name = name };
         sqliteTableInfo.Uniques.Add(uniqueConstraint);
 
         RecreateTable(sqliteTableInfo);
@@ -1489,6 +1450,22 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             .Select(column => column.CopyDefinition())
             .ToArray();
 
+        var explicitKeys = fields.OfType<PrimaryKeyConstraint>().ToArray();
+        if (explicitKeys.Length > 1) throw new MigrationException("A table can have only one primary key.");
+        var explicitKey = explicitKeys.SingleOrDefault();
+        if (explicitKey != null)
+        {
+            ValidateKeyColumns(explicitKey.Name, explicitKey.KeyColumns, columns);
+            if (explicitKey.NonClustered) throw new NotSupportedException("SQLite does not support nonclustered primary keys.");
+            if (columns.Any(c => c.IsPrimaryKey)) throw new MigrationException("Do not combine column primary-key flags with a primary-key constraint.");
+            foreach (var column in columns.Where(c => explicitKey.KeyColumns.Contains(c.Name)))
+                column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull;
+            var identities = columns.Where(c => c.IsIdentity).ToArray();
+            if (identities.Length != 0 && (identities.Length != 1 || explicitKey.KeyColumns.Length != 1 || explicitKey.KeyColumns[0] != identities[0].Name || _dialect.GetTypeName(identities[0].Type) != "INTEGER"))
+                throw new MigrationException("SQLite identity requires one INTEGER primary-key column.");
+        }
+        foreach (var unique in fields.OfType<UniqueConstraint>()) ValidateKeyColumns(unique.Name, unique.KeyColumns, columns);
+
         var pks = GetPrimaryKeys(columns);
         var hasCompoundPrimaryKey = pks.Count > 1;
 
@@ -1512,11 +1489,19 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 column.ColumnProperty &= ~ColumnProperty.Identity;
             }
 
-            var mapper = _dialect.GetAndMapColumnProperties(column);
+            var mapped = column.CopyDefinition();
+            if (explicitKey != null && mapped.IsIdentity) mapped.ColumnProperty &= ~ColumnProperty.Identity;
+            var mapper = _dialect.GetAndMapColumnProperties(mapped);
             columnProviders.Add(mapper);
         }
 
-        var columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
+        var columnSql = columnProviders.Select((mapper, index) =>
+            explicitKey != null && columns[index].IsIdentity
+                ? mapper.ColumnSql + $" CONSTRAINT {_dialect.QuoteIdentifier(explicitKey.Name)} PRIMARY KEY AUTOINCREMENT"
+                : mapper.ColumnSql);
+        var columnsAndIndexes = string.Join(", ", columnSql);
+        if (explicitKey != null && !columns.Any(c => c.IsIdentity))
+            columnsAndIndexes += ", " + _dialect.GetTableConstraintSql(explicitKey);
 
         var table = _dialect.TableNameNeedsQuote ? _dialect.Quote(name) : QuoteTableNameIfRequired(name);
         StringBuilder stringBuilder = new();
@@ -1530,7 +1515,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
 
         // Uniques
-        var uniques = fields.Where(x => x is Unique).Cast<Unique>().ToArray();
+        var uniques = fields.Where(x => x is UniqueConstraint).Cast<UniqueConstraint>().ToArray();
 
         foreach (var u in uniques)
         {
@@ -1736,91 +1721,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteInfoTable);
     }
 
-    public List<Unique> GetUniques(string tableName)
-    {
-        if (!TableExists(tableName))
-        {
-            throw new Exception($"Table '{tableName}' does not exist.");
-        }
-
-        var regEx = new Regex(@"(?<=,)\s*(CONSTRAINT\s+\w+\s+)?UNIQUE\s*\(\s*[\w\s,]+\s*\)\s*(?=,|\s*\))");
-        var regExConstraintName = new Regex(@"(?<=CONSTRAINT\s+)\w+(?=\s+)");
-        var regExParenthesis = new Regex(@"(?<=\().+(?=\))");
-
-        List<Unique> uniques = [];
-
-        var pragmaIndexListItems = GetPragmaIndexListItems(tableName);
-
-        // Here we filter for origin u and unique while in "GetIndexes()" we exclude them.
-        // If "pk" is set then it was added by using a primary key. If so this is handled by "GetColumns()".
-        // If "c" is set it was created by using CREATE INDEX.
-        var uniqueConstraints = pragmaIndexListItems.Where(x => x.Unique && x.Origin == "u")
-            .ToList();
-
-        foreach (var uniqueConstraint in uniqueConstraints)
-        {
-            var indexInfos = GetPragmaIndexInfo(uniqueConstraint.Name);
-
-            var columns = indexInfos.OrderBy(x => x.SeqNo)
-                .Select(x => x.Name)
-                .ToArray();
-
-            var unique = new Unique
-            {
-                Name = uniqueConstraint.Name,
-                KeyColumns = columns
-            };
-
-            uniques.Add(unique);
-        }
-
-        var createScript = GetSqlCreateTableScript(tableName);
-
-        var matches = regEx.Matches(createScript);
-        if (matches.Count == 0)
-        {
-            return [];
-        }
-
-        var constraintNames = matches
-            .OfType<Match>()
-            .Where(x => x.Success && !string.IsNullOrWhiteSpace(x.Value))
-            .Select(x => x.Value.Trim())
-            .ToList();
-
-        // We can only use the ones containing a  starting with CONSTRAINT 
-        var matchesHavingName = constraintNames.Where(x => x.StartsWith("CONSTRAINT")).ToList();
-
-        foreach (var constraintString in matchesHavingName)
-        {
-            var constraintNameMatch = regExConstraintName.Match(constraintString);
-
-            if (!constraintNameMatch.Success)
-            {
-                throw new Exception("Cannot extract constraint name. Please file an issue");
-            }
-
-            var constraintName = constraintNameMatch.Value;
-
-            var parenthesisMatch = regExParenthesis.Match(constraintString);
-
-            if (!parenthesisMatch.Success)
-            {
-                throw new Exception("Cannot extract parenthesis content for UNIQUE constraint. Please file an issue");
-            }
-
-            var columns = parenthesisMatch.Value.Split(',').Select(x => x.Trim()).ToList();
-
-            var unique = uniques.Where(x => x.KeyColumns.SequenceEqual(columns)).SingleOrDefault();
-
-            if (unique != null)
-            {
-                unique.Name = constraintName;
-            }
-        }
-
-        return uniques;
-    }
+    public List<UniqueConstraint> GetUniques(string tableName) => GetTableConstraints(tableName)
+        .OfType<UniqueConstraint>().Where(c => c.Name != null).ToList();
 
     public List<PragmaIndexInfoItem> GetPragmaIndexInfo(string indexNameNotQuoted)
     {
@@ -1968,57 +1870,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         ExecuteNonQuery(sql);
     }
 
-    public List<CheckConstraint> GetCheckConstraints(string tableName)
-    {
-        if (!TableExists(tableName))
-        {
-            throw new Exception($"Table '{tableName}' does not exist.");
-        }
-
-        var checkConstraintRegex = new Regex(@"(?<=,)[^,]+\s+[^,]+check[^,]+(?=[,|\)])", RegexOptions.IgnoreCase);
-        var braceContentRegex = new Regex(@"(?<=^\().+(?=\)$)");
-
-        var script = GetSqlCreateTableScript(tableName);
-
-        var matches = checkConstraintRegex.Matches(script);
-
-        if (matches == null)
-        {
-            return [];
-        }
-
-        var checkStrings = matches.OfType<Match>()
-            .Where(x => x.Success)
-            .Select(x => x.Value)
-            .ToList();
-
-        List<CheckConstraint> checkConstraints = [];
-
-        foreach (var checkString in checkStrings)
-        {
-            var splitted = checkString.Trim().Split(' ')
-                .Select(x => x.Trim())
-                .ToList();
-
-            if (!splitted[0].Equals("CONSTRAINT", StringComparison.OrdinalIgnoreCase) || !splitted[2].Equals("CHECK", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new Exception($"Cannot parse check constraint in table {tableName}");
-            }
-
-            var checkConstraintStringWithBraces = string.Join(" ", splitted.Skip(3)).Trim();
-            var checkConstraintString = braceContentRegex.Match(checkConstraintStringWithBraces);
-
-            var checkConstraint = new CheckConstraint
-            {
-                Name = splitted[1],
-                CheckConstraintString = checkConstraintString.Value
-            };
-
-            checkConstraints.Add(checkConstraint);
-        }
-
-        return checkConstraints;
-    }
+    public List<CheckConstraint> GetCheckConstraints(string tableName) => GetTableConstraints(tableName).OfType<CheckConstraint>().ToList();
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {

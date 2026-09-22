@@ -1,6 +1,6 @@
 ﻿namespace DotNetProjects.Migrator.Framework;
 
-public class ForeignKeyConstraint : IDbField
+public class ForeignKeyConstraint : TableConstraint
 {
     public ForeignKeyConstraint()
     { }
@@ -19,7 +19,6 @@ public class ForeignKeyConstraint : IDbField
     /// Currently used for SQLite
     /// </summary>
     public int? Id { get; set; }
-    public string Name { get; set; }
     public string ParentTable { get; set; }
     public string[] ParentColumns { get; set; }
     public string ChildTable { get; set; }

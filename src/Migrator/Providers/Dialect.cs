@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 using System.Globalization;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
@@ -35,6 +36,30 @@ public abstract class Dialect : IDialect
         RegisterProperty(ColumnProperty.Unique, "UNIQUE");
         RegisterProperty(ColumnProperty.PrimaryKey, "PRIMARY KEY");
         RegisterProperty(ColumnProperty.PrimaryKeyNonClustered, " NONCLUSTERED");
+    }
+
+    /// <summary>Render a named table constraint without accessing a database.</summary>
+    public virtual string GetTableConstraintSql(TableConstraint constraint)
+    {
+        if (string.IsNullOrWhiteSpace(constraint.Name)) throw new MigrationException("A constraint name is required.");
+        string Keys(string[] columns) => string.Join(", ", columns.Select(name => ColumnNameNeedsQuote || IsReservedWord(name) ? QuoteIdentifier(name) : name));
+        var body = constraint switch
+        {
+            PrimaryKeyConstraint p when p.NonClustered && !SupportsNonClustered => throw new System.NotSupportedException("This dialect does not support nonclustered primary keys."),
+            PrimaryKeyConstraint p => $"PRIMARY KEY{(p.NonClustered ? " NONCLUSTERED" : "")} ({Keys(p.KeyColumns)})",
+            UniqueConstraint u => $"UNIQUE ({Keys(u.KeyColumns)})",
+            CheckConstraint c when !string.IsNullOrWhiteSpace(c.CheckConstraintString) => $"CHECK ({c.CheckConstraintString})",
+            _ => throw new System.NotSupportedException($"No table-constraint SQL generator for {constraint.GetType().Name}.")
+        };
+        return $"CONSTRAINT {QuoteIdentifier(constraint.Name)} {body}";
+    }
+
+    /// <summary>Quote one identifier atom, escaping its delimiter; never split a name on dots.</summary>
+    public virtual string QuoteIdentifier(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Identifier must not be empty.", nameof(name));
+        var closing = QuoteTemplate[^1].ToString();
+        return string.Format(CultureInfo.InvariantCulture, QuoteTemplate, name.Replace(closing, closing + closing));
     }
 
     public virtual int MaxKeyLength

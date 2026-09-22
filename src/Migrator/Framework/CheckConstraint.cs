@@ -3,7 +3,7 @@ namespace DotNetProjects.Migrator.Framework;
 /// <summary>
 /// Currently only used for SQLite
 /// </summary>
-public class CheckConstraint : IDbField
+public class CheckConstraint : TableConstraint
 {
     public CheckConstraint()
     { }
@@ -22,5 +22,4 @@ public class CheckConstraint : IDbField
     /// <summary>
     /// Gets or sets the name of the CHECK constraint.
     /// </summary>
-    public string Name { get; set; }
 }
