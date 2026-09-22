@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: [Unit, SQLite, SQLServer, PostgreSQL, Oracle, MySQL, MariaDB, Firebird, Db2, Informix, Sybase]
+        database: [Unit, SQLite, SQLServer, PostgreSQL, Oracle, MySQL, MariaDB, Firebird, Db2, Informix, Sybase, Hana]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
