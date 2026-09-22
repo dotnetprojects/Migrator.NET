@@ -22,6 +22,19 @@ public class InformixTransformationProvider : TransformationProvider
     public InformixTransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
         : base(dialect, connection, null, scope) { }
 
+    public override object ExecuteScalar(string sql)
+    {
+        Logger.Trace(sql);
+        using var command = BuildCommand(sql);
+        using var reader = command.ExecuteReader(CommandBehavior.SingleRow);
+        if (!reader.Read()) return null;
+        if (reader.IsDBNull(0)) return DBNull.Value;
+        // The Informix driver has separate GetValue/GetString paths for TEXT.
+        // Its GetValue path includes a chunk terminator in long strings; the
+        // typed reader accounts for that terminator and retains the last character.
+        return reader.GetFieldType(0) == typeof(string) ? reader.GetString(0) : reader.GetValue(0);
+    }
+
     private static string Name(string name) => (name.StartsWith('"') ? name[1..^1].Replace("\"\"", "\"") : name.ToLowerInvariant()).Replace("'", "''");
     public override string GenerateParameterName(int index) => "?";
     public override void AddColumn(string table, Column column) =>

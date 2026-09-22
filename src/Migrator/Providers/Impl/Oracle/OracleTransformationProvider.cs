@@ -467,6 +467,18 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 {
                     column.MigratorDbType = MigratorDbType.String;
                 }
+                else if (dataTypeString == "VARCHAR2" || dataTypeString == "CLOB")
+                {
+                    column.MigratorDbType = MigratorDbType.AnsiString;
+                }
+                else if (dataTypeString == "CHAR")
+                {
+                    column.MigratorDbType = MigratorDbType.AnsiStringFixedLength;
+                }
+                else if (dataTypeString == "NCHAR")
+                {
+                    column.MigratorDbType = MigratorDbType.StringFixedLength;
+                }
                 else if (dataTypeString == "BINARY_FLOAT")
                 {
                     column.MigratorDbType = MigratorDbType.Single;
@@ -491,6 +503,11 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 {
                     throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
                 }
+
+                if (dataTypeString is "CLOB" or "NCLOB" or "BLOB") column.Size = int.MaxValue;
+                else if (dataTypeString is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR")
+                    column.Size = charColDeclLength ?? dataLength ?? 0;
+                else if (dataTypeString == "RAW") column.Size = dataLength ?? 0;
 
                 OracleColumnDefault.Apply(column, dataDefaultString);
 

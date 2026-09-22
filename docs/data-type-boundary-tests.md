@@ -45,6 +45,8 @@ This table describes schema mapping support, not identical native storage or ful
 
 - SQLite ignores string length and decimal precision constraints. The tests assert preservation of over-length values instead of inventing server enforcement. Its INTEGER storage is signed 64-bit; binding an out-of-range UInt64 now throws rather than allowing driver conversion to corrupt the value.
 - Oracle treats empty character strings as NULL. ASE represents an empty varchar as a single space and disallows nullable BIT columns. The tests assert those explicit behaviors.
+- Informix reserves the lowest signed integer value for NULL, truncates over-length VARCHAR assignments, and trims trailing spaces on readback. ASE also trims trailing spaces. Tests verify these native contracts explicitly.
+- Firebird decimal precision describes a minimum capacity: DECIMAL(12,4) uses a scaled 64-bit integer. The suite checks its actual storage boundary rather than expecting overflow at twelve digits.
 - MySQL/MariaDB tests set `STRICT_ALL_TABLES`; ASE tests enable `STRING_RTRUNCATION` and raise `TEXTSIZE` for large-object readback. Length enforcement depends on these session settings.
 - Large-column declarations are tested with bounded allocations, not multi-gigabyte payloads. Engine row-size limits and every native length transition are not exhaustively live-tested.
 - Accented Latin-1 text is covered across the legacy CI encodings. Supplementary Unicode characters, combining-sequence normalization, collations, embedded NUL in text, DST/timezone offsets, NaN/infinity and concurrent transactions remain separate qualification work.
@@ -78,3 +80,9 @@ Local validation on 2026-09-23: 823 Unit+SQLite cases passed together, followed 
 - Shared parameter binding accepts Single and SByte. PostgreSQL binds UInt64 as Decimal, matching its NUMERIC(20,0) mapping; SQLite checks its signed integer limit.
 
 Mapping changes affect newly generated DDL; they do not alter existing tables automatically. Applications relying on previous implicit truncation or rounding should review their migrations.
+
+## CI regression fixes
+
+The first full matrix exposed additional regressions: PostgreSQL fixed-character metadata and non-UTC timestamp binding, Oracle character metadata and Single storage, SQL Server numeric/fixed-character metadata, Db2 Byte binding, Informix large-text scalar readback, and untyped NULL parameters for binary columns. The fixes include NULL updates through both update overloads and native Oracle BINARY_FLOAT storage. Local Unit+SQLite validation after these changes passes 855 tests.
+
+VSTest can publish byte-identical coverage attachments at multiple paths. CI now validates and normalizes these into one report per job, while still rejecting missing, empty, or conflicting reports. Five Python regression tests cover report handling and coverage comparison.

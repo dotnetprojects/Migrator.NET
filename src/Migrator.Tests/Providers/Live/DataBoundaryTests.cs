@@ -156,6 +156,18 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
             DbType.Int64 => [long.MinValue, -1L, 0L, long.MaxValue],
             _ => [(byte)0, (byte)1, (byte)254, byte.MaxValue]
         };
+        // Informix reserves the most-negative signed value for its NULL encoding.
+        object reservedMinimum = null;
+        if (database == "Informix" && type != DbType.Byte)
+        {
+            reservedMinimum = values[0];
+            values[0] = type switch
+            {
+                DbType.Int16 => (object)(short)(short.MinValue + 1),
+                DbType.Int32 => int.MinValue + 1,
+                _ => long.MinValue + 1
+            };
+        }
         for (var i = 0; i < values.Length; i++)
         {
             Insert(i, values[i]);
@@ -163,6 +175,7 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
         }
         Provider.Update("Test", ["payload"], [values[^1]], $"{IdColumn}=0");
         Assert.That(Convert.ToDecimal(Read(0)), Is.EqualTo(Convert.ToDecimal(values[^1])));
+        if (reservedMinimum != null) AssertDatabaseError(() => Insert(99, reservedMinimum));
     }
 
     [TestCase(DbType.Decimal)]
@@ -190,7 +203,12 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
         {
             object value = type == DbType.Single ? (object)(float)values[i] : values[i];
             Insert(i, value);
-            Assert.That(Convert.ToDouble(Read(i)), Is.EqualTo(values[i]).Within(0.000001));
+            // MySQL's text protocol formats FLOAT with limited significant digits.
+            // Read its stored value as DOUBLE to distinguish formatting from data loss.
+            var stored = database is "MySQL" or "MariaDB" && type == DbType.Single
+                ? Provider.ExecuteScalar($"SELECT {ValueColumn} + 0e0 FROM {Table} WHERE {IdColumn}={i}")
+                : Read(i);
+            Assert.That(Convert.ToDouble(stored), Is.EqualTo(values[i]).Within(0.000001));
         }
     }
 
@@ -239,6 +257,12 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
             Insert(2, "123456789");
             Assert.That(Read(2), Is.EqualTo("123456789"));
         }
+        else if (database == "Informix")
+        {
+            // Informix accepts this assignment and truncates to the declared width.
+            Insert(2, "123456789");
+            Assert.That(Read(2), Is.EqualTo("12345678"));
+        }
         else AssertDatabaseError(() => Insert(2, "123456789"));
     }
 
@@ -252,6 +276,8 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
             Insert(i, values[i]);
             var expected = i == 1 && database == "Oracle" ? DBNull.Value
                 : i == 1 && database == "Sybase" ? " " : values[i];
+            if (expected is string text && database is "Sybase" or "Informix")
+                expected = database == "Sybase" && text.TrimEnd(' ').Length == 0 ? " " : text.TrimEnd(' ');
             Assert.That(Read(i), Is.EqualTo(expected), $"Value {i}");
         }
         Assert.That(Convert.ToInt32(Provider.ExecuteScalar($"SELECT COUNT(*) FROM {Table}")), Is.EqualTo(values.Length));
@@ -273,6 +299,11 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
         Assert.That(Read(1), Is.EqualTo(new byte[] { 255, 0 }));
         Insert(2, DBNull.Value);
         Assert.That(Read(2), Is.EqualTo(DBNull.Value));
+        Provider.Update("Test", ["payload"], [DBNull.Value], $"{IdColumn}=1");
+        Assert.That(Read(1), Is.EqualTo(DBNull.Value));
+        Insert(3, bytes);
+        Provider.Update("Test", ["payload"], [null], ["id"], [3]);
+        Assert.That(Read(3), Is.EqualTo(DBNull.Value));
     }
 
     [Test]
@@ -447,7 +478,16 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
             var metadata = Provider.ReadLegacyColumns("Test").Single(c => c.Name.Equals("payload", StringComparison.OrdinalIgnoreCase));
             Assert.That(metadata.Precision, Is.EqualTo(12));
             Assert.That(metadata.Scale, Is.EqualTo(4));
-            AssertDatabaseError(() => Insert(3, 100000000m));
+            if (database == "Firebird")
+            {
+                // DECIMAL precision is a minimum; dialect 3 uses a scaled BIGINT.
+                Insert(3, 100000000m);
+                Assert.That(Convert.ToDecimal(Read(3)), Is.EqualTo(100000000m));
+                Insert(4, 922337203685477.5807m);
+                Assert.That(Convert.ToDecimal(Read(4)), Is.EqualTo(922337203685477.5807m));
+                AssertDatabaseError(() => Insert(5, 922337203685477.5808m));
+            }
+            else AssertDatabaseError(() => Insert(3, 100000000m));
         }
     }
 }

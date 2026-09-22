@@ -41,7 +41,7 @@ public class OracleDialect : Dialect
         RegisterColumnType(DbType.UInt16, "NUMBER(5,0)");
         RegisterColumnType(DbType.UInt32, "NUMBER(10,0)");
         RegisterColumnType(DbType.UInt64, "NUMBER(20,0)");
-        RegisterColumnType(DbType.Single, "FLOAT(24)");
+        RegisterColumnType(DbType.Single, "BINARY_FLOAT");
         RegisterColumnType(DbType.Double, "BINARY_DOUBLE");
         RegisterColumnType(DbType.StringFixedLength, "NCHAR(255)");
         RegisterColumnType(DbType.StringFixedLength, 2000, "NCHAR($l)");

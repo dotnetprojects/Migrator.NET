@@ -51,11 +51,7 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/test.ps1 -Database ${{ matrix.database }} -Coverage
       - name: Verify coverage was collected
-        shell: pwsh
-        run: |
-          if (@(Get-ChildItem TestResults -Recurse -Filter coverage.cobertura.xml).Count -ne 1) {
-            throw 'Expected one Coverlet report for this test group.'
-          }
+        run: python3 .github/scripts/normalize-code-coverage.py TestResults
       - name: Collect database logs
         if: always()
         run: |
@@ -99,7 +95,7 @@ jobs:
       - name: Merge coverage and generate HTML report
         run: |
           dotnet tool install dotnet-reportgenerator-globaltool --version 5.4.18 --tool-path "$RUNNER_TEMP/reportgenerator"
-          "$RUNNER_TEMP/reportgenerator/reportgenerator" '-reports:TestResults/**/coverage.cobertura.xml' '-targetdir:artifacts/coverage' '-reporttypes:Html;Cobertura'
+          "$RUNNER_TEMP/reportgenerator/reportgenerator" '-reports:TestResults/*/coverage/coverage.cobertura.xml' '-targetdir:artifacts/coverage' '-reporttypes:Html;Cobertura'
       - name: Find coverage for the exact PR base commit
         if: github.event_name == 'pull_request'
         id: baseline

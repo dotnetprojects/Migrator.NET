@@ -79,6 +79,24 @@ public class DialectCapacityRegressionTests
         }
     }
 
+    [TestCase(DateTimeKind.Unspecified, NpgsqlTypes.NpgsqlDbType.Timestamp)]
+    [TestCase(DateTimeKind.Local, NpgsqlTypes.NpgsqlDbType.Timestamp)]
+    [TestCase(DateTimeKind.Utc, NpgsqlTypes.NpgsqlDbType.TimestampTz)]
+    public void PostgreSqlTimestampBindingPreservesDateTimeKind(DateTimeKind kind, NpgsqlTypes.NpgsqlDbType expected)
+    {
+        using var provider = new PostgreSqlParameterProbe();
+        var value = new DateTime(2024, 2, 29, 23, 59, 59, kind);
+        var parameter = new NpgsqlParameter();
+        provider.Bind(parameter, value);
+        Assert.That(parameter.NpgsqlDbType, Is.EqualTo(expected));
+        Assert.That(parameter.Value, Is.EqualTo(value));
+        Assert.That(((DateTime)parameter.Value).Kind, Is.EqualTo(kind));
+    }
+
+    [Test]
+    public void OracleSingleUsesIeeeBinaryStorage()
+        => Assert.That(ProviderFactory.DialectForProvider(ProviderTypes.Oracle).GetTypeName(DbType.Single), Is.EqualTo("BINARY_FLOAT"));
+
     [TestCase(ProviderTypes.Mysql, DbType.AnsiString, 256, "VARCHAR(256)")]
     [TestCase(ProviderTypes.MariaDB, DbType.AnsiString, 256, "VARCHAR(256)")]
     [TestCase(ProviderTypes.Firebird, DbType.Binary, 32, "VARCHAR(32) CHARACTER SET OCTETS")]
