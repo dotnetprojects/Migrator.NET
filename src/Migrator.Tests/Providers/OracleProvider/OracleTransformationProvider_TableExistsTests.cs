@@ -12,6 +12,18 @@ namespace Migrator.Tests.Providers.OracleProvider;
 public class OracleTransformationProvider_TableExistsTests : OracleTransformationProviderTestBase
 {
     [Test]
+    public void LegacyForeignKeyOverloadHonorsCascadeDelete()
+    {
+        Provider.AddTable("CascadeParent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable("CascadeChild", new Column("ParentId", DbType.Int32));
+        Provider.AddForeignKey("CascadeForeignKey", "CascadeChild", new[] { "ParentId" }, "CascadeParent", new[] { "Id" }, ForeignKeyConstraintType.Cascade);
+        Provider.Insert("CascadeParent", new[] { "Id" }, new object[] { 1 });
+        Provider.Insert("CascadeChild", new[] { "ParentId" }, new object[] { 1 });
+        Provider.ExecuteNonQuery("DELETE FROM CascadeParent");
+        Assert.That(Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM CascadeChild")), Is.Zero);
+    }
+
+    [Test]
     public void RemovingTableDoesNotGuessOwnershipOfLegacyNamedSequence()
     {
         Provider.AddTable("UnownedSequenceTable", new Column("Id", DbType.Int32));

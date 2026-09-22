@@ -11,6 +11,17 @@ namespace Migrator.Tests;
 [Category("SQLite")]
 public class ProviderCorrectionTests
 {
+    [Test] public void InlineConstraintNamesAndReservedUniqueColumnsAreQuoted()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        provider.AddTable("QuotedConstraints", new Column("select", DbType.Int32),
+            new Unique { Name = "unique name", KeyColumns = new[] { "select" } },
+            new CheckConstraint("check name", "\"select\" > 0"));
+        provider.ExecuteNonQuery("INSERT INTO QuotedConstraints VALUES (1)");
+        Assert.That(Assert.Throws<MigrationException>(() => provider.ExecuteNonQuery("INSERT INTO QuotedConstraints VALUES (1)")).InnerException, Is.TypeOf<SqliteException>());
+        Assert.That(Assert.Throws<MigrationException>(() => provider.ExecuteNonQuery("INSERT INTO QuotedConstraints VALUES (-1)")).InnerException, Is.TypeOf<SqliteException>());
+    }
     [Test] public void NullableResultsDistinguishEmptyNullAndPopulatedData()
     {
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();

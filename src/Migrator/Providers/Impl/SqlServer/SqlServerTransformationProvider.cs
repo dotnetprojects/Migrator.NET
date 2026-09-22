@@ -197,7 +197,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
     {
         var nonclusteredString = "NONCLUSTERED";
         ExecuteNonQuery(
-        string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY {2} ({3}) ", table, name, nonclusteredString,
+        string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY {2} ({3}) ", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name), nonclusteredString,
                       string.Join(",", QuoteColumnNamesIfRequired(columns))));
     }
 

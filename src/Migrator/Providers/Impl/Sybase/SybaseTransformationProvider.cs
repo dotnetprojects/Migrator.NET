@@ -178,6 +178,6 @@ public class SybaseTransformationProvider : TransformationProvider
     {
         if (constraint is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict))
             throw new NotSupportedException("ASE declarative foreign keys do not support cascading referential actions.");
-        ExecuteNonQuery($"ALTER TABLE {childTable} ADD CONSTRAINT {name} FOREIGN KEY ({string.Join(", ", childColumns)}) REFERENCES {parentTable} ({string.Join(", ", parentColumns)})");
+        ExecuteNonQuery($"ALTER TABLE {childTable} ADD CONSTRAINT {QuoteConstraintNameIfRequired(name)} FOREIGN KEY ({string.Join(", ", QuoteColumnNamesIfRequired(childColumns))}) REFERENCES {parentTable} ({string.Join(", ", QuoteColumnNamesIfRequired(parentColumns))})");
     }
 }

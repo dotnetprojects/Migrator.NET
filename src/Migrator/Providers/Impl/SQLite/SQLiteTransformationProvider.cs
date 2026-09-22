@@ -1536,14 +1536,14 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             if (!string.IsNullOrEmpty(u.Name))
             {
-                stringBuilder.Append($", CONSTRAINT {u.Name}");
+                stringBuilder.Append($", CONSTRAINT {QuoteConstraintNameIfRequired(u.Name)}");
             }
             else
             {
                 stringBuilder.Append(", ");
             }
 
-            var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns);
+            var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns.Select(QuoteColumnNameIfRequired));
             stringBuilder.Append($" UNIQUE ({uniqueColumnsCommaSeparated})");
         }
 
@@ -1585,7 +1585,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         foreach (var checkConstraint in checkConstraints)
         {
-            checkConstraintStrings.Add($"CONSTRAINT {checkConstraint.Name} CHECK ({checkConstraint.CheckConstraintString})");
+            checkConstraintStrings.Add($"CONSTRAINT {QuoteConstraintNameIfRequired(checkConstraint.Name)} CHECK ({checkConstraint.CheckConstraintString})");
         }
 
         if (checkConstraintStrings.Count > 0)

@@ -94,12 +94,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     {
         GuardAgainstMaximumIdentifierLengthForOracle(name);
 
-        primaryTable = QuoteTableNameIfRequired(primaryTable);
-        refTable = QuoteTableNameIfRequired(refTable);
-        var primaryColumnsSql = string.Join(",", primaryColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
-        var refColumnsSql = string.Join(",", refColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
-
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
+        AddForeignKey(name, primaryTable, primaryColumns, refTable, refColumns, constraint, ForeignKeyConstraintType.NoAction);
     }
 
     public override string AddIndex(string table, Index index)

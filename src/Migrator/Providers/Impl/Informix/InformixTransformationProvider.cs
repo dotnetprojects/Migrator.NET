@@ -204,11 +204,11 @@ public class InformixTransformationProvider : TransformationProvider
     }
 
     public override void AddPrimaryKey(string name, string table, params string[] columns) =>
-        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT PRIMARY KEY ({string.Join(", ", columns)}) CONSTRAINT {name}");
+        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT PRIMARY KEY ({string.Join(", ", QuoteColumnNamesIfRequired(columns))}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
     public override void AddUniqueConstraint(string name, string table, params string[] columns) =>
-        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT UNIQUE ({string.Join(", ", columns)}) CONSTRAINT {name}");
+        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT UNIQUE ({string.Join(", ", QuoteColumnNamesIfRequired(columns))}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
     public override void AddCheckConstraint(string name, string table, string checkSql) =>
-        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT CHECK ({checkSql}) CONSTRAINT {name}");
+        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT CHECK ({checkSql}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
 
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
         ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
@@ -226,6 +226,6 @@ public class InformixTransformationProvider : TransformationProvider
             ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict => "",
             _ => throw new NotSupportedException("Informix supports cascading deletes or its default restrictive referential action.")
         };
-        ExecuteNonQuery($"ALTER TABLE {childTable} ADD CONSTRAINT FOREIGN KEY ({string.Join(", ", childColumns)}) REFERENCES {parentTable} ({string.Join(", ", parentColumns)}){action} CONSTRAINT {name}");
+        ExecuteNonQuery($"ALTER TABLE {childTable} ADD CONSTRAINT FOREIGN KEY ({string.Join(", ", QuoteColumnNamesIfRequired(childColumns))}) REFERENCES {parentTable} ({string.Join(", ", QuoteColumnNamesIfRequired(parentColumns))}){action} CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
     }
 }

@@ -1568,8 +1568,10 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         var oracle = _dialect is DotNetProjects.Migrator.Providers.Impl.Oracle.OracleDialect;
         if (oracle && onUpdate != ForeignKeyConstraintType.NoAction)
             throw new NotSupportedException("Oracle does not support ON UPDATE foreign key actions.");
+        if (oracle && onDelete is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict or ForeignKeyConstraintType.Cascade or ForeignKeyConstraintType.SetNull))
+            throw new NotSupportedException("Oracle supports default restrictive, CASCADE or SET NULL deletion actions.");
         var sql = $"ALTER TABLE {QuoteTableNameIfRequired(childTable)} ADD CONSTRAINT {QuoteConstraintNameIfRequired(name)} FOREIGN KEY ({string.Join(", ", QuoteColumnNamesIfRequired(childColumns))}) REFERENCES {QuoteTableNameIfRequired(parentTable)} ({string.Join(", ", QuoteColumnNamesIfRequired(parentColumns))})";
-        if (!oracle || onDelete != ForeignKeyConstraintType.NoAction) sql += $" ON DELETE {deleteAction}";
+        if (!oracle || onDelete is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict)) sql += $" ON DELETE {deleteAction}";
         if (!oracle) sql += $" ON UPDATE {updateAction}";
         ExecuteNonQuery(sql);
     }
@@ -2120,7 +2122,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     protected string QuoteConstraintNameIfRequired(string name)
     {
-        return _dialect.ConstraintNameNeedsQuote ? _dialect.Quote(name) : name;
+        if (!_dialect.ConstraintNameNeedsQuote && !_dialect.IsReservedWord(name)
+            && System.Text.RegularExpressions.Regex.IsMatch(name, @"^[A-Za-z_][A-Za-z0-9_$#]*$")) return name;
+        var template = _dialect.QuoteTemplate;
+        var closing = template[^1].ToString();
+        return string.Format(template, name.Replace(closing, closing + closing));
     }
 
     public abstract bool IndexExists(string table, string name);
