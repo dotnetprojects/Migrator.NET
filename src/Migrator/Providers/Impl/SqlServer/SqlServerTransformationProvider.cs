@@ -650,7 +650,12 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                     var bracesStrippedString = defaultValueString.Replace("(", "").Replace(")", "").Trim();
                     var bracesAndSingleQuoteStrippedString = bracesStrippedString.Replace("'", "");
 
-                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    var parsedDefault = CatalogDefaultValue.Parse(defaultValueString, column.Type);
+                    if (column.Type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength
+                        || (parsedDefault is RawSql && !System.Text.RegularExpressions.Regex.IsMatch(defaultValueString,
+                            @"(?i)^\(*\s*(CONVERT\s*\(|0x[0-9a-f]+\)*)")))
+                        column.DefaultValue = parsedDefault;
+                    else if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
                         column.DefaultValue = long.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }

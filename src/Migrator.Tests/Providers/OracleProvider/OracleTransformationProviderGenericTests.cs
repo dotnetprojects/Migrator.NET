@@ -10,6 +10,9 @@ namespace Migrator.Tests.Providers.OracleProvider;
 [Category("Oracle")]
 public class OracleTransformationProviderGenericTests : TransformationProviderGenericMiscConstraintBase
 {
+    [Test]
+    public void RawSqlDefaultsRoundTripThroughMetadata() => RawDefaultRegression.AssertRoundTrip(Provider);
+
     [SetUp]
     public async Task SetUpAsync()
     {

@@ -606,7 +606,12 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                     // This is only necessary because older versions of this migrator added single quotes for numerics.
                     var singleQuoteStrippedString = dataDefaultString.Replace("'", "");
 
-                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    var parsedDefault = CatalogDefaultValue.Parse(dataDefaultString, column.Type);
+                    if (column.Type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength
+                        || (parsedDefault is RawSql && !Regex.IsMatch(dataDefaultString,
+                            @"(?i)^\s*(TO_TIMESTAMP\s*\(|TIMESTAMP\s*'|HEXTORAW\s*\()")))
+                        column.DefaultValue = parsedDefault;
+                    else if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
                         column.DefaultValue = long.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }

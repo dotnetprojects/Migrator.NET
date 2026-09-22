@@ -8,6 +8,9 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 [Category("PostgreSQL")]
 public class PostgreSQLTransformationProvider_GetColumns_Tests : Generic_GetColumnsTestsBase
 {
+    [Test]
+    public void RawSqlDefaultsRoundTripThroughMetadata() => RawDefaultRegression.AssertRoundTrip(Provider);
+
     [SetUp]
     public async Task SetUpAsync()
     {

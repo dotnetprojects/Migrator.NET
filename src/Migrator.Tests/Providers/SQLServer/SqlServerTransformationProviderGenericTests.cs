@@ -12,6 +12,9 @@ namespace Migrator.Tests.Providers.SQLServer;
 [Category("SQLServer")]
 public class SqlServerTransformationProviderGenericTests : TransformationProviderGenericMiscConstraintBase
 {
+    [Test]
+    public void RawSqlDefaultsRoundTripThroughMetadata() => RawDefaultRegression.AssertRoundTrip(Provider);
+
     [SetUp]
     public async Task SetUpAsync()
     {

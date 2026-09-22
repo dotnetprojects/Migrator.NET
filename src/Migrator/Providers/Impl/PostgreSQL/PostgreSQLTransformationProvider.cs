@@ -615,9 +615,22 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                 column.IsIdentity = true;
             }
 
-            if (columnInfo.ColumnDefault != null)
+            if (columnInfo.ColumnDefault != null && !isIdentity)
             {
-                if (column.MigratorDbType == MigratorDbType.Int16 || column.MigratorDbType == MigratorDbType.Int32 || column.MigratorDbType == MigratorDbType.Int64)
+                // Catalog casts on literal values retain the existing CLR conversion.
+                // All other expressions must survive inspection without evaluation or quoting.
+                var parsedDefault = CatalogDefaultValue.Parse(columnInfo.ColumnDefault, column.Type);
+                var isCastLiteral = Regex.IsMatch(columnInfo.ColumnDefault,
+                    @"\A'(?:[^']|'')*'(?:::[A-Za-z0-9_ .\[\](),]+)?\z");
+                if (column.Type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength)
+                {
+                    var literal = Regex.Match(columnInfo.ColumnDefault, @"\A('(?:[^']|'')*')(?:::[A-Za-z0-9_ .\[\](),]+)?\z");
+                    column.DefaultValue = literal.Success
+                        ? CatalogDefaultValue.Parse(literal.Groups[1].Value, column.Type) : parsedDefault;
+                }
+                else if (parsedDefault is RawSql && !isCastLiteral)
+                    column.DefaultValue = parsedDefault;
+                else if (column.MigratorDbType == MigratorDbType.Int16 || column.MigratorDbType == MigratorDbType.Int32 || column.MigratorDbType == MigratorDbType.Int64)
                 {
                     var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
                     if (match.Success)

@@ -14,6 +14,7 @@ internal static class CatalogDefaultValue
         var value = source.Trim();
         while (HasOuterParentheses(value)) value = value[1..^1].Trim();
         if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase)) return null;
+        if (value.StartsWith("N'", StringComparison.OrdinalIgnoreCase)) value = value[1..];
         if (value.StartsWith("'") && value.EndsWith("'"))
         {
             var literal = value[1..^1].Replace("''", "'");
