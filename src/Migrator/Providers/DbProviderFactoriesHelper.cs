@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
+using System.Reflection;
 
 namespace DotNetProjects.Migrator.Providers;
 
@@ -37,7 +38,14 @@ public static class DbProviderFactoriesHelper
 #if NETSTANDARD
         return null;
 #else
-        return (DbProviderFactory)AppDomain.CurrentDomain.CreateInstanceAndUnwrap(assemblyName, factoryProviderType);
+        var type = Assembly.Load(assemblyName).GetType(factoryProviderType, throwOnError: true);
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.Static;
+        // ADO.NET factories commonly expose a singleton and have a private constructor.
+        if (type.GetField("Instance", flags)?.GetValue(null) is DbProviderFactory fieldFactory)
+            return fieldFactory;
+        if (type.GetProperty("Instance", flags)?.GetValue(null) is DbProviderFactory propertyFactory)
+            return propertyFactory;
+        return (DbProviderFactory)Activator.CreateInstance(type);
 #endif
     }
 }

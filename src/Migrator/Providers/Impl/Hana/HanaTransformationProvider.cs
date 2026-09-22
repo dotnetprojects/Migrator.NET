@@ -89,10 +89,15 @@ public class HanaTransformationProvider : TransformationProvider
     public override void RemoveTable(string table) => ExecuteNonQuery("DROP TABLE " + QuoteTableNameIfRequired(table));
     public override void RenameTable(string table, string name) => ExecuteNonQuery($"RENAME TABLE {QuoteTableNameIfRequired(table)} TO {QuoteTableNameIfRequired(name)}");
     public override void RenameColumn(string table, string column, string name) => ExecuteNonQuery($"RENAME COLUMN {QuoteTableNameIfRequired(table)}.{QuoteColumnNameIfRequired(column)} TO {QuoteColumnNameIfRequired(name)}");
-    public override void RemoveColumnDefaultValue(string table, string column) =>
-        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ALTER ({QuoteColumnNameIfRequired(column)} DROP DEFAULT)");
-    public override void AddColumnDefaultValue(string table, string column, object value) =>
-        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ALTER ({QuoteColumnNameIfRequired(column)} SET {Dialect.Default(value)})");
+    public override void RemoveColumnDefaultValue(string table, string column) => AddColumnDefaultValue(table, column, RawSql.Insert("NULL"));
+    public override void AddColumnDefaultValue(string table, string column, object value)
+    {
+        var definition = GetColumns(table).SingleOrDefault(c => c.Name == column)
+            ?? throw new ArgumentException("HANA column does not exist: " + column, nameof(column));
+        if (definition.IsIdentity) throw new NotSupportedException("HANA identity defaults cannot be changed.");
+        definition.DefaultValue = value ?? RawSql.Insert("NULL");
+        ChangeColumn(table, definition);
+    }
     public override int TruncateTable(string table) => ExecuteNonQuery("TRUNCATE TABLE " + QuoteTableNameIfRequired(table));
     public override void AddForeignKey(string name, string child, string[] columns, string parent, string[] parentColumns, ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate) =>
         base.AddForeignKey(name, child, columns, parent, parentColumns,

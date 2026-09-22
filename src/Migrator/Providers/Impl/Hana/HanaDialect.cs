@@ -41,6 +41,7 @@ public class HanaDialect : Dialect
     public override bool ColumnNameNeedsQuote => true;
     public override bool ConstraintNameNeedsQuote => true;
     public override bool IdentityNeedsType => true;
+    public override bool NeedsNullForNullableWhenAlteringTable => true;
     public override bool SupportsIndex => false;
     public override string QuoteTemplate => "\"{0}\"";
     public override string Quote(string name) => string.Join(".", name.Split('.').Select(QuoteIdentifier));

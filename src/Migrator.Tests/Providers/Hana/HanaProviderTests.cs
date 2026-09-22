@@ -72,17 +72,20 @@ public class HanaProviderTests
         {
             var builder = new MigrationBuilder();
             builder.Create.Table(table).WithColumn("Id").AsInt32()
-                .WithColumn("Name").AsString(40).WithDefaultValue(RawSql.Insert("LOWER('ABC')"))
+                .WithColumn("Created").AsDateTime().WithDefaultValue(RawSql.Insert("CURRENT_TIMESTAMP"))
                 .WithPrimaryKey("PK_" + table, "Id");
             return builder;
         }
+        provider.AddTable("Imperative", new Column("Id", DbType.Int32),
+            new Column("Created", DbType.DateTime) { DefaultValue = RawSql.Insert("CURRENT_TIMESTAMP") },
+            new PrimaryKeyConstraint("PK_Imperative", "Id"));
         Definition("Fluent").Apply(provider);
         foreach (var sql in Definition("Preview").Preview(new SqlGenerationContext(ProviderTypes.Hana))) provider.ExecuteNonQuery(sql.TrimEnd(';'));
-        foreach (var table in new[] { "Fluent", "Preview" })
+        foreach (var table in new[] { "Imperative", "Fluent", "Preview" })
         {
             provider.Insert(table, ["Id"], [1]);
-            Assert.That(provider.ExecuteScalar("SELECT \"Name\" FROM \"" + table + "\""), Is.EqualTo("abc"));
-            Assert.That(provider.GetColumns(table).Single(c => c.Name == "Name").DefaultValue, Is.TypeOf<RawSql>());
+            Assert.That(provider.ExecuteScalar("SELECT \"Created\" FROM \"" + table + "\""), Is.TypeOf<DateTime>());
+            Assert.That(provider.GetColumns(table).Single(c => c.Name == "Created").DefaultValue, Is.TypeOf<RawSql>());
             Assert.That(provider.GetTableConstraints(table).OfType<PrimaryKeyConstraint>().Single().KeyColumns, Is.EqualTo(new[] { "Id" }));
         }
     }
@@ -93,12 +96,21 @@ public class HanaProviderTests
         provider.Insert("Names", ["Id", "Label"], [1, "kept"]);
         provider.AddColumn("Names", new Column("Extra", DbType.Int32) { DefaultValue = 7 });
         provider.ChangeColumn("Names", new Column("Label", DbType.String, 60));
+        ((TransformationProvider)provider).AddColumnDefaultValue("Names", "Extra", 8);
+        provider.Insert("Names", ["Id", "Label"], [2, "second"]);
+        Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT \"Extra\" FROM \"Names\" WHERE \"Id\"=2")), Is.EqualTo(8));
+        provider.RemoveColumnDefaultValue("Names", "Extra");
+        provider.ChangeColumn("Names", new Column("Label", DbType.String, 60) { IsNullable = false });
+        provider.ChangeColumn("Names", new Column("Label", DbType.String, 60) { IsNullable = true });
+        provider.Insert("Names", ["Id"], [3]);
+        Assert.That(provider.ExecuteScalar("SELECT \"Extra\" FROM \"Names\" WHERE \"Id\"=3"), Is.EqualTo(DBNull.Value));
+        Assert.That(provider.GetColumns("Names").Single(c => c.Name == "Label").IsNullable, Is.True);
         provider.RenameColumn("Names", "Label", "Text");
         provider.RenameTable("Names", "Renamed");
         provider.AddIndex("Renamed", new Index { Name = "IX_Text", KeyColumns = ["Text"] });
         Assert.That(provider.IndexExists("Renamed", "IX_Text"), Is.True);
         Assert.That(provider.GetIndexes("Renamed").Single(i => i.Name == "IX_Text").KeyColumns, Is.EqualTo(new[] { "Text" }));
-        Assert.That(provider.ExecuteScalar("SELECT \"Text\" FROM \"Renamed\""), Is.EqualTo("kept"));
+        Assert.That(provider.ExecuteScalar("SELECT \"Text\" FROM \"Renamed\" WHERE \"Id\"=1"), Is.EqualTo("kept"));
         provider.RemoveIndex("Renamed", "IX_Text");
         provider.RemoveColumn("Renamed", "Extra");
         Assert.That(provider.ColumnExists("Renamed", "Extra"), Is.False);
