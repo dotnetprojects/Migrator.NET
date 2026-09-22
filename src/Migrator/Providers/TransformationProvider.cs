@@ -800,7 +800,17 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void AddForeignKey(string table, ForeignKeyConstraint fk)
     {
-        AddForeignKey(fk.Name, table, fk.ParentColumns, fk.ChildTable, fk.ChildColumns);
+        if (string.IsNullOrWhiteSpace(fk.OnDelete) && string.IsNullOrWhiteSpace(fk.OnUpdate))
+            AddForeignKey(fk.Name, table, (string[])fk.ChildColumns.Clone(), fk.ParentTable, (string[])fk.ParentColumns.Clone());
+        else
+            AddForeignKey(fk.Name, table, (string[])fk.ChildColumns.Clone(), fk.ParentTable, (string[])fk.ParentColumns.Clone(), ParseAction(fk.OnDelete), ParseAction(fk.OnUpdate));
+
+        static ForeignKeyConstraintType ParseAction(string action)
+        {
+            if (string.IsNullOrWhiteSpace(action)) return ForeignKeyConstraintType.NoAction;
+            return Enum.TryParse<ForeignKeyConstraintType>(action.Replace(" ", ""), true, out var parsed) && Enum.IsDefined(parsed)
+                ? parsed : throw new ArgumentException("Unsupported foreign-key action.", nameof(fk));
+        }
     }
 
     public virtual void AddForeignKey(string name, string childTable, string childColumn, string parentTable, string parentColumn)
@@ -1668,7 +1678,14 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void AddColumn(string table, Column column)
     {
-        AddColumn(table, column.Name, column.Type, column.Size, column.ColumnProperty, column.DefaultValue);
+        if (!column.Precision.HasValue && !column.Scale.HasValue)
+        {
+            AddColumn(table, column.Name, column.Type, column.Size, column.ColumnProperty, column.DefaultValue);
+            return;
+        }
+        var definition = new Column(column.Name, column.MigratorDbType, column.Size, column.ColumnProperty, column.DefaultValue)
+            { Precision = column.Precision, Scale = column.Scale };
+        AddColumn(table, _dialect.GetAndMapColumnProperties(definition).ColumnSql);
     }
 
     public virtual void GenerateForeignKey(string primaryTable, string refTable)
