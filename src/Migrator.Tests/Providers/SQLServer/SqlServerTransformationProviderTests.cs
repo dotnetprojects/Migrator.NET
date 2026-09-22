@@ -14,18 +14,42 @@ namespace Migrator.Tests.Providers.SQLServer;
 public class SqlServerTransformationProviderTests : SQLServerTransformationProviderTestBase
 {
     [Test]
+    public void LegacyDialectKeepsTimeOfDayAndDurationRepresentationsSeparate()
+    {
+        using var legacy = DotNetProjects.Migrator.ProviderFactory.Create(ProviderTypes.SqlServer2005, Provider.ConnectionString, null);
+        var time = new TimeOnly(12, 34, 56, 120);
+        legacy.AddTable("LegacyClock", new Column("Id", DbType.Int32), new Column("Moment", DbType.Time, time));
+        try
+        {
+            legacy.Insert("LegacyClock", ["Id"], [1]);
+            legacy.Insert("LegacyClock", ["Id", "Moment"], [2, time]);
+            foreach (var id in new[] { 1, 2 })
+                Assert.That(Convert.ToDateTime(legacy.ExecuteScalar("SELECT Moment FROM LegacyClock WHERE Id=" + id)).TimeOfDay, Is.EqualTo(time.ToTimeSpan()));
+            IntervalRegression.Verify(legacy, false);
+        }
+        finally
+        {
+            legacy.RemoveTable("LegacyClock");
+            if (legacy.TableExists("DurationValues")) legacy.RemoveTable("DurationValues");
+        }
+    }
+
+    [Test]
+    public void NegativeMultiDayIntervalDefaultsAndParametersPersist() => IntervalRegression.Verify(Provider, false);
+
+    [Test]
     public void TimeTypeDefaultAndValueRoundTripThroughMetadata()
     {
-        var time = new TimeSpan(0, 12, 34, 56, 789);
+        var time = new TimeOnly(12, 34, 56, 789);
         Provider.AddTable("ClockValues", new Column("Moment",DbType.Time,time));
         var column = Provider.GetColumns("ClockValues").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(time));
         Provider.AddTable("CopiedClock", column);
         Provider.ExecuteNonQuery("INSERT INTO CopiedClock DEFAULT VALUES");
-        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM CopiedClock"), Is.EqualTo(time));
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM CopiedClock"), Is.EqualTo(time.ToTimeSpan()));
         Provider.Insert("ClockValues", new[] { "Moment" }, new object[] { time });
-        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM ClockValues"), Is.EqualTo(time));
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM ClockValues"), Is.EqualTo(time.ToTimeSpan()));
     }
 
     [Test]

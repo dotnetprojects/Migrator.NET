@@ -20,6 +20,7 @@ internal static class CatalogDefaultValue
             var literal = value[1..^1].Replace("''", "'");
             if (type is DbType.Date or DbType.DateTime or DbType.DateTime2 && DateTime.TryParse(literal, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                 return DateTime.SpecifyKind(date, DateTimeKind.Utc);
+            if (type == DbType.Time && TimeOnly.TryParse(literal, CultureInfo.InvariantCulture, out var time)) return time;
             if (type == DbType.Guid && Guid.TryParse(literal, out var guid)) return guid;
             return literal;
         }

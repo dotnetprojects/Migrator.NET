@@ -8,6 +8,21 @@ namespace Migrator.Tests.Providers.Generic;
 [TestFixture]
 public abstract class Generic_ConstraintExistsBase : TransformationProviderBase
 {
+    [Test]
+    public void QuotedConstraintNamesCanBeInspectedAndRemovedFromOnlyTheirTable()
+    {
+        const string name = "UQ ' dotted.name";
+        Provider.AddTable("NamedConstraints", new Column("Id", DbType.Int32),
+            new DotNetProjects.Migrator.Framework.UniqueConstraint(name, "Id"));
+        Provider.AddTable("OtherConstraints", new Column("Id", DbType.Int32));
+        Assert.That(Provider.ConstraintExists("NamedConstraints", name), Is.True);
+        Assert.That(Provider.ConstraintExists("OtherConstraints", name), Is.False);
+        Provider.RemoveConstraint("NamedConstraints", name);
+        Assert.That(Provider.ConstraintExists("NamedConstraints", name), Is.False);
+        Provider.Insert("NamedConstraints", ["Id"], [1]);
+        Provider.Insert("NamedConstraints", ["Id"], [1]);
+    }
+
     /// <summary>
     /// Should return true if foreign key exists.
     /// </summary>

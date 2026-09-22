@@ -41,6 +41,10 @@ public class ColumnPropertiesMapper
     }
     protected virtual void AddDefaultValue(Column column, List<string> values)
     {
+        if (column.Type == System.Data.DbType.Time && column.DefaultValue is TimeSpan)
+            throw new ArgumentException("Use TimeOnly for a Time default; TimeSpan represents MigratorDbType.Interval.");
+        if (column.MigratorDbType == MigratorDbType.Interval && column.DefaultValue is TimeOnly)
+            throw new ArgumentException("Use TimeSpan for an Interval default; TimeOnly represents a time of day.");
         if (column.DefaultValue != null) values.Add(_Dialect.Default(column.DefaultValue));
     }
     protected virtual void AddIdentity(Column column, List<string> values)
@@ -69,5 +73,5 @@ public class ColumnPropertiesMapper
         values.Add(sql);
     }
     protected virtual void AddType(List<string> values) => values.Add(Type);
-    protected virtual void AddName(List<string> values) => values.Add(_Dialect.ColumnNameNeedsQuote || _Dialect.IsReservedWord(Name) ? QuotedName : Name);
+    protected virtual void AddName(List<string> values) => values.Add(_Dialect.QuoteColumnNameIfRequired(Name));
 }

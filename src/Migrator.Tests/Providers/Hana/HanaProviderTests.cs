@@ -43,6 +43,25 @@ public class HanaProviderTests
         connection?.Dispose();
     }
     [Test]
+    public void TimeOnlyDefaultsAndParametersAndQuotedConstraintsRoundTrip()
+    {
+        var time = new TimeOnly(12, 34, 56);
+        provider.AddTable("ClockValues", new Column("Id", DbType.Int32), new Column("Moment", DbType.Time, time),
+            new UniqueConstraint("UQ ' dotted.name", "Id"));
+        provider.Insert("ClockValues", ["Id"], [1]);
+        provider.Insert("ClockValues", ["Id", "Moment"], [2, time]);
+        foreach (var id in new[] { 1, 2 })
+        {
+            var stored = provider.ExecuteScalar("SELECT \"Moment\" FROM \"ClockValues\" WHERE \"Id\"=" + id);
+            var actual = stored is DateTime date ? TimeOnly.FromDateTime(date) : stored is TimeSpan span ? TimeOnly.FromTimeSpan(span) : TimeOnly.Parse(Convert.ToString(stored));
+            Assert.That(actual, Is.EqualTo(time));
+        }
+        Assert.That(provider.GetColumns("ClockValues").Single(c => c.Name == "Moment").Type, Is.EqualTo(DbType.Time));
+        provider.RemoveConstraint("ClockValues", "UQ ' dotted.name");
+        provider.Insert("ClockValues", ["Id"], [1]);
+    }
+
+    [Test]
     public void ConnectionStringFactoryOpensAndDisposesOwnedConnection()
     {
         using var owned = ProviderFactory.Create(ProviderTypes.Hana, connectionString, schema);

@@ -19,6 +19,7 @@ public enum MigratorDbType
     SByte = 14,
     Single = 15,
     String = 16,
+    /// <summary>A time of day represented by System.TimeOnly.</summary>
     Time = 17,
     UInt16 = 18,
     UInt32 = 19,
@@ -31,5 +32,6 @@ public enum MigratorDbType
     DateTimeOffset = 27,
 
     Json = 9000,
+    /// <summary>A duration represented by System.TimeSpan; native interval or signed .NET ticks.</summary>
     Interval = 9001
 }

@@ -18,7 +18,7 @@ internal static class ConstraintMetadataReader
     public static TableConstraint[] Read(TransformationProvider provider, string table)
     {
         string sql;
-        var parameterTable = table;
+        var parameterTable = provider.QuoteTableNameIfRequired(table);
         string schema = null;
         var oracle = provider.Dialect is OracleDialect;
         if (provider.Dialect is SqlServerDialect)
@@ -58,12 +58,8 @@ internal static class ConstraintMetadataReader
         }
         else if (oracle || provider.Dialect is MysqlDialect)
         {
-            // Quoted identifiers containing a dot need a structured name API rather than ambiguous splitting.
-            var parts = table.Split('.');
-            if (parts.Length > 2 || parts.Any(p => p.Contains('"') || p.Contains('`') || p.Contains('[')))
-                throw new NotSupportedException("Quoted qualified constraint lookup is not implemented for this provider.");
-            parameterTable = oracle ? parts[^1].ToUpperInvariant() : parts[^1];
-            schema = parts.Length == 2 ? (oracle ? parts[0].ToUpperInvariant() : parts[0]) : null;
+            var relation = SqlIdentifier.Catalog(provider.QuoteTableNameIfRequired(table), oracle);
+            parameterTable = relation.Name; schema = relation.Schema;
             sql = oracle ? @"SELECT c.CONSTRAINT_NAME,c.CONSTRAINT_TYPE,k.COLUMN_NAME,k.POSITION,c.SEARCH_CONDITION_VC
                 FROM ALL_CONSTRAINTS c LEFT JOIN ALL_CONS_COLUMNS k ON k.OWNER=c.OWNER AND k.CONSTRAINT_NAME=c.CONSTRAINT_NAME AND c.CONSTRAINT_TYPE IN ('P','U')
                 WHERE c.TABLE_NAME=:lookup_table AND c.OWNER=COALESCE(:lookup_schema,SYS_CONTEXT('USERENV','CURRENT_SCHEMA')) AND c.CONSTRAINT_TYPE IN ('P','U','C')

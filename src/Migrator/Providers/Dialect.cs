@@ -51,7 +51,7 @@ public abstract class Dialect : IDialect
     public virtual string GetTableConstraintSql(TableConstraint constraint)
     {
         if (constraint.Name != null && string.IsNullOrWhiteSpace(constraint.Name)) throw new MigrationException("A constraint name must not be empty.");
-        string Keys(string[] columns) => string.Join(", ", columns.Select(name => ColumnNameNeedsQuote || IsReservedWord(name) ? QuoteIdentifier(name) : name));
+        string Keys(string[] columns) => string.Join(", ", columns.Select(QuoteColumnNameIfRequired));
         var body = constraint switch
         {
             PrimaryKeyConstraint p when p.NonClustered && !SupportsNonClustered => throw new System.NotSupportedException("This dialect does not support nonclustered primary keys."),
@@ -380,14 +380,14 @@ public abstract class Dialect : IDialect
 
     public virtual string Quote(string value)
     {
-        return string.Format(QuoteTemplate, value);
+        return SqlIdentifier.Render(this, value, true);
     }
 
     public virtual string QuoteColumnNameIfRequired(string columnName)
     {
-        if (ColumnNameNeedsQuote || IsReservedWord(columnName))
+        if (ColumnNameNeedsQuote || IsReservedWord(columnName) || !SqlIdentifier.IsSimple(columnName))
         {
-            return Quote(columnName);
+            return QuoteIdentifier(columnName);
         }
 
         return columnName;
@@ -395,12 +395,7 @@ public abstract class Dialect : IDialect
 
     public virtual string QuoteTableNameIfRequired(string tableName)
     {
-        if (TableNameNeedsQuote || IsReservedWord(tableName))
-        {
-            return Quote(tableName);
-        }
-
-        return tableName;
+        return SqlIdentifier.Render(this, tableName, TableNameNeedsQuote);
     }
 
     public virtual string Default(object defaultValue)
@@ -409,6 +404,17 @@ public abstract class Dialect : IDialect
         if (defaultValue is string && defaultValue.ToString() == string.Empty)
         {
             defaultValue = "''";
+        }
+        else if (defaultValue is TimeOnly time)
+        {
+            return "DEFAULT '" + time.ToString("HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture) + "'";
+        }
+        else if (defaultValue is TimeSpan interval)
+        {
+            // The portable interval representation on these dialects is signed .NET ticks.
+            var type = GetTypeName((DbType)MigratorDbType.Interval);
+            if (type is not ("BIGINT" or "INTEGER")) throw new NotSupportedException("This dialect requires native interval default handling.");
+            return "DEFAULT " + interval.Ticks.ToString(CultureInfo.InvariantCulture);
         }
         else if (defaultValue is Guid)
         {

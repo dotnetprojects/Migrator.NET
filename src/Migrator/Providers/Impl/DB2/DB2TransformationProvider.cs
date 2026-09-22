@@ -42,7 +42,7 @@ public class DB2TransformationProvider : TransformationProvider
     public override List<string> GetDatabases() => [Convert.ToString(ExecuteScalar("VALUES CURRENT SERVER")).Trim()];
     public override string[] GetConstraints(string table) => ExecuteStringQuery(
         $"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}'").ToArray();
-    public override bool ConstraintExists(string table, string name) => GetConstraints(table).Contains(Name(name));
+    public override bool ConstraintExists(string table, string name) => GetConstraints(table).Any(n => n == name || n == Name(name).Replace("''", "'"));
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
         $"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' AND TYPE='P'").FirstOrDefault();
 

@@ -60,7 +60,7 @@ for attempt in $(seq 1 120); do
 done
 case "$database" in
   Sybase)
-    printf "disk init name='migrator_data', physname='/opt/sybase/migrator_data.dat', size='128M'\ngo\ndisk init name='migrator_log', physname='/opt/sybase/migrator_log.dat', size='64M'\ngo\n" | docker exec -i migrator-db bash -c 'source /opt/sybase/SYBASE.sh; isql -b -Usa -PmyPassword -Slocalhost:5000'
+    printf "sp_configure 'quoted identifier enhancement', 1\ngo\ndisk init name='migrator_data', physname='/opt/sybase/migrator_data.dat', size='128M'\ngo\ndisk init name='migrator_log', physname='/opt/sybase/migrator_log.dat', size='64M'\ngo\n" | docker exec -i migrator-db bash -c 'source /opt/sybase/SYBASE.sh; isql -b -Usa -PmyPassword -Slocalhost:5000'
     ;;
   SQLServer) docker exec migrator-db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'YourStrong@Passw0rd' -b -Q 'CREATE DATABASE [Whatever];' ;;
   Oracle) docker exec -i migrator-db sqlplus -s / as sysdba < .github/workflows/sql/oracle.sql ;;

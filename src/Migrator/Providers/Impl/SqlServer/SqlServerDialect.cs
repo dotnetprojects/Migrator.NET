@@ -116,23 +116,11 @@ public class SqlServerDialect : Dialect
 
     public override string Quote(string value)
     {
-        var firstDotIndex = value.IndexOf('.');
-        if (firstDotIndex >= 0)
-        {
-            var owner = value.Substring(0, firstDotIndex);
-            var table = value.Substring(firstDotIndex + 1);
-            return (string.Format(QuoteTemplate, owner) + "." + string.Format(QuoteTemplate, table));
-        }
-        return string.Format(QuoteTemplate, value);
+        return base.Quote(value);
     }
 
     public override string Default(object defaultValue)
     {
-        if (defaultValue is TimeSpan time)
-        {
-            if (time < TimeSpan.Zero || time >= TimeSpan.FromDays(1)) throw new ArgumentOutOfRangeException(nameof(defaultValue), "SQL Server TIME must be within one day.");
-            return "DEFAULT '" + time.ToString("c", System.Globalization.CultureInfo.InvariantCulture) + "'";
-        }
         if (defaultValue.GetType().Equals(typeof(bool)))
         {
             return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");

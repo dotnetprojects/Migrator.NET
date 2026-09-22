@@ -118,60 +118,42 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
         ExecuteNonQuery(sql);
     }
 
+    private IDbCommand ObjectCommand(string table, string name = null)
+    {
+        var command = CreateCommand();
+        AddParameter(command, "@table", QuoteTableNameIfRequired(table));
+        if (name != null) AddParameter(command, "@name", name);
+        return command;
+    }
+
     public override bool TableExists(string tableName)
     {
-        // This is not clean! Usually you should use schema as well as this query will find tables in other tables as well!
-
-        using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, $"SELECT OBJECT_ID('{tableName}', 'U')");
-
-        if (reader.Read())
-        {
-            var result = reader.GetValue(0);
-            var tableExists = result != DBNull.Value && result != null;
-
-            return tableExists;
-        }
-
-        return false;
+        using var command = ObjectCommand(tableName);
+        using var reader = ExecuteQuery(command, "SELECT 1 WHERE OBJECT_ID(@table, 'U') IS NOT NULL");
+        return reader.Read();
     }
 
     public override bool ViewExists(string viewName)
     {
-        // This is not clean! Usually you should use schema as well as this query will find views in other tables as well!
-
-        using var cmd = CreateCommand();
-        cmd.CommandText = $"SELECT OBJECT_ID(@FullViewName, 'V')";
-
-        var parameter = cmd.CreateParameter();
-        parameter.ParameterName = "@FullViewName";
-        parameter.Value = viewName;
-        cmd.Parameters.Add(parameter);
-
-        var result = cmd.ExecuteScalar();
-
-        var viewExists = result != DBNull.Value && result != null;
-
-        return viewExists;
+        using var command = ObjectCommand(viewName);
+        using var reader = ExecuteQuery(command, "SELECT 1 WHERE OBJECT_ID(@table, 'V') IS NOT NULL");
+        return reader.Read();
     }
 
     public override bool ConstraintExists(string table, string name)
     {
-        var retVal = false;
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format("SELECT TOP 1 * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_NAME ='{0}'", name)))
-        {
-            retVal = reader.Read();
-        }
+        using var command = ObjectCommand(table, name);
+        using var reader = ExecuteQuery(command, "SELECT 1 FROM sys.objects WHERE parent_object_id=OBJECT_ID(@table) AND name=@name AND type IN ('PK','UQ','F','C','D')");
+        return reader.Read();
+    }
 
-        if (!retVal)
-        {
-            using var cmd = CreateCommand();
-            using var reader = ExecuteQuery(cmd, string.Format("SELECT TOP 1 * FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('{0}') AND name = '{1}'", table, name));
-            return reader.Read();
-        }
-
-        return true;
+    public override string[] GetConstraints(string table)
+    {
+        using var command = ObjectCommand(table);
+        using var reader = ExecuteQuery(command, "SELECT name FROM sys.objects WHERE parent_object_id=OBJECT_ID(@table) AND type IN ('PK','UQ','F','C','D')");
+        var names = new List<string>();
+        while (reader.Read()) names.Add(reader.GetString(0));
+        return names.ToArray();
     }
 
     public override void AddColumn(string table, string sqlColumn)
@@ -309,8 +291,9 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
     public override void RemoveColumnDefaultValue(string table, string column)
     {
-        var sql = string.Format("SELECT name FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('{0}') AND parent_column_id = (SELECT column_id FROM sys.columns WHERE name = '{1}' AND object_id = OBJECT_ID('{0}'))", table, column);
-        var constraintName = ExecuteScalar(sql);
+        using var command = ObjectCommand(table, column);
+        command.CommandText = "SELECT name FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID(@table) AND parent_column_id=(SELECT column_id FROM sys.columns WHERE object_id=OBJECT_ID(@table) AND name=@name)";
+        var constraintName = command.ExecuteScalar();
         if (constraintName != null && constraintName != DBNull.Value && !string.IsNullOrWhiteSpace(constraintName.ToString()))
         {
             RemoveConstraint(table, constraintName.ToString());
@@ -319,8 +302,9 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
     public override Index[] GetIndexes(string table)
     {
-        // This migrator does not support schemas so we fall back to dbo in SQL Server
-        var schemaName = "dbo";
+        var relation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(table));
+        var schemaName = relation.Schema ?? "dbo";
+        table = relation.Name;
 
         var indexes = new List<Index>();
 
@@ -345,8 +329,8 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                         JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
                         JOIN sys.columns col ON ic.object_id = col.object_id AND ic.column_id = col.column_id
                     WHERE
-                        LOWER(t.name) = '{table.ToLowerInvariant()}' AND
-                        LOWER(s.name) = '{schemaName.ToLowerInvariant()}'
+                        LOWER(t.name) = '{table.ToLowerInvariant().Replace("'", "''")}' AND
+                        LOWER(s.name) = '{schemaName.ToLowerInvariant().Replace("'", "''")}'
                     ORDER BY
                         s.name, t.name, i.name, ic.index_column_id";
 
@@ -511,21 +495,9 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
     public override Column[] GetColumns(string table)
     {
-        string schema;
-
-        var firstIndex = table.IndexOf(".");
-        if (firstIndex >= 0)
-        {
-            schema = table.Substring(0, firstIndex);
-            table = table.Substring(firstIndex + 1);
-        }
-        else
-        {
-            schema = _defaultSchema;
-        }
-
-        schema = string.IsNullOrWhiteSpace(schema) ? "dbo" : schema.Trim('[', ']').Replace("''", "'");
-        table = table.Trim('[', ']');
+        var relation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(table));
+        var schema = relation.Schema ?? "dbo";
+        table = relation.Name;
         var tableLiteral = table.Replace("'", "''");
         var schemaLiteral = schema.Replace("'", "''");
         var pkColumns = ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_NAME=cu.CONSTRAINT_NAME AND tc.CONSTRAINT_SCHEMA=cu.CONSTRAINT_SCHEMA WHERE tc.TABLE_NAME='{0}' AND tc.TABLE_SCHEMA='{1}' AND tc.CONSTRAINT_TYPE='PRIMARY KEY'", tableLiteral, schemaLiteral);
@@ -669,7 +641,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                     }
                     else if (column.Type == DbType.Time)
                     {
-                        column.DefaultValue = TimeSpan.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
+                        column.DefaultValue = TimeOnly.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {
@@ -959,9 +931,8 @@ AND CU.COLUMN_NAME = '{1}'",
 
     public override bool IndexExists(string table, string name)
     {
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT top 1 * FROM sys.indexes WHERE object_id = OBJECT_ID('{0}') AND name = '{1}'", table, name));
+        using var cmd = ObjectCommand(table, name);
+        using var reader = ExecuteQuery(cmd, "SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(@table) AND name=@name");
         return reader.Read();
     }
 
@@ -975,15 +946,19 @@ AND CU.COLUMN_NAME = '{1}'",
 
     protected override string GetPrimaryKeyConstraintName(string table)
     {
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('{0}') AND is_primary_key = 1", table));
+        using var cmd = ObjectCommand(table);
+        using var reader = ExecuteQuery(cmd, "SELECT name FROM sys.indexes WHERE object_id=OBJECT_ID(@table) AND is_primary_key=1");
         return reader.Read() ? reader.GetString(0) : null;
     }
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is ushort)
+        if (value is TimeOnly time && _dialect is SqlServer2005Dialect)
+        {
+            parameter.DbType = DbType.DateTime;
+            parameter.Value = new DateTime(1900, 1, 1).Add(time.ToTimeSpan());
+        }
+        else if (value is ushort)
         {
             parameter.DbType = DbType.Int32;
             parameter.Value = value;

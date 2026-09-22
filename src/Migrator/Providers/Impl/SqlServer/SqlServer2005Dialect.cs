@@ -15,6 +15,10 @@ public class SqlServer2005Dialect : SqlServerDialect
         RegisterColumnType(DbType.Xml, "XML");
     }
 
+    public override string Default(object value) => value is System.TimeOnly time
+        ? "DEFAULT '1900-01-01T" + time.ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture) + "'"
+        : base.Default(value);
+
     public override ITransformationProvider GetTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
     {
         return new SqlServerTransformationProvider(dialect, connectionString, defaultSchema ?? DboSchemaName, scope, providerName);

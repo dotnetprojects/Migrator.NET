@@ -44,11 +44,10 @@ public class HanaDialect : Dialect
     public override bool NeedsNullForNullableWhenAlteringTable => true;
     public override bool SupportsIndex => false;
     public override string QuoteTemplate => "\"{0}\"";
-    public override string Quote(string name) => string.Join(".", name.Split('.').Select(QuoteIdentifier));
+    public override string Quote(string name) => base.Quote(name);
     public override string Default(object value) => value switch
     {
         bool boolean => boolean ? "DEFAULT TRUE" : "DEFAULT FALSE",
-        TimeSpan time when time >= TimeSpan.Zero && time < TimeSpan.FromDays(1) => "DEFAULT '" + time.ToString("c", System.Globalization.CultureInfo.InvariantCulture) + "'",
         byte[] bytes => "DEFAULT X'" + Convert.ToHexString(bytes) + "'",
         _ => base.Default(value)
     };

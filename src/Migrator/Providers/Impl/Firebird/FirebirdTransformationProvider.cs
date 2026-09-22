@@ -64,7 +64,7 @@ public class FirebirdTransformationProvider : TransformationProvider
         $"SELECT TRIM(RDB$CONSTRAINT_NAME) FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME='{CatalogName(table)}'").ToArray();
 
     public override bool ConstraintExists(string table, string name) =>
-        GetConstraints(table).Any(n => n == CatalogName(name).Replace("''", "'"));
+        GetConstraints(table).Any(n => n == name || n == CatalogName(name).Replace("''", "'"));
 
     protected override string GetPrimaryKeyConstraintName(string table) =>
         ExecuteStringQuery($"SELECT TRIM(RDB$CONSTRAINT_NAME) FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME='{CatalogName(table)}' AND RDB$CONSTRAINT_TYPE='PRIMARY KEY'").FirstOrDefault();
