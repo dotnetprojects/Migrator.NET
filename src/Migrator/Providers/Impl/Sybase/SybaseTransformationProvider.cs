@@ -21,6 +21,13 @@ public class SybaseTransformationProvider : TransformationProvider
         : base(dialect, connection, null, scope) { }
 
     private static string Literal(string name) => name.Replace("'", "''");
+    public override void AddTable(string name, string engine, params IDbField[] fields)
+    {
+        base.AddTable(name, engine, fields);
+        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
+            AddIndex(name, new Index { KeyColumns = [column.Name] });
+    }
+
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
         $"SELECT COUNT(*) FROM sysobjects WHERE id=object_id('{Literal(table)}') AND type='U'")) > 0;
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(

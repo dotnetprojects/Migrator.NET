@@ -24,6 +24,13 @@ public class DB2TransformationProvider : TransformationProvider
     private static string Name(string name) => (name.StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
     private static string Identifier(string name) => name.StartsWith('"') ? name : "\"" + name.ToUpperInvariant().Replace("\"", "\"\"") + "\"";
 
+    public override void AddTable(string name, string engine, params IDbField[] fields)
+    {
+        base.AddTable(name, engine, fields);
+        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
+            AddIndex(name, new Index { KeyColumns = [column.Name] });
+    }
+
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
         $"SELECT COUNT(*) FROM SYSCAT.TABLES WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' AND TYPE='T'")) > 0;
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(

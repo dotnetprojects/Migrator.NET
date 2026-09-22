@@ -5,6 +5,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.Firebird;
 
 public class FirebirdDialect : Dialect
 {
+    // This flag controls MySQL-style inline INDEX syntax, not CREATE INDEX support.
+    public override bool SupportsIndex => false;
+
     public FirebirdDialect()
     {
         RegisterColumnType(DbType.AnsiStringFixedLength, 8000, "CHAR($l)");

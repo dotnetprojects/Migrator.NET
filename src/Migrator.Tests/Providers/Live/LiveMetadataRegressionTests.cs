@@ -10,6 +10,7 @@ namespace Migrator.Tests.Providers.Live;
 [NonParallelizable]
 public class LiveMetadataRegressionTests
 {
+    [TestCase("Firebird", ProviderTypes.Firebird, Category = "Firebird")]
     [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
     [TestCase("Informix", ProviderTypes.IBM_Informix, Category = "Informix")]
     [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]

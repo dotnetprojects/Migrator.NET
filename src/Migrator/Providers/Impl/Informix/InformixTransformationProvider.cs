@@ -23,6 +23,13 @@ public class InformixTransformationProvider : TransformationProvider
 
     private static string Name(string name) => (name.StartsWith('"') ? name[1..^1].Replace("\"\"", "\"") : name.ToLowerInvariant()).Replace("'", "''");
     public override string GenerateParameterName(int index) => "?";
+    public override void AddTable(string name, string engine, params IDbField[] fields)
+    {
+        base.AddTable(name, engine, fields);
+        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
+            AddIndex(name, new Index { KeyColumns = [column.Name] });
+    }
+
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
         $"SELECT COUNT(*) FROM systables WHERE tabname='{Name(table)}' AND owner=USER AND tabtype='T'")) > 0;
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(

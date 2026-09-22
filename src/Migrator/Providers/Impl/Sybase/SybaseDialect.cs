@@ -5,6 +5,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.Sybase;
 
 public class SybaseDialect : Dialect
 {
+    // This flag controls MySQL-style inline INDEX syntax, not CREATE INDEX support.
+    public override bool SupportsIndex => false;
+
     public SybaseDialect()
     {
         RegisterColumnType(DbType.Int16, "SMALLINT");

@@ -5,6 +5,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.DB2;
 
 public class DB2Dialect : Dialect
 {
+    // This flag controls MySQL-style inline INDEX syntax, not CREATE INDEX support.
+    public override bool SupportsIndex => false;
+
     public DB2Dialect()
     {
         RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");

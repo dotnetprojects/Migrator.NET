@@ -25,6 +25,13 @@ public class FirebirdTransformationProvider : TransformationProvider
     private static string CatalogName(string name) =>
         (name.StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
 
+    public override void AddTable(string name, string engine, params IDbField[] fields)
+    {
+        base.AddTable(name, engine, fields);
+        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
+            AddIndex(name, new Index { KeyColumns = [column.Name] });
+    }
+
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
         $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME='{CatalogName(table)}' AND RDB$VIEW_BLR IS NULL")) > 0;
 

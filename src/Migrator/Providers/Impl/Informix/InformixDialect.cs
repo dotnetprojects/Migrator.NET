@@ -5,6 +5,9 @@ namespace DotNetProjects.Migrator.Providers.Impl.Informix;
 
 public class InformixDialect : Dialect
 {
+    // This flag controls MySQL-style inline INDEX syntax, not CREATE INDEX support.
+    public override bool SupportsIndex => false;
+
     public InformixDialect()
     {
         RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
