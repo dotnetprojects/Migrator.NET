@@ -64,6 +64,11 @@ case "$database" in
   SQLServer) docker exec migrator-db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'YourStrong@Passw0rd' -b -Q 'CREATE DATABASE [Whatever];' ;;
   Oracle) docker exec -i migrator-db sqlplus -s / as sysdba < .github/workflows/sql/oracle.sql ;;
   Informix)
-    echo 'create database testdb with log;' | docker exec -i migrator-db bash -c 'source /usr/local/bin/informix_inf.env; dbaccess sysmaster -'
+    # ONLINE can precede completion of the image's catalog initialization.
+    for attempt in $(seq 1 24); do
+      if echo 'create database testdb with log;' | docker exec -i migrator-db bash -c 'source /usr/local/bin/informix_inf.env; dbaccess sysmaster -'; then break; fi
+      if [ "$attempt" -eq 24 ]; then docker logs migrator-db; exit 1; fi
+      sleep 5
+    done
     ;;
 esac
