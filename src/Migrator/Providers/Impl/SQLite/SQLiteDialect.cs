@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 
@@ -66,6 +67,8 @@ public class SQLiteDialect : Dialect
     public override string Default(object defaultValue)
     {
         if (defaultValue is RawSql expression) return "DEFAULT (" + expression.Sql + ")";
+        // Match SQLiteTransformationProvider's GUID parameter representation, including byte order.
+        if (defaultValue is Guid guid) return "DEFAULT X'" + Convert.ToHexString(guid.ToByteArray()) + "'";
         if (defaultValue is bool)
         {
             return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");
