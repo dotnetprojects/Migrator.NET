@@ -22,14 +22,19 @@ public class InformixTransformationProvider : TransformationProvider
     public InformixTransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
         : base(dialect, connection, null, scope) { }
 
-    protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
+    public override object ExecuteScalar(string sql)
     {
-        base.ConfigureParameterWithValue(parameter, index, value);
-        if (value is string text && text.Length > 32739)
+        Logger.Trace(sql);
+        using var command = BuildCommand(sql);
+        using var reader = command.ExecuteReader(CommandBehavior.SingleRow);
+        if (!reader.Read()) return null;
+        if (reader.GetFieldType(0) != typeof(string)) return reader.GetValue(0);
+        // GetString has its own TEXT conversion. Do not call IsDBNull first:
+        // that eagerly caches GetValue's broken long-string conversion.
+        try { return reader.GetString(0); }
+        catch (InvalidCastException) when (reader.IsDBNull(0))
         {
-            // The dialect uses native TEXT beyond LVARCHAR capacity. Bind its
-            // LONGVARCHAR representation instead of the driver's NText path.
-            parameter.DbType = DbType.AnsiString;
+            return DBNull.Value;
         }
     }
 

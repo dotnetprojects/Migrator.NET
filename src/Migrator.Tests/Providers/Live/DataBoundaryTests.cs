@@ -242,44 +242,7 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
         // Exceeds varchar(8000), nvarchar(4000), and typical driver text-size defaults.
         var value = new string('x', 70000) + "'tail";
         Insert(1, value);
-        if (database == "Informix" && !Equals(Read(1), value)) DiagnoseInformixText(value);
         Assert.That(Read(1), Is.EqualTo(value));
-    }
-
-    private void DiagnoseInformixText(string value)
-    {
-        using (var command = Provider.CreateCommand())
-        {
-            command.CommandText = $"SELECT {ValueColumn} FROM {Table} WHERE {IdColumn}=1";
-            using var reader = command.ExecuteReader(CommandBehavior.SequentialAccess);
-            reader.Read();
-            try
-            {
-                var bytes = new byte[100000];
-                var count = (int)reader.GetBytes(0, 0, bytes, 0, bytes.Length);
-                TestContext.Progress.WriteLine($"TEXT raw bytes: {count}, suffix={BitConverter.ToString(bytes, Math.Max(0, count - 12), Math.Min(count, 12))}");
-            }
-            catch (Exception error) { TestContext.Progress.WriteLine($"TEXT raw read: {error.Message}"); }
-        }
-        var id = 10;
-        foreach (var binding in new[] { DbType.String, DbType.AnsiString, DbType.StringFixedLength, DbType.AnsiStringFixedLength, DbType.Binary })
-        {
-            try
-            {
-                using var command = Provider.CreateCommand();
-                command.CommandText = $"INSERT INTO {Table} ({IdColumn}, {ValueColumn}) VALUES ({id}, ?)";
-                var parameter = command.CreateParameter();
-                parameter.DbType = binding;
-                parameter.Value = binding == DbType.Binary ? (object)System.Text.Encoding.UTF8.GetBytes(value) : value;
-                parameter.Size = value.Length + 1;
-                command.Parameters.Add(parameter);
-                command.ExecuteNonQuery();
-                var actual = (string)Read(id);
-                TestContext.Progress.WriteLine($"TEXT binding {binding}: length={actual.Length}, exact={actual == value}, suffix={string.Join(",", actual.TakeLast(8).Select(c => (int)c))}");
-            }
-            catch (Exception error) { TestContext.Progress.WriteLine($"TEXT binding {binding}: {error.Message}"); }
-            id++;
-        }
     }
 
     [Test]
