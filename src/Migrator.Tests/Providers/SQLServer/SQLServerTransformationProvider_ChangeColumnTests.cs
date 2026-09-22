@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
 using Migrator.Tests.Providers.Generic;
 using NUnit.Framework;
+using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 
 namespace Migrator.Tests.Providers.SQLServer;
 
@@ -14,6 +15,44 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
     public async Task SetUpAsync()
     {
         await BeginSQLServerTransactionAsync();
+    }
+
+    [TestCase(false), TestCase(true)]
+    public void ChangeColumnRemovesOwnedUniqueFromTableOrColumnCreation(bool addColumn)
+    {
+        var definition = new Column("Value", DbType.Int32, ColumnProperty.NotNull | ColumnProperty.Unique);
+        if (addColumn)
+        {
+            Provider.AddTable("CreatedUnique", new Column("Id", DbType.Int32));
+            Provider.AddColumn("CreatedUnique", definition);
+        }
+        else Provider.AddTable("CreatedUnique", definition);
+        Provider.ChangeColumn("CreatedUnique", new Column("Value", DbType.Int32, ColumnProperty.NotNull));
+        Provider.Insert("CreatedUnique", new[] { "Value" }, new object[] { 1 });
+        Provider.Insert("CreatedUnique", new[] { "Value" }, new object[] { 1 });
+        Assert.That(definition.ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That(Provider.GetIndexes("CreatedUnique"), Is.Empty);
+    }
+
+    [Test]
+    public void OwnershipAdoptionRejectsCompositeConstraints()
+    {
+        Provider.AddTable("CompositeOwned", new Column("FirstId", DbType.Int32), new Column("SecondId", DbType.Int32));
+        Provider.AddUniqueConstraint("UserComposite", "CompositeOwned", "FirstId", "SecondId");
+        Assert.Throws<MigrationException>(() => ((SqlServerTransformationProvider)Provider).AdoptColumnUniqueConstraint("CompositeOwned", "FirstId", "UserComposite"));
+        Assert.That(Provider.ConstraintExists("CompositeOwned", "UserComposite"), Is.True);
+    }
+
+    [Test]
+    public void ExplicitOwnershipAdoptionAllowsLegacyUniqueRemoval()
+    {
+        Provider.AddTable("LegacyUnique", new Column("Value", DbType.Int32));
+        Provider.AddUniqueConstraint("LegacyUniqueConstraint", "LegacyUnique", "Value");
+        var sqlServer = (SqlServerTransformationProvider)Provider;
+        sqlServer.AdoptColumnUniqueConstraint("LegacyUnique", "Value", "LegacyUniqueConstraint");
+        sqlServer.AdoptColumnUniqueConstraint("LegacyUnique", "Value", "LegacyUniqueConstraint");
+        Provider.ChangeColumn("LegacyUnique", new Column("Value", DbType.Int32, ColumnProperty.Null));
+        Assert.That(Provider.ConstraintExists("LegacyUnique", "LegacyUniqueConstraint"), Is.False);
     }
 
     [Test]
