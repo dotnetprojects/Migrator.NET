@@ -113,8 +113,14 @@ public class InformixTransformationProvider : TransformationProvider
         if (type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength)
             return value;
         if (type == DbType.Boolean)
-            return CatalogDefaultValue.Parse(value.Trim().Equals("t", StringComparison.OrdinalIgnoreCase) ? "true" :
-                value.Trim().Equals("f", StringComparison.OrdinalIgnoreCase) ? "false" : value, type);
+        {
+            var literal = value.Trim();
+            var suffix = literal.LastIndexOf(' ');
+            if (suffix >= 0) literal = literal[(suffix + 1)..];
+            literal = literal.Trim('\'');
+            return CatalogDefaultValue.Parse(literal.Equals("t", StringComparison.OrdinalIgnoreCase) ? "true" :
+                literal.Equals("f", StringComparison.OrdinalIgnoreCase) ? "false" : literal, type);
+        }
         var separator = value.IndexOf(' ');
         if (separator >= 0) value = value[(separator + 1)..].Trim();
         if (type is DbType.Date or DbType.DateTime or DbType.Time) value = "'" + value.Replace("'", "''") + "'";

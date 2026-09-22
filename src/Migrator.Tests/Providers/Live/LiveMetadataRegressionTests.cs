@@ -30,6 +30,8 @@ public class LiveMetadataRegressionTests
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (id INTEGER, amount INTEGER DEFAULT 7, price DECIMAL(12,3) DEFAULT 12.345, enabled BOOLEAN DEFAULT 't', disabled BOOLEAN DEFAULT 'f', label VARCHAR(40) DEFAULT ' O''Brien', stamp DATETIME YEAR TO FRACTION(5) DEFAULT CURRENT YEAR TO FRACTION(5), today_value DATE DEFAULT TODAY, null_value INTEGER DEFAULT NULL)");
         var columns = f.Provider.GetColumns("source_values");
+        foreach (var column in columns)
+            TestContext.WriteLine($"Default {column.Name}: [{column.DefaultValue}] ({column.DefaultValue?.GetType().Name})");
         Assert.That(columns.Single(c => c.Name == "amount").DefaultValue, Is.TypeOf<int>().And.EqualTo(7));
         Assert.That(columns.Single(c => c.Name == "price").DefaultValue, Is.TypeOf<decimal>().And.EqualTo(12.345m));
         Assert.That(columns.Single(c => c.Name == "enabled").DefaultValue, Is.TypeOf<bool>().And.EqualTo(true));
