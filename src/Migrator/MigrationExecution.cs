@@ -32,11 +32,8 @@ internal static class MigrationExecution
         catch (Exception ex) { logger.Exception(step.Version, migration.Name, ex); throw; }
         finally { if (concrete != null) concrete.CurrentMigration = null; }
         // Session callbacks are deferred until the outer transaction commits.
-        if (callbacks) After(migration, step.IsUp);
+        if (callbacks) After(provider, migration, step.IsUp);
     }
-
-    internal static void After(IMigration migration, bool up)
-    { if (up) migration.AfterUp(); else migration.AfterDown(); }
 
     internal static void InTransaction(ITransformationProvider provider, bool transaction, Action body)
     {
@@ -74,4 +71,13 @@ internal static class MigrationExecution
             (provider as IMigrationHistory)?.InvalidateHistory();
         }
     }
+    internal static void After(ITransformationProvider provider, IMigration migration, bool up)
+    {
+        var concrete = provider as TransformationProvider;
+        var previous = concrete?.CurrentMigration;
+        if (concrete != null) concrete.CurrentMigration = migration;
+        try { if (up) migration.AfterUp(); else migration.AfterDown(); }
+        finally { if (concrete != null) concrete.CurrentMigration = previous; }
+    }
+
 }

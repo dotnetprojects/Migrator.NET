@@ -183,7 +183,14 @@ public class Migrator
     /// </summary>
     public void MigrateToLastVersion()
     {
-        MigrateTo(SelectedMigrationTypes.Select(MigrationLoader.GetMigrationVersion).DefaultIfEmpty(0).Max());
+        var versions = SelectedMigrationTypes.Select(MigrationLoader.GetMigrationVersion).ToArray();
+        if (versions.Length == 0 && Options.Profiles.Count == 0 &&
+            !_migrationLoader.AuxiliaryTypes.Any(t => t.GetCustomAttribute<MaintenanceAttribute>() is { } a && _migrationLoader.InScope(a.Scope)))
+        {
+            Logger.Warn("No migrations found for the effective scope.");
+            return;
+        }
+        MigrateTo(versions.DefaultIfEmpty(0).Max(), false, versions.Length == 0);
     }
 
     /// <summary>
@@ -254,11 +261,11 @@ public class Migrator
     /// <summary>Run only downward steps; validate the target after acquiring the configured lock.</summary>
     public void RollbackTo(long version) => MigrateTo(version, true);
 
-    private void MigrateTo(long version, bool downOnly)
+    private void MigrateTo(long version, bool downOnly, bool preserveVersion = false)
     {
         if (DryRun)
         {
-            var preview = Plan(version);
+            var preview = preserveVersion ? Array.Empty<MigrationStep>() : Plan(version);
             if (downOnly && preview.Any(step => step.IsUp)) throw new MigrationException("Rollback cannot apply upward migrations.");
             foreach (var step in preview)
                 if (step.IsUp) Logger.MigrateUp(step.Version, "Preview"); else Logger.MigrateDown(step.Version, "Preview");
@@ -281,6 +288,7 @@ public class Migrator
             (_provider as IMigrationHistory)?.InvalidateHistory();
             var history = new List<long>(_provider.AppliedMigrations);
             var initialHistory = new List<long>(history);
+            if (preserveVersion) version = history.DefaultIfEmpty(0).Max();
             var plan = CreatePlan(history, version);
             if (downOnly && (version >= history.DefaultIfEmpty(0).Max() || plan.Any(step => step.IsUp)))
                 throw new MigrationException("Rollback requires a lower target and cannot apply upward migrations.");
@@ -296,7 +304,7 @@ public class Migrator
                 if (firstRun) { migration.InitializeOnce(_args); firstRun = false; }
                 MigrationExecution.Execute(_provider, migration, step, Logger,
                     Options.TransactionMode == MigrationTransactionMode.PerMigration, session, record, !session);
-                if (session) afterCommit.Add(() => MigrationExecution.After(migration, step.IsUp));
+                if (session) afterCommit.Add(() => MigrationExecution.After(_provider, migration, step.IsUp));
             }
             void Maintenance(MaintenanceStage stage)
             {

@@ -17,7 +17,12 @@ public class RunnerFeatureTests
     {
         public override void Up() { Events.Add("first"); Database.AddTable("First", new Column("Id", DbType.Int32)); }
         public override void Down() => Database.RemoveTable("First");
-        public override void AfterUp() => Events.Add("committed");
+        public override void AfterUp()
+        {
+            Assert.That(((TransformationProvider)Database).CurrentMigration, Is.SameAs(this));
+            Assert.That(((TransformationProvider)Database).HasActiveTransaction, Is.False);
+            Events.Add("committed");
+        }
     }
     [Migration(2), Tags("red", "shared")]
     internal class Second : Migration
@@ -58,6 +63,18 @@ public class RunnerFeatureTests
         runner.Options.Profiles.Add("seed");
         runner.MigrateToLastVersion();
         Assert.That(Events, Is.EqualTo(new[] { "before", "first", "committed", "profile", "after" }));
+        Assert.That(p.AppliedMigrations, Is.EqualTo(new long[] { 1 }));
+        Assert.That(Convert.ToInt64(p.ExecuteScalar("SELECT Id FROM First")), Is.EqualTo(7));
+    }
+    [Test] public void AuxiliaryOnlyLatestRunPreservesExistingVersions()
+    {
+        using var p = Provider();
+        new DotNetProjects.Migrator.Migrator(p, false, typeof(First)).MigrateToLastVersion();
+        Events.Clear();
+        var runner = new DotNetProjects.Migrator.Migrator(p, false, typeof(Before), typeof(Seed), typeof(After));
+        runner.Options.Profiles.Add("seed");
+        runner.MigrateToLastVersion();
+        Assert.That(Events, Is.EqualTo(new[] { "before", "profile", "after" }));
         Assert.That(p.AppliedMigrations, Is.EqualTo(new long[] { 1 }));
         Assert.That(Convert.ToInt64(p.ExecuteScalar("SELECT Id FROM First")), Is.EqualTo(7));
     }
