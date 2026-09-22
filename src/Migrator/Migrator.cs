@@ -196,53 +196,43 @@ public class Migrator
     /// If <c>dryrun</c> is set, don't write any changes to the database.
     /// </summary>
     /// <param name="version">The version that must became the current one</param>
+    public IReadOnlyList<MigrationStep> Plan(long version)
+    {
+        _migrationLoader.CheckForDuplicatedVersion();
+        if (_provider is not IMigrationHistory history)
+            throw new NotSupportedException("Read-only planning requires IMigrationHistory on custom providers.");
+        return MigrationPlanner.Create(_migrationLoader.GetAvailableMigrations(), history.ReadAppliedMigrations(), version);
+    }
+
     public void MigrateTo(long version)
     {
-        if (_migrationLoader.MigrationsTypes.Count == 0)
-        {
-            _logger.Warn("No public classes with the Migration attribute were found.");
-            return;
-        }
-
+        _migrationLoader.CheckForDuplicatedVersion();
+        var history = _provider is IMigrationHistory reader
+            ? reader.ReadAppliedMigrations().ToList()
+            : DryRun ? throw new NotSupportedException("DryRun requires IMigrationHistory on custom providers.")
+            : new List<long>(_provider.AppliedMigrations);
+        var plan = MigrationPlanner.Create(_migrationLoader.GetAvailableMigrations(), history, version);
+        Logger.Started(history, version);
         var firstRun = true;
-        var migrate = BaseMigrate.GetInstance(_migrationLoader.GetAvailableMigrations(), _provider, _logger);
-        migrate.DryRun = DryRun;
-        Logger.Started(migrate.AppliedVersions, version);
-
-        while (migrate.Continue(version))
+        foreach (var step in plan)
         {
-            var migration = _migrationLoader.GetMigration(migrate.Current);
-            if (null == migration)
+            if (DryRun)
             {
-                _logger.Skipping(migrate.Current);
-                migrate.Iterate();
+                if (step.IsUp) Logger.MigrateUp(step.Version, "Preview");
+                else Logger.MigrateDown(step.Version, "Preview");
                 continue;
             }
-
-            try
+            var migration = _migrationLoader.GetMigration(step.Version);
+            if (firstRun)
             {
-                if (firstRun)
-                {
-                    migration.InitializeOnce(_args);
-                    firstRun = false;
-                }
-
-                migrate.Migrate(migration);
+                migration.InitializeOnce(_args);
+                firstRun = false;
             }
-            catch (Exception ex)
-            {
-                Logger.Exception(migrate.Current, migration.Name, ex);
-
-                // Oho! error! We rollback changes.
-                Logger.RollingBack(migrate.Previous);
-                _provider.Rollback();
-
-                throw;
-            }
-
-            migrate.Iterate();
+            MigrationExecution.Execute(_provider, migration, step, Logger);
+            if (step.IsUp) history.Add(step.Version);
+            else history.Remove(step.Version);
         }
-
-        Logger.Finished(migrate.AppliedVersions, version);
+        history.Sort();
+        Logger.Finished(history, version);
     }
 }

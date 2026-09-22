@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
@@ -19,7 +20,7 @@ public class MigrateAnywhere : BaseMigrate
         _current = 0;
         if (provider.AppliedMigrations.Count > 0)
         {
-            _current = provider.AppliedMigrations[provider.AppliedMigrations.Count - 1];
+            _current = provider.AppliedMigrations.Max();
         }
         _goForward = false;
     }
@@ -63,73 +64,9 @@ public class MigrateAnywhere : BaseMigrate
 
     public override void Migrate(IMigration migration)
     {
-#if NETSTANDARD
-        var attr = migration.GetType().GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
-#else
-        var attr = (MigrationAttribute)Attribute.GetCustomAttribute(migration.GetType(), typeof(MigrationAttribute));
-#endif
-        var foreignKeysWasOn = false;
-        if (_provider is SQLiteTransformationProvider sqlite)
-        {
-            foreignKeysWasOn = sqlite.IsPragmaForeignKeysOn();
-            if (foreignKeysWasOn)
-            {
-                sqlite.SetPragmaForeignKeys(false);
-            }
-        }
-
-        _provider.BeginTransaction();
-
-        if (_provider.AppliedMigrations.Contains(attr.Version))
-        {
-            RemoveMigration(migration, attr);
-        }
-        else
-        {
-            ApplyMigration(migration, attr);
-        }
-
-        if (foreignKeysWasOn && _provider is SQLiteTransformationProvider sqlite2)
-        {
-            sqlite2.SetPragmaForeignKeys(true);
-        }
-    }
-
-    private void ApplyMigration(IMigration migration, MigrationAttribute attr)
-    {
-        // we're adding this one
-        _logger.MigrateUp(Current, migration.Name);
-        if (!DryRun)
-        {
-            var tProvider = _provider as TransformationProvider;
-            if (tProvider != null)
-            {
-                tProvider.CurrentMigration = migration;
-            }
-
-            migration.Up();
-            _provider.MigrationApplied(attr.Version, attr.Scope);
-            _provider.Commit();
-            migration.AfterUp();
-        }
-    }
-
-    private void RemoveMigration(IMigration migration, MigrationAttribute attr)
-    {
-        // we're removing this one
-        _logger.MigrateDown(Current, migration.Name);
-        if (!DryRun)
-        {
-            var tProvider = _provider as TransformationProvider;
-            if (tProvider != null)
-            {
-                tProvider.CurrentMigration = migration;
-            }
-
-            migration.Down();
-            _provider.MigrationUnApplied(attr.Version, attr.Scope);
-            _provider.Commit();
-            migration.AfterDown();
-        }
+        if (DryRun) return;
+        var version = MigrationLoader.GetMigrationVersion(migration.GetType());
+        MigrationExecution.Execute(_provider, migration,
+            new MigrationStep(version, !_provider.AppliedMigrations.Contains(version)), _logger);
     }
 }

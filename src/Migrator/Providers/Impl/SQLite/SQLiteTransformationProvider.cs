@@ -787,7 +787,6 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public bool CheckForeignKeyIntegrity()
     {
-        ExecuteNonQuery("PRAGMA foreign_keys = ON");
 
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, "PRAGMA foreign_key_check");
@@ -815,7 +814,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var onOffString = isOn ? "ON" : "OFF";
 
         using var cmd = CreateCommand();
-        ExecuteQuery(cmd, $"PRAGMA foreign_keys = {onOffString}");
+        ExecuteNonQuery($"PRAGMA foreign_keys = {onOffString}");
     }
 
     public void RecreateTable(SQLiteTableInfo sqliteTableInfo)

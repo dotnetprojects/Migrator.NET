@@ -34,7 +34,7 @@ namespace DotNetProjects.Migrator.Providers;
 /// Base class for every transformation providers.
 /// A 'tranformation' is an operation that modifies the database.
 /// </summary>
-public abstract class TransformationProvider : ITransformationProvider
+public abstract class TransformationProvider : ITransformationProvider, IMigrationHistory
 {
     private string _scope;
     protected readonly string _connectionString;
@@ -78,6 +78,7 @@ public abstract class TransformationProvider : ITransformationProvider
         set
         {
             _schemaInfotable = value;
+            InvalidateHistory();
         }
     }
 
@@ -1560,85 +1561,71 @@ public abstract class TransformationProvider : ITransformationProvider
         if (_transaction == null && _connection != null)
         {
             EnsureHasConnection();
-            _transaction = _connection.BeginTransaction(IsolationLevel.ReadCommitted);
+            _transaction = _connection.BeginTransaction(_dialect is DotNetProjects.Migrator.Providers.Impl.SQLite.SQLiteDialect ? IsolationLevel.Serializable : IsolationLevel.ReadCommitted);
         }
     }
 
     /// <summary>
     /// Rollback the current migration. Called by the migration mediator.
     /// </summary>
-    public virtual void Rollback()
+    public virtual void Rollback() => CompleteTransaction(false);
+
+    public virtual void Commit() => CompleteTransaction(true);
+
+    public bool HasActiveTransaction => _transaction != null;
+    public string Scope => _scope;
+    public void InvalidateHistory() => _appliedMigrations = null;
+
+    private void CompleteTransaction(bool commit)
     {
-        if (_transaction != null && _connection != null && _connection.State == ConnectionState.Open)
+        var transaction = _transaction;
+        _transaction = null;
+        try
         {
-            try
+            if (transaction != null)
             {
-                _transaction.Rollback();
-            }
-            finally
-            {
-                if (!_outsideConnection)
-                {
-                    _connection.Close();
-                }
+                if (commit) transaction.Commit();
+                else transaction.Rollback();
             }
         }
-        _transaction = null;
-    }
-
-    /// <summary>
-    /// Commit the current transaction. Called by the migrations mediator.
-    /// </summary>
-    public virtual void Commit()
-    {
-        if (_transaction != null && _connection != null && _connection.State == ConnectionState.Open)
+        finally
         {
-            try
-            {
-                _transaction.Commit();
-            }
-            finally
-            {
-                if (!_outsideConnection)
-                {
-                    _connection.Close();
-                }
-            }
+            try { transaction?.Dispose(); }
+            finally { InvalidateHistory(); }
         }
-        _transaction = null;
     }
 
-    /// <summary>
-    /// The list of Migrations currently applied to the database.
-    /// </summary>
+    /// <summary>Reads existing history without creating or upgrading its table.</summary>
+    public virtual IReadOnlyList<long> ReadAppliedMigrations()
+    {
+        var versions = new List<long>();
+        if (!TableExists(_schemaInfotable)) return versions;
+        var hasScope = ColumnExists(_schemaInfotable, "Scope");
+        if (!hasScope && _scope != "default") return versions;
+        using var cmd = CreateCommand();
+        var predicate = "1=1";
+        if (hasScope)
+        {
+            var parameter = cmd.CreateParameter();
+            parameter.ParameterName = GenerateParameterNameParameter(0);
+            parameter.Value = _scope;
+            cmd.Parameters.Add(parameter);
+            predicate = QuoteColumnNameIfRequired("Scope") + " = " + GenerateParameterName(0);
+        }
+        using var reader = Select(cmd, QuoteColumnNameIfRequired("Version"), QuoteTableNameIfRequired(_schemaInfotable), predicate);
+        while (reader.Read()) versions.Add(Convert.ToInt64(reader.GetValue(0)));
+        versions.Sort();
+        return versions;
+    }
+
     public virtual List<long> AppliedMigrations
     {
         get
         {
             if (_appliedMigrations == null)
             {
-                _appliedMigrations = new List<long>();
-                CreateSchemaInfoTable();
-
-                var versionColumn = "Version";
-                var scopeColumn = "Scope";
-
-                versionColumn = QuoteColumnNameIfRequired(versionColumn);
-                scopeColumn = QuoteColumnNameIfRequired(scopeColumn);
-
-                using var cmd = CreateCommand();
-                using var reader = Select(cmd, versionColumn, _schemaInfotable, string.Format("{0} = '{1}'", scopeColumn, _scope));
-                while (reader.Read())
-                {
-                    if (reader.GetFieldType(0) == typeof(decimal))
-                    {
-                        _appliedMigrations.Add((long)reader.GetDecimal(0));
-                    }
-                    else
-                    {
-                        _appliedMigrations.Add(reader.GetInt64(0));
-                    }
-                }
+                CreateSchemaInfoTable(); // Preserve the legacy property contract.
+                _appliedMigrations = new List<long>(ReadAppliedMigrations());
             }
             return _appliedMigrations;
         }
@@ -1658,7 +1645,7 @@ public abstract class TransformationProvider : ITransformationProvider
     {
         CreateSchemaInfoTable();
         Insert(_schemaInfotable, ["Scope", "Version", "TimeStamp"], [scope ?? _scope, version, DateTime.UtcNow]);
-        _appliedMigrations.Add(version);
+        InvalidateHistory();
     }
 
     /// <summary>
@@ -1669,7 +1656,7 @@ public abstract class TransformationProvider : ITransformationProvider
     {
         CreateSchemaInfoTable();
         Delete(_schemaInfotable, ["Scope", "Version"], [scope ?? _scope, version]);
-        _appliedMigrations.Remove(version);
+        InvalidateHistory();
     }
 
     public virtual void AddColumn(string table, Column column)
@@ -1702,23 +1689,13 @@ public abstract class TransformationProvider : ITransformationProvider
 
     public void Dispose()
     {
-        if (_connection != null && _connection.State == ConnectionState.Open)
+        try { if (_transaction != null) Rollback(); }
+        finally
         {
-            if (!_outsideConnection)
-            {
-                _connection.Close();
-            }
+            if (!_outsideConnection) _connection?.Dispose();
+            _connection = null;
+            InvalidateHistory();
         }
-
-        if (_connection != null)
-        {
-            if (!_outsideConnection)
-            {
-                _connection.Close();
-            }
-        }
-
-        _connection = null;
     }
 
     public virtual string QuoteColumnNameIfRequired(string name)

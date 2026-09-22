@@ -40,6 +40,7 @@ public class MigrationLoaderTest
         });
 
         _migrationLoader = new MigrationLoader(providerMock, Assembly.GetExecutingAssembly(), true);
+        _migrationLoader.MigrationsTypes.Clear();
         _migrationLoader.MigrationsTypes.Add(typeof(MigratorTest.FirstMigration));
         _migrationLoader.MigrationsTypes.Add(typeof(MigratorTest.SecondMigration));
         _migrationLoader.MigrationsTypes.Add(typeof(MigratorTest.ThirdMigration));

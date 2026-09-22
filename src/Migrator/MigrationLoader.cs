@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers;
 
 namespace DotNetProjects.Migrator;
 
@@ -65,9 +66,13 @@ public class MigrationLoader
                 return 0;
             }
 
-            return GetMigrationVersion(_migrationsTypes[_migrationsTypes.Count - 1]);
+            return SelectedTypes.Select(GetMigrationVersion).DefaultIfEmpty(0).Max();
         }
     }
+
+    public IEnumerable<Type> SelectedTypes => _migrationsTypes.Where(t =>
+        t.GetCustomAttribute<MigrationAttribute>()?.Scope is not string scope ||
+        scope == (_provider as IMigrationHistory)?.Scope);
 
     public virtual void AddMigrations(Assembly migrationAssembly)
     {
@@ -84,7 +89,7 @@ public class MigrationLoader
     public virtual void CheckForDuplicatedVersion()
     {
         var versions = new List<long>();
-        foreach (var t in _migrationsTypes)
+        foreach (var t in SelectedTypes)
         {
             var version = GetMigrationVersion(t);
 
@@ -139,18 +144,18 @@ public class MigrationLoader
     public static long GetMigrationVersion(Type t)
     {
         var attrib = (MigrationAttribute)Attribute.GetCustomAttribute(t, typeof(MigrationAttribute));
-        return attrib.Version;
+        return attrib?.Version ?? throw new ArgumentException($"{t.FullName} has no Migration attribute.");
     }
 
     public List<long> GetAvailableMigrations()
     {
         _migrationsTypes.Sort(new MigrationTypeComparer(true));
-        return _migrationsTypes.Select(x => GetMigrationVersion(x)).ToList();
+        return SelectedTypes.Select(GetMigrationVersion).ToList();
     }
 
     public virtual IMigration GetMigration(long version)
     {
-        foreach (var t in _migrationsTypes)
+        foreach (var t in SelectedTypes)
         {
             if (GetMigrationVersion(t) == version)
             {
