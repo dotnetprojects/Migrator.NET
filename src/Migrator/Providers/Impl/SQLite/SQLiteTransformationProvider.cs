@@ -459,6 +459,26 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void RemoveColumn(string tableName, string column)
     {
+        if (Version.Parse(Convert.ToString(ExecuteScalar("SELECT sqlite_version()"))) >= new Version(3, 35, 0)
+            && TableExists(tableName))
+        {
+            var info = GetSQLiteTableInfo(tableName);
+            var definition = info.Columns.SingleOrDefault(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
+            bool Matches(string name) => string.Equals(name, column, StringComparison.OrdinalIgnoreCase);
+            var dependent = definition == null || definition.IsPrimaryKey || definition.ColumnProperty.HasFlag(ColumnProperty.Unique)
+                || info.CheckConstraints.Count != 0
+                || info.Uniques.Any(u => u.KeyColumns.Any(Matches))
+                || info.Indexes.Any(i => i.KeyColumns.Any(Matches) || i.FilterItems.Count != 0)
+                || info.ForeignKeys.Any(f => f.ChildColumns.Any(Matches))
+                || GetTables().Any(t => GetForeignKeyConstraints(t).Any(f => f.ParentTable.Equals(tableName, StringComparison.OrdinalIgnoreCase) && f.ParentColumns.Any(Matches)));
+            if (!dependent)
+            {
+                // SQLite itself validates trigger/view dependencies atomically. A rejection is
+                // surfaced rather than retrying with a potentially lossy reconstruction.
+                ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} DROP COLUMN {Dialect.Quote(definition.Name)}");
+                return;
+            }
+        }
         // In SQLite we need to recreate the table even if we only want to add, alter or drop a foreign key. So we not only recreate the table given 
         // as parameter but also the tables with FKs pointing to the column you want to remove.
         // In order to perform it smoothly, the PRAGMA foreign keys should be set off.
@@ -2009,3 +2029,4 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
     }
 }
+

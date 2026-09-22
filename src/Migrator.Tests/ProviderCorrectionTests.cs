@@ -34,6 +34,25 @@ public class ProviderCorrectionTests
         Assert.Throws<MigrationException>(() => provider.AddForeignKey(existingName.ToLowerInvariant(), "Child", new[] { "ParentId" }, "Parent", new[] { "Id" }, ForeignKeyConstraintType.Cascade, ForeignKeyConstraintType.Cascade));
         Assert.That(provider.GetForeignKeyConstraints("Child").Length, Is.EqualTo(1));
     }
+    [Test] public void NativeDropPreservesTriggerAndForeignKeySetting()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True"); connection.Open();
+        using var provider = (SQLiteTransformationProvider)ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        provider.ExecuteNonQuery("CREATE TABLE Original (Id INTEGER PRIMARY KEY, Obsolete TEXT); CREATE TABLE Audit (Id INTEGER); CREATE TRIGGER OriginalAudit AFTER INSERT ON Original BEGIN INSERT INTO Audit VALUES (NEW.Id); END");
+        provider.RemoveColumn("Original", "Obsolete");
+        provider.ExecuteNonQuery("INSERT INTO Original VALUES (7)");
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT Id FROM Audit")), Is.EqualTo(7));
+        Assert.That(provider.IsPragmaForeignKeysOn(), Is.True);
+    }
+    [Test] public void NativeDropRejectsDependentTriggerWithoutLosingData()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+        using var provider = (SQLiteTransformationProvider)ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        provider.ExecuteNonQuery("CREATE TABLE Original (Id INTEGER, Obsolete TEXT); CREATE TABLE Audit (Value TEXT); CREATE TRIGGER OriginalAudit AFTER INSERT ON Original BEGIN INSERT INTO Audit VALUES (NEW.Obsolete); END; INSERT INTO Original VALUES (1, 'keep')");
+        var error = Assert.Throws<MigrationException>(() => provider.RemoveColumn("Original", "Obsolete"));
+        Assert.That(error.InnerException, Is.TypeOf<SqliteException>());
+        Assert.That(provider.ExecuteScalar("SELECT Obsolete FROM Original"), Is.EqualTo("keep"));
+    }
     [Test] public void UnsupportedRebuildLeavesTableIntact()
     {
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
