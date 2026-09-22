@@ -174,6 +174,30 @@ public class SchemaConstraintTests
     }
 
     [Test]
+    public void MetadataDoesNotConfuseConcatenatedExpressionsWithStringLiterals()
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        provider.AddTable("ConcatDefault", new Column("Id", DbType.Int32),
+            new Column("Value", DbType.String, 30) { DefaultValue = RawSql.Insert("'A' || 'B'") });
+        Assert.That(provider.GetColumns("ConcatDefault").Single(c => c.Name == "Value").DefaultValue, Is.TypeOf<RawSql>());
+        provider.ChangeColumn("ConcatDefault", new Column("Id", DbType.Int64));
+        provider.ExecuteNonQuery("INSERT INTO ConcatDefault (Id) VALUES (1)");
+        Assert.That(provider.ExecuteScalar("SELECT Value FROM ConcatDefault"), Is.EqualTo("AB"));
+    }
+
+    [Test]
+    public void ConstraintTokenizerRecognizesCommentsAdjacentToKeywords()
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        provider.ExecuteNonQuery("CREATE TABLE CommentedKey (Id INTEGER NOT NULL, Label TEXT, CONSTRAINT/*name*/pk PRIMARY/*kind*/KEY(Id))");
+        Assert.That(provider.GetTableConstraints("CommentedKey").OfType<PrimaryKeyConstraint>().Single().Name, Is.EqualTo("pk"));
+        provider.ChangeColumn("CommentedKey", new Column("Label", DbType.String, 40));
+        Assert.That(provider.GetTableConstraints("CommentedKey").OfType<PrimaryKeyConstraint>().Single().Name, Is.EqualTo("pk"));
+        provider.Insert("CommentedKey", ["Id"], [1]);
+        Assert.Catch(() => provider.Insert("CommentedKey", ["Id"], [1]));
+    }
+
+    [Test]
     public void InvalidKeyDefinitionsFailBeforeCreatingTheTable()
     {
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);

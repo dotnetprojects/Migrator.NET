@@ -15,7 +15,7 @@ internal static class CatalogDefaultValue
         while (HasOuterParentheses(value)) value = value[1..^1].Trim();
         if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase)) return null;
         if (value.StartsWith("N'", StringComparison.OrdinalIgnoreCase)) value = value[1..];
-        if (value.StartsWith("'") && value.EndsWith("'"))
+        if (System.Text.RegularExpressions.Regex.IsMatch(value, @"\A'(?:[^']|'')*'\z"))
         {
             var literal = value[1..^1].Replace("''", "'");
             if (type is DbType.Date or DbType.DateTime or DbType.DateTime2 && DateTime.TryParse(literal, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
