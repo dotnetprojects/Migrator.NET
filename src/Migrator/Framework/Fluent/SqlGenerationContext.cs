@@ -11,6 +11,10 @@ public sealed class SqlGenerationContext
     private readonly Dictionary<string, Dictionary<string, Column>> tables = new(StringComparer.Ordinal);
     private readonly HashSet<string> removed = new(StringComparer.Ordinal);
     private readonly Func<string, Column[]> existingTable;
+    private bool schemaUnknown;
+    public void InvalidateSchema() => schemaUnknown = true;
+    private void RequireKnownSchema()
+    { if (schemaUnknown) throw new NotSupportedException("Raw SQL may change the schema; dependent structured preview cannot be verified."); }
     public ProviderTypes Provider { get; }
     public Dialect Dialect { get; }
     public SqlGenerationContext(ProviderTypes provider, Func<string, Column[]> existingTable = null)
@@ -38,12 +42,13 @@ public sealed class SqlGenerationContext
     };
     public void RequireTable(string table)
     {
+        RequireKnownSchema();
         if (tables.ContainsKey(table)) return;
         if (removed.Contains(table)) throw new MigrationException("Table was removed earlier in the plan: " + table);
         var columns = existingTable?.Invoke(table) ?? throw new MigrationException("Offline preview needs a definition for existing table: " + table);
         tables.Add(table, columns.ToDictionary(c => c.Name, Definitions.CopyColumn));
     }
-    public void AddTable(string table, IEnumerable<Column> columns) { if (tables.ContainsKey(table)) throw new MigrationException("Duplicate table: " + table); removed.Remove(table); tables.Add(table, columns.ToDictionary(c => c.Name, Definitions.CopyColumn)); }
+    public void AddTable(string table, IEnumerable<Column> columns) { RequireKnownSchema(); if (tables.ContainsKey(table)) throw new MigrationException("Duplicate table: " + table); removed.Remove(table); tables.Add(table, columns.ToDictionary(c => c.Name, Definitions.CopyColumn)); }
     public void RemoveTable(string table) { tables.Remove(table); removed.Add(table); }
     public void RenameTable(string table, string name) { var columns = tables[table].Values.ToArray(); RemoveTable(table); AddTable(name, columns); }
     public void AddColumn(string table, Column column) => tables[table].Add(column.Name, Definitions.CopyColumn(column));

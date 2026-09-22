@@ -9,6 +9,7 @@ namespace DotNetProjects.Migrator.Framework.Fluent;
 public abstract record MigrationOperation
 {
     public abstract void Apply(ITransformationProvider provider);
+    public virtual bool RequiresNoTransaction => false;
     public virtual MigrationOperation Reverse() => throw new IrreversibleMigrationException();
     public virtual void ValidateReverse(ITransformationProvider provider) => _ = Reverse();
     public virtual string ToSql(SqlGenerationContext context) => throw new NotSupportedException($"SQL preview is not supported for {GetType().Name}.");
@@ -148,6 +149,7 @@ public sealed record SqlOperation(string Sql, int? Timeout = null, object[] Para
     public override string ToSql(SqlGenerationContext c)
     {
         if (Parameters != null && Parameters.Length != 0) throw new NotSupportedException("Parameterized raw SQL cannot be exported as an executable script.");
+        c.InvalidateSchema();
         return Sql.TrimEnd().TrimEnd(';') + ";";
     }
 }
@@ -174,8 +176,49 @@ public sealed record ConditionalReverseOperation(string Provider, MigrationOpera
     public override MigrationOperation Reverse() => new ConditionalOperation(Provider, Forward);
     public override string ToSql(SqlGenerationContext c) => c.Dialect.GetType().Name.StartsWith(Provider, StringComparison.OrdinalIgnoreCase) ? Forward.Reverse().ToSql(c) : "";
 }
+public enum DatabaseOperationKind { Create, Drop, Switch, KillConnections }
+public sealed record DatabaseOperation(DatabaseOperationKind Kind, string Name) : MigrationOperation
+{
+    public override bool RequiresNoTransaction => true;
+    public override void Apply(ITransformationProvider p)
+    {
+        if (p is TransformationProvider { HasActiveTransaction: true })
+            throw new MigrationException("Database administration requires an explicit no-transaction run.");
+        switch (Kind)
+        {
+            case DatabaseOperationKind.Create: p.CreateDatabases(Name); break;
+            case DatabaseOperationKind.Drop: p.DropDatabases(Name); break;
+            case DatabaseOperationKind.Switch: p.SwitchDatabase(Name); break;
+            case DatabaseOperationKind.KillConnections: p.KillDatabaseConnections(Name); break;
+        }
+    }
+}
+public sealed record CopyDataOperation(string Source, string[] SourceColumns, string Target, string[] TargetColumns, string[] OrderBy) : MigrationOperation
+{
+    public override void Apply(ITransformationProvider p) => p.CopyDataFromTableToTable(Source, SourceColumns.ToList(), Target, TargetColumns.ToList(), OrderBy?.ToList());
+}
+public sealed record UpdateFromOperation(string Source, string Target, DotNetProjects.Migrator.Framework.Models.ColumnPair[] Copy, DotNetProjects.Migrator.Framework.Models.ColumnPair[] Match) : MigrationOperation
+{
+    public override void Apply(ITransformationProvider p) => p.UpdateTargetFromSource(Source, Target, Copy.Select(Definitions.CopyPair).ToArray(), Match.Select(Definitions.CopyPair).ToArray());
+}
+public sealed record ViewOperation(string Name, string Table, IViewField[] Fields, IViewElement[] Elements = null) : MigrationOperation
+{
+    public override void Apply(ITransformationProvider p)
+    {
+        if (Elements != null) p.AddView(Name, Table, Elements.Select(Definitions.CopyViewElement).ToArray());
+        else p.AddView(Name, Table, Fields.Select(Definitions.CopyViewField).ToArray());
+    }
+}
 public static class Definitions
 {
+    public static DotNetProjects.Migrator.Framework.Models.ColumnPair CopyPair(DotNetProjects.Migrator.Framework.Models.ColumnPair p) => new() { ColumnNameSource = p.ColumnNameSource, ColumnNameTarget = p.ColumnNameTarget };
+    public static IViewField CopyViewField(IViewField f) => new ViewField(f.ColumnName, f.TableName, f.KeyColumnName, f.ParentTableName, f.ParentKeyColumnName);
+    public static IViewElement CopyViewElement(IViewElement e) => e switch
+    {
+        ViewColumn c => new ViewColumn(c.Prefix, c.ColumnName),
+        ViewJoin j => new ViewJoin(j.TableName, j.TableAlias, j.ColumnName, j.ParentTableName, j.ParentTableAlias, j.ParentColumnName, j.JoinType),
+        _ => throw new NotSupportedException("Unknown view element.")
+    };
     public static Column CopyColumn(Column c) => new(c.Name, c.Type, c.Size, c.ColumnProperty, c.DefaultValue is byte[] b ? b.Clone() : c.DefaultValue) { Precision = c.Precision, Scale = c.Scale, MigratorDbType = c.MigratorDbType };
     public static IDbField Copy(IDbField field) => field switch
     {

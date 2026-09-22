@@ -59,6 +59,42 @@ public class FluentOperationsTests
         p.IsThisProvider("oracle").Returns(true);
         Assert.Throws<IrreversibleMigrationException>(() => operation.ValidateReverse(p));
     }
+    [Test] public void PreviewRejectsStructuredDependenciesAfterRawSql()
+    {
+        var builder = new MigrationBuilder();
+        builder.Create.Table("Example").WithColumn("Id").AsInt32();
+        builder.Execute.Sql("DROP TABLE Example");
+        builder.Insert.IntoTable("Example").Row(new[] { "Id" }, new object[] { 1 });
+        Assert.Throws<NotSupportedException>(() => builder.Preview(new SqlGenerationContext(ProviderTypes.SQLite)));
+    }
+    [Test] public void CopyOperationsSnapshotMutableDefinitions()
+    {
+        var pairs = new[] { new DotNetProjects.Migrator.Framework.Models.ColumnPair { ColumnNameSource = "Old", ColumnNameTarget = "New" } };
+        var builder = new MigrationBuilder(); builder.Execute.UpdateFrom("Source", "Target", pairs, pairs);
+        pairs[0].ColumnNameSource = "Mutated";
+        var operation = (UpdateFromOperation)builder.Build().Single();
+        Assert.That(operation.Copy[0].ColumnNameSource, Is.EqualTo("Old"));
+        Assert.That(operation.Match[0], Is.Not.SameAs(pairs[0]));
+    }
+    [Test, Category("SQLite")] public void FluentDataChangesAndSchemaReadsPersistExpectedRows()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        var builder = new MigrationBuilder();
+        builder.Create.Table("ValuesTable").WithColumn("Id").AsInt32().WithColumn("Name").AsString();
+        builder.Insert.IntoTable("ValuesTable").Row(new[] { "Id", "Name" }, new object[] { 1, "first" });
+        builder.Insert.IntoTable("ValuesTable").Row(new[] { "Id", "Name" }, new object[] { 1, "duplicate" }).IfNotExists(new[] { "Id" }, new object[] { 1 });
+        builder.Insert.IntoTable("ValuesTable").Row(new[] { "Id", "Name" }, new object[] { 2, "remove" });
+        builder.Update.Table("ValuesTable").Set(new[] { "Name" }, new object[] { "updated" }).Where(new[] { "Id" }, new object[] { 1 });
+        builder.Delete.FromTable("ValuesTable").Where(new[] { "Id" }, new object[] { 2 });
+        builder.Apply(provider);
+        var schema = new SchemaInspector(provider);
+        Assert.That(schema.Table("ValuesTable").ColumnExists("Name"), Is.True);
+        schema.Select("ValuesTable", new[] { "Name" }, reader =>
+        {
+            Assert.That(reader.Read(), Is.True); Assert.That(reader.GetString(0), Is.EqualTo("updated")); Assert.That(reader.Read(), Is.False);
+        });
+    }
     [Test] public void OfflinePreviewTracksCreatedThenRenamedTable()
     {
         var builder = new MigrationBuilder();

@@ -42,6 +42,16 @@ public sealed class SchemaInspector(ITransformationProvider provider)
     public List<string> Strings(string sql, params object[] args) => provider.ExecuteStringQuery(sql, args);
     public void Query(string sql, Action<System.Data.IDataReader> read)
     { using var command = provider.CreateCommand(); using var reader = provider.ExecuteQuery(command, sql); read(reader); }
+    public object SelectScalar(string columns, string table, string where = null) => provider.SelectScalar(columns, table, where);
+    public void Select(string table, string[] columns, Action<System.Data.IDataReader> read, string[] whereColumns = null, object[] whereValues = null,
+        string[] nullColumns = null, string[] notNullColumns = null)
+    {
+        using var command = provider.CreateCommand();
+        using var reader = provider.SelectComplex(command, table, columns, whereColumns, whereValues, nullColumns, notNullColumns);
+        read(reader);
+    }
+    public string[] QuoteColumns(params string[] names) => provider.QuoteColumnNamesIfRequired(names);
+    public string ParameterName(int index) => provider.GenerateParameterName(index);
     public string QuoteColumn(string name) => provider.QuoteColumnNameIfRequired(name);
     public string QuoteTable(string name) => provider.QuoteTableNameIfRequired(name);
     public string Encode(Guid guid) => provider.Encode(guid);

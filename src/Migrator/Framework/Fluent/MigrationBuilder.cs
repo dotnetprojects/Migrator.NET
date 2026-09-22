@@ -46,8 +46,8 @@ public sealed class CreateRoot(MigrationBuilder builder)
     public void Check(string name, string table, string sql) => builder.Add(new ConstraintOperation(ConstraintKind.Check, table, name, Array.Empty<string>(), Check: sql));
     public void ForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns, ForeignKeyConstraintType onDelete = ForeignKeyConstraintType.NoAction, ForeignKeyConstraintType onUpdate = ForeignKeyConstraintType.NoAction)
         => builder.Add(new ConstraintOperation(ConstraintKind.ForeignKey, childTable, name, (string[])childColumns.Clone(), parentTable, (string[])parentColumns.Clone(), OnDelete: onDelete, OnUpdate: onUpdate));
-    public void View(string name, string table, params IViewElement[] elements) { var copy = elements.ToArray(); builder.Add(new CallbackOperation("Create view", p => p.AddView(name, table, copy))); }
-    public void View(string name, string table, params IViewField[] fields) { var copy = fields.ToArray(); builder.Add(new CallbackOperation("Create view", p => p.AddView(name, table, copy))); }
+    public void View(string name, string table, params IViewElement[] elements) => builder.Add(new ViewOperation(name, table, null, elements.Select(Definitions.CopyViewElement).ToArray()));
+    public void View(string name, string table, params IViewField[] fields) => builder.Add(new ViewOperation(name, table, fields.Select(Definitions.CopyViewField).ToArray()));
 }
 public sealed class TableBuilder
 {
@@ -143,16 +143,18 @@ public sealed class ExecuteRoot(MigrationBuilder builder)
     public void Script(string path) => Sql(File.ReadAllText(path));
     public void EmbeddedScript(Assembly assembly, string name) { using var stream = assembly.GetManifestResourceStream(name) ?? throw new FileNotFoundException("Resource not found", name); using var reader = new StreamReader(stream); Sql(reader.ReadToEnd()); }
     public void WithProvider(Action<ITransformationProvider> action) => builder.Add(new CallbackOperation("Provider callback (not previewable)", action));
+    public void WithCommand(Action<IDbCommand> action) => builder.Add(new CallbackOperation("Command callback", p => { using var command = p.CreateCommand(); action(command); }));
+    public void WithConnection(Action<IDbConnection> action) => builder.Add(new CallbackOperation("Connection callback", p => action(p.Connection)));
     public void Truncate(string table) => builder.Add(new RemoveOperation(RemoveKind.Truncate, table));
     public void CopyData(string source, IEnumerable<string> sourceColumns, string target, IEnumerable<string> targetColumns, IEnumerable<string> orderBy = null)
-    { var sc = sourceColumns.ToList(); var tc = targetColumns.ToList(); var order = orderBy?.ToList(); builder.Add(new CallbackOperation("Copy data", p => p.CopyDataFromTableToTable(source, sc.ToList(), target, tc.ToList(), order?.ToList()))); }
+    { builder.Add(new CopyDataOperation(source, sourceColumns.ToArray(), target, targetColumns.ToArray(), orderBy?.ToArray())); }
     public void UpdateFrom(string source, string target, ColumnPair[] copy, ColumnPair[] match)
-    { var c = copy.ToArray(); var m = match.ToArray(); builder.Add(new CallbackOperation("Update from table", p => p.UpdateTargetFromSource(source, target, c, m))); }
+    { builder.Add(new UpdateFromOperation(source, target, copy.Select(Definitions.CopyPair).ToArray(), match.Select(Definitions.CopyPair).ToArray())); }
 }
 public sealed class AdministrationRoot(MigrationBuilder builder)
 {
-    public void CreateDatabase(string name) => builder.Add(new CallbackOperation("Create database", p => p.CreateDatabases(name)));
-    public void DropDatabase(string name) => builder.Add(new CallbackOperation("Drop database", p => p.DropDatabases(name)));
-    public void SwitchDatabase(string name) => builder.Add(new CallbackOperation("Switch database", p => p.SwitchDatabase(name)));
-    public void KillConnections(string name) => builder.Add(new CallbackOperation("Kill connections", p => p.KillDatabaseConnections(name)));
+    public void CreateDatabase(string name) => builder.Add(new DatabaseOperation(DatabaseOperationKind.Create, name));
+    public void DropDatabase(string name) => builder.Add(new DatabaseOperation(DatabaseOperationKind.Drop, name));
+    public void SwitchDatabase(string name) => builder.Add(new DatabaseOperation(DatabaseOperationKind.Switch, name));
+    public void KillConnections(string name) => builder.Add(new DatabaseOperation(DatabaseOperationKind.KillConnections, name));
 }

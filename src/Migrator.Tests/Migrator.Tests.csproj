@@ -49,6 +49,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="ScriptResource.sql" LogicalName="Migrator.Tests.ScriptResource.sql" />
+    <None Include="../../docs/fluent-operation-coverage.json" Link="fluent-operation-coverage.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
