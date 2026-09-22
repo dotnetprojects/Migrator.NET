@@ -334,7 +334,7 @@ public class SqlServerTransformationProvider : TransformationProvider
     {
         var sql = string.Format("SELECT name FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('{0}') AND parent_column_id = (SELECT column_id FROM sys.columns WHERE name = '{1}' AND object_id = OBJECT_ID('{0}'))", table, column);
         var constraintName = ExecuteScalar(sql);
-        if (constraintName != null)
+        if (constraintName != null && constraintName != DBNull.Value && !string.IsNullOrWhiteSpace(constraintName.ToString()))
         {
             RemoveConstraint(table, constraintName.ToString());
         }

@@ -154,6 +154,14 @@ public class DB2TransformationProvider : TransformationProvider
         ExecuteNonQuery($"CALL SYSPROC.ADMIN_CMD('REORG TABLE {schema}.{Identifier(table).Replace("'", "''")}')");
     }
 
+    public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
+        ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
+    {
+        if (onUpdate is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict))
+            throw new NotSupportedException("DB2 does not support the requested ON UPDATE action.");
+        AddForeignKey(name, childTable, childColumns, parentTable, parentColumns, onDelete);
+    }
+
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns, ForeignKeyConstraintType constraint)
     {
         // Db2 supports only NO ACTION/RESTRICT for ON UPDATE.

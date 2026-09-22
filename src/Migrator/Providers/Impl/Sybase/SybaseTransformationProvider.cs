@@ -166,6 +166,14 @@ public class SybaseTransformationProvider : TransformationProvider
             AddUniqueConstraint($"UX_{table}_{column.Name}", table, [column.Name]);
     }
 
+    public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
+        ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
+    {
+        if (onUpdate is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict))
+            throw new NotSupportedException("Sybase does not support the requested ON UPDATE action.");
+        AddForeignKey(name, childTable, childColumns, parentTable, parentColumns, onDelete);
+    }
+
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns, ForeignKeyConstraintType constraint)
     {
         if (constraint is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict))

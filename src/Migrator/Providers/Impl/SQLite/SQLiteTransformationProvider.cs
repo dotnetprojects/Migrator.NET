@@ -98,7 +98,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
     {
         var info = GetSQLiteTableInfo(childTable) ?? throw new MigrationException("Child table does not exist.");
-        if (string.IsNullOrWhiteSpace(name) || info.ForeignKeys.Any(f => f.Name == name))
+        if (string.IsNullOrWhiteSpace(name) || info.ForeignKeys.Select(f => f.Name).Concat(info.Uniques.Select(u => u.Name))
+            .Any(existing => string.Equals(existing, name, StringComparison.OrdinalIgnoreCase)))
             throw new MigrationException("A unique foreign key name is required.");
         info.ForeignKeys.Add(new ForeignKeyConstraint(name, parentTable, (string[])parentColumns.Clone(), childTable, (string[])childColumns.Clone())
         {
@@ -852,7 +853,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var script = GetSqlCreateTableScript(oldName);
         if (Regex.IsMatch(script, @"\b(STRICT|GENERATED|DEFERRABLE|COLLATE)\b|WITHOUT\s+ROWID|CREATE\s+VIRTUAL|ON\s+CONFLICT", RegexOptions.IgnoreCase))
             throw new NotSupportedException("This table contains SQLite features that cannot be reconstructed faithfully. Use native SQL.");
-        var triggers = ExecuteStringQuery("SELECT sql FROM sqlite_master WHERE type='trigger' AND tbl_name='{0}'", oldName.Replace("'", "''"));
+        var triggers = ExecuteStringQuery("SELECT sql FROM sqlite_master WHERE type='trigger' AND lower(tbl_name)=lower('{0}')", oldName.Replace("'", "''"));
         if (triggers.Count > 0 && (oldName != sqliteTableInfo.TableNameMapping.NewName || sqliteTableInfo.ColumnMappings.Any(m => m.OldName != null && m.OldName != m.NewName)))
             throw new NotSupportedException("Use native SQLite rename when triggers reference renamed objects.");
         var foreignKeys = IsPragmaForeignKeysOn();

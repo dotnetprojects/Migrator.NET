@@ -202,6 +202,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     public override void ChangeColumn(string table, Column column)
     {
         var existingColumn = GetColumnByName(table, column.Name);
+        if (column.DefaultValue == null) RemoveColumnDefaultValue(table, column.Name);
 
         if (column.Type == DbType.String)
         {

@@ -210,6 +210,14 @@ public class InformixTransformationProvider : TransformationProvider
     public override void AddCheckConstraint(string name, string table, string checkSql) =>
         ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT CHECK ({checkSql}) CONSTRAINT {name}");
 
+    public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
+        ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
+    {
+        if (onUpdate is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict))
+            throw new NotSupportedException("Informix does not support the requested ON UPDATE action.");
+        AddForeignKey(name, childTable, childColumns, parentTable, parentColumns, onDelete);
+    }
+
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns, ForeignKeyConstraintType constraint)
     {
         var action = constraint switch
