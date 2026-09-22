@@ -260,11 +260,17 @@ public class Migrator
         if (Options.LockTimeout < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(Options.LockTimeout));
         var session = Options.TransactionMode == MigrationTransactionMode.WholeSession;
         if (session && _provider.Dialect is not (Providers.Impl.SQLite.SQLiteDialect or Providers.Impl.PostgreSQL.PostgreSQLDialect or Providers.Impl.SqlServer.SqlServerDialect))
-            throw new NotSupportedException("Whole-session transactions require a verified transactional DDL provider (SQLite, PostgreSQL or SQL Server).");
+            throw new UnsupportedMigrationFeatureException("Whole-session transactions require a verified transactional DDL provider (SQLite, PostgreSQL or SQL Server).");
         _migrationLoader.Activator = Options.Activator;
-        using var lease = Options.Lock?.Acquire(_provider, (_provider as IMigrationHistory)?.Scope, Options.LockTimeout);
+        IDisposable AcquireLock()
+        {
+            try { return Options.Lock?.Acquire(_provider, (_provider as IMigrationHistory)?.Scope, Options.LockTimeout); }
+            catch (TimeoutException ex) { throw new MigrationLockTimeoutException(ex); }
+        }
+        using var lease = AcquireLock();
         (_provider as IMigrationHistory)?.InvalidateHistory();
         var history = new List<long>(_provider.AppliedMigrations);
+        var initialHistory = new List<long>(history);
         var plan = CreatePlan(history, version);
         var profiles = _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<ProfileAttribute>() is { } p && Options.Profiles.Contains(p.Name) && _migrationLoader.InScope(p.Scope))
             .OrderBy(t => t.GetCustomAttribute<ProfileAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal).ToArray();
@@ -299,11 +305,11 @@ public class Migrator
             foreach (var type in profiles) Execute(_migrationLoader.CreateInstance(type), new MigrationStep(0, true), false);
             Maintenance(MaintenanceStage.AfterRun);
         }
-        Logger.Started(history, version);
+        Logger.Started(new List<long>(initialHistory), version);
         if (session) MigrationExecution.InTransaction(_provider, true, Run); else Run();
         foreach (var callback in afterCommit) callback();
         history.Sort();
-        Logger.Finished(history, version);
+        Logger.Finished(new List<long>(initialHistory), version);
     }
 }
 

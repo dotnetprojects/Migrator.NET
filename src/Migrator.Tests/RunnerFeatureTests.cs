@@ -104,7 +104,7 @@ public class RunnerFeatureTests
     {
         using var p = Provider();
         var runner = new DotNetProjects.Migrator.Migrator(p, false, typeof(First));
-        Assert.Throws<NotSupportedException>(() => runner.PreviewSql(1, ProviderTypes.SQLite));
+        Assert.Catch<NotSupportedException>(() => runner.PreviewSql(1, ProviderTypes.SQLite));
         Assert.That(Events, Is.Empty);
         var sql = runner.PreviewSql(1, ProviderTypes.SQLite, allowLegacyBodies: true);
         Assert.That(sql, Does.Contain("CREATE TABLE"));
@@ -121,10 +121,34 @@ public class RunnerFeatureTests
     {
         using var p = Provider();
         var runner = new DotNetProjects.Migrator.Migrator(p, false, typeof(DirectConnection));
-        Assert.Throws<NotSupportedException>(() => runner.PreviewSql(1, ProviderTypes.SQLite, true));
+        Assert.Catch<NotSupportedException>(() => runner.PreviewSql(1, ProviderTypes.SQLite, true));
         runner.Options.Lock = new DatabaseMigrationLock();
-        Assert.Throws<NotSupportedException>(() => runner.MigrateTo(1));
+        Assert.Catch<NotSupportedException>(() => runner.MigrateTo(1));
         Assert.That(p.TableExists(p.SchemaInfoTable), Is.False);
+    }
+    [Migration(4)] internal class RequiresInitialization : First
+    {
+        public override void InitializeOnce(string[] args) => throw new Exception("must not execute");
+    }
+    [Test] public void PreviewRejectsInitializationDependentMigrationsBeforeBody()
+    {
+        using var p = Provider();
+        var runner = new DotNetProjects.Migrator.Migrator(p, false, typeof(RequiresInitialization));
+        Assert.Throws<UnsupportedMigrationFeatureException>(() => runner.PreviewSql(4, ProviderTypes.SQLite, true));
+        Assert.That(Events, Is.Empty);
+        Assert.That(p.TableExists(p.SchemaInfoTable), Is.False);
+    }
+    [Test] public void LifecycleLogArgumentsRemainInitialHistorySnapshots()
+    {
+        using var p = Provider();
+        var logger = NSubstitute.Substitute.For<DotNetProjects.Migrator.Framework.ILogger>();
+        List<long> started = null, finished = null;
+        logger.Started(NSubstitute.Arg.Do<List<long>>(h => started = h), NSubstitute.Arg.Any<long>());
+        logger.Finished(NSubstitute.Arg.Do<List<long>>(h => finished = h), NSubstitute.Arg.Any<long>());
+        var runner = new DotNetProjects.Migrator.Migrator(p, false, logger, typeof(First));
+        runner.MigrateTo(1);
+        Assert.That(started, Is.Empty); Assert.That(finished, Is.Empty);
+        Assert.That(p.AppliedMigrations, Is.EqualTo(new long[] { 1 }));
     }
     private sealed class ProbeLock : IMigrationLock, IDisposable
     {

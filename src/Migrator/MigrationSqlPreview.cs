@@ -17,6 +17,10 @@ public static class MigrationSqlPreview
         var sql = new List<string>();
         foreach (var (migration, up) in migrations)
         {
+            var initialization = migration.GetType().GetInterfaceMap(typeof(IMigration));
+            var initializeIndex = Array.FindIndex(initialization.InterfaceMethods, m => m.Name == nameof(IMigration.InitializeOnce));
+            if (initialization.TargetMethods[initializeIndex].DeclaringType != typeof(Migration))
+                throw new UnsupportedMigrationFeatureException("Preview rejects migrations with an InitializeOnce hook because executing initialization would violate read-only preview semantics.");
             var original = migration.Database;
             var proxy = DispatchProxy.Create<ITransformationProvider, PreviewProvider>();
             var recorder = (PreviewProvider)(object)proxy;
@@ -27,11 +31,15 @@ public static class MigrationSqlPreview
                 if (migration is FluentMigration fluent) operations = fluent.GetOperations(up);
                 else
                 {
-                    if (!allowLegacyBodies) throw new NotSupportedException("Imperative SQL preview requires explicit allowLegacyBodies opt-in. Arbitrary C# cannot be sandboxed.");
+                    if (!allowLegacyBodies) throw new UnsupportedMigrationFeatureException("Imperative SQL preview requires explicit allowLegacyBodies opt-in. Arbitrary C# cannot be sandboxed.");
                     if (up) migration.Up(); else migration.Down();
                     operations = recorder.Operations;
                 }
-                foreach (var operation in operations) sql.Add(operation.ToSql(context));
+                foreach (var operation in operations)
+                {
+                    try { sql.Add(operation.ToSql(context)); }
+                    catch (NotSupportedException ex) { throw new UnsupportedMigrationFeatureException("This operation cannot be previewed.", ex); }
+                }
             }
             finally { migration.Database = original; }
         }
@@ -53,7 +61,7 @@ public static class MigrationSqlPreview
                 "RenameColumn" => new RenameOperation((string)args[0], (string)args[2], (string)args[1]),
                 "Insert" when args.Length == 3 && args[1] is string[] columns && args[2] is object[] values => new DataOperation(DataKind.Insert, (string)args[0], (string[])columns.Clone(), (object[])values.Clone()),
                 "ExecuteNonQuery" when args.Length == 1 => new SqlOperation((string)args[0]),
-                _ => throw new NotSupportedException("SQL preview blocks provider member " + method.Name + ". Use a structured operation or an explicit SQL script.")
+                _ => throw new UnsupportedMigrationFeatureException("SQL preview blocks provider member " + method.Name + ". Use a structured operation or an explicit SQL script.")
             };
             Operations.Add(operation);
             return method.ReturnType == typeof(int) ? 0 : null;

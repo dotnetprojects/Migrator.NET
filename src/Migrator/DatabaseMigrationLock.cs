@@ -21,7 +21,7 @@ public sealed class DatabaseMigrationLock : IMigrationLock
         var kind = provider.Dialect switch
         {
             SqlServerDialect => 0, PostgreSQLDialect => 1, MysqlDialect => 2,
-            _ => throw new NotSupportedException("Database migration locking is supported on SQL Server, PostgreSQL and MySQL/MariaDB.")
+            _ => throw new UnsupportedMigrationFeatureException("Database migration locking is supported on SQL Server, PostgreSQL and MySQL/MariaDB.")
         };
         var connection = provider.Connection;
         if (connection.State != ConnectionState.Open) throw new MigrationException("Migration locking requires an open connection.");

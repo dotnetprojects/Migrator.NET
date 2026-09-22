@@ -33,3 +33,12 @@ public interface IMigrationLock
 {
     IDisposable Acquire(ITransformationProvider provider, string scope, TimeSpan timeout);
 }
+
+public sealed class UnsupportedMigrationFeatureException : NotSupportedException
+{
+    public UnsupportedMigrationFeatureException(string message, Exception inner = null) : base(message, inner) { }
+}
+public sealed class MigrationLockTimeoutException : TimeoutException
+{
+    public MigrationLockTimeoutException(Exception inner) : base("Timed out acquiring the migration lock.", inner) { }
+}

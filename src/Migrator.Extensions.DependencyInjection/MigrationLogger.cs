@@ -16,7 +16,7 @@ public sealed class MigrationLogger(Microsoft.Extensions.Logging.ILogger logger)
     public void ApplyingDBChange(string sql) => logger.LogDebug("Executing a database change");
     public void Exception(long version, string migrationName, Exception ex) => logger.LogError("Migration {Version} failed: {ExceptionType}", version, ex.GetType().Name);
     public void Exception(string message, Exception ex) => logger.LogError("Migration operation failed: {ExceptionType}", ex.GetType().Name);
-    public void Log(string format, params object[] args) => logger.LogInformation("{Message}", string.Format(CultureInfo.InvariantCulture, format, args));
-    public void Warn(string format, params object[] args) => logger.LogWarning("{Message}", string.Format(CultureInfo.InvariantCulture, format, args));
+    public void Log(string format, params object[] args) => logger.LogInformation("Provider informational event");
+    public void Warn(string format, params object[] args) => logger.LogWarning("Provider warning event");
     public void Trace(string format, params object[] args) { } // Provider traces commonly contain SQL values.
 }

@@ -1,12 +1,14 @@
 using System;
 using System.Data;
 using System.IO;
+using System.Linq;
 using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Extensions.DependencyInjection;
 using DotNetProjects.Migrator.Providers;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using NSubstitute;
 namespace Migrator.Tests;
 
 public class ToolingTests
@@ -67,6 +69,43 @@ public class ToolingTests
             Assert.That(((IMigrationHistory)provider).ReadAppliedMigrations(), Is.Empty);
         }
         finally { Environment.SetEnvironmentVariable(environmentName, null); File.Delete(file); }
+    }
+    [Migration(900003, Scope = "cli-errors")]
+    public class FailingCliMigration : Migration
+    {
+        internal static int Kind;
+        public override void Up() => throw Kind switch
+        {
+            1 => new ArgumentException("SECRET_VALUE"),
+            2 => new TimeoutException("SECRET_VALUE"),
+            _ => new NotSupportedException("SECRET_VALUE")
+        };
+        public override void Down() => throw new NotSupportedException();
+    }
+    [TestCase(1), TestCase(2), TestCase(3), Category("SQLite"), NonParallelizable]
+    public void CliClassifiesMigrationBodyExceptionsAsExecutionFailure(int kind)
+    {
+        var environmentName = "MIGRATOR_TEST_" + Guid.NewGuid().ToString("N");
+        Environment.SetEnvironmentVariable(environmentName, "Data Source=:memory:");
+        FailingCliMigration.Kind = kind;
+        try
+        {
+            using var output = new StringWriter(); using var error = new StringWriter();
+            var exit = MigratorCommand.Run(new[] { "migrate", "--assembly", typeof(ToolingTests).Assembly.Location, "--provider", "SQLite", "--scope", "cli-errors", "--connection-env", environmentName }, output, error);
+            Assert.That(exit, Is.EqualTo(1));
+            Assert.That(error.ToString(), Does.Not.Contain("SECRET_VALUE"));
+        }
+        finally { Environment.SetEnvironmentVariable(environmentName, null); }
+    }
+    [Test] public void LoggingAdapterOmitsProviderMessagesAndDoesNotFormatSqlBraces()
+    {
+        var sink = NSubstitute.Substitute.For<Microsoft.Extensions.Logging.ILogger>();
+        var logger = new MigrationLogger(sink);
+        Assert.DoesNotThrow(() => logger.Log("SECRET_VALUE {"));
+        logger.Warn("SECRET_VALUE"); logger.Trace("SECRET_VALUE"); logger.ApplyingDBChange("SECRET_VALUE");
+        logger.Exception("SECRET_VALUE", new Exception("SECRET_VALUE"));
+        foreach (var call in sink.ReceivedCalls().Where(c => c.GetMethodInfo().Name == "Log"))
+            Assert.That(call.GetArguments()[2].ToString(), Does.Not.Contain("SECRET_VALUE"));
     }
     [Test] public void CliCanListWithoutOpeningDatabase()
     {
