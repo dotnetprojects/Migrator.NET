@@ -168,8 +168,8 @@ public class SchemaConstraintTests
         provider.Insert("AsciiNames", ["Name"], ["é"]);
         provider.Insert("AsciiNames", ["Name"], ["É"]);
         Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT COUNT(*) FROM AsciiNames")), Is.EqualTo(3));
-        Assert.Throws<NotSupportedException>(() => provider.ChangeColumn("AsciiNames",
-            new Column("Name", DbType.String, 80) { Collation = Collation.AsciiIgnoreCase }));
+        provider.ChangeColumn("AsciiNames", new Column("Name", DbType.String, 80) { Collation = Collation.AsciiIgnoreCase });
+        Assert.Catch(() => provider.Insert("AsciiNames", ["Name"], ["HELLO"]));
         Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT COUNT(*) FROM AsciiNames")), Is.EqualTo(3));
     }
 

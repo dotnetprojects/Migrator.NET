@@ -317,7 +317,11 @@ public class Migrator
                 Maintenance(MaintenanceStage.BeforeRun);
                 foreach (var step in plan)
                 {
+                    // A consolidated migration can record (or revert) other versions in its body.
+                    // The plan is a snapshot; consult the provider's current, scope-specific history.
+                    if (_provider.AppliedMigrations.Contains(step.Version) == step.IsUp) continue;
                     Maintenance(MaintenanceStage.BeforeMigration);
+                    if (_provider.AppliedMigrations.Contains(step.Version) == step.IsUp) continue;
                     Execute(_migrationLoader.GetMigration(step.Version), step, true);
                     if (step.IsUp) history.Add(step.Version); else history.Remove(step.Version);
                     Maintenance(MaintenanceStage.AfterMigration);

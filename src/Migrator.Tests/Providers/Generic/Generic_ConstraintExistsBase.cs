@@ -8,6 +8,23 @@ namespace Migrator.Tests.Providers.Generic;
 [TestFixture]
 public abstract class Generic_ConstraintExistsBase : TransformationProviderBase
 {
+    protected void RecreatingARenamedTableUsesADistinctPrimaryKeyName()
+    {
+        Provider.AddTable("Clients", new Column("Id", DbType.Int32),
+            new PrimaryKeyConstraint("PK_Clients", "Id"));
+        Provider.Insert("Clients", ["Id"], [1]);
+        Provider.RenameTable("Clients", "Tenants");
+        Provider.AddTable("Clients", new Column("Id", DbType.Int32),
+            new PrimaryKeyConstraint("PK_Clients_New", "Id"));
+        Provider.Insert("Clients", ["Id"], [2]);
+        Assert.That(Provider.PrimaryKeyExists("Tenants", "PK_Clients"), Is.True);
+        Assert.That(Provider.PrimaryKeyExists("Clients", "PK_Clients_New"), Is.True);
+        Assert.That(System.Convert.ToInt32(Provider.ExecuteScalar("SELECT " +
+            Provider.QuoteColumnNameIfRequired("Id") + " FROM " + Provider.QuoteTableNameIfRequired("Tenants"))), Is.EqualTo(1));
+        Assert.That(System.Convert.ToInt32(Provider.ExecuteScalar("SELECT " +
+            Provider.QuoteColumnNameIfRequired("Id") + " FROM " + Provider.QuoteTableNameIfRequired("Clients"))), Is.EqualTo(2));
+    }
+
     [Test]
     public void QuotedConstraintNamesCanBeInspectedAndRemovedFromOnlyTheirTable()
     {

@@ -826,8 +826,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         foreach (var foreignKey in sqliteTableInfo.ForeignKeys) SQLiteTableSql.ValidateMatch(foreignKey.Match);
         var oldName = sqliteTableInfo.TableNameMapping.OldName;
         var script = GetSqlCreateTableScript(oldName);
-        if (Regex.IsMatch(script, @"\b(STRICT|GENERATED|DEFERRABLE|COLLATE)\b|WITHOUT\s+ROWID|CREATE\s+VIRTUAL|ON\s+CONFLICT", RegexOptions.IgnoreCase))
+        if (SQLiteConstraintParser.HasUnsupportedRebuildFeatures(script))
             throw new NotSupportedException("This table contains SQLite features that cannot be reconstructed faithfully. Use native SQL.");
+        if (GetCreateIndexSqlStrings(oldName).Any(sql => SQLiteConstraintParser.HasKeyword(sql, "COLLATE")))
+            throw new NotSupportedException("Rebuilding indexes with explicit collations requires native SQL.");
         var triggers = ExecuteStringQuery("SELECT sql FROM sqlite_master WHERE type='trigger' AND lower(tbl_name)=lower('{0}')", oldName.Replace("'", "''"));
         if (triggers.Count > 0 && (oldName != sqliteTableInfo.TableNameMapping.NewName || sqliteTableInfo.ColumnMappings.Any(m => m.OldName != null && m.OldName != m.NewName)))
             throw new NotSupportedException("Use native SQLite rename when triggers reference renamed objects.");
@@ -1108,6 +1110,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override Column[] GetColumns(string tableName)
     {
         var pragmaTableInfoItems = GetPragmaTableInfoItems(tableName);
+        var tableScript = GetSqlCreateTableScript(tableName);
+        var collations = SQLiteConstraintParser.ColumnCollations(tableScript);
 
         var tableInfoPrimaryKeys = pragmaTableInfoItems.Where(x => x.Pk > 0).ToList();
         var pragmaTableInfoItemsSorted = pragmaTableInfoItems.OrderBy(x => x.Cid).ToList();
@@ -1118,7 +1122,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             var column = new Column(pragmaTableInfoItem.Name)
             {
-                Type = _dialect.GetDbTypeFromString(pragmaTableInfoItem.Type)
+                Type = _dialect.GetDbTypeFromString(pragmaTableInfoItem.Type),
+                Collation = collations.TryGetValue(pragmaTableInfoItem.Name, out var collation) ? collation : null
             };
 
             if (pragmaTableInfoItem.NotNull)
@@ -1134,8 +1139,6 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             column.DefaultValue = defValue is string sqlDefault
                 ? CatalogDefaultValue.Parse(sqlDefault, column.Type) : defValue;
-
-            var tableScript = GetSqlCreateTableScript(tableName);
 
             var columnTableInfoItem = pragmaTableInfoItems.First(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase));
 
