@@ -21,10 +21,24 @@ public static class ProviderExtensions
         return Convert.ToInt64(count) == 0 ? null : provider.GetColumnContentSize(table, column);
     }
 
+    /// <summary>Execute script text with optional provider batch handling. ExecuteNonQuery is never split.</summary>
+    public static void ExecuteSqlScript(this ITransformationProvider provider, string sql)
+    {
+        var batches = provider is IScriptBatchProvider splitter ? splitter.SplitScript(sql) : new[] { sql };
+        foreach (var batch in batches) provider.ExecuteNonQuery(batch);
+    }
+
+    public static void ExecuteScript(this ITransformationProvider provider, string fileName)
+    {
+        if (provider is Providers.TransformationProvider builtIn) { builtIn.ExecuteScript(fileName); return; }
+        if (string.IsNullOrWhiteSpace(fileName)) throw new ArgumentException("A script path is required.", nameof(fileName));
+        provider.ExecuteSqlScript(File.ReadAllText(Path.IsPathRooted(fileName) ? fileName : Path.Combine(AppContext.BaseDirectory, fileName)));
+    }
+
     public static void ExecuteResourceScript(this ITransformationProvider provider, Assembly assembly, string name)
     {
         using var stream = assembly.GetManifestResourceStream(name) ?? throw new FileNotFoundException("SQL resource not found", name);
         using var reader = new StreamReader(stream);
-        provider.ExecuteNonQuery(reader.ReadToEnd());
+        provider.ExecuteSqlScript(reader.ReadToEnd());
     }
 }

@@ -27,8 +27,10 @@ namespace DotNetProjects.Migrator.Providers.Impl.SqlServer;
 /// <summary>
 /// Migration transformations provider for Microsoft SQL Server.
 /// </summary>
-public class SqlServerTransformationProvider : TransformationProvider
+public class SqlServerTransformationProvider : TransformationProvider, IScriptBatchProvider
 {
+    public virtual System.Collections.Generic.IReadOnlyList<string> SplitScript(string sql) => SqlScriptBatches.SplitSqlServer(sql);
+
     public SqlServerTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
         : base(dialect, connectionString, defaultSchema, scope)
     {

@@ -958,7 +958,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         if (string.IsNullOrWhiteSpace(fileName)) throw new ArgumentException("A script path is required.", nameof(fileName));
         var root = CurrentMigration == null ? AppContext.BaseDirectory : Path.GetDirectoryName(CurrentMigration.GetType().Assembly.Location);
         var path = Path.IsPathRooted(fileName) ? fileName : Path.Combine(root ?? AppContext.BaseDirectory, fileName);
-        ExecuteNonQuery(File.ReadAllText(path));
+        this.ExecuteSqlScript(File.ReadAllText(path));
     }
 
     public virtual void ExecuteResourceScript(System.Reflection.Assembly assembly, string resourceName)
@@ -966,7 +966,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         using var stream = assembly.GetManifestResourceStream(resourceName)
             ?? throw new FileNotFoundException("Embedded SQL resource not found.", resourceName);
         using var reader = new StreamReader(stream);
-        ExecuteNonQuery(reader.ReadToEnd());
+        this.ExecuteSqlScript(reader.ReadToEnd());
     }
 
     /// <summary>

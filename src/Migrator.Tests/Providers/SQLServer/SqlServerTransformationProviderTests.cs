@@ -13,6 +13,14 @@ namespace Migrator.Tests.Providers.SQLServer;
 public class SqlServerTransformationProviderTests : SQLServerTransformationProviderTestBase
 {
     [Test]
+    public void ExplicitScriptSplitsGoWithoutSplittingMultilineValues()
+    {
+        Provider.ExecuteSqlScript("CREATE TABLE ScriptBatches (Value nvarchar(100));\nGO\nINSERT INTO ScriptBatches VALUES ('before\nGO\nafter');\nGO -- final batch\nINSERT INTO ScriptBatches VALUES ('last');");
+        Assert.That(Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM ScriptBatches")), Is.EqualTo(2));
+        Assert.That(Provider.ExecuteScalar("SELECT Value FROM ScriptBatches WHERE Value LIKE 'before%'"), Does.Contain("GO"));
+    }
+
+    [Test]
     public void IndependentForeignKeyActionsCascadeUpdateAndSetNullOnDelete()
     {
         Provider.AddTable("ActionParent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.NotNull));

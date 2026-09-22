@@ -48,6 +48,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="ScriptResource.sql" LogicalName="Migrator.Tests.ScriptResource.sql" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
