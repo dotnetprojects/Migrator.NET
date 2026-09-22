@@ -1137,8 +1137,11 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             var defValue = pragmaTableInfoItem.DfltValue == DBNull.Value ? null : pragmaTableInfoItem.DfltValue;
 
+            // Keep legacy text GUID defaults as text during unrelated rebuilds. New Guid
+            // values render as blobs, so parsing an old SQL literal into Guid would change its storage class.
             column.DefaultValue = defValue is string sqlDefault
-                ? CatalogDefaultValue.Parse(sqlDefault, column.Type) : defValue;
+                ? column.Type == DbType.Guid ? RawSql.Insert(sqlDefault) : CatalogDefaultValue.Parse(sqlDefault, column.Type)
+                : defValue;
 
             var columnTableInfoItem = pragmaTableInfoItems.First(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase));
 
