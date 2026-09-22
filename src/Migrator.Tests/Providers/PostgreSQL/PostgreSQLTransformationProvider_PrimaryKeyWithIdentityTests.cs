@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
-[Category("Postgre")]
+[Category("PostgreSQL")]
 public class PostgreSQLTransformationProvider_PrimaryKeyWithIdentityTests : PostgreSQLTransformationProviderTestBase
 {
     [Test]

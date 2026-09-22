@@ -15,7 +15,7 @@ using Index = DotNetProjects.Migrator.Framework.Index;
 namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
-[Category("Postgre")]
+[Category("PostgreSQL")]
 public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTestsBase
 {
     [SetUp]

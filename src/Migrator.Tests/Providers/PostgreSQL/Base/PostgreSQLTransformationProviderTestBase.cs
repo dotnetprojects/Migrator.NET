@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.PostgreSQL.Base;
 
 [TestFixture]
-[Category("Postgre")]
+[Category("PostgreSQL")]
 public abstract class PostgreSQLTransformationProviderTestBase : TransformationProviderSimpleBase
 {
     [SetUp]
