@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
@@ -23,7 +24,11 @@ internal static class MigrationExecution
                 if (recordHistory)
                 {
                     var scope = migration.GetType().GetCustomAttribute<MigrationAttribute>()?.Scope ?? (provider as IMigrationHistory)?.Scope;
-                    if (step.IsUp) provider.MigrationApplied(step.Version, scope);
+                    if (step.IsUp)
+                    {
+                        // Baselines may include their own version in the history range they write.
+                        if (!provider.AppliedMigrations.Contains(step.Version)) provider.MigrationApplied(step.Version, scope);
+                    }
                     else provider.MigrationUnApplied(step.Version, scope);
                 }
             }

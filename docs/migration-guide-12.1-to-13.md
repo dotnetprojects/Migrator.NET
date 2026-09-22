@@ -186,7 +186,54 @@ utf8mb4-compatible text columns and the listed engine versions. Other dialects r
 unmapped presets; custom dialects can override `ResolveCollation(CollationKind)`.
 Unsupported requests fail during SQL generation, before executing the table operation.
 SQLite never downgrades Unicode case-insensitivity to its ASCII-only NOCASE behavior.
-SQLite rebuilds involving collated columns still fail before replacing the table.
+SQLite rebuilds preserve declared column collations, including named custom
+collations registered on the connection. `GetColumns` reports these names.
+Changing a collation explicitly rebuilds the table; a resulting uniqueness
+violation rolls back the change and preserves the original data. Index-level
+`COLLATE` clauses remain unsupported for rebuilds and fail before replacing the table.
+
+## Consolidated migration history
+
+A consolidated baseline can use `Database.MigrationApplied(version, scope)` to
+record versions whose schema it already includes. The runner rechecks the active
+scope's history before each planned migration and skips versions now applied,
+including their `AfterUp` callbacks. The same rule applies to downgrades when an
+earlier `Down` removes another version from history. Recording the baseline's own
+version does not insert it twice. History for another scope does not skip a step
+in the current scope. Transaction rollback still applies to baseline schema and
+history changes according to the selected transaction mode.
+
+## Adding SQLite identity to an existing table
+
+SQLite requires the identity column and its single-column primary key in the
+same table definition. Separate `AddColumn` and `AddPrimaryKey` calls create an
+invalid intermediate definition. Use the SQLite provider's atomic rebuild API:
+
+```csharp
+var sqlite = (SQLiteTransformationProvider)Database;
+var definition = sqlite.GetSQLiteTableInfo("Settings");
+definition.Columns.Add(new Column("Id", DbType.Int32) { IsIdentity = true });
+definition.ColumnMappings.Add(new MappingInfo { OldName = null, NewName = "Id" });
+definition.PrimaryKey = new PrimaryKeyConstraint("PK_Settings", "Id");
+sqlite.RecreateTable(definition);
+```
+
+`SQLiteTransformationProvider` is in `DotNetProjects.Migrator.Providers.Impl.SQLite`;
+`MappingInfo` is in its `Models` namespace. Existing rows receive generated IDs.
+This example assumes the table has no existing primary key or dependent foreign
+keys requiring a separate migration plan.
+
+## Identifier quoting and renamed tables
+
+Use `QuoteColumnNameIfRequired` for columns in authored SQL and
+`QuoteTableNameIfRequired` for tables. A table name may acquire a schema prefix;
+using that API for a column can produce an invalid reference such as `dbo.Color`.
+
+Renaming a table does not rename its explicitly named constraints or backing
+indexes. On SQL Server and PostgreSQL, recreating the old table with the old
+primary-key name can therefore collide with the renamed table's key. Give the
+replacement table a distinct key name (for example `PK_Client_New`), or explicitly
+rename the retained key using provider-specific SQL before reusing its name.
 
 For PostgreSQL, create an ICU nondeterministic collation explicitly (for example
 `CREATE COLLATION app_ci (provider=icu, locale='und-u-ks-level2', deterministic=false)`)

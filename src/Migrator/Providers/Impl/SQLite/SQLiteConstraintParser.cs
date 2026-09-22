@@ -15,30 +15,74 @@ internal static class SQLiteConstraintParser
 
     public static TableConstraint[] Parse(string sql)
     {
+        var result = new List<TableConstraint>();
+        foreach (var definition in Definitions(Tokenize(sql))) ParseDefinition(sql, definition, result);
+        return result.ToArray();
+    }
+
+    internal static Dictionary<string, Collation> ColumnCollations(string sql)
+    {
+        var result = new Dictionary<string, Collation>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(sql)) return result;
+        foreach (var definition in Definitions(Tokenize(sql)))
+        {
+            if (definition.Count == 0 || IsTableConstraint(definition[0])) continue;
+            for (var i = 1; i < definition.Count; i++)
+            {
+                // Defaults and CHECK expressions may contain their own COLLATE operators.
+                if (definition[i].Is("(")) i = Close(definition, i);
+                else if (definition[i].Is("COLLATE"))
+                {
+                    if (++i >= definition.Count) throw new MigrationException("Missing SQLite collation name.");
+                    result[definition[0].Text] = Collation.Named(definition[i].Text);
+                }
+            }
+        }
+        return result;
+    }
+
+    internal static bool HasKeyword(string sql, string keyword) => Tokenize(sql).Any(t => t.Is(keyword));
+
+    internal static bool HasUnsupportedRebuildFeatures(string sql)
+    {
         var tokens = Tokenize(sql);
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].Is("STRICT") || tokens[i].Is("GENERATED") || tokens[i].Is("DEFERRABLE")) return true;
+            if (i + 1 < tokens.Count &&
+                ((tokens[i].Is("WITHOUT") && tokens[i + 1].Is("ROWID")) ||
+                 (tokens[i].Is("CREATE") && tokens[i + 1].Is("VIRTUAL")) ||
+                 (tokens[i].Is("ON") && tokens[i + 1].Is("CONFLICT")))) return true;
+        }
+        return false;
+    }
+
+    private static bool IsTableConstraint(Token token) =>
+        token.Is("CONSTRAINT") || token.Is("PRIMARY") || token.Is("UNIQUE") || token.Is("FOREIGN") || token.Is("CHECK");
+
+    private static IEnumerable<List<Token>> Definitions(List<Token> tokens)
+    {
         var start = tokens.FindIndex(t => t.Is("("));
         if (start < 0) throw new MigrationException("SQLite CREATE TABLE has no column definition list.");
         var end = Close(tokens, start);
-        var result = new List<TableConstraint>();
         var first = start + 1;
         var depth = 0;
         for (var i = first; i <= end; i++)
         {
             if (i == end || (depth == 0 && tokens[i].Is(",")))
             {
-                ParseDefinition(sql, tokens.GetRange(first, i - first), result);
+                yield return tokens.GetRange(first, i - first);
                 first = i + 1;
             }
             else if (tokens[i].Is("(")) depth++;
             else if (tokens[i].Is(")")) depth--;
         }
-        return result.ToArray();
     }
 
     private static void ParseDefinition(string sql, List<Token> tokens, List<TableConstraint> result)
     {
         if (tokens.Count == 0) return;
-        var tableLevel = tokens[0].Is("CONSTRAINT") || tokens[0].Is("PRIMARY") || tokens[0].Is("UNIQUE") || tokens[0].Is("FOREIGN") || tokens[0].Is("CHECK");
+        var tableLevel = IsTableConstraint(tokens[0]);
         var column = tableLevel ? null : tokens[0].Text;
         string name = null;
         for (var i = tableLevel ? 0 : 1; i < tokens.Count; i++)

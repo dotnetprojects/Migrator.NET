@@ -9,6 +9,10 @@ namespace Migrator.Tests.Providers.SQLServer;
 public class SQLServerTransformationProvider_ConstraintExistsTests : Generic_ConstraintExistsBase
 {
     [Test]
+    public void RenamedTableRetainsItsPrimaryKeyWhileTheOriginalNameIsReused() =>
+        RecreatingARenamedTableUsesADistinctPrimaryKeyName();
+
+    [Test]
     public void QualifiedNamesKeepColumnsIndexesAndConstraintsInTheirSchema()
     {
         Provider.ExecuteNonQuery("CREATE SCHEMA [audit.region]");

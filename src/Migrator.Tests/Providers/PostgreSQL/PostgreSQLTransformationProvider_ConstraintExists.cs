@@ -8,6 +8,10 @@ namespace Migrator.Tests.Providers.PostgreSQL;
 [Category("PostgreSQL")]
 public class PostgreSQLTransformationProvider_ConstraintExistsTests : Generic_ConstraintExistsBase
 {
+    [Test]
+    public void RenamedTableRetainsItsPrimaryKeyWhileTheOriginalNameIsReused() =>
+        RecreatingARenamedTableUsesADistinctPrimaryKeyName();
+
     [SetUp]
     public async Task SetUpAsync()
     {

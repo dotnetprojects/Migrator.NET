@@ -15,6 +15,15 @@ namespace Migrator.Tests;
 
 public class IdentifierAndTimeRegressionTests
 {
+    [Test]
+    public void ColumnQuotingDoesNotInheritTheDefaultTableSchema()
+    {
+        using var connection = NSubstitute.Substitute.For<IDbConnection>();
+        using var provider = new SqlServerTransformationProvider(new SqlServerDialect(), connection, "dbo", "default", null);
+        Assert.That(provider.QuoteColumnNameIfRequired("Color"), Is.EqualTo("[Color]"));
+        Assert.That(provider.QuoteTableNameIfRequired("Colors"), Is.EqualTo("[dbo].[Colors]"));
+    }
+
     [TestCase(-51)]
     [TestCase(51)]
     public void SQLiteIntervalsKeepTheirSignAndDaysSeparateFromTimeOfDay(int hours)
