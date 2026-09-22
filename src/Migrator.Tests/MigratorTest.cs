@@ -23,6 +23,7 @@ public class MigratorTest
     #endregion
 
     private DotNetProjects.Migrator.Migrator _migrator;
+    private ITransformationProvider _provider;
 
     // Collections that contain the version that are called migrating up and down
     private static readonly List<long> _upCalled = new List<long>();
@@ -40,7 +41,7 @@ public class MigratorTest
 
     private void SetUpCurrentVersion(long version, bool assertRollbackIsCalled, bool includeBad)
     {
-        var providerMock = Substitute.For<ITransformationProvider>();
+        var providerMock = _provider = Substitute.For<ITransformationProvider>();
 
         var appliedVersions = new List<long>();
 
@@ -51,18 +52,6 @@ public class MigratorTest
 
         providerMock.AppliedMigrations.Returns(appliedVersions);
         providerMock.Logger.Returns(new Logger(false));
-
-        providerMock.When(x => x.Dispose()).Do(_ =>
-        {
-            if (assertRollbackIsCalled)
-            {
-                providerMock.Received().Rollback();
-            }
-            else
-            {
-                providerMock.DidNotReceive().Rollback();
-            }
-        });
 
         _migrator = new DotNetProjects.Migrator.Migrator((ITransformationProvider)providerMock, Assembly.GetExecutingAssembly(), false);
 
@@ -157,14 +146,8 @@ public class MigratorTest
     {
         SetUpCurrentVersion(6, true);
 
-        try
-        {
-            _migrator.MigrateTo(3);
-            Assert.Fail("La migration 5 devrait lancer une exception");
-        }
-        catch (Exception)
-        {
-        }
+        Assert.Throws<Exception>(() => _migrator.MigrateTo(3));
+        _provider.Received(1).Rollback();
 
         Assert.That(0, Is.EqualTo(_upCalled.Count));
         Assert.That(1, Is.EqualTo(_downCalled.Count));
@@ -225,14 +208,8 @@ public class MigratorTest
     {
         SetUpCurrentVersion(3, true);
 
-        try
-        {
-            _migrator.MigrateTo(6);
-            Assert.Fail("La migration 5 devrait lancer une exception");
-        }
-        catch (Exception)
-        {
-        }
+        Assert.Throws<Exception>(() => _migrator.MigrateTo(6));
+        _provider.Received(1).Rollback();
 
         Assert.That(1, Is.EqualTo(_upCalled.Count));
         Assert.That(0, Is.EqualTo(_downCalled.Count));
