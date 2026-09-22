@@ -29,8 +29,8 @@ public class SQLServerTransformationProvider_GetColumnsTests : Generic_GetColumn
         Provider.ExecuteNonQuery($"CREATE TABLE {tableName1} ({columnName1} INT IDENTITY(1,1) PRIMARY KEY)");
         Provider.ExecuteNonQuery($"CREATE TABLE {tableName2} ({columnName1} INT PRIMARY KEY)");
 
-        Provider.AddTable(name: tableName3, new Column(columnName1, DbType.Int32, ColumnProperty.Identity | ColumnProperty.PrimaryKey));
-        Provider.AddTable(name: tableName4, new Column(columnName1, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(name: tableName3, new Column(columnName1,DbType.Int32){IsNullable = false,IsIdentity = true},new PrimaryKeyConstraint("PK_" + tableName3, columnName1));
+        Provider.AddTable(name: tableName4, new Column(columnName1,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName4, columnName1));
 
         // Act
         var columnTable1 = Provider.GetColumnByName(table: tableName1, column: columnName1);

@@ -50,38 +50,6 @@ public class Column : IColumn, IDbField
         DefaultValue = defaultValue;
     }
 
-    public Column(string name, DbType type, ColumnProperty property)
-    {
-        Name = name;
-        Type = type;
-        ColumnProperty = property;
-    }
-
-    public Column(string name, DbType type, int size, ColumnProperty property)
-    {
-        Name = name;
-        Type = type;
-        Size = size;
-        ColumnProperty = property;
-    }
-
-    public Column(string name, DbType type, int size, ColumnProperty property, object defaultValue)
-    {
-        Name = name;
-        Type = type;
-        Size = size;
-        ColumnProperty = property;
-        DefaultValue = defaultValue;
-    }
-
-    public Column(string name, DbType type, ColumnProperty property, object defaultValue)
-    {
-        Name = name;
-        Type = type;
-        ColumnProperty = property;
-        DefaultValue = defaultValue;
-    }
-
     public Column(string name, MigratorDbType type)
     {
         Name = name;
@@ -102,37 +70,12 @@ public class Column : IColumn, IDbField
         DefaultValue = defaultValue;
     }
 
-    public Column(string name, MigratorDbType type, ColumnProperty property)
-    {
-        Name = name;
-        MigratorDbType = type;
-        ColumnProperty = property;
-    }
+    public Column(string name, DbType type, int size, object defaultValue) : this(name, type, size) { DefaultValue = defaultValue; }
+    public Column(string name, MigratorDbType type, int size, object defaultValue) : this(name, type, size) { DefaultValue = defaultValue; }
 
-    public Column(string name, MigratorDbType type, int size, ColumnProperty property)
-    {
-        Name = name;
-        MigratorDbType = type;
-        Size = size;
-        ColumnProperty = property;
-    }
-
-    public Column(string name, MigratorDbType type, int size, ColumnProperty property, object defaultValue)
-    {
-        Name = name;
-        MigratorDbType = type;
-        Size = size;
-        ColumnProperty = property;
-        DefaultValue = defaultValue;
-    }
-
-    public Column(string name, MigratorDbType type, ColumnProperty property, object defaultValue)
-    {
-        Name = name;
-        MigratorDbType = type;
-        ColumnProperty = property;
-        DefaultValue = defaultValue;
-    }
+    public bool IsNullable { get; set; } = true;
+    public bool IsUnsigned { get; set; }
+    public string Collation { get; set; }
 
     public string Name { get; set; }
 
@@ -162,7 +105,6 @@ public class Column : IColumn, IDbField
     /// </summary>
     public int? Scale { get; set; }
 
-    public ColumnProperty ColumnProperty { get; set; }
 
     public object DefaultValue
     {
@@ -181,18 +123,5 @@ public class Column : IColumn, IDbField
         }
     }
 
-    public bool IsIdentity
-    {
-        get { return (ColumnProperty & ColumnProperty.Identity) == ColumnProperty.Identity; }
-    }
-
-    public bool IsPrimaryKey
-    {
-        get { return (ColumnProperty & ColumnProperty.PrimaryKey) == ColumnProperty.PrimaryKey; }
-    }
-
-    public bool IsPrimaryKeyNonClustered
-    {
-        get { return (ColumnProperty & ColumnProperty.PrimaryKeyNonClustered) == ColumnProperty.PrimaryKeyNonClustered; }
-    }
+    public bool IsIdentity { get; set; }
 }

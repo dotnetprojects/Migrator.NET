@@ -34,7 +34,7 @@ public class SQLiteTransformationProvider_GetPragmaTableInfoItemsTests : SQLiteT
         const string columnName = "MyColumnName";
 
         // Arrange
-        Provider.AddTable(tableName, new Column(columnName, System.Data.DbType.Int32, ColumnProperty.NotNull));
+        Provider.AddTable(tableName, new Column(columnName,System.Data.DbType.Int32){IsNullable = false});
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
 
         // Act

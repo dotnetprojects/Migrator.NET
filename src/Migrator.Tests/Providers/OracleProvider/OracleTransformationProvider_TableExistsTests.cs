@@ -14,7 +14,7 @@ public class OracleTransformationProvider_TableExistsTests : OracleTransformatio
     [Test]
     public void LegacyForeignKeyOverloadHonorsCascadeDelete()
     {
-        Provider.AddTable("CascadeParent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable("CascadeParent", new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "CascadeParent", "Id"));
         Provider.AddTable("CascadeChild", new Column("ParentId", DbType.Int32));
         Provider.AddForeignKey("CascadeForeignKey", "CascadeChild", new[] { "ParentId" }, "CascadeParent", new[] { "Id" }, ForeignKeyConstraintType.Cascade);
         Provider.Insert("CascadeParent", new[] { "Id" }, new object[] { 1 });

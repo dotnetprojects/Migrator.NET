@@ -78,11 +78,11 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
         {
             if (column.Name == "name")
             {
-                Assert.That((column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull, Is.True);
+                Assert.That(!column.IsNullable, Is.True);
             }
             else if (column.Name == "Title")
             {
-                Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
+                Assert.That(column.IsNullable, Is.True);
             }
         }
     }
@@ -170,9 +170,9 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
     [Test]
     public void ChangeColumn_FromNullToNull()
     {
-        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
-        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
-        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
+        Provider.ChangeColumn("TestTwo", new Column("TestId",DbType.String,50));
+        Provider.ChangeColumn("TestTwo", new Column("TestId",DbType.String,50));
+        Provider.ChangeColumn("TestTwo", new Column("TestId",DbType.String,50));
         Provider.Insert("TestTwo", ["Id", "TestId"], [2, "Not an Int val."]);
     }
 
@@ -186,7 +186,7 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
     [Test]
     public void AddColumnWithDefault()
     {
-        Provider.AddColumn("TestTwo", "TestWithDefault", DbType.Int32, 50, 0, 10);
+        Provider.AddColumn("TestTwo", new Column("TestWithDefault", DbType.Int32, 50) { DefaultValue = 10 });
         Assert.That(Provider.ColumnExists("TestTwo", "TestWithDefault"), Is.True);
     }
 
@@ -203,21 +203,21 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
     [Test]
     public void AddBooleanColumnWithDefault()
     {
-        Provider.AddColumn("TestTwo", "TestBoolean", DbType.Boolean, 0, 0, false);
+        Provider.AddColumn("TestTwo", new Column("TestBoolean", DbType.Boolean) { DefaultValue = false });
         Assert.That(Provider.ColumnExists("TestTwo", "TestBoolean"), Is.True);
     }
 
     [Test]
     public void CanGetNullableFromProvider()
     {
-        Provider.AddColumn("TestTwo", "NullableColumn", DbType.String, 30, ColumnProperty.Null);
+        Provider.AddColumn("TestTwo", new Column("NullableColumn", DbType.String, 30));
         var columns = Provider.GetColumns("TestTwo");
 
         foreach (var column in columns)
         {
             if (column.Name == "NullableColumn")
             {
-                Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
+                Assert.That(column.IsNullable, Is.True);
             }
         }
     }

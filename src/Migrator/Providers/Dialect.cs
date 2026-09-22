@@ -15,7 +15,7 @@ namespace DotNetProjects.Migrator.Providers;
 /// </summary>
 public abstract class Dialect : IDialect
 {
-    private readonly Dictionary<ColumnProperty, string> _propertyMap = [];
+    private readonly Dictionary<ColumnAttribute, string> _propertyMap = [];
     private readonly HashSet<string> _reservedWords = [];
     private readonly TypeNames _typeNames = new();
     private readonly List<DbType> _unsignedCompatibleTypes = [];
@@ -31,17 +31,16 @@ public abstract class Dialect : IDialect
 
     protected Dialect()
     {
-        RegisterProperty(ColumnProperty.Null, "NULL");
-        RegisterProperty(ColumnProperty.NotNull, "NOT NULL");
-        RegisterProperty(ColumnProperty.Unique, "UNIQUE");
-        RegisterProperty(ColumnProperty.PrimaryKey, "PRIMARY KEY");
-        RegisterProperty(ColumnProperty.PrimaryKeyNonClustered, " NONCLUSTERED");
+        RegisterColumnAttribute(ColumnAttribute.Null, "NULL");
+        RegisterColumnAttribute(ColumnAttribute.NotNull, "NOT NULL");
     }
 
     /// <summary>Render a named table constraint without accessing a database.</summary>
+    public virtual string GetCollationSql(string name) => throw new NotSupportedException("Column collations are not supported by this dialect.");
+
     public virtual string GetTableConstraintSql(TableConstraint constraint)
     {
-        if (string.IsNullOrWhiteSpace(constraint.Name)) throw new MigrationException("A constraint name is required.");
+        if (constraint.Name != null && string.IsNullOrWhiteSpace(constraint.Name)) throw new MigrationException("A constraint name must not be empty.");
         string Keys(string[] columns) => string.Join(", ", columns.Select(name => ColumnNameNeedsQuote || IsReservedWord(name) ? QuoteIdentifier(name) : name));
         var body = constraint switch
         {
@@ -51,7 +50,7 @@ public abstract class Dialect : IDialect
             CheckConstraint c when !string.IsNullOrWhiteSpace(c.CheckConstraintString) => $"CHECK ({c.CheckConstraintString})",
             _ => throw new System.NotSupportedException($"No table-constraint SQL generator for {constraint.GetType().Name}.")
         };
-        return $"CONSTRAINT {QuoteIdentifier(constraint.Name)} {body}";
+        return constraint.Name == null ? body : $"CONSTRAINT {QuoteIdentifier(constraint.Name)} {body}";
     }
 
     /// <summary>Quote one identifier atom, escaping its delimiter; never split a name on dots.</summary>
@@ -351,7 +350,7 @@ public abstract class Dialect : IDialect
         return _typeNames.GetDbType(databaseTypeName);
     }
 
-    public void RegisterProperty(ColumnProperty property, string sql)
+    public void RegisterColumnAttribute(ColumnAttribute property, string sql)
     {
         if (!_propertyMap.ContainsKey(property))
         {
@@ -360,7 +359,7 @@ public abstract class Dialect : IDialect
         _propertyMap[property] = sql;
     }
 
-    public virtual string SqlForProperty(ColumnProperty property, Column column)
+    public virtual string SqlForColumnAttribute(ColumnAttribute property, Column column)
     {
         if (_propertyMap.ContainsKey(property))
         {

@@ -56,7 +56,8 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     [Test]
     public void AddUniqueColumn()
     {
-        Provider.AddColumn("TestTwo", "Test", DbType.String, 50, ColumnProperty.Unique);
+        Provider.AddColumn("TestTwo", new Column("Test", DbType.String, 50));
+        Provider.AddUniqueConstraint("UQ_TestTwo_Test", "TestTwo", "Test");
     }
 
     [Test]
@@ -149,17 +150,16 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
         var testTableName = "Test";
 
         Provider.AddTable(testTableName,
-            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("Name", DbType.String, 30, ColumnProperty.Null)
-        );
+            new Column("PersonId",DbType.Int32){IsNullable = false},
+            new Column("AddressId",DbType.Int32){IsNullable = false},
+            new Column("Name",DbType.String,30),new PrimaryKeyConstraint("PK_" + testTableName, "PersonId", "AddressId")        );
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
 
         var column = Provider.GetColumnByName("Test", "Name");
 
         Assert.That(column, Is.Not.Null);
-        Assert.That((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null, Is.True);
+        Assert.That(column.IsNullable, Is.True);
     }
 
     [Test]
@@ -173,13 +173,12 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
         const string parentIdColumn = "ParentId";
 
         Provider.AddTable(parentTableName,
-            new Column(idColumn, DbType.Int32, ColumnProperty.PrimaryKey)
-        );
+            new Column(idColumn,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + parentTableName, idColumn)        );
 
         Provider.AddTable(childTableName,
-            new Column(idColumn, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(idColumn,DbType.Int32){IsNullable = false},
             new Column(parentIdColumn, DbType.Int32)
-        );
+,new PrimaryKeyConstraint("PK_" + childTableName, idColumn)        );
 
         Provider.AddForeignKey(fkName, childTableName, parentIdColumn, parentTableName, idColumn);
 
@@ -210,14 +209,13 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
         const string childColumnParentTest = "ParentTest";
 
         Provider.AddTable(parentTableName,
-            new Column(parentColumnId, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(parentColumnTest, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(parentColumnId,DbType.Int32){IsNullable = false},
+            new Column(parentColumnTest,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + parentTableName, parentColumnId)        );
 
         Provider.AddTable(childTableName,
-            new Column(childColumnParentId, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(childColumnParentId,DbType.Int32){IsNullable = false},
             new Column(childColumnParentTest, DbType.Int32)
-        );
+,new PrimaryKeyConstraint("PK_" + childTableName, childColumnParentId)        );
 
         Provider.AddUniqueConstraint("MyUniqueConstraint", parentTableName, [parentColumnId, parentColumnTest]);
 

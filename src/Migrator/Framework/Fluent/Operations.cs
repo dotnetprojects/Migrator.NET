@@ -36,16 +36,12 @@ public sealed record CreateTableOperation(string Table, string Engine, IDbField[
         var primary = Fields.OfType<PrimaryKeyConstraint>().SingleOrDefault();
         if (primary != null)
         {
-            if (columns.Any(x => x.IsPrimaryKey)) throw new MigrationException("Do not combine primary-key flags and constraints.");
             foreach (var column in columns.Where(x => primary.KeyColumns.Contains(x.Name)))
-                column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull;
+                column.IsNullable = false;
             if (c.Provider == ProviderTypes.SQLite && columns.Any(x => x.IsIdentity))
                 throw new NotSupportedException("Named SQLite identity-key preview requires the complete table generator.");
         }
-        var pks = columns.Where(x => x.IsPrimaryKey).ToArray();
-        if (pks.Length > 1) foreach (var column in pks) column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
         var definitions = columns.Select(c.Column).ToList();
-        if (pks.Length > 1) definitions.Add($"PRIMARY KEY ({string.Join(", ", pks.Select(x => c.Quote(x.Name)))})");
         definitions.AddRange(Fields.OfType<TableConstraint>().Select(c.Dialect.GetTableConstraintSql));
         c.AddTable(Table, columns);
         return $"CREATE TABLE {c.Table(Table)} ({string.Join(", ", definitions)});";
@@ -249,7 +245,7 @@ public static class Definitions
         ViewJoin j => new ViewJoin(j.TableName, j.TableAlias, j.ColumnName, j.ParentTableName, j.ParentTableAlias, j.ParentColumnName, j.JoinType),
         _ => throw new NotSupportedException("Unknown view element.")
     };
-    public static Column CopyColumn(Column c) => new(c.Name, c.Type, c.Size, c.ColumnProperty, c.DefaultValue is byte[] b ? b.Clone() : c.DefaultValue) { Precision = c.Precision, Scale = c.Scale, MigratorDbType = c.MigratorDbType };
+    public static Column CopyColumn(Column c) => new(c.Name, c.Type, c.Size, c.DefaultValue is byte[] b ? b.Clone() : c.DefaultValue) { Precision = c.Precision, Scale = c.Scale, MigratorDbType = c.MigratorDbType, IsNullable = c.IsNullable, IsIdentity = c.IsIdentity, IsUnsigned = c.IsUnsigned, Collation = c.Collation };
     public static IDbField Copy(IDbField field) => field switch
     {
         Column c => CopyColumn(c),

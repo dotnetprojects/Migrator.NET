@@ -29,14 +29,13 @@ public class PostgreSQLTransformationProvider_ChangeColumnTests : Generic_Change
 
         // Act
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.Null),
-            new Column(column2Name, DbType.DateTimeOffset, ColumnProperty.Null, defaultValue: dateTimeDefaultValue)
-        );
+            new Column(column1Name,DbType.Int32),
+            new Column(column2Name,DbType.DateTimeOffset,defaultValue: dateTimeDefaultValue)        );
 
         Provider.Insert(table: tableName, columns: [column2Name], values: [dateTimeInsert]);
 
         // Assert
-        Provider.ChangeColumn(tableName, new Column(column2Name, DbType.DateTime2, ColumnProperty.NotNull));
+        Provider.ChangeColumn(tableName, new Column(column2Name,DbType.DateTime2){IsNullable = false});
         var column2 = Provider.GetColumnByName(tableName, column2Name);
 
         Assert.That(column2.MigratorDbType, Is.EqualTo(MigratorDbType.DateTime2));
@@ -54,16 +53,15 @@ public class PostgreSQLTransformationProvider_ChangeColumnTests : Generic_Change
         var dateTimeOffsetInsert = new DateTimeOffset(2001, 2, 3, 4, 5, 6, TimeSpan.FromHours(2));
 
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.Null),
-            new Column(column2Name, DbType.DateTimeOffset, ColumnProperty.Null, defaultValue: dateTimeOffsetDefaultValue)
-        );
+            new Column(column1Name,DbType.Int32),
+            new Column(column2Name,DbType.DateTimeOffset,defaultValue: dateTimeOffsetDefaultValue)        );
 
         Provider.Insert(table: tableName, columns: [column2Name], values: [dateTimeOffsetInsert]);
         // Act
 
         var column2 = Provider.GetColumnByName(tableName, column2Name);
         Assert.That(((DateTimeOffset)column2.DefaultValue).UtcDateTime, Is.EqualTo(dateTimeOffsetDefaultValue.UtcDateTime));
-        Provider.ChangeColumn(tableName, new Column(column2Name, DbType.DateTime2, ColumnProperty.NotNull, defaultValue: column2.DefaultValue));
+        Provider.ChangeColumn(tableName, new Column(column2Name,DbType.DateTime2,defaultValue: column2.DefaultValue){IsNullable = false});
 
 
         // Assert
@@ -89,8 +87,8 @@ public class PostgreSQLTransformationProvider_ChangeColumnTests : Generic_Change
         Provider.ExecuteNonQuery($"CREATE TABLE {tableName1} ({columnName1} INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY)");
         Provider.ExecuteNonQuery($"CREATE TABLE {tableName2} ({columnName1} INT PRIMARY KEY)");
 
-        Provider.AddTable(name: tableName3, new Column(columnName1, DbType.Int32, ColumnProperty.Identity | ColumnProperty.PrimaryKey));
-        Provider.AddTable(name: tableName4, new Column(columnName1, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(name: tableName3, new Column(columnName1,DbType.Int32){IsNullable = false,IsIdentity = true},new PrimaryKeyConstraint("PK_" + tableName3, columnName1));
+        Provider.AddTable(name: tableName4, new Column(columnName1,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName4, columnName1));
 
         // Act
         var columnTable1 = Provider.GetColumnByName(table: tableName1, column: columnName1);

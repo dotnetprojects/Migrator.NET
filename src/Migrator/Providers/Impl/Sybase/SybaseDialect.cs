@@ -37,7 +37,7 @@ public class SybaseDialect : Dialect
         RegisterColumnType(DbType.StringFixedLength, 255, "CHAR($l)");
         RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
         RegisterColumnType(DbType.AnsiStringFixedLength, 255, "CHAR($l)");
-        RegisterProperty(ColumnProperty.Identity, "IDENTITY");
+        RegisterColumnAttribute(ColumnAttribute.Identity, "IDENTITY");
     }
 
     public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 1" : "DEFAULT 0") : base.Default(value);
@@ -58,10 +58,12 @@ public class SybaseDialect : Dialect
         public override void MapColumnProperties(Column column)
         {
             Name = column.Name;
-            _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+
             var parts = new System.Collections.Generic.List<string>();
             AddName(parts);
             AddType(parts);
+            AddCollation(column, parts);
+            AddUnsigned(column, parts);
             AddDefaultValue(column, parts);
             if (column.IsIdentity) AddIdentityAgain(column, parts);
             else
@@ -69,8 +71,7 @@ public class SybaseDialect : Dialect
                 AddNotNull(column, parts);
                 AddNull(column, parts);
             }
-            AddPrimaryKey(column, parts);
-            AddUnique(column, parts);
+
             _ColumnSql = string.Join(" ", parts);
         }
     }

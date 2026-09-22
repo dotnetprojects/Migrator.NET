@@ -24,10 +24,9 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         const string indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique),
-            new Column(propertyName3, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),
+            new Column(propertyName3,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName2, propertyName2),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName3, propertyName3)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
@@ -47,12 +46,12 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName3).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName3), Is.True);
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName3).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoAfter.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName3), Is.True);
 
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
@@ -71,9 +70,8 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         const string propertyChildTableName1 = "ColorId";
 
         Provider.AddTable(parentTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),new PrimaryKeyConstraint("PK_" + parentTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + parentTableName + "_" + propertyName2, propertyName2)        );
 
         Provider.AddTable(childTestTableName, new Column(propertyChildTableName1, DbType.Int32));
         Provider.AddForeignKey("FKName1", childTestTableName, propertyChildTableName1, parentTableName, propertyName1);
@@ -90,6 +88,8 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         Provider.ExecuteNonQuery($"INSERT INTO {childTestTableName2} ({propertyChildTableName1}) VALUES (2)");
 
         // Act
+        Provider.RemoveForeignKey(childTestTableName, "FKName1");
+        Provider.RemovePrimaryKey(parentTableName);
         Provider.RemoveColumn(parentTableName, propertyName1);
 
         // Assert
@@ -102,8 +102,8 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(parentTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
 
         Assert.That(tableInfoAfter.Columns.FirstOrDefault(x => x.Name == propertyName1), Is.Null);
         Assert.That(tableInfoAfter.ForeignKeys, Is.Empty);
@@ -126,10 +126,9 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         const string indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique),
-            new Column(propertyName3, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),
+            new Column(propertyName3,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName2, propertyName2),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName3, propertyName3)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
@@ -156,10 +155,9 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         const string indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique),
-            new Column(propertyName3, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),
+            new Column(propertyName3,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName2, propertyName2),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName3, propertyName3)        );
 
         Provider.AddUniqueConstraint("UniqueConstraintName", testTableName, [propertyName2, propertyName3]);
 
@@ -187,10 +185,9 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         const string propertyName3 = "Color3";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique),
-            new Column(propertyName3, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),
+            new Column(propertyName3,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName2, propertyName2),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName3, propertyName3)        );
 
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
@@ -199,8 +196,8 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
         // We do not support not named uniques in SQLite any more.
-        Assert.That(tableInfoBefore.Uniques.Count, Is.EqualTo(0));
-        Assert.That(tableInfoAfter.Uniques.Count, Is.EqualTo(0));
+        Assert.That(tableInfoBefore.Uniques.Count, Is.EqualTo(2));
+        Assert.That(tableInfoAfter.Uniques.Count, Is.EqualTo(1));
     }
 
     [Test]
@@ -214,17 +211,16 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
         const string propertyLevel1Id = "Level1Id";
         const string propertyLevel2Id = "Level2Id";
 
-        Provider.AddTable(tableNameLevel1, new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableNameLevel1, new Column(propertyId,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableNameLevel1, propertyId));
 
         Provider.AddTable(tableNameLevel2,
-            new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyLevel1Id, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyId,DbType.Int32){IsNullable = false},
+            new Column(propertyLevel1Id,DbType.Int32),new PrimaryKeyConstraint("PK_" + tableNameLevel2, propertyId),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + tableNameLevel2 + "_" + propertyLevel1Id, propertyLevel1Id)        );
 
         Provider.AddTable(tableNameLevel3,
-            new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(propertyId,DbType.Int32){IsNullable = false},
             new Column(propertyLevel2Id, DbType.Int32)
-        );
+,new PrimaryKeyConstraint("PK_" + tableNameLevel3, propertyId)        );
 
         Provider.AddForeignKey("Level2ToLevel1", tableNameLevel2, propertyLevel1Id, tableNameLevel1, propertyId);
         Provider.AddForeignKey("Level3ToLevel2", tableNameLevel3, propertyLevel2Id, tableNameLevel2, propertyId);
@@ -253,8 +249,8 @@ public class SQLiteTransformationProvider_RemoveColumn : SQLiteTransformationPro
 
         var tableInfoLevel2After = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableNameLevel2);
 
-        Assert.That(tableInfoLevel2Before.Columns.Single(x => x.Name == propertyId).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoLevel2Before.Columns.Single(x => x.Name == propertyLevel1Id).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoLevel2Before.PrimaryKey?.KeyColumns.Contains(propertyId) == true), Is.True);
+        Assert.That(tableInfoLevel2Before.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyLevel1Id), Is.True);
         Assert.That(tableInfoLevel2Before.ForeignKeys.Single().ChildColumns.Single(), Is.EqualTo(propertyLevel1Id));
 
         Assert.That(tableInfoLevel2After.Columns.FirstOrDefault(x => x.Name == propertyId), Is.Not.Null);

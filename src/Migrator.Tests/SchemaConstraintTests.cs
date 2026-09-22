@@ -26,7 +26,7 @@ public class SchemaConstraintTests
         Assert.That(constraints.OfType<PrimaryKeyConstraint>().Single().KeyColumns, Is.EqualTo(new[] { "Second", "First" }));
         Assert.That(constraints.OfType<UniqueConstraint>().Single().Name, Is.EqualTo("Unique pair"));
         Assert.That(constraints.OfType<CheckConstraint>().Single().CheckConstraintString, Does.Contain("instr(Label, ',')"));
-        Assert.That(first.ColumnProperty, Is.EqualTo(ColumnProperty.None), "Creating a key must not mutate caller-owned columns.");
+        Assert.That(first.IsNullable, Is.True, "Creating a key must not mutate caller-owned columns.");
         provider.ExecuteNonQuery("INSERT INTO OrderedKeys VALUES (1, 2, 'a'), (1, 3, 'b')");
         Assert.Catch(() => provider.ExecuteNonQuery("INSERT INTO OrderedKeys VALUES (1, 2, 'c')"));
         Assert.Catch(() => provider.ExecuteNonQuery("INSERT INTO OrderedKeys VALUES (1, 4, 'a')"));
@@ -38,7 +38,7 @@ public class SchemaConstraintTests
     public void NamedIdentityKeyAndQuotedNamesRoundTrip()
     {
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
-        provider.AddTable("IdentityKeys", new Column("Id", DbType.Int32, ColumnProperty.Identity),
+        provider.AddTable("IdentityKeys", new Column("Id",DbType.Int32){IsIdentity = true},
             new PrimaryKeyConstraint("PK \"quoted\"", "Id"));
         provider.ExecuteNonQuery("INSERT INTO IdentityKeys DEFAULT VALUES");
         Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT Id FROM IdentityKeys")), Is.EqualTo(1));
@@ -83,7 +83,7 @@ public class SchemaConstraintTests
     public void RebuildPreservesNamedIdentityAndSequenceHighWater()
     {
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
-        provider.AddTable("RebuiltIdentity", new Column("Id", DbType.Int32, ColumnProperty.Identity),
+        provider.AddTable("RebuiltIdentity", new Column("Id", DbType.Int32) { IsIdentity = true },
             new Column("Value", DbType.String, 20), new PrimaryKeyConstraint("PK identity", "Id"));
         provider.ExecuteNonQuery("INSERT INTO RebuiltIdentity VALUES (40, 'removed')");
         provider.ExecuteNonQuery("DELETE FROM RebuiltIdentity");

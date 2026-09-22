@@ -39,7 +39,7 @@ public class InformixDialect : Dialect
         RegisterColumnType(DbType.AnsiStringFixedLength, 32767, "CHAR($l)");
         RegisterColumnType(DbType.String, int.MaxValue, "TEXT");
         RegisterColumnType(DbType.AnsiString, int.MaxValue, "TEXT");
-        RegisterProperty(ColumnProperty.Identity, "");
+        RegisterColumnAttribute(ColumnAttribute.Identity, "");
     }
 
     public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 't'" : "DEFAULT 'f'") : base.Default(value);
@@ -58,15 +58,16 @@ public class InformixDialect : Dialect
         public override void MapColumnProperties(Column column)
         {
             Name = column.Name;
-            _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+
             var parts = new System.Collections.Generic.List<string>();
             AddName(parts);
             AddType(parts);
+            AddCollation(column, parts);
+            AddUnsigned(column, parts);
             AddIdentityAgain(column, parts);
             AddDefaultValue(column, parts);
             AddNotNull(column, parts);
-            AddPrimaryKey(column, parts);
-            AddUnique(column, parts);
+
             _ColumnSql = string.Join(" ", parts);
         }
     }

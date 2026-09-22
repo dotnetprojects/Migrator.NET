@@ -14,10 +14,9 @@ public abstract class Generic_DefaultValueTestsBase : TransformationProviderBase
         const string columnName1Target = "TargetColumn1";
 
         Provider.AddTable(tableNameSource,
-           new Column(columnName1Target, DbType.Int32, ColumnProperty.Null, null)
-        );
+           new Column(columnName1Target,DbType.Int32,null)        );
 
-        Provider.ChangeColumn(tableNameSource, new Column(columnName1Target, DbType.Int32, ColumnProperty.NotNull));
+        Provider.ChangeColumn(tableNameSource, new Column(columnName1Target,DbType.Int32){IsNullable = false});
     }
 
     [Test]
@@ -27,10 +26,9 @@ public abstract class Generic_DefaultValueTestsBase : TransformationProviderBase
         const string columnName1Target = "TargetColumn1";
 
         Provider.AddTable(tableNameSource,
-            new Column(columnName1Target, DbType.String, 32, ColumnProperty.NotNull)
-        );
+            new Column(columnName1Target,DbType.String,32){IsNullable = false}        );
 
-        Provider.ChangeColumn(tableNameSource, new Column(columnName1Target, DbType.String, ColumnProperty.Null));
+        Provider.ChangeColumn(tableNameSource, new Column(columnName1Target,DbType.String));
     }
 
     [Test]
@@ -40,11 +38,10 @@ public abstract class Generic_DefaultValueTestsBase : TransformationProviderBase
         const string columnName1 = "ColumnName1";
 
         Provider.AddTable(tableNameSource,
-            new Column(columnName1, DbType.Int32, ColumnProperty.NotNull, 10)
-        );
+            new Column(columnName1, DbType.Int32) { DefaultValue = 10, IsNullable = false}        );
 
         Provider.RemoveColumnDefaultValue(tableNameSource, columnName1);
 
-        Provider.ChangeColumn(tableNameSource, new Column(columnName1, DbType.Int32, ColumnProperty.Null));
+        Provider.ChangeColumn(tableNameSource, new Column(columnName1,DbType.Int32));
     }
 }

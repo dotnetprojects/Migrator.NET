@@ -81,7 +81,7 @@ public class CreateUsers : Migration
     public override void Up()
     {
         Database.AddTable("Users",
-            new Column("Id", DbType.Int32, ColumnProperty.NotNull),
+            new Column("Id", DbType.Int32) { IsNullable = false },
             new Column("Name", DbType.String, 255));
         Database.AddPrimaryKey("PK_Users", "Users", "Id");
     }
@@ -315,3 +315,7 @@ This project continues the original [Migrator.NET](https://github.com/migratordo
 ## License
 
 The package declares **Mozilla Public License 1.1 (MPL-1.1)** in its [project metadata](src/Migrator/DotNetProjects.Migrator.csproj). See the [license text](https://www.mozilla.org/en-US/MPL/1.1/) and source-file notices.
+
+### Version 13 source changes
+
+The unreleased v13 stack separates columns from named table constraints and removes the old column flags and duplicate fluent builder. See the [12.1-to-13 migration guide](docs/migration-guide-12.1-to-13.md) before recompiling migrations. These source features are not claims about the published 12.1 NuGet package.

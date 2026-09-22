@@ -18,9 +18,8 @@ public class PostgreSQLTransformationProvider_ReservedWordsTests : PostgreSQLTra
         const string propertyName2 = "Host";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unsigned)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(propertyName2,DbType.Int32){IsUnsigned = true},new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         // Act/Assert
         Provider.AddIndex(testTableName, new Index

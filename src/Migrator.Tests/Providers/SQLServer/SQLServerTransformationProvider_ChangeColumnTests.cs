@@ -18,41 +18,34 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
     }
 
     [TestCase(false), TestCase(true)]
-    public void ChangeColumnRemovesOwnedUniqueFromTableOrColumnCreation(bool addColumn)
+    public void ChangeColumnPreservesExplicitUniqueFromTableOrColumnCreation(bool addColumn)
     {
-        var definition = new Column("Value", DbType.Int32, ColumnProperty.NotNull | ColumnProperty.Unique);
+        var definition = new Column("Value", DbType.Int32) { IsNullable = false };
         if (addColumn)
         {
             Provider.AddTable("CreatedUnique", new Column("Id", DbType.Int32));
             Provider.AddColumn("CreatedUnique", definition);
+            Provider.AddUniqueConstraint("UQ_Created", "CreatedUnique", "Value");
         }
-        else Provider.AddTable("CreatedUnique", definition);
-        Provider.ChangeColumn("CreatedUnique", new Column("Value", DbType.Int32, ColumnProperty.NotNull));
+        else Provider.AddTable("CreatedUnique", definition,
+            new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_Created", "Value"));
+        Provider.ChangeColumn("CreatedUnique", new Column("Value", DbType.Int32) { IsNullable = false });
+        Assert.That(Provider.ConstraintExists("CreatedUnique", "UQ_Created"), Is.True);
+        Assert.That(definition.IsNullable, Is.False);
         Provider.Insert("CreatedUnique", new[] { "Value" }, new object[] { 1 });
-        Provider.Insert("CreatedUnique", new[] { "Value" }, new object[] { 1 });
-        Assert.That(definition.ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
-        Assert.That(Provider.GetIndexes("CreatedUnique"), Is.Empty);
+        Assert.Catch(() => Provider.Insert("CreatedUnique", new[] { "Value" }, new object[] { 1 }));
     }
 
     [Test]
-    public void OwnershipAdoptionRejectsCompositeConstraints()
-    {
-        Provider.AddTable("CompositeOwned", new Column("FirstId", DbType.Int32), new Column("SecondId", DbType.Int32));
-        Provider.AddUniqueConstraint("UserComposite", "CompositeOwned", "FirstId", "SecondId");
-        Assert.Throws<MigrationException>(() => ((SqlServerTransformationProvider)Provider).AdoptColumnUniqueConstraint("CompositeOwned", "FirstId", "UserComposite"));
-        Assert.That(Provider.ConstraintExists("CompositeOwned", "UserComposite"), Is.True);
-    }
-
-    [Test]
-    public void ExplicitOwnershipAdoptionAllowsLegacyUniqueRemoval()
+    public void ExplicitUniqueRemovalAllowsDuplicates()
     {
         Provider.AddTable("LegacyUnique", new Column("Value", DbType.Int32));
         Provider.AddUniqueConstraint("LegacyUniqueConstraint", "LegacyUnique", "Value");
-        var sqlServer = (SqlServerTransformationProvider)Provider;
-        sqlServer.AdoptColumnUniqueConstraint("LegacyUnique", "Value", "LegacyUniqueConstraint");
-        sqlServer.AdoptColumnUniqueConstraint("LegacyUnique", "Value", "LegacyUniqueConstraint");
-        Provider.ChangeColumn("LegacyUnique", new Column("Value", DbType.Int32, ColumnProperty.Null));
-        Assert.That(Provider.ConstraintExists("LegacyUnique", "LegacyUniqueConstraint"), Is.False);
+        Provider.ChangeColumn("LegacyUnique", new Column("Value", DbType.Int32));
+        Assert.That(Provider.ConstraintExists("LegacyUnique", "LegacyUniqueConstraint"), Is.True);
+        Provider.RemoveConstraint("LegacyUnique", "LegacyUniqueConstraint");
+        Provider.ExecuteNonQuery("INSERT INTO LegacyUnique VALUES (1), (1)");
+        Assert.That(System.Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM LegacyUnique")), Is.EqualTo(2));
     }
 
     [Test]
@@ -62,11 +55,11 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
         const string tableName = "TestTable";
         const string columnName = "TestColumn";
 
-        Provider.AddTable(tableName, new Column(columnName, DbType.DateTime, ColumnProperty.NotNull));
+        Provider.AddTable(tableName, new Column(columnName,DbType.DateTime){IsNullable = false});
         var columnBefore = Provider.GetColumnByName(tableName, columnName);
 
         // Act
-        Provider.ChangeColumn(tableName, new Column(columnName, DbType.DateTime2, ColumnProperty.NotNull));
+        Provider.ChangeColumn(tableName, new Column(columnName,DbType.DateTime2){IsNullable = false});
 
         // Assert
         var columnAfter = Provider.GetColumnByName(tableName, columnName);
@@ -78,13 +71,13 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
     [Test]
     public void ChangeColumn_DoesNotRemoveUserOwnedUniqueOrMutateDefinition()
     {
-        Provider.AddTable("UserOwned", new Column("Value", DbType.Int32, ColumnProperty.NotNull));
+        Provider.AddTable("UserOwned", new Column("Value",DbType.Int32){IsNullable = false});
         Provider.AddUniqueConstraint("UX_UserOwned_Value", "UserOwned", "Value");
-        var definition = new Column("Value", DbType.Int32, ColumnProperty.NotNull, 3);
+        var definition = new Column("Value",DbType.Int32){IsNullable = false, DefaultValue = 3};
         Provider.ChangeColumn("UserOwned", definition);
         Assert.That(Provider.ConstraintExists("UserOwned", "UX_UserOwned_Value"), Is.True);
         Assert.That(definition.DefaultValue, Is.EqualTo(3));
-        Assert.That(definition.ColumnProperty, Is.EqualTo(ColumnProperty.NotNull));
+        Assert.That(definition.IsNullable, Is.False);
     }
 
     [Test]
@@ -94,11 +87,11 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
         const string tableName = "TestTable";
         const string columnName = "TestColumn";
 
-        Provider.AddTable(tableName, new Column(columnName, DbType.Int32, ColumnProperty.NotNull));
+        Provider.AddTable(tableName, new Column(columnName,DbType.Int32){IsNullable = false});
 
         // Act
-        Provider.ChangeColumn(tableName, new Column(columnName, DbType.Int32, ColumnProperty.NotNull | ColumnProperty.Unique));
-        Provider.ChangeColumn(tableName, new Column(columnName, DbType.Int32, ColumnProperty.NotNull));
+        Provider.ChangeColumn(tableName, new Column(columnName,DbType.Int32){IsNullable = false});
+        Provider.ChangeColumn(tableName, new Column(columnName,DbType.Int32){IsNullable = false});
 
         // Assert
         var indexes = Provider.GetIndexes(tableName);

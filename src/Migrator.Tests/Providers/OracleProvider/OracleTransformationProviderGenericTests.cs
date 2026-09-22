@@ -22,9 +22,9 @@ public class OracleTransformationProviderGenericTests : TransformationProviderGe
     public void ChangeColumn_FromNotNullToNotNull()
     {
         Provider.ExecuteNonQuery("DELETE FROM TestTwo");
-        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.Null));
+        Provider.ChangeColumn("TestTwo", new Column("TestId",DbType.String,50));
         Provider.Insert("TestTwo", ["Id", "TestId"], [3, "Not an Int val."]);
-        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
-        Provider.ChangeColumn("TestTwo", new Column("TestId", DbType.String, 50, ColumnProperty.NotNull));
+        Provider.ChangeColumn("TestTwo", new Column("TestId",DbType.String,50){IsNullable = false});
+        Provider.ChangeColumn("TestTwo", new Column("TestId",DbType.String,50){IsNullable = false});
     }
 }

@@ -51,7 +51,7 @@ public class JoiningTableTransformationProviderExtensionsTests
 
                Assert.That(lhsColumn.Name, Is.EqualTo("TestScenarioId"));
                Assert.That(lhsColumn.Type, Is.EqualTo(DbType.Guid));
-               Assert.That(ColumnProperty.NotNull, Is.EqualTo(lhsColumn.ColumnProperty));
+               Assert.That(lhsColumn.IsNullable, Is.False);
            });
 
         _provider.AddManyToManyJoiningTable("dbo", "TestScenarios", "Id", "Versions", "Id");
@@ -102,7 +102,7 @@ public class JoiningTableTransformationProviderExtensionsTests
 
               Assert.That(rhsColumn.Name, Is.EqualTo("VersionId"));
               Assert.That(DbType.Guid, Is.EqualTo(rhsColumn.Type));
-              Assert.That(ColumnProperty.NotNull, Is.EqualTo(rhsColumn.ColumnProperty));
+              Assert.That(rhsColumn.IsNullable, Is.False);
           });
 
         _provider.AddManyToManyJoiningTable("dbo", "TestScenarios", "Id", "Versions", "Id");
@@ -119,7 +119,7 @@ public class JoiningTableTransformationProviderExtensionsTests
 
               Assert.That(rhsColumn.Name, Is.EqualTo("VersionId"));
               Assert.That(DbType.Guid, Is.EqualTo(rhsColumn.Type));
-              Assert.That(ColumnProperty.NotNull, Is.EqualTo(rhsColumn.ColumnProperty));
+              Assert.That(rhsColumn.IsNullable, Is.False);
 
               Assert.That(callInfo[1] as string, Is.EqualTo("dbo.TestScenarioVersions"));
               Assert.That(callInfo[2] as string, Is.EqualTo("VersionId"));

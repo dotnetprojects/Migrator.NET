@@ -7,6 +7,8 @@ using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 using DotNetProjects.Migrator.Providers.Impl.Oracle;
 using DotNetProjects.Migrator.Providers.Impl.Mysql;
+using DotNetProjects.Migrator.Providers.Impl.DB2;
+using DotNetProjects.Migrator.Providers.Impl.Firebird;
 using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 
 namespace DotNetProjects.Migrator.Providers;
@@ -33,6 +35,26 @@ internal static class ConstraintMetadataReader
                 FROM pg_constraint c LEFT JOIN LATERAL unnest(c.conkey) WITH ORDINALITY k(attnum,ordinality) ON c.contype<>'c'
                 LEFT JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=k.attnum
                 WHERE c.conrelid=to_regclass(@lookup_table) AND c.contype IN ('p','u','c') ORDER BY c.conname,k.ordinality";
+        }
+        else if (provider.Dialect is DB2Dialect)
+        {
+            parameterTable = table.StartsWith('"') ? table.Trim('"').Replace("\"\"", "\"") : table.ToUpperInvariant();
+            sql = @"SELECT c.CONSTNAME,c.TYPE,k.COLNAME,k.COLSEQ,ch.TEXT
+                FROM SYSCAT.TABCONST c LEFT JOIN SYSCAT.KEYCOLUSE k
+                  ON k.TABSCHEMA=c.TABSCHEMA AND k.TABNAME=c.TABNAME AND k.CONSTNAME=c.CONSTNAME AND c.TYPE IN ('P','U')
+                LEFT JOIN SYSCAT.CHECKS ch ON ch.TABSCHEMA=c.TABSCHEMA AND ch.TABNAME=c.TABNAME AND ch.CONSTNAME=c.CONSTNAME
+                WHERE c.TABSCHEMA=CURRENT SCHEMA AND c.TABNAME=@lookup_table AND c.TYPE IN ('P','U','K')
+                ORDER BY c.CONSTNAME,k.COLSEQ";
+        }
+        else if (provider.Dialect is FirebirdDialect)
+        {
+            parameterTable = table.StartsWith('"') ? table.Trim('"').Replace("\"\"", "\"") : table.ToUpperInvariant();
+            sql = @"SELECT TRIM(c.RDB$CONSTRAINT_NAME),TRIM(c.RDB$CONSTRAINT_TYPE),TRIM(k.RDB$FIELD_NAME),k.RDB$FIELD_POSITION,
+                (SELECT FIRST 1 t.RDB$TRIGGER_SOURCE FROM RDB$CHECK_CONSTRAINTS ch JOIN RDB$TRIGGERS t ON t.RDB$TRIGGER_NAME=ch.RDB$TRIGGER_NAME
+                 WHERE ch.RDB$CONSTRAINT_NAME=c.RDB$CONSTRAINT_NAME)
+                FROM RDB$RELATION_CONSTRAINTS c LEFT JOIN RDB$INDEX_SEGMENTS k ON k.RDB$INDEX_NAME=c.RDB$INDEX_NAME AND c.RDB$CONSTRAINT_TYPE IN ('PRIMARY KEY','UNIQUE')
+                WHERE c.RDB$RELATION_NAME=@lookup_table AND c.RDB$CONSTRAINT_TYPE IN ('PRIMARY KEY','UNIQUE','CHECK')
+                ORDER BY c.RDB$CONSTRAINT_NAME,k.RDB$FIELD_POSITION";
         }
         else if (oracle || provider.Dialect is MysqlDialect)
         {
@@ -80,7 +102,7 @@ internal static class ConstraintMetadataReader
                     {
                         "P" or "PK" or "PRIMARY KEY" => new PrimaryKeyConstraint { Name = name },
                         "U" or "UQ" or "UNIQUE" => new UniqueConstraint { Name = name },
-                        "C" or "CHECK" => new CheckConstraint(name, reader.IsDBNull(4) ? null : reader.GetString(4)),
+                        "C" or "K" or "CHECK" => new CheckConstraint(name, reader.IsDBNull(4) ? null : CheckExpression(reader.GetString(4))),
                         _ => throw new MigrationException("Unknown catalog constraint type.")
                     };
                 }
@@ -90,6 +112,17 @@ internal static class ConstraintMetadataReader
         }
         constraints.AddRange(provider.GetForeignKeyConstraints(table));
         return constraints.ToArray();
+    }
+
+    internal static string CheckExpression(string source)
+    {
+        var text = source.Trim();
+        if (text.StartsWith("CHECK", StringComparison.OrdinalIgnoreCase))
+        {
+            text = text[5..].Trim();
+            if (text.StartsWith("(") && text.EndsWith(")")) text = text[1..^1];
+        }
+        return text;
     }
 
     private static void AddParameter(IDbCommand command, string name, object value)

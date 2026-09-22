@@ -17,7 +17,7 @@ public class Index : IDbField
     public bool Clustered { get; set; }
 
     /// <summary>
-    /// Indicates whether it is a primary key constraint. If you want to set a primary key use <see cref="ColumnProperty.PrimaryKey"/> in <see cref="TransformationProvider.AddTable"/>
+    /// Indicates whether it is a primary key constraint. If you want to set a primary key use <see cref="PrimaryKeyConstraint"/> in <see cref="TransformationProvider.AddTable"/>
     /// </summary>
     public bool PrimaryKey { get; internal set; }
 

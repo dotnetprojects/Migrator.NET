@@ -56,9 +56,9 @@ public class LiveMetadataRegressionTests
     [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
     public void ChangeColumnCreatesRequestedUniqueConstraint(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
-        f.Provider.AddTable("unique_values", new Column("amount", DbType.Int32, ColumnProperty.NotNull));
+        f.Provider.AddTable("unique_values", new Column("amount",DbType.Int32){IsNullable = false});
         f.Provider.Insert("unique_values", ["amount"], [7]);
-        f.Provider.ChangeColumn("unique_values", new Column("amount", DbType.Int64, ColumnProperty.NotNull | ColumnProperty.Unique));
+        f.Provider.ChangeColumn("unique_values", new Column("amount",DbType.Int64){IsNullable = false});
         Assert.That(f.Provider.ConstraintExists("unique_values", "UX_unique_values_amount"), Is.True);
         Assert.That(f.Provider.GetIndexes("unique_values").Any(i => i.UniqueConstraint && i.KeyColumns.Single().Equals("amount", StringComparison.OrdinalIgnoreCase)), Is.True);
         f.AssertDatabaseError(() => f.Provider.Insert("unique_values", ["amount"], [7L]));
@@ -122,12 +122,12 @@ public class LiveMetadataRegressionTests
     [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
     public void DecimalShapeSurvivesCreateAlterAndCopy(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
-        f.Provider.AddTable("numbers", new Column("amount", DbType.Decimal, ColumnProperty.Null) { Precision = 12, Scale = 3 });
+        f.Provider.AddTable("numbers", new Column("amount",DbType.Decimal){Precision = 12,Scale = 3 });
         var original = f.Provider.GetColumns("numbers").Single();
         Assert.That(original.Precision, Is.EqualTo(12));
         Assert.That(original.Scale, Is.EqualTo(3));
         f.Provider.Insert("numbers", ["amount"], [123.456m]);
-        f.Provider.ChangeColumn("numbers", new Column("amount", DbType.Decimal, ColumnProperty.Null) { Precision = 15, Scale = 3 });
+        f.Provider.ChangeColumn("numbers", new Column("amount",DbType.Decimal){Precision = 15,Scale = 3 });
         var changed = f.Provider.GetColumns("numbers").Single();
         Assert.That(changed.Precision, Is.EqualTo(15));
         Assert.That(changed.Scale, Is.EqualTo(3));
@@ -136,7 +136,7 @@ public class LiveMetadataRegressionTests
         var copied = f.Provider.GetColumns("copied_numbers").Single();
         Assert.That(copied.Precision, Is.EqualTo(15));
         Assert.That(copied.Scale, Is.EqualTo(3));
-        f.Provider.AddColumn("copied_numbers", new Column("extra", DbType.Decimal, ColumnProperty.Null) { Precision = 10, Scale = 2 });
+        f.Provider.AddColumn("copied_numbers", new Column("extra",DbType.Decimal){Precision = 10,Scale = 2 });
         var added = f.Provider.GetColumns("copied_numbers").Single(c => c.Name.Equals("extra", StringComparison.OrdinalIgnoreCase));
         Assert.That(added.Precision, Is.EqualTo(10));
         Assert.That(added.Scale, Is.EqualTo(2));
@@ -147,12 +147,12 @@ public class LiveMetadataRegressionTests
     [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
     public void PrimaryKeyMetadataIncludesIdentityAndCompositeMembers(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
-        f.Provider.AddTable("identities", new Column("id", DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity));
-        Assert.That(f.Provider.GetColumns("identities").Single().ColumnProperty.HasFlag(ColumnProperty.PrimaryKeyWithIdentity), Is.True);
-        f.Provider.AddTable("pairs", new Column("first_id", DbType.Int32, ColumnProperty.PrimaryKey), new Column("second_id", DbType.Int32, ColumnProperty.PrimaryKey), new Column("label", DbType.String, 20));
+        f.Provider.AddTable("identities", new Column("id",DbType.Int32){IsNullable = false,IsIdentity = true},new PrimaryKeyConstraint("PK_" + "identities", "id"));
+        Assert.That(f.Provider.GetColumns("identities").Single().IsIdentity, Is.True);
+        f.Provider.AddTable("pairs", new Column("first_id",DbType.Int32){IsNullable = false}, new Column("second_id",DbType.Int32){IsNullable = false}, new Column("label", DbType.String, 20),new PrimaryKeyConstraint("PK_" + "pairs", "first_id", "second_id"));
         var columns = f.Provider.GetColumns("pairs");
-        Assert.That(columns.Count(c => c.IsPrimaryKey), Is.EqualTo(2));
-        Assert.That(columns.Single(c => c.Name.Equals("label", StringComparison.OrdinalIgnoreCase)).IsPrimaryKey, Is.False);
+        Assert.That(f.Provider.GetTableConstraints("pairs").OfType<PrimaryKeyConstraint>().Single().KeyColumns.Length, Is.EqualTo(2));
+        Assert.That(f.Provider.GetTableConstraints("pairs").OfType<PrimaryKeyConstraint>().Single().KeyColumns.Any(c => c.Equals("label", StringComparison.OrdinalIgnoreCase)), Is.False);
     });
 
     [Test, Category("Db2")]
@@ -241,7 +241,7 @@ public class LiveMetadataRegressionTests
     [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
     public void InlineIndexedColumnCreatesIndex(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
-        f.Provider.AddTable("indexed_values", new Column("amount", DbType.Int32, ColumnProperty.Indexed));
+        f.Provider.AddTable("indexed_values", new Column("amount",DbType.Int32),new DotNetProjects.Migrator.Framework.Index { Name = "IX_" + "indexed_values" + "_" + "amount", KeyColumns = new[] { "amount" } });
         Assert.That(f.Provider.GetIndexes("indexed_values").Any(i => i.KeyColumns.Select(c => c.ToLowerInvariant()).SequenceEqual(new[] { "amount" })), Is.True);
     });
 
@@ -299,7 +299,7 @@ public class LiveMetadataRegressionTests
     [Test, Category("Informix")]
     public void InformixRemovesConstraintBackedIndexes() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
-        f.Provider.AddTable("numbers", new Column("id", DbType.Int32, ColumnProperty.NotNull), new Column("amount", DbType.Int32, ColumnProperty.NotNull));
+        f.Provider.AddTable("numbers", new Column("id",DbType.Int32){IsNullable = false}, new Column("amount",DbType.Int32){IsNullable = false});
         f.Provider.AddPrimaryKey("pk_numbers", "numbers", "id");
         f.Provider.AddUniqueConstraint("uq_amount", "numbers", "amount");
         Assert.That(f.Provider.GetIndexes("numbers").Count(i => i.PrimaryKey), Is.EqualTo(1));

@@ -40,15 +40,16 @@ public class ProviderCorrectionTests
     {
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
-        var first = new Column("First", DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.Null);
-        var second = new Column("Second", DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.Null);
-        provider.AddTable("Composite", first, second);
-        Assert.That(first.ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.Null));
-        Assert.That(second.ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.Null));
-        provider.Insert("Composite", new[] { "First", "Second" }, new object[] { 1, null });
+        var first = new Column("First",DbType.Int32);
+        var second = new Column("Second",DbType.Int32);
+        provider.AddTable("Composite", first, second, new PrimaryKeyConstraint("PK_Composite", "Second", "First"));
+        Assert.That(first.IsNullable, Is.True);
+        Assert.That(second.IsNullable, Is.True);
+        Assert.Catch(() => provider.Insert("Composite", new[] { "First", "Second" }, new object[] { 1, null }));
+        provider.Insert("Composite", new[] { "First", "Second" }, new object[] { 1, 2 });
         Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT COUNT(*) FROM Composite")), Is.EqualTo(1));
-        provider.AddTable("Reused", first, second);
-        Assert.That(provider.GetColumns("Reused").Count(c => c.IsPrimaryKey), Is.EqualTo(2));
+        provider.AddTable("Reused", first, second, new PrimaryKeyConstraint("PK_Reused", "Second", "First"));
+        Assert.That(provider.GetTableConstraints("Reused").OfType<PrimaryKeyConstraint>().Single().KeyColumns.Length, Is.EqualTo(2));
     }
     [Test] public void RebuildPreservesTriggerAndUpdateAction()
     {

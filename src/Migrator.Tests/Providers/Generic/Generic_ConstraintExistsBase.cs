@@ -19,13 +19,11 @@ public abstract class Generic_ConstraintExistsBase : TransformationProviderBase
         var fkName = "FK_Task_TaskGroup";
 
         Provider.AddTable("Task",
-           new Column(name: "Id", type: DbType.Int32, property: ColumnProperty.PrimaryKey),
-           new Column(name: "TaskGroupId", type: DbType.Int32, property: ColumnProperty.Null)
-        );
+           new Column(name: "Id",type: DbType.Int32){IsNullable = false},
+           new Column(name: "TaskGroupId",type: DbType.Int32),new PrimaryKeyConstraint("PK_" + "Task", "Id")        );
 
         Provider.AddTable("TaskGroup",
-             new Column(name: "Id", type: DbType.Int32, property: ColumnProperty.PrimaryKey)
-         );
+             new Column(name: "Id",type: DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "TaskGroup", "Id")         );
 
         Provider.AddForeignKey(name: fkName, childTable: tableName, childColumn: "TaskGroupId", parentTable: "TaskGroup", parentColumn: "Id");
 

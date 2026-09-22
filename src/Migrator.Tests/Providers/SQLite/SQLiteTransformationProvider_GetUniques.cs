@@ -28,13 +28,13 @@ public class SQLiteTransformationProvider_GetUniquesTests : SQLiteTransformation
         const string nonUniqueIndexName1 = "IndexNonUnique1";
 
         Provider.AddTable(tableNameA,
-            new Column(property1, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(property1,DbType.Int32){IsNullable = false},
             new Column(property2, DbType.Int32),
             new UniqueConstraint("UniqueConstraint0", property2),
             new Column(property3, DbType.Int32),
             new Column(property4, DbType.Int32),
             new Column(property5, DbType.Int32)
-        );
+,new PrimaryKeyConstraint("PK_" + tableNameA, property1)        );
 
         Provider.AddUniqueConstraint(uniqueConstraintName1, tableNameA, property3);
         Provider.AddUniqueConstraint(uniqueConstraintName2, tableNameA, property4, property5);

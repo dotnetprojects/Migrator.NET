@@ -13,25 +13,21 @@ public class OracleColumnPropertiesMapper : ColumnPropertiesMapper
     {
         Name = column.Name;
 
-        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
 
         var vals = new List<string>();
 
         AddName(vals);
 
         AddType(vals);
+        AddCollation(column, vals);
 
         AddIdentity(column, vals);
 
         AddUnsigned(column, vals);
 
-        AddPrimaryKey(column, vals);
 
         AddIdentityAgain(column, vals);
 
-        AddUnique(column, vals);
-
-        AddForeignKey(column, vals);
 
         AddDefaultValue(column, vals);
 

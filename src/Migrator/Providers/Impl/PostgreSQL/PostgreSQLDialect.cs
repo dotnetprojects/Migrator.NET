@@ -6,6 +6,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 
 public class PostgreSQLDialect : Dialect
 {
+    public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
+
     public PostgreSQLDialect()
     {
         RegisterColumnType(DbType.AnsiStringFixedLength, "char(255)");
@@ -47,7 +49,7 @@ public class PostgreSQLDialect : Dialect
         RegisterColumnType(DbType.Guid, "uuid");
         RegisterColumnType(MigratorDbType.Interval, "interval");
 
-        RegisterProperty(ColumnProperty.Identity, "GENERATED ALWAYS AS IDENTITY");
+        RegisterColumnAttribute(ColumnAttribute.Identity, "GENERATED ALWAYS AS IDENTITY");
 
         AddReservedWords("ABS", "ABSOLUTE", "ACCESS", "ACTION", "ADA", "ADD", "ADMIN", "AFTER", "AGGREGATE", "ALIAS", "ALL", "ALLOCATE", "ALTER", "ANALYSE", "ANALYZE", "AND", "ANY", "ARE",
                          "ARRAY", "AS", "ASC", "ASENSITIVE", "ASSERTION", "ASSIGNMENT", "ASYMMETRIC", "AT", "ATOMIC", "AUTHORIZATION", "AVG", "BACKWARD", "BEFORE", "BEGIN", "BETWEEN", "BIGINT", "BINARY",
@@ -138,10 +140,10 @@ public class PostgreSQLDialect : Dialect
         return base.Default(defaultValue);
     }
 
-    //public override string SqlForProperty(ColumnProperty property, Column column)
+    //public override string SqlForColumnAttribute(ColumnAttribute property, Column column)
     //{
-    //	if (property == ColumnProperty.Identity && (column.Type == DbType.Int64 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64))
+    //	if (property == ColumnAttribute.Identity && (column.Type == DbType.Int64 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64))
     //		return "bigserial";
-    //	return base.SqlForProperty(property, column);
+    //	return base.SqlForColumnAttribute(property, column);
     //}
 }

@@ -27,8 +27,6 @@ public class SybaseTransformationProvider : TransformationProvider
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
-        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
-            AddIndex(name, new Index { KeyColumns = [column.Name] });
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
@@ -67,7 +65,7 @@ public class SybaseTransformationProvider : TransformationProvider
             var status = Convert.ToInt32(reader.GetValue(2));
             var column = new Column(reader.GetString(0), type)
             {
-                ColumnProperty = (status & 8) != 0 ? ColumnProperty.Null : ColumnProperty.NotNull
+                IsNullable = (status & 8) != 0
             };
             if (type == DbType.Decimal)
             {
@@ -75,12 +73,33 @@ public class SybaseTransformationProvider : TransformationProvider
                 if (!reader.IsDBNull(5)) column.Scale = Convert.ToInt32(reader.GetValue(5));
             }
             if (defaults.TryGetValue(column.Name, out var defaultSql)) column.DefaultValue = CatalogDefaultValue.Parse(defaultSql, type);
-            if ((status & 128) != 0) column.ColumnProperty |= ColumnProperty.Identity;
+            if ((status & 128) != 0) column.IsIdentity = true;
             if (type == DbType.String) column.Size = nativeType is "text" or "unitext" ? int.MaxValue : Convert.ToInt32(reader.GetValue(3));
-            if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             columns.Add(column);
         }
         return columns.ToArray();
+    }
+
+    public override TableConstraint[] GetTableConstraints(string table)
+    {
+        var constraints = new List<TableConstraint>();
+        foreach (var index in GetIndexes(table))
+        {
+            if (index.PrimaryKey) constraints.Add(new PrimaryKeyConstraint(index.Name, index.KeyColumns) { NonClustered = !index.Clustered });
+            else if (index.UniqueConstraint) constraints.Add(new DotNetProjects.Migrator.Framework.UniqueConstraint(index.Name, index.KeyColumns));
+        }
+        var checks = new Dictionary<string, System.Text.StringBuilder>();
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, $"SELECT o.name,c.text FROM sysconstraints con JOIN sysobjects o ON o.id=con.constrid JOIN syscomments c ON c.id=o.id WHERE con.tableid=object_id('{Literal(table)}') AND o.type='C' ORDER BY o.name,c.colid2,c.colid"))
+            while (reader.Read())
+            {
+                var name = reader.GetString(0);
+                if (!checks.TryGetValue(name, out var text)) checks[name] = text = new System.Text.StringBuilder();
+                text.Append(reader.GetString(1));
+            }
+        constraints.AddRange(checks.Select(c => new CheckConstraint(c.Key, ConstraintMetadataReader.CheckExpression(c.Value.ToString()))));
+        constraints.AddRange(GetForeignKeyConstraints(table));
+        return constraints.ToArray();
     }
 
     private Dictionary<string, string> GetColumnDefaults(string table)
@@ -156,14 +175,11 @@ public class SybaseTransformationProvider : TransformationProvider
     public override void RemoveColumnDefaultValue(string table, string column) => ExecuteNonQuery($"ALTER TABLE {table} REPLACE {column} DEFAULT NULL");
     public override void ChangeColumn(string table, Column column)
     {
-        var isUniqueSet = column.ColumnProperty.HasFlag(ColumnProperty.Unique);
-        column.ColumnProperty &= ~ColumnProperty.Unique;
+
         var type = _dialect.GetColumnMapper(column).Type;
-        var nullable = column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "NOT NULL" : "NULL";
+        var nullable = !column.IsNullable ? "NOT NULL" : "NULL";
         ExecuteNonQuery($"ALTER TABLE {table} MODIFY {column.Name} {type} {nullable}");
         ExecuteNonQuery($"ALTER TABLE {table} REPLACE {column.Name} {(column.DefaultValue == null ? "DEFAULT NULL" : _dialect.Default(column.DefaultValue))}");
-        if (isUniqueSet)
-            AddUniqueConstraint($"UX_{table}_{column.Name}", table, [column.Name]);
     }
 
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,

@@ -19,9 +19,8 @@ public class PostgreSQLTransformationProvider_PrimaryKeyWithIdentityTests : Post
         const string propertyName2 = "Color2";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unsigned)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(propertyName2,DbType.Int32){IsUnsigned = true},new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         // Act
         Provider.Insert(testTableName, [propertyName2], [1]);

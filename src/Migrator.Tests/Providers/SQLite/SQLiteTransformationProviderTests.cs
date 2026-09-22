@@ -76,16 +76,16 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         Provider.AddPrimaryKey("MyPrimaryKeyName", testTableName, "Id", "Color");
 
         // Assert
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "Id").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "Color").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == "NotAPrimaryKey").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains("Id") == true), Is.False);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains("Color") == true), Is.False);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains("NotAPrimaryKey") == true), Is.False);
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
         var tableNames = ((SQLiteTransformationProvider)Provider).GetTables();
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "Id").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "Color").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == "NotAPrimaryKey").ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains("Id") == true), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains("Color") == true), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains("NotAPrimaryKey") == true), Is.False);
 
         // Check for intermediate table residues.
         Assert.That(tableNames.Where(x => x.Contains(testTableName)), Has.Exactly(1).Items);
@@ -101,9 +101,9 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.Unique | ColumnProperty.NotNull),
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
             new Column(propertyName2, DbType.Int32)
-        );
+,new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName1, propertyName1)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
@@ -122,11 +122,11 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.False);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName2) == true), Is.False);
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName2) == true), Is.False);
 
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
@@ -143,9 +143,8 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName2, propertyName2)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
@@ -164,11 +163,11 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.False);
+        Assert.That(tableInfoAfter.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
 
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
@@ -185,9 +184,9 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
         var indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
             new Column(propertyName2, DbType.Int32)
-        );
+,new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         Provider.AddUniqueConstraint("MyConstraint", testTableName, [propertyName1, propertyName2]);
@@ -209,12 +208,12 @@ public class SQLiteTransformationProviderTests : SQLiteTransformationProviderTes
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
 
         Assert.That(tableInfoBefore.Uniques, Is.Not.Empty);
         Assert.That(tableInfoBefore.Indexes, Is.Not.Empty);
-        Assert.That(tableInfoAfter.Uniques, Is.Empty);
+        Assert.That(tableInfoAfter.Uniques.Select(u => u.Name), Is.EquivalentTo(tableInfoBefore.Uniques.Select(u => u.Name).Append("MyUniqueConstraintName")));
         Assert.That(tableInfoAfter.Indexes, Is.Empty);
     }
 }

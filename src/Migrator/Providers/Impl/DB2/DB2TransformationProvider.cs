@@ -30,8 +30,6 @@ public class DB2TransformationProvider : TransformationProvider
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
-        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
-            AddIndex(name, new Index { KeyColumns = [column.Name] });
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
@@ -67,7 +65,7 @@ public class DB2TransformationProvider : TransformationProvider
             };
             var column = new Column(reader.GetString(0).Trim(), type)
             {
-                ColumnProperty = reader.GetString(2) == "Y" ? ColumnProperty.Null : ColumnProperty.NotNull
+                IsNullable = reader.GetString(2) == "Y"
             };
             if (!reader.IsDBNull(3)) column.DefaultValue = CatalogDefaultValue.Parse(reader.GetString(3), type);
             if (type == DbType.String) column.Size = Convert.ToInt32(reader.GetValue(4));
@@ -77,8 +75,7 @@ public class DB2TransformationProvider : TransformationProvider
                 column.Scale = Convert.ToInt32(reader.GetValue(7));
             }
             if (type == DbType.VarNumeric) column.Precision = Convert.ToInt32(reader.GetValue(4)) == 8 ? 16 : 34;
-            if (reader.GetString(5) == "Y") column.ColumnProperty |= ColumnProperty.Identity;
-            if (!reader.IsDBNull(6)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
+            if (reader.GetString(5) == "Y") column.IsIdentity = true;
             columns.Add(column);
         }
         return columns.ToArray();
@@ -129,17 +126,14 @@ public class DB2TransformationProvider : TransformationProvider
 
     public override void ChangeColumn(string table, Column column)
     {
-        var isUniqueSet = column.ColumnProperty.HasFlag(ColumnProperty.Unique);
-        column.ColumnProperty &= ~ColumnProperty.Unique;
+
         var prefix = $"ALTER TABLE {Identifier(table)} ALTER COLUMN {Identifier(column.Name)}";
         var type = _dialect.GetColumnMapper(column).Type;
         ExecuteNonQuery($"{prefix} SET DATA TYPE {type}");
         if (column.DefaultValue != null || GetColumns(table).Single(c => c.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)).DefaultValue != null)
             ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");
-        ExecuteNonQuery($"{prefix} {(column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "SET" : "DROP")} NOT NULL");
+        ExecuteNonQuery($"{prefix} {(!column.IsNullable ? "SET" : "DROP")} NOT NULL");
         Reorganize(table);
-        if (isUniqueSet)
-            AddUniqueConstraint($"UX_{table}_{column.Name}", table, [column.Name]);
     }
 
     public override void RemoveColumn(string tableName, string column)

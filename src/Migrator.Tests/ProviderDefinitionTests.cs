@@ -37,9 +37,9 @@ public class ProviderDefinitionTests
     [Test] public void ChangeColumnDoesNotClearCallerUniqueFlag()
     {
         using var provider = new RecordingProvider();
-        var column = new Column("Value", DbType.Int32, ColumnProperty.Unique | ColumnProperty.NotNull);
+        var column = new Column("Value",DbType.Int32){IsNullable = false};
         provider.ChangeColumn("Example", column);
-        Assert.That(column.ColumnProperty, Is.EqualTo(ColumnProperty.Unique | ColumnProperty.NotNull));
+        Assert.That(column.IsNullable, Is.False);
     }
     [Test] public void QuotingReturnsNewArrayWithoutChangingCallerNames()
     {

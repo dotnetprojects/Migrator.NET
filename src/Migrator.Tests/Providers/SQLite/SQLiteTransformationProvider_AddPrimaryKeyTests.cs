@@ -52,8 +52,7 @@ public class SQLiteTransformationProvider_AddPrimaryTests : Generic_AddPrimaryTe
 
         // Arrange/Act
         Provider.AddTable(tableName,
-            new Column(columnName1, DbType.Guid, ColumnProperty.PrimaryKey)
-        );
+            new Column(columnName1,DbType.Guid){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, columnName1)        );
 
         Provider.Insert(tableName, [columnName1], [guid]);
         Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1], [guid]));
@@ -82,13 +81,13 @@ public class SQLiteTransformationProvider_AddPrimaryTests : Generic_AddPrimaryTe
         // NULL != NULL
         // (A, NULL) != (A, NULL)
         // Duplicates! You need to set NotNull if you want to prevent it!
-        Provider.Insert(tableName, [columnName1, columnName2], [guid, null]);
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [guid, null]));
 
-        Provider.Insert(tableName, [columnName1, columnName2], [guid, null]);
-        Provider.Insert(tableName, [columnName1, columnName2], [guid, null]);
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [guid, null]));
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [guid, null]));
 
-        Provider.Insert(tableName, [columnName1, columnName2], [null, guid]);
-        Provider.Insert(tableName, [columnName1, columnName2], [null, guid]);
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [null, guid]));
+        Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [null, guid]));
 
         Provider.Insert(tableName, [columnName1, columnName2], [guid2, guid2]);
         Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName1, columnName2], [guid2, guid2]));

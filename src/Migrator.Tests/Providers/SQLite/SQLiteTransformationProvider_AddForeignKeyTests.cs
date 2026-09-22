@@ -79,17 +79,16 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
     public void AddForeignKey_3_Success()
     {
         Provider.AddTable("Task",
-           new Column(name: "BinId", type: DbType.Int32, property: ColumnProperty.NotNull),
-           new Column(name: "CreationTimeStamp", type: DbType.DateTime2, property: ColumnProperty.NotNull),
-           new Column(name: "EstimatedPickTime", type: DbType.Int32, property: ColumnProperty.Null),
-           new Column(name: "Id", type: DbType.Int32, property: ColumnProperty.NotNull),
-           new Column(name: "Item", type: DbType.Int32, property: ColumnProperty.Null),
-           new Column(name: "Order", type: DbType.Int32, property: ColumnProperty.Null),
-           new Column(name: "TaskGroupId", type: DbType.Int32, property: ColumnProperty.Null)
-       );
+           new Column(name: "BinId",type: DbType.Int32){IsNullable = false},
+           new Column(name: "CreationTimeStamp",type: DbType.DateTime2){IsNullable = false},
+           new Column(name: "EstimatedPickTime",type: DbType.Int32),
+           new Column(name: "Id",type: DbType.Int32){IsNullable = false},
+           new Column(name: "Item",type: DbType.Int32),
+           new Column(name: "Order",type: DbType.Int32),
+           new Column(name: "TaskGroupId",type: DbType.Int32)       );
 
         Provider.AddTable("TaskGroup",
-             new Column(name: "CreationTimeStamp", type: DbType.DateTime2, property: ColumnProperty.NotNull),
+             new Column(name: "CreationTimeStamp",type: DbType.DateTime2){IsNullable = false},
              new Column(name: "Id", type: DbType.Int32)
          );
 
@@ -108,7 +107,7 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         using var provider = new SQLiteTransformationProvider(new SQLiteDialect(), connection, "default", null);
         Assert.That(provider.IsPragmaForeignKeysOn(), Is.True);
 
-        provider.AddTable("Parent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey));
+        provider.AddTable("Parent", new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "Parent", "Id"));
         provider.AddTable("Child", new Column("ParentId", DbType.Int32));
         provider.ExecuteNonQuery("INSERT INTO Parent (Id) VALUES (1), (2)");
         provider.ExecuteNonQuery("INSERT INTO Child (ParentId) VALUES (1), (1), (2)");
