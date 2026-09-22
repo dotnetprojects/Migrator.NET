@@ -85,6 +85,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             Name = name,
             ParentColumns = parentColumns,
             ParentTable = parentTable,
+            OnDelete = new ForeignKeyConstraintMapper().SqlForConstraint(constraint),
         };
 
         sqliteTableInfo.ForeignKeys
@@ -1457,7 +1458,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 throw new Exception("No foreign key constraint name given");
             }
 
-            foreignKeyStrings.Add($"CONSTRAINT {fk.Name} FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})");
+            var foreignKeySql = $"CONSTRAINT {fk.Name} FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})";
+            if (!string.IsNullOrWhiteSpace(fk.OnDelete) && !string.Equals(fk.OnDelete, "NO ACTION", StringComparison.OrdinalIgnoreCase))
+            {
+                foreignKeySql += $" ON DELETE {fk.OnDelete}";
+            }
+
+            foreignKeyStrings.Add(foreignKeySql);
         }
 
         if (foreignKeyStrings.Count > 0)
