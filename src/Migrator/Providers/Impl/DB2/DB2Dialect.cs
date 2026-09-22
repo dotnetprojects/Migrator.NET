@@ -23,9 +23,9 @@ public class DB2Dialect : Dialect
         RegisterColumnType(DbType.DateTime2, "TIMESTAMP");
         RegisterColumnType(DbType.DateTimeOffset, "TIMESTAMP");
         RegisterColumnType(DbType.Decimal, "DECIMAL(18,5)");
-        RegisterColumnTypeWithPrecision(DbType.Decimal, "DECIMAL({precision},{scale})");
+        RegisterColumnTypeWithParameters(DbType.Decimal, "DECIMAL({precision},{scale})");
         RegisterColumnType(DbType.VarNumeric, "DECFLOAT(34)");
-        RegisterColumnTypeWithPrecision(DbType.VarNumeric, "DECFLOAT({precision})");
+        RegisterColumnTypeWithParameters(DbType.VarNumeric, "DECFLOAT({precision})");
         RegisterColumnType(DbType.Double, "DOUBLE PRECISION");
         RegisterColumnType(DbType.Guid, "CHAR(36)");
         RegisterColumnType(DbType.Int16, "SMALLINT");

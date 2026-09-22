@@ -16,7 +16,7 @@ public class SybaseDialect : Dialect
         RegisterColumnType(DbType.Byte, "TINYINT");
         RegisterColumnType(DbType.Boolean, "BIT");
         RegisterColumnType(DbType.Decimal, "DECIMAL(18,5)");
-        RegisterColumnTypeWithPrecision(DbType.Decimal, "DECIMAL({precision},{scale})");
+        RegisterColumnTypeWithParameters(DbType.Decimal, "DECIMAL({precision},{scale})");
         RegisterColumnType(DbType.Currency, "MONEY");
         RegisterColumnType(DbType.Double, "FLOAT");
         RegisterColumnType(DbType.Single, "REAL");

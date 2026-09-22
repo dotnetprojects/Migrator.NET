@@ -1986,6 +1986,16 @@ public abstract class TransformationProvider : ITransformationProvider
             parameter.DbType = DbType.Guid;
             parameter.Value = (Guid)value;
         }
+        else if (value is byte[] bytes)
+        {
+            parameter.DbType = DbType.Binary;
+            parameter.Value = bytes;
+        }
+        else if (value is byte)
+        {
+            parameter.DbType = DbType.Byte;
+            parameter.Value = value;
+        }
         else if (value is short)
         {
             parameter.DbType = DbType.Int16;

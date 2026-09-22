@@ -23,7 +23,7 @@ public class InformixDialect : Dialect
         RegisterColumnType(DbType.DateTime2, "DATETIME YEAR TO FRACTION(5)");
         RegisterColumnType(DbType.DateTimeOffset, "DATETIME YEAR TO FRACTION(5)");
         RegisterColumnType(DbType.Decimal, "DECIMAL(18,5)");
-        RegisterColumnTypeWithPrecision(DbType.Decimal, "DECIMAL({precision},{scale})");
+        RegisterColumnTypeWithParameters(DbType.Decimal, "DECIMAL({precision},{scale})");
         RegisterColumnType(DbType.Double, "DOUBLE PRECISION");
         RegisterColumnType(DbType.Guid, "CHAR(36)");
         RegisterColumnType(DbType.Int16, "SMALLINT");

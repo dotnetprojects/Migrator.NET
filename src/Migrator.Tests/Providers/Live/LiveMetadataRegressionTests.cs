@@ -125,7 +125,7 @@ public class LiveMetadataRegressionTests
         var column = f.Provider.GetColumns("bytes").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Byte));
         f.Provider.AddTable("copied_bytes", column);
-        f.Provider.Insert("copied_bytes", ["byte_value"], [255]);
+        f.Provider.Insert("copied_bytes", ["byte_value"], [(byte)255]);
         Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT byte_value FROM copied_bytes")), Is.EqualTo(255));
     });
 
