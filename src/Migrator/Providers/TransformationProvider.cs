@@ -1752,6 +1752,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             parameter.DbType = DbType.Byte;
             parameter.Value = value;
         }
+        else if (value is sbyte signedByte)
+        {
+            parameter.DbType = DbType.Int16;
+            parameter.Value = (short)signedByte;
+        }
         else if (value is short)
         {
             parameter.DbType = DbType.Int16;
@@ -1780,6 +1785,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         else if (value is ulong)
         {
             parameter.DbType = DbType.UInt64;
+            parameter.Value = value;
+        }
+        else if (value is float)
+        {
+            parameter.DbType = DbType.Single;
             parameter.Value = value;
         }
         else if (value is double)

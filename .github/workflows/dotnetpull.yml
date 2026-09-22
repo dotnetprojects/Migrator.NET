@@ -49,7 +49,13 @@ jobs:
           fi
       - name: Test
         shell: pwsh
-        run: ./.github/scripts/test.ps1 -Database ${{ matrix.database }}
+        run: ./.github/scripts/test.ps1 -Database ${{ matrix.database }} -Coverage
+      - name: Verify coverage was collected
+        shell: pwsh
+        run: |
+          if (@(Get-ChildItem TestResults -Recurse -Filter coverage.cobertura.xml).Count -ne 1) {
+            throw 'Expected one Coverlet report for this test group.'
+          }
       - name: Collect database logs
         if: always()
         run: |
@@ -72,10 +78,13 @@ jobs:
             docker rm -fv migrator-db
           fi
   coverage:
-    name: Verify complete test coverage
+    name: Code coverage and PR comparison
     needs: test
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -83,3 +92,52 @@ jobs:
           pattern: test-results-*
           path: TestResults
       - run: python3 .github/scripts/verify-test-coverage.py TestResults
+      - run: python3 .github/scripts/test-code-coverage.py
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Merge coverage and generate HTML report
+        run: |
+          dotnet tool install dotnet-reportgenerator-globaltool --version 5.4.18 --tool-path "$RUNNER_TEMP/reportgenerator"
+          "$RUNNER_TEMP/reportgenerator/reportgenerator" '-reports:TestResults/**/coverage.cobertura.xml' '-targetdir:artifacts/coverage' '-reporttypes:Html;Cobertura'
+      - name: Find coverage for the exact PR base commit
+        if: github.event_name == 'pull_request'
+        id: baseline
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const base = context.payload.pull_request.base;
+            // Only trust reports from successful push/manual runs in this repository.
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              ...context.repo, workflow_id: 'dotnetpull.yml', head_sha: base.sha,
+              status: 'success', per_page: 100
+            });
+            for (const run of runs) {
+              if (!['push', 'workflow_dispatch'].includes(run.event) || run.head_branch !== base.ref) continue;
+              const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+                ...context.repo, run_id: run.id, per_page: 100
+              });
+              if (artifacts.some(a => a.name === 'code-coverage' && !a.expired)) {
+                core.setOutput('run-id', String(run.id));
+                break;
+              }
+            }
+      - name: Download baseline coverage
+        if: steps.baseline.outputs.run-id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: code-coverage
+          path: artifacts/baseline
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.baseline.outputs.run-id }}
+      - name: Write coverage and delta to the PR check summary
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: python3 .github/scripts/summarize-code-coverage.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage
+          path: artifacts/coverage/
+          if-no-files-found: error
+          retention-days: 90

@@ -80,7 +80,8 @@ public class FirebirdTransformationProvider : TransformationProvider
         using var reader = ExecuteQuery(cmd, $"""
             SELECT TRIM(r.RDB$FIELD_NAME), f.RDB$FIELD_TYPE, r.RDB$NULL_FLAG,
                    r.RDB$DEFAULT_SOURCE, f.RDB$CHARACTER_LENGTH, r.RDB$IDENTITY_TYPE,
-                   f.RDB$FIELD_SUB_TYPE, f.RDB$FIELD_PRECISION, f.RDB$FIELD_SCALE
+                   f.RDB$FIELD_SUB_TYPE, f.RDB$FIELD_PRECISION, f.RDB$FIELD_SCALE,
+                   f.RDB$CHARACTER_SET_ID
             FROM RDB$RELATION_FIELDS r JOIN RDB$FIELDS f ON f.RDB$FIELD_NAME=r.RDB$FIELD_SOURCE
             WHERE r.RDB$RELATION_NAME='{CatalogName(table)}' ORDER BY r.RDB$FIELD_POSITION
             """);
@@ -90,6 +91,8 @@ public class FirebirdTransformationProvider : TransformationProvider
             {
                 7 => DbType.Int16, 8 => DbType.Int32, 16 => DbType.Int64, 10 => DbType.Single,
                 27 => DbType.Double, 12 => DbType.Date, 13 => DbType.Time, 35 => DbType.DateTime,
+                14 or 37 when !reader.IsDBNull(9) && Convert.ToInt32(reader.GetValue(9)) == 1 => DbType.Binary,
+                14 => DbType.StringFixedLength,
                 23 => DbType.Boolean, 261 => !reader.IsDBNull(6) && Convert.ToInt32(reader.GetValue(6)) == 1 ? DbType.String : DbType.Binary, _ => DbType.String
             };
             if (!reader.IsDBNull(6) && Convert.ToInt32(reader.GetValue(6)) is 1 or 2 && type is DbType.Int16 or DbType.Int32 or DbType.Int64)

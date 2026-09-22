@@ -756,6 +756,12 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             parameter.DbType = DbType.Int64;
             parameter.Value = Convert.ToInt64(value);
         }
+        else if (value is ulong unsigned)
+        {
+            // PostgreSQL has no unsigned bigint; the dialect uses numeric(20,0).
+            parameter.DbType = DbType.Decimal;
+            parameter.Value = (decimal)unsigned;
+        }
         else
         {
             base.ConfigureParameterWithValue(parameter, index, value);

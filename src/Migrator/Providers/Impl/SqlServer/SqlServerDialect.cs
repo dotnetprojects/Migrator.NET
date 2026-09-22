@@ -33,7 +33,7 @@ public class SqlServerDialect : Dialect
         RegisterColumnType(DbType.AnsiString, 8000, "VARCHAR($l)");
         RegisterColumnType(DbType.AnsiString, int.MaxValue, "TEXT");
         RegisterColumnType(DbType.Binary, "VARBINARY(8000)");
-        RegisterColumnType(DbType.Binary, int.MaxValue - 1, "VARBINARY($l)");
+        RegisterColumnType(DbType.Binary, 8000, "VARBINARY($l)");
         RegisterColumnType(DbType.Binary, int.MaxValue, "VARBINARY(max)");
         RegisterColumnType(DbType.Boolean, "BIT");
         RegisterColumnType(DbType.Byte, "TINYINT");

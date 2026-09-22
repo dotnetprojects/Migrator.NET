@@ -1,12 +1,14 @@
 param(
     [ValidateSet('Unit','SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase','Hana')]
-    [string]$Database = 'Unit'
+    [string]$Database = 'Unit',
+    [switch]$Coverage
 )
 $ErrorActionPreference = 'Stop'
 $databases = @('SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase','Hana')
 $filter = if ($Database -eq 'Unit') { ($databases | ForEach-Object { "TestCategory!=$_" }) -join '&' } else { "TestCategory=$Database" }
 $xmlDirectory = Join-Path (Get-Location) "TestResults/$Database"
-dotnet test Migrator.slnx --no-build --filter $filter --logger "trx;LogFileName=$Database.trx" --results-directory TestResults -- NUnit.NumberOfTestWorkers=0 "NUnit.TestOutputXml=$xmlDirectory"
+$coverageArguments = if ($Coverage) { @('--collect', 'XPlat Code Coverage', '--settings', "$PSScriptRoot/../coverage.runsettings") } else { @() }
+dotnet test Migrator.slnx --no-build --filter $filter --logger "trx;LogFileName=$Database.trx" --results-directory TestResults @coverageArguments -- NUnit.NumberOfTestWorkers=0 "NUnit.TestOutputXml=$xmlDirectory"
 if ($LASTEXITCODE -ne 0) { throw "Tests failed for $Database" }
 [xml]$results = Get-Content "TestResults/$Database.trx"
 $counters = $results.TestRun.ResultSummary.Counters

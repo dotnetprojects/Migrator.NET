@@ -1559,6 +1559,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             parameter.DbType = DbType.Int64;
             parameter.Value = Convert.ToInt64(value);
         }
+        else if (value is ulong unsigned)
+        {
+            // SQLite INTEGER cannot represent the upper half of UInt64. Do not let
+            // a driver wrap it to a negative integer or round it through a REAL.
+            parameter.DbType = DbType.Int64;
+            parameter.Value = checked((long)unsigned);
+        }
         else if (value is Guid || value is Guid?)
         {
             parameter.DbType = DbType.Binary;

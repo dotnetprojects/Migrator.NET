@@ -22,6 +22,8 @@ The IBM Linux packages and ASE client are conditional test-project dependencies 
 
 ## Coverage and isolation
 
+The shared [data-type and boundary suite](data-type-boundary-tests.md) extends all eleven engines with explicit contracts for every `MigratorDbType`, stored numeric/string/binary boundaries, NULL/default behavior and populated-column changes. It documents engine differences and the remaining qualification gaps separately from code coverage.
+
 `LiveDatabaseTests` adds ten scenarios each for MySQL, MariaDB, Firebird, Db2, Informix and Sybase: database/view catalogs; table/column metadata; persisted CRUD and defaults; column add/rename/type/nullability/default changes and removal; identity generation; primary-key enforcement/removal; foreign-key enforcement/removal; unique/check enforcement/removal; ordered composite index metadata/removal; and two complete migration up/down cycles with persisted version tracking.
 
 Every test creates a uniquely named database (a schema for Db2, an independent server-side file for Firebird). Connections disable pooling. Teardown disposes the provider and drops that database/schema; Db2 removes tables in dependency order first. Migration cycles reuse the same isolated store to exercise repeatability even on engines whose DDL commits automatically. ASE test databases enable full logging for ALTER TABLE and allow DDL in transactions and allocate 32 MB of data plus a separate 16 MB log allocation to accommodate the image's model database.
@@ -31,6 +33,16 @@ The Hana suite creates a disposable schema per test and covers imperative/fluent
 Existing SQL Server, PostgreSQL, Oracle and SQLite suites continue to run in full. The Unit job uses the complement of all database categories. An audit compares NUnit's discovery count against the union of all job results and rejects missing or duplicate test assignments. Each job rejects zero executed tests; new suites also reject skips. Previously ignored default-removal and SQL Server uniqueness cases have behavioral replacements. TRX and NUnit XML expose any remaining ignored case and its reason; a skipped case is never evidence of support.
 
 Readiness and startup are bounded; database jobs time out after 35 minutes. Startup logs, container logs/inspection, TRX and NUnit XML are uploaded on success or failure. Registry downloads may retry; test failures never do. A new commit cancels an obsolete run.
+
+## Code coverage in pull requests
+
+The `.NET Pull Request` workflow collects [Coverlet](https://github.com/coverlet-coverage/coverlet/blob/v6.0.4/Documentation/VSTestIntegration.md) Cobertura reports in every test group. ReportGenerator merges covered lines and branches across all groups, rather than averaging their percentages. The measured assemblies are `DotNetProjects.Migrator*` (core, tool and dependency injection); test assemblies, dependencies and generated `obj` files are excluded.
+
+In a pull request, open **Checks â†’ Code coverage and PR comparison â†’ Summary** to see the combined line and branch percentages and their changes in percentage points. The current report measures GitHub's PR merge result. The baseline comes only from a successful push/manual run of this workflow on the exact target commit and target branch. Missing or expired baselines are explicitly marked unavailable, never treated as zero coverage. After initially merging this configuration, let the master push workflow complete to establish the first baseline. For another target branch, run the workflow manually on that branch's target commit. Artifacts are retained for 90 days.
+
+Download **code-coverage** from the workflow run and open `index.html` for the detailed HTML report. `Cobertura.xml` and `summary.md` are included. The comparison is informational and does not enforce a coverage threshold. It uses read-only GitHub permissions, works for fork PRs, and requires no external service or additional secret; it does not post a PR conversation comment.
+
+To collect coverage locally after building, run `./.github/scripts/test.ps1 -Database Unit -Coverage` (or select a database group). Raw reports are written to `TestResults/<guid>/coverage.cobertura.xml`. Collector configuration lives in `.github/coverage.runsettings`.
 
 ## Local reproduction
 
