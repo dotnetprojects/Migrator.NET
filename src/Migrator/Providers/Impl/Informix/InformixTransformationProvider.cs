@@ -105,7 +105,8 @@ public class InformixTransformationProvider : TransformationProvider
         if (kind != "L")
             return CatalogDefaultValue.Parse(kind switch
             {
-                "N" => "NULL", "C" => "CURRENT", "T" => "TODAY",
+                // Match the DATETIME precision emitted by InformixDialect.
+                "N" => "NULL", "C" => "CURRENT YEAR TO FRACTION(5)", "T" => "TODAY",
                 "U" => "USER", "S" => "DBSERVERNAME",
                 _ => throw new NotSupportedException($"Unsupported Informix default kind: {kind}")
             }, type);
