@@ -109,7 +109,10 @@ public class InformixTransformationProvider : TransformationProvider
                 "U" => "USER", "S" => "DBSERVERNAME",
                 _ => throw new NotSupportedException($"Unsupported Informix default kind: {kind}")
             }, type);
-        var value = catalogValue.TrimEnd();
+        // Character literals are null-terminated before the CHAR(256) padding.
+        // Stop at the terminator so meaningful trailing spaces remain part of the literal.
+        var terminator = catalogValue.IndexOf('\0');
+        var value = terminator >= 0 ? catalogValue[..terminator] : catalogValue.TrimEnd();
         if (type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength)
             return value;
         if (type == DbType.Boolean)

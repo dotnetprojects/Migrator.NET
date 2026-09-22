@@ -28,7 +28,7 @@ public class LiveMetadataRegressionTests
     [Test, Category("Informix")]
     public void InformixTypedDefaultsSurviveMetadataCopy() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
-        f.Provider.ExecuteNonQuery("CREATE TABLE source_values (id INTEGER, amount INTEGER DEFAULT 7, price DECIMAL(12,3) DEFAULT 12.345, enabled BOOLEAN DEFAULT 't', disabled BOOLEAN DEFAULT 'f', label VARCHAR(40) DEFAULT ' O''Brien', stamp DATETIME YEAR TO FRACTION(5) DEFAULT CURRENT YEAR TO FRACTION(5), today_value DATE DEFAULT TODAY, null_value INTEGER DEFAULT NULL)");
+        f.Provider.ExecuteNonQuery("CREATE TABLE source_values (id INTEGER, amount INTEGER DEFAULT 7, price DECIMAL(12,3) DEFAULT 12.345, enabled BOOLEAN DEFAULT 't', disabled BOOLEAN DEFAULT 'f', label VARCHAR(40) DEFAULT ' O''Brien ', stamp DATETIME YEAR TO FRACTION(5) DEFAULT CURRENT YEAR TO FRACTION(5), today_value DATE DEFAULT TODAY, null_value INTEGER DEFAULT NULL)");
         var columns = f.Provider.GetColumns("source_values");
         foreach (var column in columns)
             TestContext.WriteLine($"Default {column.Name}: [{column.DefaultValue}] ({column.DefaultValue?.GetType().Name})");
@@ -36,7 +36,7 @@ public class LiveMetadataRegressionTests
         Assert.That(columns.Single(c => c.Name == "price").DefaultValue, Is.TypeOf<decimal>().And.EqualTo(12.345m));
         Assert.That(columns.Single(c => c.Name == "enabled").DefaultValue, Is.TypeOf<bool>().And.EqualTo(true));
         Assert.That(columns.Single(c => c.Name == "disabled").DefaultValue, Is.TypeOf<bool>().And.EqualTo(false));
-        Assert.That(columns.Single(c => c.Name == "label").DefaultValue, Is.EqualTo(" O'Brien"));
+        Assert.That(columns.Single(c => c.Name == "label").DefaultValue, Is.EqualTo(" O'Brien "));
         Assert.That(columns.Single(c => c.Name == "null_value").DefaultValue, Is.Null);
         f.Provider.AddTable("copied_values", columns);
         f.Provider.Insert("copied_values", ["id"], [1]);
@@ -44,7 +44,7 @@ public class LiveMetadataRegressionTests
         Assert.That(Convert.ToDecimal(f.Provider.ExecuteScalar("SELECT price FROM copied_values")), Is.EqualTo(12.345m));
         Assert.That(Convert.ToBoolean(f.Provider.ExecuteScalar("SELECT enabled FROM copied_values")), Is.True);
         Assert.That(Convert.ToBoolean(f.Provider.ExecuteScalar("SELECT disabled FROM copied_values")), Is.False);
-        Assert.That(f.Provider.ExecuteScalar("SELECT label FROM copied_values"), Is.EqualTo(" O'Brien"));
+        Assert.That(f.Provider.ExecuteScalar("SELECT label FROM copied_values"), Is.EqualTo(" O'Brien "));
         Assert.That(f.Provider.ExecuteScalar("SELECT stamp FROM copied_values"), Is.Not.Null.And.Not.EqualTo(DBNull.Value));
         Assert.That(f.Provider.ExecuteScalar("SELECT today_value FROM copied_values"), Is.Not.Null.And.Not.EqualTo(DBNull.Value));
         Assert.That(f.Provider.ExecuteScalar("SELECT null_value FROM copied_values"), Is.EqualTo(DBNull.Value));
