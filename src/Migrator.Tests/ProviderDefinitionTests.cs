@@ -6,6 +6,7 @@ using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using NUnit.Framework;
+using NSubstitute;
 namespace Migrator.Tests;
 public class ProviderDefinitionTests
 {
@@ -19,6 +20,17 @@ public class ProviderDefinitionTests
         public override List<string> GetDatabases() => new();
         public override bool ConstraintExists(string table, string name) => false;
         public override bool IndexExists(string table, string name) => false;
+    }
+    [Test] public void NullableScalarRetainsTypedValuesAndHandlesNulls()
+    {
+        var provider = Substitute.For<ITransformationProvider>();
+        var id = Guid.NewGuid();
+        provider.ExecuteScalar("guid").Returns(id);
+        provider.ExecuteScalar("null").Returns(DBNull.Value);
+        provider.ExecuteScalar("number").Returns(12L);
+        Assert.That(provider.ExecuteNullableScalar<Guid>("guid"), Is.EqualTo(id));
+        Assert.That(provider.ExecuteNullableScalar<int>("null"), Is.Null);
+        Assert.That(provider.ExecuteNullableScalar<int>("number"), Is.EqualTo(12));
     }
     [Test] public void AddColumnCarriesPrecisionAndScaleIntoDialectMapping()
     {

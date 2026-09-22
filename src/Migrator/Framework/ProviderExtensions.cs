@@ -9,7 +9,9 @@ public static class ProviderExtensions
     public static T? ExecuteNullableScalar<T>(this ITransformationProvider provider, string sql) where T : struct
     {
         var value = provider.ExecuteScalar(sql);
-        return value == null || value == DBNull.Value ? null : (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture);
+        if (value == null || value == DBNull.Value) return null;
+        if (value is T typed) return typed;
+        return (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     public static int? GetNullableColumnContentSize(this ITransformationProvider provider, string table, string column)

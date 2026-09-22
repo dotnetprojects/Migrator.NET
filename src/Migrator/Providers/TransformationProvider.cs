@@ -857,7 +857,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         var stringBuilder = new StringBuilder();
         stringBuilder.Append($"ALTER TABLE {childTable} ADD CONSTRAINT {name} FOREIGN KEY ({childColumnsString}) REFERENCES {parentTable} ({parentColumnsString})");
-        stringBuilder.Append($"ON UPDATE {constraintResolved} ON DELETE {constraintResolved}");
+        stringBuilder.Append($"ON DELETE {constraintResolved} ON UPDATE {constraintResolved}");
 
         ExecuteNonQuery(stringBuilder.ToString());
     }
@@ -1568,8 +1568,8 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         if (oracle && onUpdate != ForeignKeyConstraintType.NoAction)
             throw new NotSupportedException("Oracle does not support ON UPDATE foreign key actions.");
         var sql = $"ALTER TABLE {QuoteTableNameIfRequired(childTable)} ADD CONSTRAINT {QuoteConstraintNameIfRequired(name)} FOREIGN KEY ({string.Join(", ", QuoteColumnNamesIfRequired(childColumns))}) REFERENCES {QuoteTableNameIfRequired(parentTable)} ({string.Join(", ", QuoteColumnNamesIfRequired(parentColumns))})";
-        if (!oracle) sql += $" ON UPDATE {updateAction}";
         if (!oracle || onDelete != ForeignKeyConstraintType.NoAction) sql += $" ON DELETE {deleteAction}";
+        if (!oracle) sql += $" ON UPDATE {updateAction}";
         ExecuteNonQuery(sql);
     }
 
