@@ -118,7 +118,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         }
         else
         {
-            ExecuteAdmin("CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : database == "Sybase" ? " ON default = 32" : ""));
+            ExecuteAdmin("CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : database == "Sybase" ? " ON default = 32 LOG ON default = 16" : ""));
             var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
             builder["Database"] = isolatedName;
             connectionString = builder.ConnectionString;
@@ -137,6 +137,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         }
         provider = ProviderFactory.Create(providerType, connectionString, null);
         if (database == "Db2") provider.ExecuteNonQuery("SET CURRENT SCHEMA " + isolatedName);
+        if (database == "Sybase") provider.ExecuteNonQuery("CHECKPOINT");
     }
 
     private void ExecuteAdmin(string sql)
@@ -244,6 +245,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.Dispose();
         provider = ProviderFactory.Create(providerType, connectionString, null);
         if (database == "Db2") provider.ExecuteNonQuery("SET CURRENT SCHEMA " + isolatedName);
+        if (database == "Sybase") provider.ExecuteNonQuery("CHECKPOINT");
         Assert.That(provider.ExecuteScalar("SELECT label FROM items WHERE id=1"), Is.EqualTo("O'Brien"));
         provider.Update("items", ["label"], ["changed"], "id=1");
         Assert.That(provider.ExecuteScalar("SELECT label FROM items WHERE id=1"), Is.EqualTo("changed"));
