@@ -202,7 +202,6 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     public override void ChangeColumn(string table, Column column)
     {
         var existingColumn = GetColumnByName(table, column.Name);
-        if (column.DefaultValue == null) RemoveColumnDefaultValue(table, column.Name);
 
         if (column.Type == DbType.String)
         {
@@ -230,6 +229,9 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         }
         else
         {
+            // String changes replace the column, which already removes its default.
+            // For in-place changes Oracle otherwise retains the existing default.
+            if (column.DefaultValue == null) RemoveColumnDefaultValue(table, column.Name);
             if (((existingColumn.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull)
                 && ((column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull))
             {
