@@ -129,6 +129,8 @@ public class DB2TransformationProvider : TransformationProvider
 
     public override void ChangeColumn(string table, Column column)
     {
+        var isUniqueSet = column.ColumnProperty.HasFlag(ColumnProperty.Unique);
+        column.ColumnProperty &= ~ColumnProperty.Unique;
         var prefix = $"ALTER TABLE {Identifier(table)} ALTER COLUMN {Identifier(column.Name)}";
         var type = _dialect.GetColumnMapper(column).Type;
         ExecuteNonQuery($"{prefix} SET DATA TYPE {type}");
@@ -136,6 +138,8 @@ public class DB2TransformationProvider : TransformationProvider
             ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");
         ExecuteNonQuery($"{prefix} {(column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "SET" : "DROP")} NOT NULL");
         Reorganize(table);
+        if (isUniqueSet)
+            AddUniqueConstraint($"UX_{table}_{column.Name}", table, [column.Name]);
     }
 
     public override void RemoveColumn(string tableName, string column)

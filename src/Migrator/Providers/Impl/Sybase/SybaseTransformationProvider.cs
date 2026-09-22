@@ -155,10 +155,14 @@ public class SybaseTransformationProvider : TransformationProvider
     public override void RemoveColumnDefaultValue(string table, string column) => ExecuteNonQuery($"ALTER TABLE {table} REPLACE {column} DEFAULT NULL");
     public override void ChangeColumn(string table, Column column)
     {
+        var isUniqueSet = column.ColumnProperty.HasFlag(ColumnProperty.Unique);
+        column.ColumnProperty &= ~ColumnProperty.Unique;
         var type = _dialect.GetColumnMapper(column).Type;
         var nullable = column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "NOT NULL" : "NULL";
         ExecuteNonQuery($"ALTER TABLE {table} MODIFY {column.Name} {type} {nullable}");
         ExecuteNonQuery($"ALTER TABLE {table} REPLACE {column.Name} {(column.DefaultValue == null ? "DEFAULT NULL" : _dialect.Default(column.DefaultValue))}");
+        if (isUniqueSet)
+            AddUniqueConstraint($"UX_{table}_{column.Name}", table, [column.Name]);
     }
 
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns, ForeignKeyConstraintType constraint)

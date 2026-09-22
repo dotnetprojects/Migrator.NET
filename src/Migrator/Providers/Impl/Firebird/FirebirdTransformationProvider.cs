@@ -160,12 +160,16 @@ public class FirebirdTransformationProvider : TransformationProvider
 
     public override void ChangeColumn(string table, Column column)
     {
+        var isUniqueSet = column.ColumnProperty.HasFlag(ColumnProperty.Unique);
+        column.ColumnProperty &= ~ColumnProperty.Unique;
         var prefix = $"ALTER TABLE {QuoteTableNameIfRequired(table)} ALTER {QuoteColumnNameIfRequired(column.Name)}";
         var type = _dialect.GetColumnMapper(column).Type;
         ExecuteNonQuery($"{prefix} TYPE {type}");
         if (column.DefaultValue != null || GetColumns(table).Single(c => c.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)).DefaultValue != null)
             ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");
         ExecuteNonQuery($"{prefix} {(column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "SET" : "DROP")} NOT NULL");
+        if (isUniqueSet)
+            AddUniqueConstraint($"UX_{table}_{column.Name}", table, [column.Name]);
     }
 
     public override string AddIndex(string table, Index index)

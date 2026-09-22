@@ -10,14 +10,52 @@ namespace Migrator.Tests.Providers.Live;
 [NonParallelizable]
 public class LiveMetadataRegressionTests
 {
+    [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
+    [TestCase("Firebird", ProviderTypes.Firebird, Category = "Firebird")]
+    [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
+    public void ChangeColumnCreatesRequestedUniqueConstraint(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
+    {
+        f.Provider.AddTable("unique_values", new Column("amount", DbType.Int32, ColumnProperty.NotNull));
+        f.Provider.Insert("unique_values", ["amount"], [7]);
+        f.Provider.ChangeColumn("unique_values", new Column("amount", DbType.Int64, ColumnProperty.NotNull | ColumnProperty.Unique));
+        Assert.That(f.Provider.ConstraintExists("unique_values", "UX_unique_values_amount"), Is.True);
+        Assert.That(f.Provider.GetIndexes("unique_values").Any(i => i.UniqueConstraint && i.KeyColumns.Single().Equals("amount", StringComparison.OrdinalIgnoreCase)), Is.True);
+        Assert.That(() => f.Provider.Insert("unique_values", ["amount"], [7L]), Throws.InstanceOf<System.Data.Common.DbException>());
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM unique_values")), Is.EqualTo(1));
+        f.Provider.RemoveConstraint("unique_values", "UX_unique_values_amount");
+        f.Provider.Insert("unique_values", ["amount"], [7L]);
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM unique_values")), Is.EqualTo(2));
+    });
+
+    [Test, Category("Informix")]
+    public void InformixLargeTextMetadataCopiesAsLargeObjects() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
+    {
+        f.Provider.ExecuteNonQuery("CREATE TABLE source_values (text_value TEXT, clob_value CLOB)");
+        var columns = f.Provider.GetColumns("source_values");
+        Assert.That(columns.Select(c => c.Type), Is.EqualTo(new[] { DbType.String, DbType.String }));
+        Assert.That(columns.Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
+        f.Provider.AddTable("copied_values", columns);
+        Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
+        f.Provider.AddTable("sized_values",
+            new Column("bounded_value", DbType.String, 32739),
+            new Column("large_value", DbType.AnsiString, int.MaxValue));
+        Assert.That(f.Provider.GetColumns("sized_values").Select(c => c.Size), Is.EqualTo(new[] { 32739, int.MaxValue }));
+        var content = new string('z', 40000);
+        f.Provider.Insert("copied_values", ["text_value", "clob_value"], [content, content]);
+        Assert.That(f.Provider.ExecuteScalar("SELECT text_value FROM copied_values"), Is.EqualTo(content));
+        Assert.That(f.Provider.ExecuteScalar("SELECT clob_value FROM copied_values"), Is.EqualTo(content));
+    });
+
     [Test, Category("Informix")]
     public void InformixCharacterLengthsSurviveMetadataCopy() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (long_text LVARCHAR(3000), short_text VARCHAR(40,10), fixed_text CHAR(300))");
         var columns = f.Provider.GetColumns("source_values");
         Assert.That(columns.Select(c => c.Size), Is.EqualTo(new[] { 3000, 40, 300 }));
+        Assert.That(columns.Select(c => c.Type), Is.EqualTo(new[] { DbType.String, DbType.String, DbType.StringFixedLength }));
         f.Provider.AddTable("copied_values", columns);
         Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { 3000, 40, 300 }));
+        Assert.That(f.Provider.GetColumns("copied_values").Last().Type, Is.EqualTo(DbType.StringFixedLength));
         var content = new string('x', 2500);
         f.Provider.Insert("copied_values", ["long_text", "short_text", "fixed_text"], [content, "short", new string('y', 300)]);
         Assert.That(f.Provider.ExecuteScalar("SELECT long_text FROM copied_values"), Is.EqualTo(content));

@@ -52,30 +52,37 @@ public class InformixTransformationProvider : TransformationProvider
         var columns = new List<Column>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
-            SELECT c.colname, c.coltype, c.collength, d.default
+            SELECT c.colname, c.coltype, c.collength, d.default, x.name
             FROM syscolumns c JOIN systables t ON c.tabid=t.tabid
             LEFT JOIN sysdefaults d ON d.tabid=c.tabid AND d.colno=c.colno
+            LEFT JOIN sysxtdtypes x ON x.extended_id=c.extended_id
             WHERE t.owner=USER AND t.tabname='{Name(table)}' ORDER BY c.colno
             """);
         while (reader.Read())
         {
             var code = Convert.ToInt32(reader.GetValue(1));
+            var extendedType = reader.IsDBNull(4) ? "" : reader.GetString(4).Trim().ToLowerInvariant();
             var type = (code & 255) switch
             {
                 1 => DbType.Int16, 2 or 6 => DbType.Int32, 17 or 18 or 52 or 53 => DbType.Int64,
                 3 => DbType.Double, 4 => DbType.Single, 5 or 8 => DbType.Decimal,
                 7 => DbType.Date, 10 => DbType.DateTime, 11 => DbType.Binary, 14 => DbType.Time,
+                0 or 15 => DbType.StringFixedLength,
                 45 => DbType.Boolean, _ => DbType.String
             };
+            if (extendedType == "blob") type = DbType.Binary;
+            if (extendedType == "boolean") type = DbType.Boolean;
             var column = new Column(reader.GetString(0).Trim(), type)
             {
                 ColumnProperty = (code & 256) != 0 ? ColumnProperty.NotNull : ColumnProperty.Null
             };
-            if (type == DbType.String)
+            if (type is DbType.String or DbType.StringFixedLength)
             {
                 var length = Convert.ToInt32(reader.GetValue(2));
                 // VARCHAR/NVARCHAR pack reserved space into the high byte; CHAR/LVARCHAR store the full length.
-                column.Size = (code & 255) is 13 or 16 ? length & 255 : length;
+                column.Size = (code & 255) == 12 || extendedType == "clob"
+                    ? int.MaxValue
+                    : (code & 255) is 13 or 16 ? length & 255 : length;
             }
             if (type == DbType.Decimal)
             {

@@ -32,11 +32,13 @@ public class InformixDialect : Dialect
         RegisterColumnType(DbType.Single, "SMALLFLOAT");
         RegisterColumnType(DbType.Time, "INTERVAL HOUR TO SECOND");
         RegisterColumnType(DbType.String, 255, "VARCHAR($l)");
-        RegisterColumnType(DbType.String, int.MaxValue, "LVARCHAR($l)");
+        RegisterColumnType(DbType.String, 32739, "LVARCHAR($l)");
         RegisterColumnType(DbType.AnsiString, 255, "VARCHAR($l)");
-        RegisterColumnType(DbType.AnsiString, int.MaxValue, "LVARCHAR($l)");
-        RegisterColumnType(DbType.StringFixedLength, 255, "CHAR($l)");
-        RegisterColumnType(DbType.AnsiStringFixedLength, 255, "CHAR($l)");
+        RegisterColumnType(DbType.AnsiString, 32739, "LVARCHAR($l)");
+        RegisterColumnType(DbType.StringFixedLength, 32767, "CHAR($l)");
+        RegisterColumnType(DbType.AnsiStringFixedLength, 32767, "CHAR($l)");
+        RegisterColumnType(DbType.String, int.MaxValue, "TEXT");
+        RegisterColumnType(DbType.AnsiString, int.MaxValue, "TEXT");
         RegisterProperty(ColumnProperty.Identity, "");
     }
 
