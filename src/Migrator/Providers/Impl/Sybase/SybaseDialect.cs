@@ -43,6 +43,19 @@ public class SybaseDialect : Dialect
     public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 1" : "DEFAULT 0") : base.Default(value);
 
     public override string QuoteTemplate => "[{0}]";
+    public override string GetTableConstraintSql(TableConstraint constraint)
+    {
+        // ASE 16.0 can create these key names but subsequently fails to resolve
+        // the backing index in ALTER TABLE DROP CONSTRAINT, even when delimited.
+        if (constraint is PrimaryKeyConstraint or DotNetProjects.Migrator.Framework.UniqueConstraint)
+            ValidateKeyConstraintName(constraint.Name);
+        return base.GetTableConstraintSql(constraint);
+    }
+    internal static void ValidateKeyConstraintName(string name)
+    {
+        if (name?.IndexOfAny(['.', '\'']) >= 0)
+            throw new System.NotSupportedException("ASE key constraint names containing a dot or apostrophe are unsupported. Use a name without those characters.");
+    }
     public override bool NeedsNullForNullableWhenAlteringTable => true;
 
     public override ColumnPropertiesMapper GetColumnMapper(Column column)

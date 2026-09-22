@@ -22,6 +22,16 @@ public class SybaseTransformationProvider : TransformationProvider
         : base(dialect, connection, null, scope) { }
 
     private static string Literal(string name) => name.Replace("'", "''");
+    public override void AddPrimaryKey(string name, string table, params string[] columns)
+    {
+        SybaseDialect.ValidateKeyConstraintName(name);
+        base.AddPrimaryKey(name, table, columns);
+    }
+    public override void AddUniqueConstraint(string name, string table, params string[] columns)
+    {
+        SybaseDialect.ValidateKeyConstraintName(name);
+        base.AddUniqueConstraint(name, table, columns);
+    }
     public override void AddColumn(string table, Column column) =>
         AddColumn(table, _dialect.GetAndMapColumnProperties(column).ColumnSql);
 
