@@ -132,6 +132,7 @@ public sealed record DataOperation(DataKind Kind, string Table, string[] Columns
                 if (WhereSql != null) p.Update(Table, Columns, Values, WhereSql);
                 else p.Update(Table, Columns, Values, WhereColumns ?? Array.Empty<string>(), WhereValues ?? Array.Empty<object>()); break;
             case DataKind.Delete:
+                if ((Columns?.Length ?? 0) != 0 || (Values?.Length ?? 0) != 0) throw new InvalidOperationException("Delete does not accept row values; use WhereColumns and WhereValues.");
                 if (WhereSql != null) throw new NotSupportedException("Delete requires structured Where columns/values.");
                 p.Delete(Table, WhereColumns, WhereValues); break;
         }

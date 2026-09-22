@@ -29,7 +29,10 @@ public class FluentOperationsTests
         Assert.Throws<InvalidOperationException>(() => b.Update.Table("Example").IfNotExists(new[] { "Id" }, new object[] { 1 }));
         Assert.Throws<InvalidOperationException>(() => b.Delete.FromTable("Example").IfNotExists(new[] { "Id" }, new object[] { 1 }));
         Assert.Throws<NotSupportedException>(() => b.Delete.FromTable("Example").WhereSql("Id = 1"));
+        Assert.Throws<InvalidOperationException>(() => b.Delete.FromTable("Example").Row(new[] { "Id" }, new object[] { 1 }));
+        Assert.Throws<InvalidOperationException>(() => b.Delete.FromTable("Example").Set(new[] { "Id" }, new object[] { 1 }));
         var p = Substitute.For<ITransformationProvider>();
+        Assert.Throws<InvalidOperationException>(() => new DataOperation(DataKind.Delete, "Example", new[] { "Id" }, new object[] { 1 }).Apply(p));
         Assert.Throws<NotSupportedException>(() => new DataOperation(DataKind.Delete, "Example", null, null, WhereSql: "Id=1").Apply(p));
         p.DidNotReceiveWithAnyArgs().Delete(default, default(string[]), default(object[]));
     }

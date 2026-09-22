@@ -131,7 +131,7 @@ public sealed class DataBuilder
     private object[] values = Array.Empty<object>(), whereValues;
     private string whereSql;
     internal DataBuilder(MigrationBuilder builder, DataKind kind, string table) { this.kind = kind; builder.Add(() => new DataOperation(this.kind, table, columns.ToArray(), values.ToArray(), whereColumns?.ToArray(), whereValues?.ToArray(), whereSql)); }
-    public DataBuilder Row(string[] names, object[] data) { if (names.Length != data.Length) throw new ArgumentException("Columns and values must have equal lengths."); columns = names.ToArray(); values = data.ToArray(); return this; }
+    public DataBuilder Row(string[] names, object[] data) { if (kind == DataKind.Delete) throw new InvalidOperationException("Delete accepts predicates through Where, not row values."); if (names.Length != data.Length) throw new ArgumentException("Columns and values must have equal lengths."); columns = names.ToArray(); values = data.ToArray(); return this; }
     public DataBuilder Set(string[] names, object[] data) => Row(names, data);
     public DataBuilder Where(string[] names, object[] data) { if (names.Length != data.Length) throw new ArgumentException("Where columns and values must have equal lengths."); whereColumns = names.ToArray(); whereValues = data.ToArray(); return this; }
     public DataBuilder WhereSql(string sql) { if (kind != DataKind.Update) throw new NotSupportedException("Raw predicates are supported only for Update; use Where columns/values for Delete."); whereSql = sql; return this; }
