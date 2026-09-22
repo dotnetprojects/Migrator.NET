@@ -37,7 +37,7 @@
     <PackageReference Include="Net.IBM.Data.Db2-lnx" Version="9.0.0.400" />
   </ItemGroup>
   <ItemGroup Condition="'$(LiveDatabase)' == 'Informix'">
-    <PackageReference Include="Informix.Net.Core" Version="4.1501.2.2026" />
+    <PackageReference Include="Informix.Net.Core-lnx" Version="4.1501.2.2026" />
   </ItemGroup>
 
   <ItemGroup>

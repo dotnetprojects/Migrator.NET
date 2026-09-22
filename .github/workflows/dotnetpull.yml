@@ -22,12 +22,27 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Start database
+        shell: bash
         run: |
           mkdir -p TestResults
           bash .github/scripts/start-database.sh "${{ matrix.database }}" 2>&1 | tee TestResults/startup.log
         timeout-minutes: 15
       - name: Build
         run: dotnet build Migrator.slnx -p:LiveDatabase=${{ matrix.database }}
+      - name: Configure native IBM drivers
+        if: matrix.database == 'Db2' || matrix.database == 'Informix'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libxml2 unixodbc libncurses5
+          output="$GITHUB_WORKSPACE/src/Migrator.Tests/bin/Debug/net9.0"
+          if [ "${{ matrix.database }}" = Db2 ]; then
+            echo "DB2_CLI_DRIVER_INSTALL_PATH=$output/clidriver" >> "$GITHUB_ENV"
+            echo "LD_LIBRARY_PATH=$output/clidriver/lib" >> "$GITHUB_ENV"
+          else
+            echo "INFORMIXDIR=$output/native" >> "$GITHUB_ENV"
+            echo "LD_LIBRARY_PATH=$output/native/lib:$output/native/lib/cli:$output/native/lib/esql" >> "$GITHUB_ENV"
+          fi
       - name: Test
         shell: pwsh
         run: ./.github/scripts/test.ps1 -Database ${{ matrix.database }}
