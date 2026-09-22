@@ -407,7 +407,7 @@ public abstract class Dialect : IDialect
         }
         else if (defaultValue is TimeOnly time)
         {
-            return "DEFAULT '" + time.ToString("HH:mm:ss.fffffff", CultureInfo.InvariantCulture) + "'";
+            return "DEFAULT '" + time.ToString("HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture) + "'";
         }
         else if (defaultValue is TimeSpan interval)
         {

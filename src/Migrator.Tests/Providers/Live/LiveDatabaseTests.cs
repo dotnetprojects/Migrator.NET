@@ -47,8 +47,9 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     [Test]
     public void QuotedConstraintNamesCanBeInspectedAndRemoved()
     {
+        if (providerType == ProviderTypes.Sybase) provider.ExecuteNonQuery("SET QUOTED_IDENTIFIER ON");
         const string name = "UQ ' dotted.name";
-        provider.AddTable("named_constraints", new Column("id", DbType.Int32),
+        provider.AddTable("named_constraints", new Column("id", DbType.Int32) { IsNullable = false },
             new DotNetProjects.Migrator.Framework.UniqueConstraint(name, "id"));
         provider.AddTable("other_constraints", new Column("id", DbType.Int32));
         Assert.That(provider.ConstraintExists("named_constraints", name), Is.True);

@@ -240,8 +240,8 @@ public class LiveMetadataRegressionTests
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         f.Provider.AddTable("copied_times", column);
         Assert.That(f.Provider.GetColumns("copied_times").Single().Type, Is.EqualTo(DbType.Time));
-        f.Provider.ExecuteNonQuery("INSERT INTO copied_times VALUES (INTERVAL(12:34:56) HOUR TO SECOND)");
-        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM copied_times WHERE time_value=INTERVAL(12:34:56) HOUR TO SECOND")), Is.EqualTo(1));
+        f.Provider.ExecuteNonQuery("INSERT INTO copied_times VALUES (DATETIME(12:34:56) HOUR TO SECOND)");
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM copied_times WHERE time_value=DATETIME(12:34:56) HOUR TO SECOND")), Is.EqualTo(1));
     });
 
     [Test, Category("Sybase")]

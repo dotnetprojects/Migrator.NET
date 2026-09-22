@@ -170,7 +170,7 @@ public class OracleDialect : Dialect
     internal static DateTime TimeValue(TimeOnly value)
     {
         if (value.Ticks % TimeSpan.TicksPerSecond != 0)
-            throw new NotSupportedException("Oracle DbType.Time uses DATE, which has whole-second precision. Use an explicit TIMESTAMP or interval for fractional seconds.");
+            throw new NotSupportedException("Oracle DbType.Time uses DATE, which has whole-second precision. Use an explicit TIMESTAMP representation for fractional time-of-day precision.");
         return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified).Add(value.ToTimeSpan());
     }
 }

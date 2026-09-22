@@ -55,7 +55,7 @@ public class IdentifierAndTimeRegressionTests
     {
         var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1234560));
         foreach (var dialect in new Dialect[] { new SQLiteDialect(), new MysqlDialect(), new PostgreSQLDialect(), new SqlServerDialect() })
-            Assert.That(dialect.Default(time), Is.EqualTo("DEFAULT '12:34:56.1234560'"));
+            Assert.That(dialect.Default(time), Is.EqualTo("DEFAULT '12:34:56.123456'"));
     }
 
     [Test, Category("SQLite")]
