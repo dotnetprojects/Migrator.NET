@@ -140,8 +140,8 @@ public sealed class DataBuilder
 public sealed class ExecuteRoot(MigrationBuilder builder)
 {
     public void Sql(string sql, int? timeout = null, params object[] parameters) => builder.Add(new SqlOperation(sql, timeout, parameters.Length == 0 ? null : parameters.ToArray()));
-    public void Script(string path) => Sql(File.ReadAllText(path));
-    public void EmbeddedScript(Assembly assembly, string name) { using var stream = assembly.GetManifestResourceStream(name) ?? throw new FileNotFoundException("Resource not found", name); using var reader = new StreamReader(stream); Sql(reader.ReadToEnd()); }
+    public void Script(string path) => builder.Add(new ScriptOperation(File.ReadAllText(path)));
+    public void EmbeddedScript(Assembly assembly, string name) { using var stream = assembly.GetManifestResourceStream(name) ?? throw new FileNotFoundException("Resource not found", name); using var reader = new StreamReader(stream); builder.Add(new ScriptOperation(reader.ReadToEnd())); }
     public void WithProvider(Action<ITransformationProvider> action) => builder.Add(new CallbackOperation("Provider callback (not previewable)", action));
     public void WithCommand(Action<IDbCommand> action) => builder.Add(new CallbackOperation("Command callback", p => { using var command = p.CreateCommand(); action(command); }));
     public void WithConnection(Action<IDbConnection> action) => builder.Add(new CallbackOperation("Connection callback", p => action(p.Connection)));

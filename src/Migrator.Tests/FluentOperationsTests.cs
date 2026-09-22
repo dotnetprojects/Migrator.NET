@@ -11,6 +11,22 @@ using NUnit.Framework;
 namespace Migrator.Tests;
 public class FluentOperationsTests
 {
+    [Test] public void FileAndEmbeddedScriptsUseScriptOperations()
+    {
+        var path = System.IO.Path.GetTempFileName();
+        try
+        {
+            System.IO.File.WriteAllText(path, "SELECT 1;\nGO\nSELECT 2;");
+            var builder = new MigrationBuilder();
+            builder.Execute.Script(path);
+            builder.Execute.EmbeddedScript(typeof(ScriptTests).Assembly, "Migrator.Tests.ScriptResource.sql");
+            Assert.That(builder.Build().All(x => x is ScriptOperation), Is.True);
+            var script = builder.Build().First().ToSql(new SqlGenerationContext(ProviderTypes.SqlServer));
+            Assert.That(script, Does.Contain("GO"));
+            Assert.That(script.TrimEnd(), Does.EndWith("SELECT 2;"));
+        }
+        finally { System.IO.File.Delete(path); }
+    }
     [Test] public void TableIsOneCompleteOperationAndDoesNotMutateInput()
     {
         var column = new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey);

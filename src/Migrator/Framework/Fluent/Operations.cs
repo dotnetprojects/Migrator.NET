@@ -154,6 +154,16 @@ public sealed record SqlOperation(string Sql, int? Timeout = null, object[] Para
         return Sql.TrimEnd().TrimEnd(';') + ";";
     }
 }
+public sealed record ScriptOperation(string Sql) : MigrationOperation
+{
+    public override void Apply(ITransformationProvider provider) => provider.ExecuteSqlScript(Sql);
+    public override string ToSql(SqlGenerationContext context)
+    {
+        if (context.Dialect is Providers.Impl.SqlServer.SqlServerDialect) _ = SqlScriptBatches.SplitSqlServer(Sql);
+        context.InvalidateSchema();
+        return Sql.TrimEnd() + Environment.NewLine;
+    }
+}
 public sealed record CallbackOperation(string Description, Action<ITransformationProvider> Action) : MigrationOperation
 {
     public override void Apply(ITransformationProvider p) => Action(p);
