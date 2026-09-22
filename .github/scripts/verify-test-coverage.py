@@ -4,7 +4,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 expected = {"Unit", "SQLite", "SQLServer", "PostgreSQL", "Oracle", "MySQL",
-            "MariaDB", "Firebird", "Db2", "Informix", "Sybase"}
+            "MariaDB", "Firebird", "Db2", "Informix", "Sybase", "Hana"}
 seen = {}
 executed = 0
 counts = set()

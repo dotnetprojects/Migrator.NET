@@ -50,7 +50,7 @@ public sealed record CreateTableOperation(string Table, string Engine, IDbField[
         var definitions = columns.Select(c.Column).ToList();
         definitions.AddRange(Fields.OfType<TableConstraint>().Select(c.Dialect.GetTableConstraintSql));
         c.AddTable(Table, columns);
-        return $"CREATE TABLE {c.Table(Table)} ({string.Join(", ", definitions)});";
+        return $"CREATE {(c.Provider == ProviderTypes.Hana ? "ROW " : "")}TABLE {c.Table(Table)} ({string.Join(", ", definitions)});";
     }
 }
 public sealed record ColumnOperation(string Table, Column Column, bool Alter = false) : MigrationOperation
@@ -62,7 +62,7 @@ public sealed record ColumnOperation(string Table, Column Column, bool Alter = f
         c.RequireTable(Table);
         if (Alter) throw new NotSupportedException("Altering columns needs provider-specific schema inspection; use explicit SQL preview.");
         c.AddColumn(Table, Column);
-        return $"ALTER TABLE {c.Table(Table)} ADD {c.Column(Column)};";
+        return c.Provider == ProviderTypes.Hana ? $"ALTER TABLE {c.Table(Table)} ADD ({c.Column(Column)});" : $"ALTER TABLE {c.Table(Table)} ADD {c.Column(Column)};";
     }
 }
 public enum RemoveKind { Table, Column, ForeignKey, Constraint, PrimaryKey, Default, Index, AllIndexes, AllConstraints, ForeignKeysForColumn, Truncate }

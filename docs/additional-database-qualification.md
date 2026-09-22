@@ -7,7 +7,7 @@ This is an implementation gate, not a claim of released provider support.
 
 | Additional engine | Real-engine GitHub Actions route | Current disposition |
 | --- | --- | --- |
-| SAP HANA | Official HANA Express Linux container and SAP's .NET driver, disposable schema | Qualification workflow added; provider admission requires a successful actual-engine run, followed by provider behavioral tests |
+| SAP HANA | Official HANA Express Linux container and SAP's .NET driver, disposable schema | Infrastructure passed; provider and mandatory matrix tests added, pending their actual-engine results |
 | Amazon Redshift | AWS test warehouse/serverless endpoint with CI credentials, network access and resource cleanup | No configured test infrastructure; defer provider |
 | Snowflake | Snowflake test account, warehouse, credentials and disposable database/schema | No configured test infrastructure; defer provider |
 | Db2 for IBM i | IBM i endpoint on Power infrastructure and compatible .NET/ODBC driver | No configured test infrastructure; defer provider |
@@ -23,14 +23,14 @@ not additional database engines.
 
 ## HANA admission criteria
 
-The separate qualification workflow pins HANA Express 2.00.088.00.20251110.1 and
+The HANA matrix startup pins HANA Express 2.00.088.00.20251110.1 and
 Sap.Data.Hana.Net.v8.0 2.30.27. It uses a disposable public CI credential, bounded
 startup, native .NET connection, identity/constraint DDL, persisted data, rollback
 and catalog checks. Any startup or behavioral failure fails the job. Logs and
 runner resource evidence are retained; cleanup runs independently of test success.
-This is a prerequisite probe, not provider integration coverage.
+The prerequisite probe passed in [run 35766200488](https://github.com/dotnetprojects/Migrator.NET/actions/runs/35766200488). The standalone workflow is replaced by the mandatory Hana job in the complete database matrix; the probe project remains reproducible evidence.
 
-If qualification passes, add the provider and mandatory matrix coverage for
+Provider admission now requires the new matrix coverage for
 imperative/fluent schema creation, constraint metadata, data, migration history,
 restart/rollback, preview parity and explicit unsupported operations. Do not mark
 a provider supported on the basis of SQL string tests or a skipped secret-gated job.
@@ -43,3 +43,27 @@ a provider supported on the basis of SQL string tests or a skipped secret-gated 
 - [Snowflake local testing framework scope](https://docs.snowflake.com/en/developer-guide/snowpark/python/testing-locally)
 - [Db2 for IBM i platform](https://www.ibm.com/support/pages/db2-ibm-i)
 - [FluentMigrator's current provider FAQ](https://fluentmigrator.github.io/intro/faq.html)
+
+## HANA provider scope
+
+The source provider is selected by `ProviderTypes.Hana` and accepts a caller-owned
+`HanaConnection` or the SAP factory. The core remains free of SAP driver references.
+The tests use Sap.Data.Hana.Net.v8.0 2.30.27 and HANA Express 2.00.088.00.20251110.1.
+
+Supported operations include row/column table creation, explicit keys/checks/FKs,
+column add/change/remove/rename, table rename/remove, ordinary and unique indexes,
+parameterized data operations, schema/constraint/index metadata, versioned history,
+and structured create-table/add-column preview. Names are case-preserving and accept
+unquoted table or schema.table input; embedded identifier dots require explicit SQL.
+
+Whole-session transactions and native locking are not advertised. The provider
+retains HANA's default DDL autocommit behavior; data rollback does not prove DDL rollback.
+Use explicit SQL for tenant administration, computed columns, specialized indexes,
+collation configuration, and provider-specific data types without a mapped CLR type.
+The provider rejects unsupported included/filtered/clustered indexes and semantic
+collation requests instead of ignoring them.
+
+[HANA constraints](https://help.sap.com/docs/SAP_HANA_PLATFORM/4fe29514fd584807ac9f2a04f6754767/209f7cf5751910149d9ce6b033d8ddce.html),
+[referential constraints](https://help.sap.com/docs/SAP_HANA_PLATFORM/4fe29514fd584807ac9f2a04f6754767/20ccc0a175191014901b88e6bc175c44.html),
+and [DDL autocommit](https://help.sap.com/docs/SAP_HANA_PLATFORM/4fe29514fd584807ac9f2a04f6754767/d538d11053bd4f3f847ec5ce817a3d4c.html)
+are documented by SAP.

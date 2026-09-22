@@ -50,6 +50,8 @@ public class ProviderFactory
     {
         switch (providerType)
         {
+            case ProviderTypes.Hana:
+                return new DotNetProjects.Migrator.Providers.Impl.Hana.HanaDialect();
             case ProviderTypes.SQLite:
                 return (Dialect)Activator.CreateInstance(typeof(SQLiteDialect));
             case ProviderTypes.MonoSQLite:

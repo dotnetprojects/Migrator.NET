@@ -1,9 +1,9 @@
 param(
-    [ValidateSet('Unit','SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase')]
+    [ValidateSet('Unit','SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase','Hana')]
     [string]$Database = 'Unit'
 )
 $ErrorActionPreference = 'Stop'
-$databases = @('SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase')
+$databases = @('SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase','Hana')
 $filter = if ($Database -eq 'Unit') { ($databases | ForEach-Object { "TestCategory!=$_" }) -join '&' } else { "TestCategory=$Database" }
 $xmlDirectory = Join-Path (Get-Location) "TestResults/$Database"
 dotnet test Migrator.slnx --no-build --filter $filter --logger "trx;LogFileName=$Database.trx" --results-directory TestResults -- NUnit.NumberOfTestWorkers=0 "NUnit.TestOutputXml=$xmlDirectory"
@@ -15,6 +15,6 @@ if ([int]$counters.failed -gt 0) { throw "Failures in $Database results" }
 $skipped = @($results.TestRun.Results.UnitTestResult | Where-Object outcome -eq NotExecuted)
 Write-Host "$Database : $($counters.passed) passed, $($skipped.Count) skipped"
 foreach ($test in $skipped) { Write-Host "Skipped: $($test.testName) $($test.Output.ErrorInfo.Message)" }
-if ($Database -in @('MySQL','MariaDB','Firebird','Db2','Informix','Sybase') -and $skipped.Count -gt 0) {
+if ($Database -in @('MySQL','MariaDB','Firebird','Db2','Informix','Sybase','Hana') -and $skipped.Count -gt 0) {
     throw "New database suites must not skip tests."
 }
