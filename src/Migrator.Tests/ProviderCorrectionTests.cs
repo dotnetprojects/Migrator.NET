@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 using System.Linq;
 using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
@@ -16,7 +17,7 @@ public class ProviderCorrectionTests
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
         provider.AddTable("QuotedConstraints", new Column("select", DbType.Int32),
-            new Unique { Name = "unique name", KeyColumns = new[] { "select" } },
+            new UniqueConstraint { Name = "unique name", KeyColumns = new[] { "select" } },
             new CheckConstraint("check name", "\"select\" > 0"));
         provider.ExecuteNonQuery("INSERT INTO QuotedConstraints VALUES (1)");
         Assert.That(Assert.Throws<MigrationException>(() => provider.ExecuteNonQuery("INSERT INTO QuotedConstraints VALUES (1)")).InnerException, Is.TypeOf<SqliteException>());

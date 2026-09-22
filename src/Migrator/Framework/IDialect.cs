@@ -4,6 +4,9 @@ namespace DotNetProjects.Migrator.Framework;
 
 public interface IDialect
 {
+    string QuoteIdentifier(string name);
+    string GetTableConstraintSql(TableConstraint constraint);
+
     int MaxKeyLength { get; }
     int MaxFieldNameLength { get; }
     bool ColumnNameNeedsQuote { get; }

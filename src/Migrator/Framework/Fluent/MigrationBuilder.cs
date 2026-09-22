@@ -62,6 +62,9 @@ public sealed class TableBuilder
     internal TableBuilder(MigrationBuilder builder, string name) => builder.Add(() => new CreateTableOperation(name, engine, fields.Select(Definitions.Copy).ToArray()));
     public TableBuilder WithColumn(string name) { current = new Column(name, DbType.String, ColumnProperty.Null); fields.Add(current); return this; }
     public TableBuilder WithFields(params IDbField[] values) { fields.AddRange(values.Select(Definitions.Copy)); return this; }
+    public TableBuilder WithPrimaryKey(string name, params string[] columns) { fields.Add(new PrimaryKeyConstraint(name, columns)); return this; }
+    public TableBuilder WithUniqueConstraint(string name, params string[] columns) { fields.Add(new UniqueConstraint(name, columns)); return this; }
+    public TableBuilder WithCheckConstraint(string name, string expression) { fields.Add(new CheckConstraint(name, expression)); return this; }
     public TableBuilder WithEngine(string value) { engine = value; return this; }
     private Column Current => current ?? throw new InvalidOperationException("Call WithColumn first.");
     public TableBuilder OfType(DbType type) { Current.Type = type; return this; }

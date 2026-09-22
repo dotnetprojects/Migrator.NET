@@ -14,6 +14,8 @@ namespace DotNetProjects.Migrator.Providers;
 /// </summary>
 public class NoOpTransformationProvider : ITransformationProvider
 {
+    public TableConstraint[] GetTableConstraints(string table) => [];
+
     public static readonly NoOpTransformationProvider Instance = new NoOpTransformationProvider();
 
     private NoOpTransformationProvider()

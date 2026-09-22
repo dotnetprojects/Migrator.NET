@@ -68,6 +68,7 @@ public sealed class TableInspector(ITransformationProvider provider, string tabl
     public Column Column(string name) => provider.GetColumnByName(table, name);
     public Index[] Indexes() => provider.GetIndexes(table);
     public ForeignKeyConstraint[] ForeignKeys() => provider.GetForeignKeyConstraints(table);
+    public TableConstraint[] ConstraintDefinitions() => provider.GetTableConstraints(table);
     public string[] Constraints() => (provider as DotNetProjects.Migrator.Providers.TransformationProvider)?.GetConstraints(table) ?? throw new NotSupportedException("Provider does not expose constraint enumeration.");
     public int ContentSize(string column) => provider.GetColumnContentSize(table, column);
     public int? NullableContentSize(string column) => provider.GetNullableColumnContentSize(table, column);

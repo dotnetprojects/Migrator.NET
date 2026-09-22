@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 using System.Linq;
 using DotNetProjects.Migrator.Providers;
 using Index = DotNetProjects.Migrator.Framework.Index;
@@ -30,12 +31,22 @@ public sealed record CreateTableOperation(string Table, string Engine, IDbField[
     public override MigrationOperation Reverse() => new RemoveOperation(RemoveKind.Table, Table);
     public override string ToSql(SqlGenerationContext c)
     {
-        if (Engine != null || Fields.Any(f => f is not Column)) throw new NotSupportedException("Preview this table's constraints as separate operations.");
-        var columns = Fields.Cast<Column>().Select(Definitions.CopyColumn).ToArray();
+        if (Engine != null || Fields.Any(f => f is not (Column or PrimaryKeyConstraint or UniqueConstraint or CheckConstraint))) throw new NotSupportedException("This table contains an unsupported preview definition.");
+        var columns = Fields.OfType<Column>().Select(Definitions.CopyColumn).ToArray();
+        var primary = Fields.OfType<PrimaryKeyConstraint>().SingleOrDefault();
+        if (primary != null)
+        {
+            if (columns.Any(x => x.IsPrimaryKey)) throw new MigrationException("Do not combine primary-key flags and constraints.");
+            foreach (var column in columns.Where(x => primary.KeyColumns.Contains(x.Name)))
+                column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull;
+            if (c.Provider == ProviderTypes.SQLite && columns.Any(x => x.IsIdentity))
+                throw new NotSupportedException("Named SQLite identity-key preview requires the complete table generator.");
+        }
         var pks = columns.Where(x => x.IsPrimaryKey).ToArray();
         if (pks.Length > 1) foreach (var column in pks) column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
         var definitions = columns.Select(c.Column).ToList();
         if (pks.Length > 1) definitions.Add($"PRIMARY KEY ({string.Join(", ", pks.Select(x => c.Quote(x.Name)))})");
+        definitions.AddRange(Fields.OfType<TableConstraint>().Select(c.Dialect.GetTableConstraintSql));
         c.AddTable(Table, columns);
         return $"CREATE TABLE {c.Table(Table)} ({string.Join(", ", definitions)});";
     }
@@ -244,7 +255,8 @@ public static class Definitions
         Column c => CopyColumn(c),
         Index i => new Index { Name = i.Name, Unique = i.Unique, Clustered = i.Clustered, KeyColumns = (string[])i.KeyColumns.Clone(), IncludeColumns = (string[])i.IncludeColumns.Clone(), FilterItems = i.FilterItems.Select(f => new DotNetProjects.Migrator.Providers.Models.Indexes.FilterItem { ColumnName = f.ColumnName, Filter = f.Filter, Value = f.Value }).ToList() },
         ForeignKeyConstraint f => new ForeignKeyConstraint(f.Name, f.ParentTable, (string[])f.ParentColumns.Clone(), f.ChildTable, (string[])f.ChildColumns.Clone()) { OnDelete = f.OnDelete, OnUpdate = f.OnUpdate, Match = f.Match, Id = f.Id },
-        Unique u => new Unique { Name = u.Name, KeyColumns = (string[])u.KeyColumns.Clone() },
+        PrimaryKeyConstraint k => new PrimaryKeyConstraint(k.Name, k.KeyColumns) { NonClustered = k.NonClustered },
+        UniqueConstraint u => new UniqueConstraint { Name = u.Name, KeyColumns = (string[])u.KeyColumns.Clone() },
         CheckConstraint c => new CheckConstraint(c.Name, c.CheckConstraintString),
         _ => throw new NotSupportedException($"Cannot snapshot {field.GetType().Name}.")
     };

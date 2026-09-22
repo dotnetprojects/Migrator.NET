@@ -20,6 +20,7 @@ using DotNetProjects.Migrator.Providers.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
@@ -219,6 +220,8 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         return [.. constraints];
     }
 
+    public virtual TableConstraint[] GetTableConstraints(string table) => ConstraintMetadataReader.Read(this, table);
+
     public virtual string[] GetConstraints(string table)
     {
         var constraints = new List<string>();
@@ -387,11 +390,6 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     /// <param name="columns">Columns</param>
     public virtual void AddTable(string name, params IDbField[] columns)
     {
-        if (this is not SQLiteTransformationProvider && columns.Any(x => x is CheckConstraint))
-        {
-            throw new MigrationException($"{nameof(CheckConstraint)}s are currently only supported in SQLite.");
-        }
-
         // Most databases don't have the concept of a storage engine, so default is to not use it.
         AddTable(name, null, columns);
     }
@@ -404,7 +402,18 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     /// <param name="engine">the database storage engine to use</param>
     public virtual void AddTable(string name, string engine, params IDbField[] fields)
     {
-        var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
+        var columns = fields.OfType<Column>().Select(c => c.CopyDefinition()).ToArray();
+        var primaryKeys = fields.OfType<PrimaryKeyConstraint>().ToArray();
+        if (primaryKeys.Length > 1) throw new MigrationException("A table can have only one primary key.");
+        var explicitKey = primaryKeys.SingleOrDefault();
+        if (explicitKey != null)
+        {
+            if (columns.Any(c => c.IsPrimaryKey)) throw new MigrationException("Do not combine column primary-key flags with a primary-key constraint.");
+            ValidateKeyColumns(explicitKey.Name, explicitKey.KeyColumns, columns);
+            foreach (var column in columns.Where(c => explicitKey.KeyColumns.Contains(c.Name)))
+                column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull;
+        }
+        foreach (var unique in fields.OfType<UniqueConstraint>()) ValidateKeyColumns(unique.Name, unique.KeyColumns, columns);
 
         var pks = GetPrimaryKeys(columns);
         var compoundPrimaryKey = pks.Count > 1;
@@ -425,6 +434,8 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         }
 
         var columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
+        foreach (var constraint in fields.OfType<TableConstraint>().Where(c => c is not ForeignKeyConstraint))
+            columnsAndIndexes += ", " + Dialect.GetTableConstraintSql(constraint);
 
         AddTable(name, engine, columnsAndIndexes);
 
@@ -446,6 +457,15 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         {
             AddForeignKey(name, foreignKey);
         }
+    }
+
+    protected static void ValidateKeyColumns(string name, string[] keys, Column[] columns)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new MigrationException("A constraint name is required.");
+        if (keys == null || keys.Length == 0 || keys.Any(string.IsNullOrWhiteSpace) || keys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != keys.Length)
+            throw new MigrationException("A key needs distinct, non-empty column names.");
+        if (keys.Any(key => !columns.Any(c => c.Name.Equals(key, StringComparison.OrdinalIgnoreCase))))
+            throw new MigrationException("A constraint references a column that is absent from the table definition.");
     }
 
     protected virtual string GetPrimaryKeyname(string tableName)
