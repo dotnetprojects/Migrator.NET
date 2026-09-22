@@ -98,12 +98,13 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         }
         else
         {
-            ExecuteAdmin("CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : ""));
+            ExecuteAdmin("CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : database == "Sybase" ? " ON default = 32" : ""));
             var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
             builder["Database"] = isolatedName;
             connectionString = builder.ConnectionString;
         }
         created = true;
+        if (database == "Sybase") ExecuteAdmin("EXEC sp_dboption " + isolatedName + ", 'ddl in tran', true");
         provider = ProviderFactory.Create(providerType, connectionString, null);
         if (database == "Db2") provider.ExecuteNonQuery("SET CURRENT SCHEMA " + isolatedName);
     }

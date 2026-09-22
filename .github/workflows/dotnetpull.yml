@@ -7,6 +7,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: live-databases-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     name: Test (${{ matrix.database }})
@@ -66,3 +69,15 @@ jobs:
           if docker inspect migrator-db >/dev/null 2>&1; then
             docker rm -fv migrator-db
           fi
+  coverage:
+    name: Verify complete test coverage
+    needs: test
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: TestResults
+      - run: python3 .github/scripts/verify-test-coverage.py TestResults

@@ -107,7 +107,8 @@ public class DB2TransformationProvider : TransformationProvider
         var prefix = $"ALTER TABLE {Identifier(table)} ALTER COLUMN {Identifier(column.Name)}";
         var type = column.Size > 0 ? _dialect.GetTypeName(column.Type, column.Size) : _dialect.GetTypeName(column.Type);
         ExecuteNonQuery($"{prefix} SET DATA TYPE {type}");
-        ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");
+        if (column.DefaultValue != null || GetColumns(table).Single(c => c.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)).DefaultValue != null)
+            ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");
         ExecuteNonQuery($"{prefix} {(column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "SET" : "DROP")} NOT NULL");
         Reorganize(table);
     }

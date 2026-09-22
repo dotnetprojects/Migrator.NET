@@ -43,7 +43,7 @@ case "$database" in
   Informix)
     pull icr.io/informix/informix-developer-database:15.0.1.0.3
     docker run -dt --name migrator-db --hostname ifx --privileged -p 9088:9088 -e LICENSE=accept icr.io/informix/informix-developer-database:15.0.1.0.3
-    ready() { docker exec migrator-db bash -ic 'onstat -' 2>/dev/null | grep -q 'On-Line'; }
+    ready() { docker exec migrator-db bash -c 'source /usr/local/bin/informix_inf.env; onstat - >/dev/null; test $? -eq 5' >/dev/null 2>&1; }
     ;;
   Sybase)
     pull datagrip/sybase:16.0
@@ -61,6 +61,6 @@ case "$database" in
   SQLServer) docker exec migrator-db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'YourStrong@Passw0rd' -b -Q 'CREATE DATABASE [Whatever];' ;;
   Oracle) docker exec -i migrator-db sqlplus -s / as sysdba < .github/workflows/sql/oracle.sql ;;
   Informix)
-    echo 'create database testdb with log;' | docker exec -i migrator-db bash -ic 'dbaccess sysmaster -'
+    echo 'create database testdb with log;' | docker exec -i migrator-db bash -c 'source /usr/local/bin/informix_inf.env; dbaccess sysmaster -'
     ;;
 esac

@@ -71,12 +71,12 @@ public class InformixTransformationProvider : TransformationProvider
     public override Index[] GetIndexes(string table)
     {
         var result = new List<Index>();
+        var columns = GetColumnsForIndex(table);
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
             SELECT i.* FROM sysindexes i JOIN systables t ON t.tabid=i.tabid
             WHERE t.owner=USER AND t.tabname='{Name(table)}'
             """);
-        var columns = GetColumnsForIndex(table);
         while (reader.Read())
         {
             var index = new Index { Name = Convert.ToString(reader["idxname"]).Trim(), Unique = Convert.ToString(reader["idxtype"]).Trim() == "U" };
