@@ -34,7 +34,7 @@ jobs:
           docker pull saplabs/hanaexpress:2.00.088.00.20251110.1
           docker run -d --name migrator-hana --hostname hxe -p 39041:39041 \
             --ulimit nofile=1048576:1048576 \
-            --sysctl kernel.shmmax=1073741824 --sysctl kernel.shmmni=524288 --sysctl kernel.shmall=8388608 \
+            --sysctl kernel.shmmax=1073741824 --sysctl kernel.shmmni=32768 --sysctl kernel.shmall=8388608 \
             --sysctl net.ipv4.ip_local_port_range="40000 60999" \
             -v "$RUNNER_TEMP/hana:/hana/mounts" \
             saplabs/hanaexpress:2.00.088.00.20251110.1 \
