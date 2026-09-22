@@ -22,30 +22,15 @@ public class InformixTransformationProvider : TransformationProvider
     public InformixTransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
         : base(dialect, connection, null, scope) { }
 
-    public override object ExecuteScalar(string sql)
+    protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        Logger.Trace(sql);
-        using var command = BuildCommand(sql);
-        // Without SequentialAccess, IsDBNull calls GetValue and caches the
-        // driver's faulty TEXT conversion before the typed read can run.
-        using var reader = command.ExecuteReader(CommandBehavior.SingleRow | CommandBehavior.SequentialAccess);
-        if (!reader.Read()) return null;
-        if (!reader.GetDataTypeName(0).Equals("TEXT", StringComparison.OrdinalIgnoreCase))
-            return reader.GetValue(0);
-        if (reader.IsDBNull(0)) return DBNull.Value;
-        // Read TEXT incrementally so the driver's whole-value conversion cannot
-        // confuse a native buffer terminator with the final character.
-        var result = new System.Text.StringBuilder();
-        var buffer = new char[1024];
-        long offset = 0;
-        while (true)
+        base.ConfigureParameterWithValue(parameter, index, value);
+        if (value is string text && text.Length > 32739)
         {
-            var count = (int)reader.GetChars(0, offset, buffer, 0, buffer.Length);
-            result.Append(buffer, 0, count);
-            offset += count;
-            if (count < buffer.Length) break;
+            // The dialect uses native TEXT beyond LVARCHAR capacity. Bind its
+            // LONGVARCHAR representation instead of the driver's NText path.
+            parameter.DbType = DbType.AnsiString;
         }
-        return result.ToString();
     }
 
     private static string Name(string name) => (name.StartsWith('"') ? name[1..^1].Replace("\"\"", "\"") : name.ToLowerInvariant()).Replace("'", "''");
