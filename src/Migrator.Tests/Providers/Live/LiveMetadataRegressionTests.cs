@@ -20,7 +20,7 @@ public class LiveMetadataRegressionTests
         f.Provider.ChangeColumn("unique_values", new Column("amount", DbType.Int64, ColumnProperty.NotNull | ColumnProperty.Unique));
         Assert.That(f.Provider.ConstraintExists("unique_values", "UX_unique_values_amount"), Is.True);
         Assert.That(f.Provider.GetIndexes("unique_values").Any(i => i.UniqueConstraint && i.KeyColumns.Single().Equals("amount", StringComparison.OrdinalIgnoreCase)), Is.True);
-        Assert.That(() => f.Provider.Insert("unique_values", ["amount"], [7L]), Throws.InstanceOf<System.Data.Common.DbException>());
+        f.AssertDatabaseError(() => f.Provider.Insert("unique_values", ["amount"], [7L]));
         Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM unique_values")), Is.EqualTo(1));
         f.Provider.RemoveConstraint("unique_values", "UX_unique_values_amount");
         f.Provider.Insert("unique_values", ["amount"], [7L]);
@@ -36,10 +36,11 @@ public class LiveMetadataRegressionTests
         Assert.That(columns.Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
         f.Provider.AddTable("copied_values", columns);
         Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
-        f.Provider.AddTable("sized_values",
-            new Column("bounded_value", DbType.String, 32739),
-            new Column("large_value", DbType.AnsiString, int.MaxValue));
-        Assert.That(f.Provider.GetColumns("sized_values").Select(c => c.Size), Is.EqualTo(new[] { 32739, int.MaxValue }));
+        // A maximum-width LVARCHAR leaves insufficient row space for an additional LOB locator.
+        f.Provider.AddTable("bounded_values", new Column("bounded_value", DbType.String, 32739));
+        f.Provider.AddTable("large_values", new Column("large_value", DbType.AnsiString, int.MaxValue));
+        Assert.That(f.Provider.GetColumns("bounded_values").Single().Size, Is.EqualTo(32739));
+        Assert.That(f.Provider.GetColumns("large_values").Single().Size, Is.EqualTo(int.MaxValue));
         var content = new string('z', 40000);
         f.Provider.Insert("copied_values", ["text_value", "clob_value"], [content, content]);
         Assert.That(f.Provider.ExecuteScalar("SELECT text_value FROM copied_values"), Is.EqualTo(content));

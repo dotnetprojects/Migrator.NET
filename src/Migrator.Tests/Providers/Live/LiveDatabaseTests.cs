@@ -194,7 +194,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         }
     }
 
-    private void AssertDatabaseError(TestDelegate action)
+    internal void AssertDatabaseError(TestDelegate action)
     {
         // AdoNetCore's ASE exception predates DbException inheritance.
         var error = Assert.Catch(action);
