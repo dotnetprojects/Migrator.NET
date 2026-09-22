@@ -23,8 +23,8 @@ internal static class ConstraintMetadataReader
             sql = @"SELECT kc.name, kc.type, c.name, ic.key_ordinal, CAST(NULL AS nvarchar(max))
                 FROM sys.key_constraints kc JOIN sys.index_columns ic ON ic.object_id=kc.parent_object_id AND ic.index_id=kc.unique_index_id
                 JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
-                WHERE kc.parent_object_id=OBJECT_ID(@table) AND ic.key_ordinal>0
-                UNION ALL SELECT name, 'C', NULL, 0, definition FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID(@table)
+                WHERE kc.parent_object_id=OBJECT_ID(@lookup_table) AND ic.key_ordinal>0
+                UNION ALL SELECT name, 'C', NULL, 0, definition FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID(@lookup_table)
                 ORDER BY 1,4";
         else if (provider.Dialect is PostgreSQLDialect)
         {
@@ -32,7 +32,7 @@ internal static class ConstraintMetadataReader
             sql = @"SELECT c.conname, c.contype::text, a.attname, k.ordinality, CASE WHEN c.contype='c' THEN pg_get_expr(c.conbin,c.conrelid) END
                 FROM pg_constraint c LEFT JOIN LATERAL unnest(c.conkey) WITH ORDINALITY k(attnum,ordinality) ON c.contype<>'c'
                 LEFT JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=k.attnum
-                WHERE c.conrelid=to_regclass(@table) AND c.contype IN ('p','u','c') ORDER BY c.conname,k.ordinality";
+                WHERE c.conrelid=to_regclass(@lookup_table) AND c.contype IN ('p','u','c') ORDER BY c.conname,k.ordinality";
         }
         else if (oracle || provider.Dialect is MysqlDialect)
         {
@@ -44,13 +44,13 @@ internal static class ConstraintMetadataReader
             schema = parts.Length == 2 ? (oracle ? parts[0].ToUpperInvariant() : parts[0]) : null;
             sql = oracle ? @"SELECT c.CONSTRAINT_NAME,c.CONSTRAINT_TYPE,k.COLUMN_NAME,k.POSITION,c.SEARCH_CONDITION_VC
                 FROM ALL_CONSTRAINTS c LEFT JOIN ALL_CONS_COLUMNS k ON k.OWNER=c.OWNER AND k.CONSTRAINT_NAME=c.CONSTRAINT_NAME AND c.CONSTRAINT_TYPE IN ('P','U')
-                WHERE c.TABLE_NAME=:table AND c.OWNER=COALESCE(:schema,SYS_CONTEXT('USERENV','CURRENT_SCHEMA')) AND c.CONSTRAINT_TYPE IN ('P','U','C')
+                WHERE c.TABLE_NAME=:lookup_table AND c.OWNER=COALESCE(:lookup_schema,SYS_CONTEXT('USERENV','CURRENT_SCHEMA')) AND c.CONSTRAINT_TYPE IN ('P','U','C')
                 ORDER BY c.CONSTRAINT_NAME,k.POSITION"
                 : @"SELECT c.CONSTRAINT_NAME,c.CONSTRAINT_TYPE,k.COLUMN_NAME,k.ORDINAL_POSITION,ch.CHECK_CLAUSE
                 FROM information_schema.TABLE_CONSTRAINTS c LEFT JOIN information_schema.KEY_COLUMN_USAGE k
                   ON k.CONSTRAINT_SCHEMA=c.CONSTRAINT_SCHEMA AND k.TABLE_NAME=c.TABLE_NAME AND k.CONSTRAINT_NAME=c.CONSTRAINT_NAME
                 LEFT JOIN information_schema.CHECK_CONSTRAINTS ch ON ch.CONSTRAINT_SCHEMA=c.CONSTRAINT_SCHEMA AND ch.CONSTRAINT_NAME=c.CONSTRAINT_NAME
-                WHERE c.TABLE_NAME=@table AND c.TABLE_SCHEMA=COALESCE(@schema,DATABASE()) AND c.CONSTRAINT_TYPE IN ('PRIMARY KEY','UNIQUE','CHECK')
+                WHERE c.TABLE_NAME=@lookup_table AND c.TABLE_SCHEMA=COALESCE(@lookup_schema,DATABASE()) AND c.CONSTRAINT_TYPE IN ('PRIMARY KEY','UNIQUE','CHECK')
                 ORDER BY c.CONSTRAINT_NAME,k.ORDINAL_POSITION";
         }
         else throw new NotSupportedException("Structured constraint inspection is not implemented for " + provider.Dialect.GetType().Name + ".");
@@ -58,8 +58,8 @@ internal static class ConstraintMetadataReader
         var constraints = new List<TableConstraint>();
         using (var command = provider.CreateCommand())
         {
-            AddParameter(command, "table", parameterTable);
-            if (oracle || provider.Dialect is MysqlDialect) AddParameter(command, "schema", schema);
+            AddParameter(command, "lookup_table", parameterTable);
+            if (oracle || provider.Dialect is MysqlDialect) AddParameter(command, "lookup_schema", schema);
             using var reader = provider.ExecuteQuery(command, sql);
             string lastName = null;
             TableConstraint current = null;
