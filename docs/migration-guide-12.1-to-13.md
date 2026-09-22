@@ -59,3 +59,16 @@ Reviewed 2026-09-22:
 ## Additional v13 candidates
 
 Evaluate typed schema-qualified identifiers, explicit literal versus SQL-expression defaults, ordered constraint metadata, deterministic constraint naming, SQLite constraint parsing without regular-expression guesses, typed provider capabilities, and removal of obsolete duplicate authoring APIs. These are candidates, not claims of implemented functionality.
+
+
+### SQLite alterations preserve named primary keys
+
+Rebuilding a table now retains an explicitly named primary key and its declared
+column order. Changing a column definition does not implicitly remove that key.
+To drop a column belonging to a named primary key, first call
+`RemovePrimaryKey(table)`, then remove the column, and explicitly create any
+replacement key. A failed attempt leaves the original table intact.
+
+Rebuilds also retain physical column order for tables with named primary keys,
+including when a column's type or size changes. Identity rebuilds retain the
+constraint name and the sequence high-water mark.

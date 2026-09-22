@@ -15,6 +15,9 @@ public class SQLiteTableInfo
     /// </summary>
     public List<Column> Columns { get; set; } = [];
 
+    /// <summary>The named primary key, with members in declared key order.</summary>
+    public PrimaryKeyConstraint PrimaryKey { get; set; }
+
     /// <summary>
     /// Gets or sets the indexes of a table.
     /// </summary>

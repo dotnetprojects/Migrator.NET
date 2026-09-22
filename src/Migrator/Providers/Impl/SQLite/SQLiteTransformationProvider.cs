@@ -463,6 +463,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
 
+        if (sqliteInfoMainTable.PrimaryKey?.KeyColumns.Any(x => x.Equals(column, StringComparison.OrdinalIgnoreCase)) == true)
+            throw new MigrationException("Remove the named primary-key constraint before removing one of its columns.");
+
         var checkConstraints = sqliteInfoMainTable.CheckConstraints;
 
         if (checkConstraints.Any(x => x.CheckConstraintString.Contains(column, StringComparison.OrdinalIgnoreCase)))
@@ -616,6 +619,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             var column = sqliteTableInfo.Columns.First(x => x.Name.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase));
             column.Name = newColumnName;
+            if (sqliteTableInfo.PrimaryKey != null)
+                sqliteTableInfo.PrimaryKey.KeyColumns = sqliteTableInfo.PrimaryKey.KeyColumns
+                    .Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x).ToArray();
 
             foreach (var foreignKey in sqliteTableInfo.ForeignKeys)
             {
@@ -770,11 +776,18 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             TableNameMapping = new MappingInfo { OldName = tableName, NewName = tableName },
             Columns = GetColumns(tableName).ToList(),
+            PrimaryKey = GetTableConstraints(tableName).OfType<PrimaryKeyConstraint>().SingleOrDefault(c => c.Name != null),
             ForeignKeys = GetForeignKeyConstraints(tableName).ToList(),
             Indexes = GetIndexes(tableName).ToList(),
             Uniques = GetUniques(tableName).ToList(),
             CheckConstraints = GetCheckConstraints(tableName)
         };
+
+        if (sqliteTable.PrimaryKey != null)
+        {
+            var columnOrder = GetPragmaTableInfoItems(tableName).ToDictionary(c => c.Name, c => c.Cid, StringComparer.OrdinalIgnoreCase);
+            sqliteTable.Columns = sqliteTable.Columns.OrderBy(c => columnOrder[c.Name]).ToList();
+        }
 
         sqliteTable.ColumnMappings = sqliteTable.Columns
             .Select(x =>
@@ -889,7 +902,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var targetIntermediateTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}{IntermediateTableSuffix}");
         var targetTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}");
 
-        var columnDbFields = sqliteTableInfo.Columns.Cast<IDbField>();
+        // Catalog columns still expose legacy membership flags during the v13 transition.
+        // The table constraint is authoritative; clear flags only on private copies.
+        var columns = sqliteTableInfo.Columns.Select(c => c.CopyDefinition()).ToArray();
+        if (sqliteTableInfo.PrimaryKey != null)
+            foreach (var column in columns) column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
+        var columnDbFields = columns.Cast<IDbField>();
         var foreignKeyDbFields = sqliteTableInfo.ForeignKeys.Cast<IDbField>();
         var indexDbFields = sqliteTableInfo.Indexes.Cast<IDbField>();
         var uniqueDbFields = sqliteTableInfo.Uniques.Cast<IDbField>();
@@ -898,6 +916,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var dbFields = columnDbFields.Concat(foreignKeyDbFields)
             .Concat(uniqueDbFields)
             .Concat(checkConstraintDbFields)
+            .Concat(sqliteTableInfo.PrimaryKey == null ? Array.Empty<IDbField>() : new IDbField[] { sqliteTableInfo.PrimaryKey })
             .ToArray();
 
         // ToHashSet() not available in older .NET versions so we create it old-fashioned.
@@ -1075,11 +1094,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             throw new Exception("Column does not exists.");
         }
 
-        sqliteInfo.Columns = sqliteInfo.Columns
-            .Where(x => !x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        sqliteInfo.Columns.Add(column);
+        var columnIndex = sqliteInfo.Columns.FindIndex(x => x.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase));
+        sqliteInfo.Columns[columnIndex] = column.CopyDefinition();
 
         RecreateTable(sqliteInfo);
     }
@@ -1693,6 +1709,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         var sqliteInfoTable = GetSQLiteTableInfo(tableName);
+        sqliteInfoTable.PrimaryKey = null;
 
         foreach (var column in sqliteInfoTable.Columns)
         {

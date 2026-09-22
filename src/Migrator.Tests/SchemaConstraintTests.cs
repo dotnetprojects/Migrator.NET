@@ -58,6 +58,42 @@ public class SchemaConstraintTests
     }
 
     [Test]
+    public void RebuildPreservesNamedKeyOrderAndColumnOrder()
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        provider.AddTable("RebuiltKeys", new Column("First", DbType.Int32), new Column("Second", DbType.Int32),
+            new Column("Label", DbType.String, 20), new PrimaryKeyConstraint("PK ordered", "Second", "First"));
+        provider.ExecuteNonQuery("INSERT INTO RebuiltKeys VALUES (1, 2, 'kept')");
+        provider.ChangeColumn("RebuiltKeys", new Column("First", DbType.Int64));
+        var key = provider.GetTableConstraints("RebuiltKeys").OfType<PrimaryKeyConstraint>().Single();
+        Assert.That(key.Name, Is.EqualTo("PK ordered"));
+        Assert.That(key.KeyColumns, Is.EqualTo(new[] { "Second", "First" }));
+        Assert.That(((DotNetProjects.Migrator.Providers.Impl.SQLite.SQLiteTransformationProvider)provider).GetPragmaTableInfoItems("RebuiltKeys").OrderBy(c => c.Cid).Select(c => c.Name), Is.EqualTo(new[] { "First", "Second", "Label" }));
+        Assert.That(provider.ExecuteScalar("SELECT Label FROM RebuiltKeys WHERE First=1 AND Second=2"), Is.EqualTo("kept"));
+        Assert.Catch(() => provider.ExecuteNonQuery("INSERT INTO RebuiltKeys VALUES (1, 2, 'duplicate')"));
+        Assert.Catch(() => provider.ExecuteNonQuery("INSERT INTO RebuiltKeys VALUES (NULL, 3, 'null')"));
+        Assert.Throws<MigrationException>(() => provider.RemoveColumn("RebuiltKeys", "First"));
+        Assert.That(provider.ColumnExists("RebuiltKeys", "First"), Is.True);
+        provider.RemovePrimaryKey("RebuiltKeys");
+        Assert.That(provider.GetTableConstraints("RebuiltKeys").OfType<PrimaryKeyConstraint>(), Is.Empty);
+        provider.ExecuteNonQuery("INSERT INTO RebuiltKeys VALUES (1, 2, 'allowed')");
+    }
+
+    [Test]
+    public void RebuildPreservesNamedIdentityAndSequenceHighWater()
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        provider.AddTable("RebuiltIdentity", new Column("Id", DbType.Int32, ColumnProperty.Identity),
+            new Column("Value", DbType.String, 20), new PrimaryKeyConstraint("PK identity", "Id"));
+        provider.ExecuteNonQuery("INSERT INTO RebuiltIdentity VALUES (40, 'removed')");
+        provider.ExecuteNonQuery("DELETE FROM RebuiltIdentity");
+        provider.ChangeColumn("RebuiltIdentity", new Column("Value", DbType.String, 40));
+        provider.ExecuteNonQuery("INSERT INTO RebuiltIdentity (Value) VALUES ('next')");
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT Id FROM RebuiltIdentity")), Is.EqualTo(41));
+        Assert.That(provider.GetTableConstraints("RebuiltIdentity").OfType<PrimaryKeyConstraint>().Single().Name, Is.EqualTo("PK identity"));
+    }
+
+    [Test]
     public void FluentNamedDefinitionsAreCompleteBeforeExecution()
     {
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
