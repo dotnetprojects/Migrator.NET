@@ -16,13 +16,15 @@ namespace Migrator.Tests.Providers.Hana;
 public class HanaProviderTests
 {
     private HanaConnection connection;
+    private string connectionString;
     private ITransformationProvider provider;
     private string schema;
     [SetUp]
     public void SetUp()
     {
-        connection = new HanaConnection(Environment.GetEnvironmentVariable("MIGRATOR_HANA")
-            ?? "Server=localhost:39041;UserID=SYSTEM;Password=MgT9ci7Q4xZ2");
+        connectionString = Environment.GetEnvironmentVariable("MIGRATOR_HANA")
+            ?? "Server=localhost:39041;UserID=SYSTEM;Password=MgT9ci7Q4xZ2";
+        connection = new HanaConnection(connectionString);
         connection.Open();
         schema = "MIGRATOR_" + Guid.NewGuid().ToString("N").ToUpperInvariant();
         using var command = connection.CreateCommand();
@@ -43,7 +45,7 @@ public class HanaProviderTests
     [Test]
     public void ConnectionStringFactoryOpensAndDisposesOwnedConnection()
     {
-        using var owned = ProviderFactory.Create(ProviderTypes.Hana, connection.ConnectionString, schema);
+        using var owned = ProviderFactory.Create(ProviderTypes.Hana, connectionString, schema);
         Assert.That(Convert.ToInt32(owned.ExecuteScalar("SELECT 1 FROM DUMMY")), Is.EqualTo(1));
     }
 
