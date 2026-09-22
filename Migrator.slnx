@@ -2,6 +2,9 @@
   <Folder Name="/Core/">
     <Project Path="src/Migrator/DotNetProjects.Migrator.csproj" />
   </Folder>
+  <Folder Name="/examples/">
+    <Project Path="examples/FluentQuickStart/FluentQuickStart.csproj" />
+  </Folder>
   <Folder Name="/Extras/">
     <File Path="README.md" />
   </Folder>
