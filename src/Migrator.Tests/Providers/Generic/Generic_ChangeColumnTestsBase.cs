@@ -34,7 +34,7 @@ public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
         Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
     }
 
-    [Test, Ignore("Not yet implemented. See issue https://github.com/dotnetprojects/Migrator.NET/issues/139")]
+    [Test]
     public void ChangeColumn_RemoveDefaultValue_Success()
     {
         // Arrange
@@ -59,11 +59,11 @@ public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd: cmd, table: tableName, columns: [column1Name, column2Name]);
 
-        List<(int, DateTime)> records = [];
+        List<(int, DateTime?)> records = [];
 
         while (reader.Read())
         {
-            records.Add((reader.GetInt32(0), reader.GetDateTime(1)));
+            records.Add((reader.GetInt32(0), reader.IsDBNull(1) ? null : reader.GetDateTime(1)));
         }
 
         Assert.That(records.Count, Is.EqualTo(2));

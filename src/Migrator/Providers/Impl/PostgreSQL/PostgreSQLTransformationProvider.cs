@@ -102,7 +102,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                 value = filterItem.Value switch
                 {
                     bool booleanValue => booleanValue ? "TRUE" : "FALSE",
-                    string stringValue => $"'{stringValue}'",
+                    string stringValue => $"'{stringValue.Replace("'", "''")}'",
                     byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
                     sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
                     _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),

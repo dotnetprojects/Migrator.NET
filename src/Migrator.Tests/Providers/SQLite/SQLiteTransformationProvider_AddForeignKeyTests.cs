@@ -38,8 +38,8 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
 
         Assert.That(foreignKeyConstraints.Single().OnDelete, Is.EqualTo(expectedAction));
         var expectedClause = constraint == ForeignKeyConstraintType.NoAction ? "" : $" ON DELETE {expectedAction}";
-        Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
-        Assert.That(tableSQLCreateScript, Does.Contain($", CONSTRAINT FKName FOREIGN KEY (TestId) REFERENCES Test(Id){expectedClause})"));
+        Assert.That(tableSQLCreateScript.Replace("\"", ""), Does.Contain("CREATE TABLE TestTwo"));
+        Assert.That(tableSQLCreateScript.Replace("\"", ""), Does.Contain($", CONSTRAINT FKName FOREIGN KEY (TestId) REFERENCES Test(Id){expectedClause})"));
 
         // Reading and rebuilding an existing foreign key must retain its action.
         Provider.RenameColumn("TestTwo", "TestId", "ParentId");
@@ -67,8 +67,8 @@ public class SQLiteTransformationProvider_AddForeignKeyTests : SQLiteTransformat
         var foreignKeyConstraints = ((SQLiteTransformationProvider)Provider).GetForeignKeyConstraints("TestTwo");
         var tableSQLCreateScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("TestTwo");
 
-        Assert.That(tableSQLCreateScript, Does.Contain("CREATE TABLE \"TestTwo\""));
-        Assert.That(tableSQLCreateScript, Does.Contain(", CONSTRAINT FKName FOREIGN KEY (TestId) REFERENCES Test(IdNew) ON DELETE CASCADE)"));
+        Assert.That(tableSQLCreateScript.Replace("\"", ""), Does.Contain("CREATE TABLE TestTwo"));
+        Assert.That(tableSQLCreateScript.Replace("\"", ""), Does.Contain(", CONSTRAINT FKName FOREIGN KEY (TestId) REFERENCES Test(IdNew) ON DELETE CASCADE)"));
         Assert.That(foreignKeyConstraints.Single().ParentColumns.Single(), Is.EqualTo("IdNew"));
 
         var result = ((SQLiteTransformationProvider)Provider).CheckForeignKeyIntegrity();

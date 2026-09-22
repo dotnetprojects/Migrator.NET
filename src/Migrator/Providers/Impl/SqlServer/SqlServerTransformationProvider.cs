@@ -279,6 +279,7 @@ public class SqlServerTransformationProvider : TransformationProvider
     {
         if (column.DefaultValue == null || column.DefaultValue == DBNull.Value)
         {
+            RemoveColumnDefaultValue(table, column.Name);
             base.ChangeColumn(table, column);
         }
         else
@@ -546,28 +547,19 @@ public class SqlServerTransformationProvider : TransformationProvider
             schema = _defaultSchema;
         }
 
-        var pkColumns = new List<string>();
-        try
-        {
-            pkColumns = ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu WHERE EXISTS ( SELECT tc.* FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc WHERE tc.TABLE_NAME = '{0}' AND tc.CONSTRAINT_TYPE = 'PRIMARY KEY' AND tc.CONSTRAINT_NAME = cu.CONSTRAINT_NAME )", table);
-        }
-        catch (Exception)
-        { }
-
-        var idtColumns = new List<string>();
-        try
-        {
-            idtColumns = ExecuteStringQuery("SELECT COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_SCHEMA = '{1}' and TABLE_NAME = '{0}' and COLUMNPROPERTY(object_id(TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1", table, schema);
-        }
-        catch (Exception)
-        { }
+        schema = string.IsNullOrWhiteSpace(schema) ? "dbo" : schema.Trim('[', ']').Replace("''", "'");
+        table = table.Trim('[', ']');
+        var tableLiteral = table.Replace("'", "''");
+        var schemaLiteral = schema.Replace("'", "''");
+        var pkColumns = ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_NAME=cu.CONSTRAINT_NAME AND tc.CONSTRAINT_SCHEMA=cu.CONSTRAINT_SCHEMA WHERE tc.TABLE_NAME='{0}' AND tc.TABLE_SCHEMA='{1}' AND tc.CONSTRAINT_TYPE='PRIMARY KEY'", tableLiteral, schemaLiteral);
+        var idtColumns = ExecuteStringQuery("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='{1}' AND TABLE_NAME='{0}' AND COLUMNPROPERTY(OBJECT_ID(QUOTENAME(TABLE_SCHEMA)+'.'+QUOTENAME(TABLE_NAME)),COLUMN_NAME,'IsIdentity')=1", tableLiteral, schemaLiteral);
 
         var columns = new List<Column>();
         using (var cmd = CreateCommand())
         using (
                 var reader =
                 ExecuteQuery(cmd,
-                    string.Format("SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH , NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE, CHARACTER_MAXIMUM_LENGTH from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}'", table)))
+                    string.Format("SELECT COLUMN_NAME, IS_NULLABLE, DATA_TYPE, ISNULL(CHARACTER_MAXIMUM_LENGTH , NUMERIC_PRECISION), COLUMN_DEFAULT, NUMERIC_SCALE, CHARACTER_MAXIMUM_LENGTH from INFORMATION_SCHEMA.COLUMNS where table_name = '{0}' AND TABLE_SCHEMA = '{1}'", tableLiteral, schemaLiteral)))
         {
             while (reader.Read())
             {

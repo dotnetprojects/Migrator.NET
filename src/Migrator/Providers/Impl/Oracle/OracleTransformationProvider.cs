@@ -148,7 +148,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 value = filterItem.Value switch
                 {
                     bool booleanValue => booleanValue ? "TRUE" : "FALSE",
-                    string stringValue => $"'{stringValue}'",
+                    string stringValue => $"'{stringValue.Replace("'", "''")}'",
                     byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
                     sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
                     _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),
@@ -934,15 +934,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     private void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
     {
-        foreach (var column in columns)
-        {
-            if (column.Name.Length > 30)
-            {
-                throw new ArgumentException(
-                    string.Format("When adding table: \"{0}\", the column: \"{1}\", the name of the column is: {2} characters in length, but maximum length for an oracle identifier is 30 characters", name,
-                                  column.Name, column.Name.Length), "columns");
-            }
-        }
+        foreach (var column in columns) GuardAgainstMaximumIdentifierLengthForOracle(column.Name);
     }
 
     public override string Encode(Guid guid)
