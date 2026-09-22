@@ -92,6 +92,9 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         else if (database == "Db2")
         {
             ExecuteAdmin("CREATE SCHEMA " + isolatedName);
+            var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+            builder["CurrentSchema"] = isolatedName.ToUpperInvariant();
+            connectionString = builder.ConnectionString;
         }
         else
         {
@@ -243,13 +246,15 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     public void UniqueAndCheckConstraints()
     {
         CreateItems();
+        // Db2 requires NOT NULL for columns participating in a UNIQUE constraint.
+        provider.ChangeColumn("items", new Column("label", DbType.String, 40, ColumnProperty.NotNull));
         provider.AddUniqueConstraint("uq_label", "items", "label");
         provider.AddCheckConstraint("ck_amount", "items", "amount >= 0");
         Assert.That(provider.ConstraintExists("items", "uq_label"), Is.True);
         Assert.That(provider.ConstraintExists("items", "ck_amount"), Is.True);
         provider.Insert("items", ["id", "label"], [1, "unique"]);
         Assert.Catch<DbException>(() => provider.Insert("items", ["id", "label"], [2, "unique"]));
-        Assert.Catch<DbException>(() => provider.Insert("items", ["id", "amount"], [3, -1]));
+        Assert.Catch<DbException>(() => provider.Insert("items", ["id", "label", "amount"], [3, "negative", -1]));
         provider.RemoveConstraint("items", "ck_amount");
         provider.RemoveConstraint("items", "uq_label");
         provider.Insert("items", ["id", "label", "amount"], [2, "unique", -1]);

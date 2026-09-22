@@ -52,7 +52,8 @@ public class DB2Dialect : Dialect
             AddType(parts);
             AddIdentityAgain(column, parts);
             AddDefaultValue(column, parts);
-            AddNotNull(column, parts);
+            if (column.IsPrimaryKey || column.ColumnProperty.HasFlag(ColumnProperty.NotNull))
+                parts.Add("NOT NULL");
             AddPrimaryKey(column, parts);
             AddUnique(column, parts);
             _ColumnSql = string.Join(" ", parts);
