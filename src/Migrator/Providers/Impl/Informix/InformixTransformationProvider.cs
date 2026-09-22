@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text;
 using DotNetProjects.Migrator.Framework;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
@@ -26,16 +27,43 @@ public class InformixTransformationProvider : TransformationProvider
     {
         Logger.Trace(sql);
         using var command = BuildCommand(sql);
-        using var reader = command.ExecuteReader(CommandBehavior.SingleRow);
-        if (!reader.Read()) return null;
-        if (reader.GetFieldType(0) != typeof(string)) return reader.GetValue(0);
-        // GetString has its own TEXT conversion. Do not call IsDBNull first:
-        // that eagerly caches GetValue's broken long-string conversion.
-        try { return reader.GetString(0); }
-        catch (InvalidCastException) when (reader.IsDBNull(0))
+        byte[] bytes;
+        using (var reader = command.ExecuteReader(CommandBehavior.SingleRow | CommandBehavior.SequentialAccess))
         {
-            return DBNull.Value;
+            if (!reader.Read()) return null;
+            var typeName = reader.GetDataTypeName(0).Replace(" ", "").ToUpperInvariant();
+            if (typeName is not ("TEXT" or "LONGVARCHAR")) return reader.GetValue(0);
+            // The native Unicode TEXT conversion can replace the final character
+            // with NUL. SQL_C_BINARY preserves the bytes stored by the database.
+            var length = reader.GetBytes(0, 0, null, 0, 0);
+            if (length < 0) return DBNull.Value;
+            bytes = new byte[checked((int)length)];
+            var offset = 0;
+            while (offset < bytes.Length)
+            {
+                var count = (int)reader.GetBytes(0, offset, bytes, offset, Math.Min(8192, bytes.Length - offset));
+                if (count == 0) throw new System.IO.EndOfStreamException("Incomplete Informix TEXT value.");
+                offset += count;
+            }
         }
+        // GL_CTYPE records the actual database codeset; do not assume UTF-8 or
+        // the client's locale when decoding raw database bytes.
+        var locale = Convert.ToString(base.ExecuteScalar("SELECT site FROM systables WHERE tabid=91"));
+        return TextEncodingForLocale(locale).GetString(bytes);
+    }
+
+    internal static Encoding TextEncodingForLocale(string locale)
+    {
+        var codeSet = locale?.Trim().Split('@')[0].Split('.').Last().ToLowerInvariant();
+        if (string.IsNullOrEmpty(codeSet)) throw new NotSupportedException("Missing Informix database locale.");
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return codeSet switch
+        {
+            "819" or "8859-1" => Encoding.GetEncoding(28591, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback),
+            "57372" or "utf8" or "utf-8" => new UTF8Encoding(false, true),
+            _ when int.TryParse(codeSet, out var codePage) => Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback),
+            _ => Encoding.GetEncoding(codeSet, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback)
+        };
     }
 
     private static string Name(string name) => (name.StartsWith('"') ? name[1..^1].Replace("\"\"", "\"") : name.ToLowerInvariant()).Replace("'", "''");

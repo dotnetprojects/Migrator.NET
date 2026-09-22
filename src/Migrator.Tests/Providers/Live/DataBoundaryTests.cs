@@ -240,7 +240,7 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
     {
         Create(new Column("payload", type, int.MaxValue));
         // Exceeds varchar(8000), nvarchar(4000), and typical driver text-size defaults.
-        var value = new string('x', 70000) + "'tail";
+        var value = new string('x', 70000) + "'tailé";
         Insert(1, value);
         Assert.That(Read(1), Is.EqualTo(value));
     }

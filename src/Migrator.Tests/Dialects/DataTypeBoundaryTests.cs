@@ -5,6 +5,7 @@ using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 using DotNetProjects.Migrator.Providers.Impl.Oracle;
+using DotNetProjects.Migrator.Providers.Impl.Informix;
 using Oracle.ManagedDataAccess.Client;
 using Migrator.Tests.Providers.Live;
 using Npgsql;
@@ -62,6 +63,23 @@ public class DataTypeBoundaryTests(ProviderTypes provider)
 
 public class DialectCapacityRegressionTests
 {
+    [TestCase("en_US.819", 28591)]
+    [TestCase("en_us.8859-1", 28591)]
+    [TestCase("en_US.57372", 65001)]
+    [TestCase("en_US.utf8@modifier", 65001)]
+    [TestCase("en_US.1252", 1252)]
+    public void InformixTextDecodingUsesDatabaseCodeset(string locale, int codePage)
+    {
+        var encoding = InformixTransformationProvider.TextEncodingForLocale(locale);
+        Assert.That(encoding.CodePage, Is.EqualTo(codePage));
+        Assert.That(encoding.GetString(encoding.GetBytes("café'tail")), Is.EqualTo("café'tail"));
+    }
+
+    [Test]
+    public void InformixTextDecodingRejectsInvalidUtf8()
+        => Assert.Throws<System.Text.DecoderFallbackException>(() =>
+            InformixTransformationProvider.TextEncodingForLocale("en_US.57372").GetString(new byte[] { 0xff }));
+
     private sealed class OracleParameterProbe()
         : OracleTransformationProvider(new OracleDialect(), (IDbConnection)null, null, "test", null)
     {

@@ -83,7 +83,9 @@ Mapping changes affect newly generated DDL; they do not alter existing tables au
 
 ## CI regression fixes
 
-The first full matrix exposed additional regressions: PostgreSQL fixed-character metadata and non-UTC timestamp binding, Oracle character metadata and Single storage/binding, SQL Server numeric/fixed-character metadata, Db2 Byte binding, Informix large-text transfers, and untyped NULL parameters for binary columns. The fixes include NULL updates through both update overloads and native Oracle BINARY_FLOAT storage and parameters. Local Unit+SQLite validation after these changes passes 856 tests.
+The first full matrix exposed additional regressions: PostgreSQL fixed-character metadata and non-UTC timestamp binding, Oracle character metadata and Single storage/binding, SQL Server numeric/fixed-character metadata, Db2 Byte binding, Informix large-text transfers, and untyped NULL parameters for binary columns. The fixes include NULL updates through both update overloads and native Oracle BINARY_FLOAT storage and parameters. Local Unit+SQLite validation after these changes passes 862 tests.
+
+Informix TEXT scalar reads use raw bytes and the database's GL_CTYPE codeset to bypass a native Unicode conversion that corrupts the final character. The large-text test includes an accented suffix; unit regressions cover Latin-1, UTF-8, Windows-1252, and invalid UTF-8 rejection.
 
 Shared test teardown now disposes provider-owned connections even when cleanup fails. Oracle's unique per-test users disable connection pooling to avoid accumulating dedicated server processes that cannot be reused by subsequent tests.
 
