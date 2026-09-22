@@ -18,10 +18,10 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
         Provider.AddForeignKey("FK_Test_TestTwo", "TestTwo", "TestId", "Test", "Id");
     }
 
-    public void AddPrimaryKey()
+    private void AddTableAndPrimaryKey()
     {
         AddTable();
-        Provider.AddPrimaryKey("PK_Test", "Test", "Id");
+        AddPrimaryKey();
     }
 
     public void AddUniqueConstraint()
@@ -42,7 +42,7 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
     [Test]
     public void CanAddPrimaryKey()
     {
-        AddPrimaryKey();
+        AddTableAndPrimaryKey();
 
         Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True);
     }
@@ -156,7 +156,7 @@ public abstract class TransformationProviderGenericMiscConstraintBase : Transfor
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
 
-        var column = Provider.GetColumnByName("Test", "Name");
+        var column = Provider.ReadLegacyColumn("Test", "Name");
 
         Assert.That(column, Is.Not.Null);
         Assert.That(column.IsNullable, Is.True);

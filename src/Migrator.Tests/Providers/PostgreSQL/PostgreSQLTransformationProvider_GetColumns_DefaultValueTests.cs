@@ -38,7 +38,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
         );
 
         // Act
-        var columns = Provider.GetColumns(testTableName);
+        var columns = Provider.ReadLegacyColumns(testTableName);
 
         // Assert
         var intervalColumn1 = columns.Single(x => x.Name == intervalColumnName1);
@@ -97,7 +97,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
         );
 
         // Act
-        var columns = Provider.GetColumns(testTableName);
+        var columns = Provider.ReadLegacyColumns(testTableName);
 
         // Assert
         var dateTimeColumn1 = columns.Single(x => x.Name.Equals(dateTimeColumnName1, StringComparison.OrdinalIgnoreCase));
@@ -159,7 +159,7 @@ public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : Tr
         );
 
         // Act
-        var columns = Provider.GetColumns(testTableName);
+        var columns = Provider.ReadLegacyColumns(testTableName);
 
         // Assert
         var booleanColumn1 = columns.Single(x => x.Name == booleanColumnName1);

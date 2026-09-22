@@ -23,7 +23,7 @@ public class OracleTransformationProvider_TableExistsTests : OracleTransformatio
             new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ ' name", "Id"));
         Assert.That(Provider.TableExists(table), Is.True);
         Assert.That(Provider.ColumnExists(table, "Id"), Is.True);
-        Assert.That(Provider.GetColumns(table).Length, Is.EqualTo(1));
+        Assert.That(Provider.ReadLegacyColumns(table).Length, Is.EqualTo(1));
         Assert.That(Provider.GetIndexes(table).Length, Is.EqualTo(1));
         Assert.That(Provider.GetTableConstraints(table).Length, Is.EqualTo(1));
         Provider.RemoveConstraint(table, "UQ ' name");

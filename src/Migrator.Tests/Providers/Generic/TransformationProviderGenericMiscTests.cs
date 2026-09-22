@@ -61,7 +61,7 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
     public void GetColumnsReturnsProperCount()
     {
         AddTable();
-        var cols = Provider.GetColumns("Test");
+        var cols = Provider.ReadLegacyColumns("Test");
 
         Assert.That(cols, Is.Not.Null);
         Assert.That(6, Is.EqualTo(cols.Length));
@@ -71,7 +71,7 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
     public void GetColumnsContainsProperNullInformation()
     {
         AddTableWithPrimaryKey();
-        var cols = Provider.GetColumns("Test");
+        var cols = Provider.ReadLegacyColumns("Test");
         Assert.That(cols, Is.Not.Null);
 
         foreach (var column in cols)
@@ -211,7 +211,7 @@ public abstract class TransformationProviderGenericMiscTests : TransformationPro
     public void CanGetNullableFromProvider()
     {
         Provider.AddColumn("TestTwo", new Column("NullableColumn", DbType.String, 30));
-        var columns = Provider.GetColumns("TestTwo");
+        var columns = Provider.ReadLegacyColumns("TestTwo");
 
         foreach (var column in columns)
         {

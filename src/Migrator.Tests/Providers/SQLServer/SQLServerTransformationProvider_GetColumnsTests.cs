@@ -33,10 +33,10 @@ public class SQLServerTransformationProvider_GetColumnsTests : Generic_GetColumn
         Provider.AddTable(name: tableName4, new Column(columnName1,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName4, columnName1));
 
         // Act
-        var columnTable1 = Provider.GetColumnByName(table: tableName1, column: columnName1);
-        var columnTable2 = Provider.GetColumnByName(table: tableName2, column: columnName1);
-        var columnTable3 = Provider.GetColumnByName(table: tableName3, column: columnName1);
-        var columnTable4 = Provider.GetColumnByName(table: tableName4, column: columnName1);
+        var columnTable1 = Provider.ReadLegacyColumn(table: tableName1, column: columnName1);
+        var columnTable2 = Provider.ReadLegacyColumn(table: tableName2, column: columnName1);
+        var columnTable3 = Provider.ReadLegacyColumn(table: tableName3, column: columnName1);
+        var columnTable4 = Provider.ReadLegacyColumn(table: tableName4, column: columnName1);
 
         // Assert
         Assert.That(columnTable1.IsIdentity, Is.True);

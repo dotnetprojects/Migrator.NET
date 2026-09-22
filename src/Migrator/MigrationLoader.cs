@@ -21,14 +21,7 @@ public class MigrationLoader
         _provider = provider;
         AddMigrations(migrationAssembly);
 
-        if (trace)
-        {
-            provider.Logger.Trace("Loaded migrations:");
-            foreach (var t in _migrationsTypes)
-            {
-                provider.Logger.Trace("{0} {1}", (t.GetCustomAttribute<MigrationAttribute>()?.Version.ToString() ?? "aux").PadLeft(5), StringUtils.ToHumanName(t.Name));
-            }
-        }
+        if (trace) TraceMigrations();
     }
 
     public MigrationLoader(ITransformationProvider provider, bool trace, params Type[] migrationTypes)
@@ -36,14 +29,14 @@ public class MigrationLoader
         _provider = provider;
         _migrationsTypes.AddRange(migrationTypes);
 
-        if (trace)
-        {
-            provider.Logger.Trace("Loaded migrations:");
-            foreach (var t in _migrationsTypes)
-            {
-                provider.Logger.Trace("{0} {1}", (t.GetCustomAttribute<MigrationAttribute>()?.Version.ToString() ?? "aux").PadLeft(5), StringUtils.ToHumanName(t.Name));
-            }
-        }
+        if (trace) TraceMigrations();
+    }
+
+    private void TraceMigrations()
+    {
+        _provider.Logger.Trace("Loaded migrations:");
+        foreach (var type in _migrationsTypes)
+            _provider.Logger.Trace("{0} {1}", (type.GetCustomAttribute<MigrationAttribute>()?.Version.ToString() ?? "aux").PadLeft(5), StringUtils.ToHumanName(type.Name));
     }
 
     /// <summary>
@@ -93,17 +86,15 @@ public class MigrationLoader
     /// <exception cref="CheckForDuplicatedVersion">CheckForDuplicatedVersion</exception>
     public virtual void CheckForDuplicatedVersion()
     {
-        var versions = new List<long>();
+        var versions = new HashSet<long>();
         foreach (var t in SelectedTypes)
         {
             var version = GetMigrationVersion(t);
 
-            if (versions.Contains(version))
+            if (!versions.Add(version))
             {
                 throw new DuplicatedVersionException(version);
             }
-
-            versions.Add(version);
         }
     }
 

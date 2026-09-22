@@ -137,7 +137,7 @@ public class SchemaConstraintTests
         builder.Apply(provider);
         foreach (var table in new[] { "RawImperative", "RawFluent" })
         {
-            var defaultExpression = provider.GetColumns(table).Single(c => c.Name == "Token").DefaultValue;
+            var defaultExpression = provider.ReadLegacyColumns(table).Single(c => c.Name == "Token").DefaultValue;
             Assert.That(defaultExpression, Is.TypeOf<RawSql>());
             provider.ChangeColumn(table, new Column("Id", DbType.Int64));
             provider.ExecuteNonQuery("INSERT INTO " + table + " (Id) VALUES (1)");
@@ -179,7 +179,7 @@ public class SchemaConstraintTests
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
         provider.AddTable("ConcatDefault", new Column("Id", DbType.Int32),
             new Column("Value", DbType.String, 30) { DefaultValue = RawSql.Insert("'A' || 'B'") });
-        Assert.That(provider.GetColumns("ConcatDefault").Single(c => c.Name == "Value").DefaultValue, Is.TypeOf<RawSql>());
+        Assert.That(provider.ReadLegacyColumns("ConcatDefault").Single(c => c.Name == "Value").DefaultValue, Is.TypeOf<RawSql>());
         provider.ChangeColumn("ConcatDefault", new Column("Id", DbType.Int64));
         provider.ExecuteNonQuery("INSERT INTO ConcatDefault (Id) VALUES (1)");
         Assert.That(provider.ExecuteScalar("SELECT Value FROM ConcatDefault"), Is.EqualTo("AB"));

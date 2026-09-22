@@ -44,7 +44,7 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
 
         // Assert
         var createScriptAfter = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
-        Assert.That(Provider.GetColumns(testTableName).Single(c => c.Name == propertyName2).IsNullable, Is.True);
+        Assert.That(Provider.ReadLegacyColumns(testTableName).Single(c => c.Name == propertyName2).IsNullable, Is.True);
 
         using var command = Provider.GetCommand();
         using var reader = Provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");

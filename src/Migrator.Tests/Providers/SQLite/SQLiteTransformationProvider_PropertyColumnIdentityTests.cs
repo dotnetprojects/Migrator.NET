@@ -25,7 +25,7 @@ public class SQLiteTransformationProvider_PropertyColumnIdentityTests : SQLiteTr
         var sql = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
 
         // NOT NULL implicitly set in SQLite
-        Assert.That(Provider.GetColumnByName(testTableName, "Color1").IsIdentity, Is.True);
-        Assert.That(Provider.GetColumnByName(testTableName, "Color1").IsNullable, Is.False);
+        Assert.That(Provider.ReadLegacyColumn(testTableName, "Color1").IsIdentity, Is.True);
+        Assert.That(Provider.ReadLegacyColumn(testTableName, "Color1").IsNullable, Is.False);
     }
 }

@@ -16,7 +16,7 @@ public class SQLServerTransformationProvider_ConstraintExistsTests : Generic_Con
         Provider.AddTable(table, new DotNetProjects.Migrator.Framework.Column("Id", System.Data.DbType.Int32),
             new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ ' name", "Id"));
         Assert.That(Provider.TableExists(table), Is.True);
-        Assert.That(Provider.GetColumns(table).Length, Is.EqualTo(1));
+        Assert.That(Provider.ReadLegacyColumns(table).Length, Is.EqualTo(1));
         Assert.That(Provider.GetIndexes(table).Length, Is.EqualTo(1));
         Assert.That(Provider.ConstraintExists(table, "UQ ' name"), Is.True);
         Provider.RemoveConstraint(table, "UQ ' name");

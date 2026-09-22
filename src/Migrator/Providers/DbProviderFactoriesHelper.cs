@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Data.Common;
 using System.Linq;
 using System.Reflection;
@@ -10,29 +11,12 @@ public static class DbProviderFactoriesHelper
 {
     public static DbProviderFactory GetFactory(string providerName, string assemblyName, string factoryProviderType)
     {
-        try
-        {
-            var factory = DbProviderFactories.GetFactory(providerName);
-            if (factory != null)
-            {
-                return factory;
-            }
-        }
-        catch (Exception)
-        { }
-
+        if (DbProviderFactories.TryGetFactory(providerName, out var factory) && factory != null)
+            return factory;
 
 #if !NETSTANDARD
-        try
-        {
-            var factory = System.Data.Common.DbProviderFactories.GetFactory(providerName);
-            if (factory != null)
-            {
-                return factory;
-            }
-        }
-        catch (Exception)
-        { }
+        if (System.Data.Common.DbProviderFactories.TryGetFactory(providerName, out factory) && factory != null)
+            return factory;
 #endif
 
 #if NETSTANDARD
@@ -53,13 +37,13 @@ public static class DbProviderFactoriesHelper
 public abstract class DbProviderFactories
 {
 
-    internal static readonly Dictionary<string, Func<DbProviderFactory>> _configs = new Dictionary<string, Func<DbProviderFactory>>();
+    private static readonly ConcurrentDictionary<string, Func<DbProviderFactory>> Factories = new(StringComparer.Ordinal);
 
     public static DbProviderFactory GetFactory(string providerInvariantName)
     {
-        if (_configs.ContainsKey(providerInvariantName))
+        if (TryGetFactory(providerInvariantName, out var factory))
         {
-            return _configs[providerInvariantName]();
+            return factory;
         }
 
         throw new Exception("ConfigProviderNotFound");
@@ -67,11 +51,24 @@ public abstract class DbProviderFactories
 
     public static void RegisterFactory(string providerInvariantName, Func<DbProviderFactory> factory)
     {
-        _configs[providerInvariantName] = factory;
+        ArgumentNullException.ThrowIfNull(factory);
+        Factories[providerInvariantName] = factory;
+    }
+
+    internal static bool TryGetFactory(string providerInvariantName, out DbProviderFactory factory)
+    {
+        if (Factories.TryGetValue(providerInvariantName, out var createFactory))
+        {
+            factory = createFactory();
+            return true;
+        }
+
+        factory = null;
+        return false;
     }
 
     public static IEnumerable<string> GetFactoryProviderNames()
     {
-        return _configs.Keys.ToArray();
+        return Factories.Keys.ToArray();
     }
 }

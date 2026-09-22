@@ -63,7 +63,7 @@ public class SQLServerTransformationProvider_GetColumns_DefaultValues_Tests : Tr
         );
 
         // Act
-        var columns = Provider.GetColumns(testTableName);
+        var columns = Provider.ReadLegacyColumns(testTableName);
 
         // Assert
         var dateTimeColumn1 = columns.Single(x => x.Name.Equals(dateTimeColumnName1, StringComparison.OrdinalIgnoreCase));

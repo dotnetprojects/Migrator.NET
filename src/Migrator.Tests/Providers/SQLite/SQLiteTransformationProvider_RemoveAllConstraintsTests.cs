@@ -34,7 +34,7 @@ public class SQLiteTransformationProvider_RemoveAllConstraints : SQLiteTransform
         Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
 
         // Act
-        Provider.RemoveAllConstraints(testTableName);
+        Provider.RemoveLegacyConstraints(testTableName);
         Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}) VALUES (2)");
 
         // Assert

@@ -56,7 +56,7 @@ public class HanaProviderTests
             var actual = stored is DateTime date ? TimeOnly.FromDateTime(date) : stored is TimeSpan span ? TimeOnly.FromTimeSpan(span) : TimeOnly.Parse(Convert.ToString(stored));
             Assert.That(actual, Is.EqualTo(time));
         }
-        Assert.That(provider.GetColumns("ClockValues").Single(c => c.Name == "Moment").Type, Is.EqualTo(DbType.Time));
+        Assert.That(provider.ReadLegacyColumns("ClockValues").Single(c => c.Name == "Moment").Type, Is.EqualTo(DbType.Time));
         provider.RemoveConstraint("ClockValues", "UQ ' dotted.name");
         provider.Insert("ClockValues", ["Id"], [1]);
     }
@@ -77,14 +77,14 @@ public class HanaProviderTests
             new CheckConstraint("CK_Label", "LENGTH(\"Label\") > 0"));
         provider.Insert("Items", ["Label"], ["one"]);
         Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT COUNT(*) FROM \"Items\"")), Is.EqualTo(1));
-        Assert.That(provider.GetColumns("Items").Single(c => c.Name == "Id").IsIdentity, Is.True);
+        Assert.That(provider.ReadLegacyColumns("Items").Single(c => c.Name == "Id").IsIdentity, Is.True);
         var constraints = provider.GetTableConstraints("Items");
         Assert.That(constraints.OfType<PrimaryKeyConstraint>().Single().KeyColumns, Is.EqualTo(new[] { "Id" }));
         Assert.That(constraints.OfType<UniqueConstraint>().Single().Name, Is.EqualTo("UQ_Label"));
         Assert.That(constraints.OfType<CheckConstraint>().Single().Name, Is.EqualTo("CK_Label"));
         Assert.Catch(() => provider.Insert("Items", ["Label"], ["one"]));
         Assert.Catch(() => provider.Insert("Items", ["Label"], [""]));
-        Assert.That(provider.GetColumns(schema + ".Items").Select(c => c.Name), Is.EqualTo(new[] { "Id", "Label" }));
+        Assert.That(provider.ReadLegacyColumns(schema + ".Items").Select(c => c.Name), Is.EqualTo(new[] { "Id", "Label" }));
     }
     [Test]
     public void FluentAndPreviewCreateEquivalentSchemasAndRawDefaults()
@@ -106,7 +106,7 @@ public class HanaProviderTests
         {
             provider.Insert(table, ["Id"], [1]);
             Assert.That(provider.ExecuteScalar("SELECT \"Created\" FROM \"" + table + "\""), Is.TypeOf<DateTime>());
-            Assert.That(provider.GetColumns(table).Single(c => c.Name == "Created").DefaultValue, Is.TypeOf<RawSql>());
+            Assert.That(provider.ReadLegacyColumns(table).Single(c => c.Name == "Created").DefaultValue, Is.TypeOf<RawSql>());
             Assert.That(provider.GetTableConstraints(table).OfType<PrimaryKeyConstraint>().Single().KeyColumns, Is.EqualTo(new[] { "Id" }));
         }
     }
@@ -125,7 +125,7 @@ public class HanaProviderTests
         provider.ChangeColumn("Names", new Column("Label", DbType.String, 60) { IsNullable = true });
         provider.Insert("Names", ["Id"], [3]);
         Assert.That(provider.ExecuteScalar("SELECT \"Extra\" FROM \"Names\" WHERE \"Id\"=3"), Is.EqualTo(DBNull.Value));
-        Assert.That(provider.GetColumns("Names").Single(c => c.Name == "Label").IsNullable, Is.True);
+        Assert.That(provider.ReadLegacyColumns("Names").Single(c => c.Name == "Label").IsNullable, Is.True);
         provider.RenameColumn("Names", "Label", "Text");
         provider.RenameTable("Names", "Renamed");
         provider.AddIndex("Renamed", new Index { Name = "IX_Text", KeyColumns = ["Text"] });

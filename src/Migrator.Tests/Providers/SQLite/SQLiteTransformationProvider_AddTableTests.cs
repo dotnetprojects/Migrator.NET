@@ -112,7 +112,7 @@ public class SQLiteTransformationProvider_AddTableTests : Generic_AddTableTestsB
 
         // Assert
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That(Provider.GetColumns(tableName).Single(c => c.Name == columnName1).IsIdentity, Is.True);
+        Assert.That(Provider.ReadLegacyColumns(tableName).Single(c => c.Name == columnName1).IsIdentity, Is.True);
         Assert.That(Provider.GetTableConstraints(tableName).OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>().Single().KeyColumns, Is.EqualTo(new[] { columnName2 }));
 
         var pragmaTableInfos = ((SQLiteTransformationProvider)Provider).GetPragmaTableInfoItems(tableName);

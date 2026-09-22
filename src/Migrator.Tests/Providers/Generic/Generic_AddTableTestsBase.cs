@@ -24,29 +24,8 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
             new Column(column2Name,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, column1Name)        );
 
         // Assert
-        var column1 = Provider.GetColumnByName(tableName, column1Name);
-        var column2 = Provider.GetColumnByName(tableName, column2Name);
-
-        Assert.That(column1.IsIdentity, Is.True);
-        Assert.That(column2.IsNullable, Is.False);
-    }
-
-    [Test]
-    public void AddTable_PrimaryKeyAndIdentity_Success()
-    {
-        // Arrange
-        var tableName = "TableName";
-        var column1Name = "Column1";
-        var column2Name = "Column2";
-
-        // Act
-        Provider.AddTable(tableName,
-            new Column(column1Name,DbType.Int32){IsNullable = false,IsIdentity = true},
-            new Column(column2Name,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, column1Name)        );
-
-        // Assert
-        var column1 = Provider.GetColumnByName(tableName, column1Name);
-        var column2 = Provider.GetColumnByName(tableName, column2Name);
+        var column1 = Provider.ReadLegacyColumn(tableName, column1Name);
+        var column2 = Provider.ReadLegacyColumn(tableName, column2Name);
 
         Assert.That(column1.IsIdentity, Is.True);
         Assert.That(column2.IsNullable, Is.False);
@@ -68,8 +47,8 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
         Provider.Insert(table: tableName, [column2Name], [999]);
 
         // Assert
-        var column1 = Provider.GetColumnByName(tableName, column1Name);
-        var column2 = Provider.GetColumnByName(tableName, column2Name);
+        var column1 = Provider.ReadLegacyColumn(tableName, column1Name);
+        var column2 = Provider.ReadLegacyColumn(tableName, column2Name);
 
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd: cmd, table: tableName, columns: [column1Name, column2Name]);
@@ -88,27 +67,6 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
     }
 
     [Test]
-    public void AddTable_PrimaryKeyAndIdentityWithoutNotNull_Success()
-    {
-        // Arrange
-        var tableName = "TableName";
-        var column1Name = "Column1";
-        var column2Name = "Column2";
-
-        // Act
-        Provider.AddTable(tableName,
-            new Column(column1Name,DbType.Int32){IsNullable = false,IsIdentity = true},
-            new Column(column2Name,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, column1Name)        );
-
-        // Assert
-        var column1 = Provider.GetColumnByName(tableName, column1Name);
-        var column2 = Provider.GetColumnByName(tableName, column2Name);
-
-        Assert.That(column1.IsIdentity, Is.True);
-        Assert.That(column2.IsNullable, Is.False);
-    }
-
-    [Test]
     public void AddTable_NotNull_Success()
     {
         // Arrange
@@ -120,7 +78,7 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
             new Column(column1Name,DbType.Int32){IsNullable = false}        );
 
         // Assert
-        var column1 = Provider.GetColumnByName(tableName, column1Name);
+        var column1 = Provider.ReadLegacyColumn(tableName, column1Name);
 
         Assert.That(column1.IsNullable, Is.False);
     }

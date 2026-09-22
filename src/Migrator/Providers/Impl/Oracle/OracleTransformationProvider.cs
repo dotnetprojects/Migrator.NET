@@ -302,10 +302,6 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override Column[] GetColumns(string table)
     {
-        var timestampRegex = new Regex(@"(?<=^TIMESTAMP\s+')[^']+(?=')", RegexOptions.IgnoreCase);
-        var hexToRawRegex = new Regex(@"(?<=^HEXTORAW\s*\(')[^']+(?=')", RegexOptions.IgnoreCase);
-        var timestampBaseFormat = "yyyy-MM-dd HH:mm:ss";
-
         var stringBuilder = new StringBuilder();
         stringBuilder.AppendLine("SELECT");
         stringBuilder.AppendLine("  COLUMN_NAME,");
@@ -496,132 +492,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                     throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
                 }
 
-                // dataDefaultString contains ISEQ$$ if the column is an identity column
-                if (
-                    !string.IsNullOrWhiteSpace(dataDefaultString) &&
-                    !dataDefaultString.Trim().Equals("null", StringComparison.OrdinalIgnoreCase) &&
-                    !dataDefaultString.Contains("ISEQ$$") &&
-                    !dataDefaultString.Contains(".nextval"))
-                {
-                    // This is only necessary because older versions of this migrator added single quotes for numerics.
-                    var singleQuoteStrippedString = dataDefaultString.Replace("'", "");
-
-                    var parsedDefault = CatalogDefaultValue.Parse(dataDefaultString, column.Type);
-                    if (column.Type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength
-                        || (parsedDefault is RawSql && !Regex.IsMatch(dataDefaultString,
-                            @"(?i)^\s*(TO_TIMESTAMP\s*\(|TIMESTAMP\s*'|HEXTORAW\s*\()")))
-                        column.DefaultValue = parsedDefault;
-                    else if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
-                    {
-                        column.DefaultValue = long.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
-                    }
-                    else if (column.Type == DbType.Double)
-                    {
-                        column.DefaultValue = double.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
-                    }
-                    else if (column.Type == DbType.Single)
-                    {
-                        column.DefaultValue = float.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
-                    }
-                    else if (column.Type == DbType.Decimal)
-                    {
-                        column.DefaultValue = decimal.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
-                    }
-                    else if (column.Type == DbType.Boolean)
-                    {
-                        column.DefaultValue = dataDefaultString == "1" || dataDefaultString.ToUpper() == "TRUE";
-                    }
-                    else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
-                    {
-                        if (dataDefaultString.StartsWith("TO_TIMESTAMP("))
-                        {
-                            var expectedOracleToTimestampPattern = "YYYY-MM-DD HH24:MI:SS";
-
-                            if (!dataDefaultString.Contains(expectedOracleToTimestampPattern))
-                            {
-                                throw new NotSupportedException($"Not supported 'TO_TIMESTAMP' pattern. Expected pattern: {expectedOracleToTimestampPattern}");
-                            }
-
-                            var toTimestampRegex = new Regex(@"(?<=^TO_TIMESTAMP\(')[^']+(?=')", RegexOptions.IgnoreCase);
-                            var toTimestampMatch = toTimestampRegex.Match(dataDefaultString);
-                            var toTimestampDateTimeString = toTimestampMatch.Value;
-
-                            List<string> formats = [];
-
-                            // add formats with .F, .FF, .FFF etc.
-                            formats = Enumerable.Range(0, 20).Select((x, y) => $"{timestampBaseFormat}.{new string('F', y + 1)}").ToList();
-                            formats.Add(timestampBaseFormat);
-
-                            column.DefaultValue = DateTime.ParseExact(toTimestampDateTimeString, [.. formats], CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
-                        }
-                        else if (timestampRegex.Match(dataDefaultString) is Match timestampMatch && timestampMatch.Success)
-                        {
-                            var millisecondsPattern = column.Size == 0 ? string.Empty : $".{new string('F', column.Size)}";
-                            column.DefaultValue = DateTime.ParseExact(timestampMatch.Value, $"yyyy-MM-dd HH:mm:ss{millisecondsPattern}", CultureInfo.InvariantCulture);
-                        }
-                        else
-                        {
-                            // Could be system time in many variants
-                            column.DefaultValue = dataDefaultString;
-                        }
-                    }
-                    else if (column.Type == DbType.Guid)
-                    {
-                        if (hexToRawRegex.Match(dataDefaultString) is Match hexToRawMatch && hexToRawMatch.Success)
-                        {
-                            var bytes = Enumerable.Range(0, hexToRawMatch.Value.Length / 2)
-                                .Select(x => Convert.ToByte(hexToRawMatch.Value.Substring(x * 2, 2), 16))
-                                .ToArray();
-
-                            // Oracle uses Big-Endian
-                            Array.Reverse(bytes, 0, 4);
-                            Array.Reverse(bytes, 4, 2);
-                            Array.Reverse(bytes, 6, 2);
-
-                            column.DefaultValue = new Guid(bytes);
-                        }
-                        else if (dataDefaultString.StartsWith("'"))
-                        {
-                            var guidString = dataDefaultString.Substring(1, dataDefaultString.Length - 2);
-
-                            column.DefaultValue = Guid.Parse(guidString);
-                        }
-                        else
-                        {
-                            column.DefaultValue = dataDefaultString;
-                        }
-                    }
-                    else if (column.Type == DbType.String)
-                    {
-                        var contentRegex = new Regex(@"(?<=^').*(?='$)");
-
-                        if (contentRegex.Match(dataDefaultString) is Match contentMatch && contentMatch.Success)
-                        {
-                            column.DefaultValue = contentMatch.Value;
-                        }
-                        else
-                        {
-                            throw new Exception($"Cannot parse string column '{column.Name}'");
-                        }
-                    }
-                    else if (column.Type == DbType.Binary)
-                    {
-                        if (hexToRawRegex.Match(dataDefaultString) is Match hexToRawMatch && hexToRawMatch.Success)
-                        {
-                            column.DefaultValue = Enumerable.Range(0, hexToRawMatch.Value.Length / 2)
-                                .Select(x => Convert.ToByte(hexToRawMatch.Value.Substring(x * 2, 2), 16))
-                                .ToArray();
-                        }
-                        else
-                        {
-                            throw new NotImplementedException($"Cannot parse default value in column '{column.Name}'");
-                        }
-                    }
-                    else
-                    {
-                        column.DefaultValue = dataDefaultString;
-                    }
-                }
+                OracleColumnDefault.Apply(column, dataDefaultString);
 
                 columns.Add(column);
             }

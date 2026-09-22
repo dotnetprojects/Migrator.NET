@@ -42,7 +42,7 @@ public class SqlServerTransformationProviderTests : SQLServerTransformationProvi
     {
         var time = new TimeOnly(12, 34, 56, 789);
         Provider.AddTable("ClockValues", new Column("Moment",DbType.Time,time));
-        var column = Provider.GetColumns("ClockValues").Single();
+        var column = Provider.ReadLegacyColumns("ClockValues").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(time));
         Provider.AddTable("CopiedClock", column);
