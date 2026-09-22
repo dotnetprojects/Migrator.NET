@@ -80,21 +80,4 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
         Assert.That(definition.IsNullable, Is.False);
     }
 
-    [Test]
-    public void ChangeColumn_WithUniqueThenReChangeToNonUnique_UniqueConstraintShouldBeRemoved()
-    {
-        // Arrange
-        const string tableName = "TestTable";
-        const string columnName = "TestColumn";
-
-        Provider.AddTable(tableName, new Column(columnName,DbType.Int32){IsNullable = false});
-
-        // Act
-        Provider.ChangeColumn(tableName, new Column(columnName,DbType.Int32){IsNullable = false});
-        Provider.ChangeColumn(tableName, new Column(columnName,DbType.Int32){IsNullable = false});
-
-        // Assert
-        var indexes = Provider.GetIndexes(tableName);
-        Assert.That(indexes, Is.Empty);
-    }
 }

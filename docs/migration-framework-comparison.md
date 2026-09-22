@@ -4,7 +4,7 @@
 
 The main matrices cover **DotNetProjects.Migrator, FluentMigrator, EF Core migrations, DbUp and Evolve**—all five frameworks on the homepage. Additional sections cover **EF6, grate and RoundhousE**, with a short boundary comparison for **Flyway and Liquibase**. This is a defined shortlist, not a claim to catalogue every migration package ever published.
 
-Migrator findings are pinned to v13 upgrade-stack commit [`06b5f2a`][m-revision]. These are source capabilities under review in PRs [#173](https://github.com/dotnetprojects/Migrator.NET/pull/173), [#174](https://github.com/dotnetprojects/Migrator.NET/pull/174), [#175](https://github.com/dotnetprojects/Migrator.NET/pull/175) [#177](https://github.com/dotnetprojects/Migrator.NET/pull/177), [#180](https://github.com/dotnetprojects/Migrator.NET/pull/180) and [#181](https://github.com/dotnetprojects/Migrator.NET/pull/181), **not a claim that these features have shipped on NuGet**. FluentMigrator's SQLite implementation is pinned to [`2e0acdb`][f-sqlite-generator]. Other findings describe the linked official documentation as reviewed, not guaranteed behavior of every historical release. EF Core features introduced in version 9 are labeled. Check provider and release compatibility separately.
+Migrator findings are pinned to v13 upgrade-stack commit [`eabec55`][m-revision]. These are source capabilities under review in PRs [#173](https://github.com/dotnetprojects/Migrator.NET/pull/173), [#174](https://github.com/dotnetprojects/Migrator.NET/pull/174), [#175](https://github.com/dotnetprojects/Migrator.NET/pull/175) [#177](https://github.com/dotnetprojects/Migrator.NET/pull/177), [#180](https://github.com/dotnetprojects/Migrator.NET/pull/180) [#181](https://github.com/dotnetprojects/Migrator.NET/pull/181) and [#182](https://github.com/dotnetprojects/Migrator.NET/pull/182), **not a claim that these features have shipped on NuGet**. FluentMigrator's SQLite implementation is pinned to [`2e0acdb`][f-sqlite-generator]. Other findings describe the linked official documentation as reviewed, not guaranteed behavior of every historical release. EF Core features introduced in version 9 are labeled. Check provider and release compatibility separately.
 
 [Homepage](https://dotnetprojects.github.io/Migrator.NET/) · [Project README](../README.md) · [SQLite emulation comparison](#sqlite-emulation-comparison) · [Source index](#source-index)
 
@@ -143,7 +143,7 @@ Evidence: [Migrator runner][m-runner] and [execution][m-execution]; [FluentMigra
 
 | Framework      | How support is supplied                                                                                                                                                                                      | What it does not guarantee                                         |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| Migrator       | Source dialects + separate ADO.NET drivers. Live CI covers SQLite, SQL Server, PostgreSQL, Oracle, MySQL, MariaDB, Firebird, Db2, Informix and Sybase; Ingres is another source dialect. [CI guide][m-live]. | Every server/driver release, operation or arbitrary SQL construct. |
+| Migrator       | Source dialects + separate ADO.NET drivers. Live CI covers SQLite, SQL Server, PostgreSQL, Oracle, MySQL, MariaDB, Firebird, Db2, Informix, Sybase and the new HANA job; Ingres is another source dialect. [CI guide][m-live]. | Every server/driver release, operation or arbitrary SQL construct. |
 | FluentMigrator | Provider generators/processors. [Configuration][f-config].                                                                                                                                                   | The same expression working on every engine.                       |
 | EF Core        | Relational provider packages. [Multiple providers][ef-providers].                                                                                                                                            | One provider's generated migrations working unchanged elsewhere.   |
 | DbUp           | Database integrations. [Provider list][d-databases].                                                                                                                                                         | SQL dialect translation.                                           |
@@ -165,11 +165,17 @@ This does not make arbitrary SQL functions or linguistic ordering portable.
 See [FluentMigrator's raw SQL helper](https://fluentmigrator.github.io/basics/raw-sql.html)
 for the corresponding upstream default-expression feature.
 
-Current additional FluentMigrator engines are **SAP HANA, Redshift, Snowflake and
-Db2 for IBM i**. HANA's actual-engine qualification is tracked in
-[PR #182](https://github.com/dotnetprojects/Migrator.NET/pull/182); the other engines
-require external test infrastructure. None is advertised as an implemented Migrator
-provider. [Qualification requirements and primary sources](additional-database-qualification.md).
+The new **SAP HANA** source provider in [PR #182](https://github.com/dotnetprojects/Migrator.NET/pull/182)
+has a mandatory GitHub Actions job using SAP's actual HANA Express engine and native
+.NET driver. It covers schema/data operations, metadata, constraints, migration
+history, restart, DML rollback and imperative/fluent/preview parity. DDL may
+autocommit; native migration locking, whole-session transactional DDL and the
+packaged CLI's online HANA host are not provided.
+
+The remaining additional FluentMigrator engines are **Redshift, Snowflake and
+Db2 for IBM i**. They require external test infrastructure and remain deferred.
+PostgreSQL tests do not qualify Redshift, and Db2 LUW tests do not qualify IBM i.
+[Qualification requirements, CI evidence and primary sources](additional-database-qualification.md).
 
 ## SQLite emulation comparison
 
@@ -359,29 +365,29 @@ When updating:
 - **grate / RoundhousE:** [grate][g-home], [options][g-config], [script types][g-types], [migration guide][g-migrate], [RoundhousE][r-home].
 - **SQLite engine:** [ALTER TABLE and reconstruction procedure][sqlite-alter].
 
-[m-runner]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/Migrator.cs
-[m-loader]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/MigrationLoader.cs
-[m-execution]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/MigrationExecution.cs
-[m-migration]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/Framework/Migration.cs
-[m-api]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/Framework/ITransformationProvider.cs
-[m-provider]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/Providers/TransformationProvider.cs
-[m-factory]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/ProviderFactory.cs
-[m-live]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/docs/live-database-tests.md
-[m-sqlite]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/Providers/Impl/SQLite/SQLiteTransformationProvider.cs
-[m-sqlite-model]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator/Providers/Impl/SQLite/Models/SQLiteTableInfo.cs
-[t-add-column]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_AddColumnTests.cs
-[t-change-column]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_ChangeColumnTests.cs
-[t-remove-column]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RemoveColumnTests.cs
-[t-rename-column]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RenameColumnTests.cs
-[t-pk]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_AddPrimaryKeyTests.cs
-[t-fk]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_AddForeignKeyTests.cs
-[t-integrity]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_CheckForeignKeyIntegrityTests.cs
-[t-uniques]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_GetUniques.cs
-[t-check]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_GetCheckConstraintsTests.cs
-[t-remove-constraints]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RemoveAllConstraintsTests.cs
-[t-recreate]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RecreateTable.cs
-[t-sqlite-general]: https://github.com/dotnetprojects/Migrator.NET/blob/06b5f2a8321d1ef94559ead9406c01c99adb658d/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProviderTests.cs
-[m-revision]: https://github.com/dotnetprojects/Migrator.NET/tree/06b5f2a8321d1ef94559ead9406c01c99adb658d/
+[m-runner]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/Migrator.cs
+[m-loader]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/MigrationLoader.cs
+[m-execution]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/MigrationExecution.cs
+[m-migration]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/Framework/Migration.cs
+[m-api]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/Framework/ITransformationProvider.cs
+[m-provider]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/Providers/TransformationProvider.cs
+[m-factory]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/ProviderFactory.cs
+[m-live]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/docs/live-database-tests.md
+[m-sqlite]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/Providers/Impl/SQLite/SQLiteTransformationProvider.cs
+[m-sqlite-model]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/Providers/Impl/SQLite/Models/SQLiteTableInfo.cs
+[t-add-column]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_AddColumnTests.cs
+[t-change-column]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_ChangeColumnTests.cs
+[t-remove-column]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RemoveColumnTests.cs
+[t-rename-column]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RenameColumnTests.cs
+[t-pk]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_AddPrimaryKeyTests.cs
+[t-fk]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_AddForeignKeyTests.cs
+[t-integrity]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_CheckForeignKeyIntegrityTests.cs
+[t-uniques]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_GetUniques.cs
+[t-check]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_GetCheckConstraintsTests.cs
+[t-remove-constraints]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RemoveAllConstraintsTests.cs
+[t-recreate]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProvider_RecreateTable.cs
+[t-sqlite-general]: https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers/SQLite/SQLiteTransformationProviderTests.cs
+[m-revision]: https://github.com/dotnetprojects/Migrator.NET/tree/eabec5561c2c9c77847b9adbb7b67474e3c70a50/
 [f-start]: https://fluentmigrator.github.io/intro/quick-start.html
 [f-config]: https://fluentmigrator.github.io/intro/configuration.html
 [f-sql]: https://fluentmigrator.github.io/operations/execute-sql.html
@@ -429,4 +435,9 @@ When updating:
 [liquibase-preconditions]: https://docs.liquibase.com/community/user-guide-5-0-4/what-are-preconditions
 [f-generic-generator]: https://github.com/fluentmigrator/fluentmigrator/blob/2e0acdb7c375b03e50e65f34ddf50e44ee45df30/src/FluentMigrator.Runner.Core/Generators/Generic/GenericGenerator.cs
 
-V13 revision `06b5f2a` passes 87 unit and 195 SQLite tests locally; removed tests covered deleted APIs. Live results are recorded in [run 35766196473](https://github.com/dotnetprojects/Migrator.NET/actions/runs/35766196473); check its conclusion before treating this revision as validated.
+The v13 column-model revision `11d6083` passed the complete existing-provider
+matrix in [run 35769034542](https://github.com/dotnetprojects/Migrator.NET/actions/runs/35769034542),
+including 87 unit and 197 SQLite tests. The additional HANA source is pinned at
+`eabec55` and its complete matrix is [run 35770116342](https://github.com/dotnetprojects/Migrator.NET/actions/runs/35770116342).
+Require successful actual-engine checks on the final PR head before merging;
+SQL-string assertions and skipped jobs do not qualify a new provider.

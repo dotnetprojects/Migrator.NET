@@ -149,7 +149,7 @@ builder.Create.Table("Events")
             SQLite ASCII folding does not satisfy a Unicode case-insensitive request.
             <a href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-column-model/docs/migration-guide-12.1-to-13.md">Read the 12.1-to-13 migration guide ↗</a>.</p>
           <p>Additional databases require passing real-engine CI.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/182">SAP HANA is being qualified ↗</a>;
+            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/182">SAP HANA provider in v13 review ↗</a>;
             Redshift, Snowflake and Db2 for IBM i remain unsupported.</p>
         </div>
       </section>
@@ -325,6 +325,7 @@ migrator.MigrateToLastVersion();</code></pre>
               <li>Firebird</li>
               <li>Ingres</li>
               <li>Sybase</li>
+              <li>SAP HANA (v13 source)</li>
             </ul>
           </div>
         </div>
@@ -333,12 +334,12 @@ migrator.MigrateToLastVersion();</code></pre>
           server or driver version. Schema operations and transactional DDL vary
           by provider. Check the
           <a
-            href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/ProviderFactory.cs"
+            href="https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/ProviderFactory.cs"
             >provider factory</a
           >
           and
           <a
-            href="https://github.com/dotnetprojects/Migrator.NET/tree/master/src/Migrator.Tests/Providers"
+            href="https://github.com/dotnetprojects/Migrator.NET/tree/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers"
             >provider tests</a
           >
           for your database.
@@ -364,7 +365,7 @@ migrator.MigrateToLastVersion();</code></pre>
           </div>
           <p class="comparison-intro"><strong>Source upgrade under review, not a NuGet release:</strong>
             fluent operations, SQL-preview subset, runner options, native locks and source CLI.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Read the runner guide and limitations</a>.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/runner-guide.md">Read the runner guide and limitations</a>.
             <a href="https://github.com/dotnetprojects/Migrator.NET/pull/177">Follow the PR stack</a>.
           </p>
           <p class="comparison-intro">
@@ -374,11 +375,11 @@ migrator.MigrateToLastVersion();</code></pre>
           </p>
           <p>
             <a
-              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md"
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/migration-framework-comparison.md"
               >Read the detailed feature comparison (Markdown) →</a
             ><br />
             <a
-              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md#sqlite-emulation-comparison"
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/migration-framework-comparison.md#sqlite-emulation-comparison"
               >Explore SQLite emulation, preservation limits and framework
               differences →</a
             >
