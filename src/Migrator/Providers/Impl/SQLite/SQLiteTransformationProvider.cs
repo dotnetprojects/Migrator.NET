@@ -1486,6 +1486,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
         var columns = fields.Where(x => x is Column)
             .Cast<Column>()
+            .Select(column => column.CopyDefinition())
             .ToArray();
 
         var pks = GetPrimaryKeys(columns);

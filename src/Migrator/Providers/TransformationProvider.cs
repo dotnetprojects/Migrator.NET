@@ -534,6 +534,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void ChangeColumn(string table, Column column)
     {
+        column = column.CopyDefinition();
         var isUniqueSet = column.ColumnProperty.IsSet(ColumnProperty.Unique);
 
         column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);

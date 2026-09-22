@@ -201,6 +201,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void ChangeColumn(string table, Column column)
     {
+        column = column.CopyDefinition();
         var existingColumn = GetColumnByName(table, column.Name);
 
         if (column.Type == DbType.String)

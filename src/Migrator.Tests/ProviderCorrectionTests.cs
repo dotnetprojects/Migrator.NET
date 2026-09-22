@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Linq;
 using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
@@ -10,6 +11,20 @@ namespace Migrator.Tests;
 [Category("SQLite")]
 public class ProviderCorrectionTests
 {
+    [Test] public void TableCreationRetainsCallerPrimaryKeyDefinitions()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        var first = new Column("First", DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.Null);
+        var second = new Column("Second", DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.Null);
+        provider.AddTable("Composite", first, second);
+        Assert.That(first.ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.Null));
+        Assert.That(second.ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.Null));
+        provider.Insert("Composite", new[] { "First", "Second" }, new object[] { 1, null });
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT COUNT(*) FROM Composite")), Is.EqualTo(1));
+        provider.AddTable("Reused", first, second);
+        Assert.That(provider.GetColumns("Reused").Count(c => c.IsPrimaryKey), Is.EqualTo(2));
+    }
     [Test] public void RebuildPreservesTriggerAndUpdateAction()
     {
         using var connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True");

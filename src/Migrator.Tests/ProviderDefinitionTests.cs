@@ -14,6 +14,8 @@ public class ProviderDefinitionTests
     {
         public string ColumnSql;
         public (string Child, string[] ChildColumns, string Parent, string[] ParentColumns, ForeignKeyConstraintType Delete, ForeignKeyConstraintType Update) ForeignKey;
+        public override void ChangeColumn(string table, string sqlColumn) => ColumnSql = sqlColumn;
+        public override void AddUniqueConstraint(string name, string table, params string[] columns) { }
         public override void AddColumn(string table, string sqlColumn) => ColumnSql = sqlColumn;
         public override void AddForeignKey(string name, string child, string[] columns, string parent, string[] parentColumns, ForeignKeyConstraintType delete, ForeignKeyConstraintType update)
             => ForeignKey = (child, columns, parent, parentColumns, delete, update);
@@ -31,6 +33,13 @@ public class ProviderDefinitionTests
         Assert.That(provider.ExecuteNullableScalar<Guid>("guid"), Is.EqualTo(id));
         Assert.That(provider.ExecuteNullableScalar<int>("null"), Is.Null);
         Assert.That(provider.ExecuteNullableScalar<int>("number"), Is.EqualTo(12));
+    }
+    [Test] public void ChangeColumnDoesNotClearCallerUniqueFlag()
+    {
+        using var provider = new RecordingProvider();
+        var column = new Column("Value", DbType.Int32, ColumnProperty.Unique | ColumnProperty.NotNull);
+        provider.ChangeColumn("Example", column);
+        Assert.That(column.ColumnProperty, Is.EqualTo(ColumnProperty.Unique | ColumnProperty.NotNull));
     }
     [Test] public void AddColumnCarriesPrecisionAndScaleIntoDialectMapping()
     {

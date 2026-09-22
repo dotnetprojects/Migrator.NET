@@ -23,6 +23,8 @@ public class Column : IColumn, IDbField
 {
     private object _defaultValue;
 
+    internal Column CopyDefinition() => (Column)MemberwiseClone();
+
     public Column(string name)
     {
         Name = name;
