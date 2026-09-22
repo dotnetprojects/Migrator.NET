@@ -923,17 +923,34 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void RemoveTable(string name)
     {
+        // Oracle drops table-owned triggers and native identity sequences itself.
+        // A legacy-looking sequence name is not evidence of ownership.
         base.RemoveTable(name);
+    }
 
-        try
+    /// <summary>Drop a table and explicitly identified, unquoted legacy sequence names.
+    /// The caller must own these sequences. Oracle DDL is not transactional.</summary>
+    public void RemoveTableWithOwnedSequences(string name, params string[] ownedSequenceNames)
+    {
+        ArgumentNullException.ThrowIfNull(ownedSequenceNames);
+        var sequences = ownedSequenceNames.Select(sequence =>
         {
-            using var cmd = CreateCommand();
-            ExecuteQuery(cmd, string.Format(@"DROP SEQUENCE {0}_SEQUENCE", name));
-        }
-        catch (Exception)
+            GuardAgainstMaximumIdentifierLengthForOracle(sequence);
+            if (!System.Text.RegularExpressions.Regex.IsMatch(sequence, @"^[A-Za-z][A-Za-z0-9_$#]*$"))
+                throw new ArgumentException("Legacy sequence cleanup requires simple unquoted sequence names.", nameof(ownedSequenceNames));
+            return sequence.ToUpperInvariant();
+        }).Distinct(StringComparer.Ordinal).ToArray();
+        foreach (var sequence in sequences)
         {
-            // swallow this because sequence may not have existed.
+            using var command = CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM USER_SEQUENCES WHERE SEQUENCE_NAME = :sequenceName";
+            var parameter = command.CreateParameter(); parameter.ParameterName = "sequenceName"; parameter.Value = sequence;
+            command.Parameters.Add(parameter);
+            if (Convert.ToInt32(command.ExecuteScalar()) != 1) throw new MigrationException("Owned legacy sequence was not found: " + sequence);
         }
+        if (!TableExists(name)) throw new MigrationException("Table was not found: " + name);
+        base.RemoveTable(name);
+        foreach (var sequence in sequences) ExecuteNonQuery("DROP SEQUENCE " + _dialect.Quote(sequence));
     }
 
     private void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
