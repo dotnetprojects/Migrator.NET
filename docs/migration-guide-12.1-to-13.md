@@ -142,7 +142,7 @@ Reviewed 2026-09-22:
 
 ## Additional v13 candidates
 
-Evaluate typed schema-qualified identifiers, explicit literal versus SQL-expression defaults, ordered constraint metadata, deterministic constraint naming, SQLite constraint parsing without regular-expression guesses, typed provider capabilities, and removal of obsolete duplicate authoring APIs. These are candidates, not claims of implemented functionality.
+Typed constraints with ordered metadata, the SQLite constraint tokenizer, explicit SQL defaults, semantic collations and removal of the duplicate authoring API are implemented in this source stack. Typed schema-qualified identifiers, deterministic naming conventions and a broader provider-capability model remain candidates; they are not implemented features.
 
 ## Explicit SQL defaults and semantic collations
 
@@ -207,3 +207,7 @@ request is not translated to an Oracle index-organized table.
 Structured metadata preserves SQL Server nonclustered primary keys and Oracle
 ordered foreign-key pairs/delete actions. Foreign-key constructor arrays are copied,
 matching primary/unique definitions, so later caller-array edits cannot change the key.
+
+## Build and package identity
+
+Source builds now identify the core, optional DI package and CLI as 13.0.0-preview.1. The core assembly and file versions are 13.0.0.0; generated assembly metadata is enabled while preserving its existing title and description. Recompile consumers of the breaking API and update assembly/version binding assumptions. These metadata changes do not publish a package.

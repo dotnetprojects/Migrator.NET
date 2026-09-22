@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net9.0</TargetFramework><Version>9.0.0</Version><PackageLicenseExpression>MPL-1.1</PackageLicenseExpression><Description>Optional dependency injection, options and logging integration for Migrator.NET.</Description></PropertyGroup>
+  <PropertyGroup><TargetFramework>net9.0</TargetFramework><Version>13.0.0-preview.1</Version><PackageLicenseExpression>MPL-1.1</PackageLicenseExpression><Description>Optional dependency injection, options and logging integration for Migrator.NET.</Description></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Migrator/DotNetProjects.Migrator.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.5" />

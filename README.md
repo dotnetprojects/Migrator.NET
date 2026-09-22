@@ -58,12 +58,14 @@ Building the `.slnx` solution requires an SDK that understands that format, such
 
 ## Quick start
 
+This example targets **unreleased v13 source**. Clone/check out the upgrade branch before running these commands from the repository root. For published 12.1, follow its version-specific API; see the [migration guide](docs/migration-guide-12.1-to-13.md).
+
 ### 1. Create a migration host
 
 ```sh
 dotnet new console -n MigrationDemo -f net9.0
 cd MigrationDemo
-dotnet add package DotNetProjects.Migrator
+dotnet add reference ../src/Migrator/DotNetProjects.Migrator.csproj
 dotnet add package Microsoft.Data.Sqlite --version 9.0.7
 ```
 
@@ -82,8 +84,8 @@ public class CreateUsers : Migration
     {
         Database.AddTable("Users",
             new Column("Id", DbType.Int32) { IsNullable = false },
-            new Column("Name", DbType.String, 255));
-        Database.AddPrimaryKey("PK_Users", "Users", "Id");
+            new Column("Name", DbType.String, 255),
+            new PrimaryKeyConstraint("PK_Users", "Id"));
     }
 
     public override void Down()
@@ -319,3 +321,26 @@ The package declares **Mozilla Public License 1.1 (MPL-1.1)** in its [project me
 ### Version 13 source changes
 
 The unreleased v13 stack separates columns from named table constraints and removes the old column flags and duplicate fluent builder. See the [12.1-to-13 migration guide](docs/migration-guide-12.1-to-13.md) before recompiling migrations. These source features are not claims about the published 12.1 NuGet package.
+
+
+### SQL expressions and collations in v13
+
+```csharp
+new Column("Id", DbType.String, 27) { DefaultValue = RawSql.Insert("ksuid_new()") };
+builder.Create.Table("Events").WithColumn("Id").AsString(27)
+    .WithDefaultValue(RawSql.Insert("ksuid_new()"));
+
+new Column("Name", DbType.String, 100) { Collation = Collation.CaseInsensitive };
+builder.Create.Table("Names").WithColumn("Name").AsString(100)
+    .WithCollation(Collation.CaseInsensitive);
+```
+
+SQL expressions are trusted migration code and must exist on the target database.
+Ordinary string defaults remain quoted literals. Semantic collations have explicit
+provider limits; SQLite's `AsciiIgnoreCase` never substitutes for Unicode folding.
+Use `Collation.Named("provider_name")` for a specific language or installed collation.
+See the [mapping and migration guide](docs/migration-guide-12.1-to-13.md#explicit-sql-defaults-and-semantic-collations).
+
+Additional engines are admitted only with passing real-database CI.
+[SAP HANA qualification and deferred engine requirements](docs/additional-database-qualification.md)
+cover the current FluentMigrator gaps without claiming untested support.
