@@ -25,7 +25,7 @@ public class CreateUsers : AutoReversingMigration
 
 Use `DotNetProjects.Migrator`, `.Framework` and `.Framework.Fluent`. A table definition is completed before execution. Existing imperative `Migration.Up/Down` classes keep working. `FluentMigration` supports authored `BuildDown`; `AutoReversingMigration` reverses supported create/rename operations in reverse order. Destructive changes, data, SQL and callbacks need explicit reverse operations. Automatic reversal never restores deleted data.
 
-The builder has `Create`, `Alter`, `Delete`, `Rename`, `Insert`, `Update`, `Execute` and `Administration`. Schema inspection is exposed through `FluentMigration.Schema`, and the provider through `Context`. History and transaction methods remain explicit context operations. Some administrative/data-copy operations use provider callbacks and cannot generate SQL previews.
+The builder has `Create`, `Alter`, `Delete`, `Rename`, `Insert`, `Update`, `Execute` and `Administration`. Schema inspection is exposed through `FluentMigration.Schema`, and the provider through `Context`. History and transaction methods remain explicit context operations. Administrative operations, views, data copying and updates from another table have typed operations; their SQL preview is currently unsupported. See the [operation coverage inventory](fluent-operation-coverage.md) for the normal API mappings and test limits.
 
 ## Runner options
 
@@ -57,7 +57,7 @@ Maintenance classes use `[Maintenance(MaintenanceStage.BeforeRun)]`, `BeforeMigr
 
 `runner.PreviewSql(target, providerType)` connects for history/schema reads. `MigrationSqlPreview.Generate(providerType, migrations)` can generate SQL offline. Earlier structured operations update a planned schema so later operations can refer to newly created/renamed tables. SQL preview currently supports a subset: basic tables/columns, supported renames, simple indexes, inserts and raw SQL. Unsupported alterations, constraints, filters, callbacks and schema dependencies fail explicitly. Output is operation SQL, not an idempotent history-managed deployment bundle.
 
-Imperative bodies require `allowLegacyBodies: true`. Provider calls are captured through a rejecting proxy: direct connections, commands and unsupported reads/callbacks are blocked. **Arbitrary C# cannot be sandboxed**: constructors, fluent authoring and opted-in imperative bodies can still access files, networks or external state. Use trusted migration code. `InitializeOnce` and post-commit callbacks do not run during preview.
+Imperative bodies require `allowLegacyBodies: true`. Provider calls are captured through a rejecting proxy: direct connections, commands and unsupported reads/callbacks are blocked. **Arbitrary C# cannot be sandboxed**: constructors, fluent authoring and opted-in imperative bodies can still access files, networks or external state. Use trusted migration code. Migrations overriding `InitializeOnce` are rejected before their body runs, because skipping initialization could produce misleading SQL. Post-commit callbacks do not run during preview. Raw SQL invalidates planned schema knowledge, so later structured schema dependencies fail explicitly.
 
 ## CLI from source
 
@@ -79,7 +79,7 @@ migrator migrate --assembly MyMigrations.dll --provider SQLite --scope billing -
 migrator rollback --assembly MyMigrations.dll --provider SQLite --target 0
 ```
 
-Use `--connection-env NAME`, `--schema`, `--tags a,b`, `--tag-match Any|All`, `--profiles a,b`, `--timeout SECONDS`, `--lock` and `--lock-timeout SECONDS` where applicable. `rollback` requires an explicit target. Offline SQL assumes empty history and currently rejects profiles/maintenance. `validate` validates version planning, not arbitrary migration-body behavior. The packaged drivers cover SQLite, SQL Server, PostgreSQL, MySQL/MariaDB, Oracle and Firebird. Other library providers need a custom host.
+Use `--connection-env NAME`, `--schema`, `--tags a,b`, `--tag-match Any|All`, `--profiles a,b`, `--timeout SECONDS`, `--lock` and `--lock-timeout SECONDS` where applicable. `rollback` requires an explicit lower target and rejects any plan containing upward steps. Target validation runs after acquiring the configured lock and refreshing history. Offline SQL assumes empty history and currently rejects profiles/maintenance. `validate` validates version planning, not arbitrary migration-body behavior. The packaged drivers cover SQLite, SQL Server, PostgreSQL, MySQL/MariaDB, Oracle and Firebird. Other library providers need a custom host.
 
 Exit codes: `0` success, `1` execution/load failure, `2` invalid arguments, `3` unsupported operation/provider, `4` lock timeout. SQL output may contain migration data; exception and provider trace details are omitted from CLI diagnostics.
 
