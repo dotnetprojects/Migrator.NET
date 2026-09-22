@@ -83,6 +83,8 @@ Mapping changes affect newly generated DDL; they do not alter existing tables au
 
 ## CI regression fixes
 
-The first full matrix exposed additional regressions: PostgreSQL fixed-character metadata and non-UTC timestamp binding, Oracle character metadata and Single storage, SQL Server numeric/fixed-character metadata, Db2 Byte binding, Informix large-text scalar readback, and untyped NULL parameters for binary columns. The fixes include NULL updates through both update overloads and native Oracle BINARY_FLOAT storage. Local Unit+SQLite validation after these changes passes 855 tests.
+The first full matrix exposed additional regressions: PostgreSQL fixed-character metadata and non-UTC timestamp binding, Oracle character metadata and Single storage/binding, SQL Server numeric/fixed-character metadata, Db2 Byte binding, Informix large-text transfers, and untyped NULL parameters for binary columns. The fixes include NULL updates through both update overloads and native Oracle BINARY_FLOAT storage and parameters. Local Unit+SQLite validation after these changes passes 856 tests.
+
+Shared test teardown now disposes provider-owned connections even when cleanup fails. Oracle's unique per-test users disable connection pooling to avoid accumulating dedicated server processes that cannot be reused by subsequent tests.
 
 VSTest can publish byte-identical coverage attachments at multiple paths. CI now validates and normalizes these into one report per job, while still rejecting missing, empty, or conflicting reports. Five Python regression tests cover report handling and coverage comparison.
