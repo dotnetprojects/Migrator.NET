@@ -203,7 +203,23 @@ version does not insert it twice. History for another scope does not skip a step
 in the current scope. Transaction rollback still applies to baseline schema and
 history changes according to the selected transaction mode.
 
-## Adding SQLite identity to an existing table
+## SQLite defaults and identity
+
+### SQLite GUID defaults
+
+SQLite now renders a CLR `Guid` default as a blob using `Guid.ToByteArray()`,
+matching GUID parameters inserted by the provider. Previously a GUID default
+was text, so a defaulted foreign-key value did not match an explicitly inserted
+parent GUID even when both represented the same identifier.
+
+This fixes new table/column definitions, including backfilling a new column.
+Existing text GUID defaults and data are preserved during unrelated rebuilds;
+column inspection retains their SQL as `RawSql` so storage classes are not
+silently converted. Databases already containing mixed text/blob GUIDs require
+an explicit data migration that converts related keys consistently. A string
+default remains text; use a CLR `Guid` when authoring a GUID default.
+
+### SQLite identity columns
 
 SQLite requires the identity column and its single-column primary key in the
 same table definition. Separate `AddColumn` and `AddPrimaryKey` calls create an
