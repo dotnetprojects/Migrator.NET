@@ -15,6 +15,15 @@ public class SqlServerTransformationProviderGenericTests : TransformationProvide
     [Test]
     public void RawSqlDefaultsRoundTripThroughMetadata() => RawDefaultRegression.AssertRoundTrip(Provider);
 
+    [Test]
+    public void NonClusteredPrimaryKeyRoundTripsAsConstraint()
+    {
+        Provider.AddTable("NonClusteredKey", new Column("Id", DbType.Int32),
+            new PrimaryKeyConstraint("PK_NonClusteredKey", "Id") { NonClustered = true });
+        var key = System.Linq.Enumerable.Single(System.Linq.Enumerable.OfType<PrimaryKeyConstraint>(Provider.GetTableConstraints("NonClusteredKey")));
+        Assert.That(key.NonClustered, Is.True);
+    }
+
     [SetUp]
     public async Task SetUpAsync()
     {

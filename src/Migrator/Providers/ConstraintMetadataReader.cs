@@ -22,8 +22,8 @@ internal static class ConstraintMetadataReader
         string schema = null;
         var oracle = provider.Dialect is OracleDialect;
         if (provider.Dialect is SqlServerDialect)
-            sql = @"SELECT kc.name, kc.type, c.name, ic.key_ordinal, CAST(NULL AS nvarchar(max))
-                FROM sys.key_constraints kc JOIN sys.index_columns ic ON ic.object_id=kc.parent_object_id AND ic.index_id=kc.unique_index_id
+            sql = @"SELECT kc.name, CASE WHEN kc.type='PK' AND ix.type=2 THEN 'PN' ELSE kc.type END, c.name, ic.key_ordinal, CAST(NULL AS nvarchar(max))
+                FROM sys.key_constraints kc JOIN sys.indexes ix ON ix.object_id=kc.parent_object_id AND ix.index_id=kc.unique_index_id JOIN sys.index_columns ic ON ic.object_id=kc.parent_object_id AND ic.index_id=kc.unique_index_id
                 JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
                 WHERE kc.parent_object_id=OBJECT_ID(@lookup_table) AND ic.key_ordinal>0
                 UNION ALL SELECT name, 'C', NULL, 0, definition FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID(@lookup_table)
@@ -101,6 +101,7 @@ internal static class ConstraintMetadataReader
                     current = reader.GetString(1).Trim().ToUpperInvariant() switch
                     {
                         "P" or "PK" or "PRIMARY KEY" => new PrimaryKeyConstraint { Name = name },
+                        "PN" => new PrimaryKeyConstraint { Name = name, NonClustered = true },
                         "U" or "UQ" or "UNIQUE" => new UniqueConstraint { Name = name },
                         "C" or "K" or "CHECK" => new CheckConstraint(name, reader.IsDBNull(4) ? null : CheckExpression(reader.GetString(4))),
                         _ => throw new MigrationException("Unknown catalog constraint type.")

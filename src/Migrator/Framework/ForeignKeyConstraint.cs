@@ -9,9 +9,9 @@ public class ForeignKeyConstraint : TableConstraint
     {
         Name = name;
         ParentTable = parentTable;
-        ParentColumns = parentcolumns;
+        ParentColumns = (string[])parentcolumns.Clone();
         ChildTable = childTable;
-        ChildColumns = childColumns;
+        ChildColumns = (string[])childColumns.Clone();
     }
 
     /// <summary>

@@ -8,6 +8,7 @@ using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 using DotNetProjects.Migrator.Providers.Impl.Mysql;
 using DotNetProjects.Migrator.Providers.Impl.DB2;
 using DotNetProjects.Migrator.Providers.Impl.Firebird;
+using DotNetProjects.Migrator.Providers.Impl.Oracle;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 
 namespace DotNetProjects.Migrator.Providers;
@@ -47,6 +48,22 @@ internal static class ForeignKeyMetadataReader
                 WHERE k.TABLE_NAME=@lookup_table AND k.TABLE_SCHEMA=COALESCE(@lookup_schema,DATABASE())
                   AND k.REFERENCED_TABLE_NAME IS NOT NULL ORDER BY k.CONSTRAINT_NAME,k.ORDINAL_POSITION";
         }
+        else if (provider.Dialect is OracleDialect)
+        {
+            var parts = table.Split('.');
+            if (parts.Length > 2 || parts.Any(p => p.Contains('"')))
+                throw new NotSupportedException("Use unquoted schema/table names for Oracle foreign-key catalog lookup.");
+            parameterTable = parts[^1].ToUpperInvariant(); schema = parts.Length == 2 ? parts[0].ToUpperInvariant() : null;
+            sql = @"SELECT c.CONSTRAINT_NAME,
+                    CASE WHEN p.OWNER=c.OWNER THEN p.TABLE_NAME ELSE p.OWNER||'.'||p.TABLE_NAME END,
+                    cc.COLUMN_NAME,pc.COLUMN_NAME,cc.POSITION,c.DELETE_RULE,'NO ACTION'
+                FROM ALL_CONSTRAINTS c JOIN ALL_CONS_COLUMNS cc ON cc.OWNER=c.OWNER AND cc.CONSTRAINT_NAME=c.CONSTRAINT_NAME
+                JOIN ALL_CONSTRAINTS p ON p.OWNER=c.R_OWNER AND p.CONSTRAINT_NAME=c.R_CONSTRAINT_NAME
+                JOIN ALL_CONS_COLUMNS pc ON pc.OWNER=p.OWNER AND pc.CONSTRAINT_NAME=p.CONSTRAINT_NAME AND pc.POSITION=cc.POSITION
+                WHERE c.CONSTRAINT_TYPE='R' AND c.TABLE_NAME=:lookup_table
+                  AND c.OWNER=COALESCE(:lookup_schema,SYS_CONTEXT('USERENV','CURRENT_SCHEMA'))
+                ORDER BY c.CONSTRAINT_NAME,cc.POSITION";
+        }
         else if (provider.Dialect is DB2Dialect)
         {
             parameterTable = table.StartsWith('"') ? table.Trim('"') : table.ToUpperInvariant();
@@ -69,7 +86,7 @@ internal static class ForeignKeyMetadataReader
         else throw new NotSupportedException("Foreign-key metadata is unsupported by " + provider.Dialect.GetType().Name + ".");
         using var command = provider.CreateCommand();
         AddParameter(command, "lookup_table", parameterTable);
-        if (provider.Dialect is MysqlDialect) AddParameter(command, "lookup_schema", schema);
+        if (provider.Dialect is MysqlDialect or OracleDialect) AddParameter(command, "lookup_schema", schema);
         var rows = new List<(string Name, string Parent, string ChildColumn, string ParentColumn, string Delete, string Update)>();
         using (var reader = provider.ExecuteQuery(command, sql))
             while (reader.Read())

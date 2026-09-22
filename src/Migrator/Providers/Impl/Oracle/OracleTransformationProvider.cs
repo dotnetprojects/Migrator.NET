@@ -56,38 +56,8 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         }
     }
 
-    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
-    {
-        var constraints = new List<ForeignKeyConstraint>();
-        var foreignKeyConstraintItems = _oracleSystemDataLoader.GetForeignKeyConstraintItems(table);
-
-        var schemaChildTableGroups = foreignKeyConstraintItems.GroupBy(x => new { x.SchemaName, x.ChildTableName }).Count();
-
-        if (schemaChildTableGroups > 1)
-        {
-            throw new MigrationException($"Duplicates found (grouping by schema name and child table name). Since we do not offer schemas in '{nameof(GetForeignKeyConstraints)}' at this moment in time we cannot filter your target schema. Your database use the same table name in different schemas.");
-        }
-
-        var groups = foreignKeyConstraintItems.GroupBy(x => x.ForeignKeyName);
-
-        foreach (var group in groups)
-        {
-            var first = group.First();
-
-            var foreignKeyConstraint = new ForeignKeyConstraint
-            {
-                Name = first.ForeignKeyName,
-                ParentTable = first.ParentTableName,
-                ParentColumns = [.. group.Select(x => x.ParentColumnName).Distinct()],
-                ChildTable = first.ChildTableName,
-                ChildColumns = [.. group.Select(x => x.ChildColumnName).Distinct()]
-            };
-
-            constraints.Add(foreignKeyConstraint);
-        }
-
-        return [.. constraints];
-    }
+    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table) =>
+        ForeignKeyMetadataReader.Read(this, table);
 
     public override void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,
                                        string[] refColumns, ForeignKeyConstraintType constraint)
@@ -102,7 +72,8 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         ValidateIndex(tableName: table, index: index);
         var hasFilterItems = index.FilterItems != null && index.FilterItems.Count > 0;
 
-        // Oracle does not support included columns and clustered indexes. We ignore the values given in the properties SILENTLY for backwards compatibility.
+        if (index.IncludeColumns?.Length > 0 || index.Clustered)
+            throw new NotSupportedException("Oracle does not support included columns or SQL Server-style clustered indexes. Use an explicit Oracle operation.");
 
         if (index.Unique && hasFilterItems)
         {

@@ -196,3 +196,14 @@ database objects while rendering a column or preview.
 MySQL/MariaDB expose unique indexes as unique constraints in their catalogs, so
 metadata cannot recover whether the original author used CREATE UNIQUE INDEX or
 a UNIQUE table clause. No ownership decision may be inferred from that syntax.
+
+## Oracle index options and constraint metadata
+
+Oracle now rejects nonempty `Index.IncludeColumns` and `Index.Clustered = true` before
+DDL. Version 12.1 silently ignored them. Remove these options for an ordinary Oracle
+index or author an explicit Oracle-specific design; a SQL Server clustered-index
+request is not translated to an Oracle index-organized table.
+
+Structured metadata preserves SQL Server nonclustered primary keys and Oracle
+ordered foreign-key pairs/delete actions. Foreign-key constructor arrays are copied,
+matching primary/unique definitions, so later caller-array edits cannot change the key.
