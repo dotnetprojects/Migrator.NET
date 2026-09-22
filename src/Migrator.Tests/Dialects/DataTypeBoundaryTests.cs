@@ -4,6 +4,8 @@ using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
+using DotNetProjects.Migrator.Providers.Impl.Oracle;
+using Oracle.ManagedDataAccess.Client;
 using Migrator.Tests.Providers.Live;
 using Npgsql;
 using NUnit.Framework;
@@ -60,6 +62,22 @@ public class DataTypeBoundaryTests(ProviderTypes provider)
 
 public class DialectCapacityRegressionTests
 {
+    private sealed class OracleParameterProbe()
+        : OracleTransformationProvider(new OracleDialect(), (IDbConnection)null, null, "test", null)
+    {
+        public void Bind(IDbDataParameter parameter, object value) => ConfigureParameterWithValue(parameter, 0, value);
+    }
+
+    [Test]
+    public void OracleSingleParameterUsesNativeBinaryFloat()
+    {
+        using var provider = new OracleParameterProbe();
+        using var parameter = new OracleParameter();
+        provider.Bind(parameter, -12345.125f);
+        Assert.That(parameter.OracleDbType, Is.EqualTo(OracleDbType.BinaryFloat));
+        Assert.That(parameter.Value, Is.TypeOf<float>().And.EqualTo(-12345.125f));
+    }
+
     private sealed class PostgreSqlParameterProbe()
         : PostgreSQLTransformationProvider(new PostgreSQLDialect(), (IDbConnection)null, "public", "test", "Npgsql")
     {

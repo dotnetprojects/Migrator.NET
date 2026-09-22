@@ -530,7 +530,23 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is TimeOnly time)
+        if (value is float single)
+        {
+            base.ConfigureParameterWithValue(parameter, index, value);
+            // ODP.NET maps DbType.Single to decimal FLOAT, rounding to seven
+            // decimal digits. Select its native IEEE type without coupling the
+            // provider assembly to either managed or unmanaged ODP.NET.
+            var oracleType = parameter.GetType().GetProperty("OracleDbType");
+            if (oracleType?.CanWrite == true && oracleType.PropertyType.IsEnum &&
+                Enum.IsDefined(oracleType.PropertyType, "BinaryFloat"))
+                oracleType.SetValue(parameter, Enum.Parse(oracleType.PropertyType, "BinaryFloat"));
+            else
+            {
+                parameter.DbType = DbType.Double;
+                parameter.Value = (double)single;
+            }
+        }
+        else if (value is TimeOnly time)
         {
             parameter.DbType = DbType.Date;
             parameter.Value = OracleDialect.TimeValue(time);

@@ -26,7 +26,9 @@ public class InformixTransformationProvider : TransformationProvider
     {
         Logger.Trace(sql);
         using var command = BuildCommand(sql);
-        using var reader = command.ExecuteReader(CommandBehavior.SingleRow);
+        // Without SequentialAccess, IsDBNull calls GetValue and caches the
+        // driver's faulty TEXT conversion before the typed read can run.
+        using var reader = command.ExecuteReader(CommandBehavior.SingleRow | CommandBehavior.SequentialAccess);
         if (!reader.Read()) return null;
         if (reader.IsDBNull(0)) return DBNull.Value;
         // The Informix driver has separate GetValue/GetString paths for TEXT.

@@ -485,7 +485,8 @@ public class DataBoundaryTests(string database, ProviderTypes providerType) : Tr
                 Assert.That(Convert.ToDecimal(Read(3)), Is.EqualTo(100000000m));
                 Insert(4, 922337203685477.5807m);
                 Assert.That(Convert.ToDecimal(Read(4)), Is.EqualTo(922337203685477.5807m));
-                AssertDatabaseError(() => Insert(5, 922337203685477.5808m));
+                // The driver encodes the scaled Int64 and rejects overflow before sending SQL.
+                Assert.Throws<OverflowException>(() => Insert(5, 922337203685477.5808m));
             }
             else AssertDatabaseError(() => Insert(3, 100000000m));
         }
