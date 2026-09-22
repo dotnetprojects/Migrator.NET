@@ -50,7 +50,12 @@ public class RunnerSafetyTests
         Assert.That(provider.HasActiveTransaction, Is.False);
     }
     private sealed class TransactionTestProvider(System.Data.IDbConnection connection)
-        : TransformationProvider(new DotNetProjects.Migrator.Providers.Impl.SQLite.SQLiteDialect(), connection, null, "default");
+        : TransformationProvider(new DotNetProjects.Migrator.Providers.Impl.SQLite.SQLiteDialect(), connection, null, "default")
+    {
+        public override List<string> GetDatabases() => new();
+        public override bool ConstraintExists(string table, string name) => false;
+        public override bool IndexExists(string table, string name) => false;
+    }
     [Test] public void LatestDoesNotDependOnRegistrationOrder()
     {
         var loader = new MigrationLoader(null, false, typeof(Six), typeof(One));
