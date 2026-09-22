@@ -1,9 +1,9 @@
 param(
-    [ValidateSet('Unit','SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix')]
+    [ValidateSet('Unit','SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase')]
     [string]$Database = 'Unit'
 )
 $ErrorActionPreference = 'Stop'
-$databases = @('SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix')
+$databases = @('SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Firebird','Db2','Informix','Sybase')
 $filter = if ($Database -eq 'Unit') { ($databases | ForEach-Object { "TestCategory!=$_" }) -join '&' } else { "TestCategory=$Database" }
 dotnet test Migrator.slnx --no-build --filter $filter --logger "trx;LogFileName=$Database.trx" --results-directory TestResults -- NUnit.NumberOfTestWorkers=0
 if ($LASTEXITCODE -ne 0) { throw "Tests failed for $Database" }

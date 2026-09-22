@@ -20,6 +20,7 @@ namespace Migrator.Tests.Providers.Live;
 [TestFixture("Firebird", ProviderTypes.Firebird, Category = "Firebird")]
 [TestFixture("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
 [TestFixture("Informix", ProviderTypes.IBM_Informix, Category = "Informix")]
+[TestFixture("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
 [NonParallelizable]
 public class LiveDatabaseTests(string database, ProviderTypes providerType)
 {
@@ -67,6 +68,11 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
                 invariant = "IBM.Data.Informix.Client";
                 factory = LoadFactory("Informix.Net.Core");
                 connectionString = configured ?? "Host=localhost;Service=9088;Server=informix;Database=testdb;User ID=informix;Password=in4mix;Protocol=onsoctcp;Pooling=false";
+                break;
+            case "Sybase":
+                invariant = "Sybase.Data.AseClient";
+                factory = LoadFactory("AdoNetCore.AseClient");
+                connectionString = configured ?? "Data Source=localhost;Port=5000;Database=master;Uid=sa;Pwd=myPassword;Pooling=false";
                 break;
             default: throw new InvalidOperationException(database);
         }

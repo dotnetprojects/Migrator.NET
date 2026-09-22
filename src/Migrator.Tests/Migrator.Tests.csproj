@@ -39,6 +39,9 @@
   <ItemGroup Condition="'$(LiveDatabase)' == 'Informix'">
     <PackageReference Include="Informix.Net.Core-lnx" Version="4.1501.2.2026" />
   </ItemGroup>
+  <ItemGroup Condition="'$(LiveDatabase)' == 'Sybase'">
+    <PackageReference Include="AdoNetCore.AseClient" Version="0.19.2" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Migrator\DotNetProjects.Migrator.csproj" />

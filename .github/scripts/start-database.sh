@@ -43,7 +43,12 @@ case "$database" in
   Informix)
     pull icr.io/informix/informix-developer-database:15.0.1.0.3
     docker run -dt --name migrator-db --hostname ifx --privileged -p 9088:9088 -e LICENSE=accept icr.io/informix/informix-developer-database:15.0.1.0.3
-    ready() { docker exec migrator-db bash -lc 'onstat -' 2>/dev/null | grep -q 'On-Line'; }
+    ready() { docker exec migrator-db bash -ic 'onstat -' 2>/dev/null | grep -q 'On-Line'; }
+    ;;
+  Sybase)
+    pull datagrip/sybase:16.0
+    docker run -dt --name migrator-db -p 5000:5000 datagrip/sybase:16.0
+    ready() { printf 'select 12345\ngo\n' | docker exec -i migrator-db bash -c 'source /opt/sybase/SYBASE.sh; isql -Usa -PmyPassword -Slocalhost:5000' 2>/dev/null | grep -q 12345; }
     ;;
   *) echo "Unknown database: $database" >&2; exit 1 ;;
 esac
@@ -56,6 +61,6 @@ case "$database" in
   SQLServer) docker exec migrator-db /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'YourStrong@Passw0rd' -b -Q 'CREATE DATABASE [Whatever];' ;;
   Oracle) docker exec -i migrator-db sqlplus -s / as sysdba < .github/workflows/sql/oracle.sql ;;
   Informix)
-    echo 'create database testdb with log;' | docker exec -i migrator-db bash -lc 'dbaccess sysmaster -'
+    echo 'create database testdb with log;' | docker exec -i migrator-db bash -ic 'dbaccess sysmaster -'
     ;;
 esac
