@@ -180,9 +180,9 @@ billingMigrator.MigrateToLastVersion();
 
 Important details:
 
-- A scope partitions **history**, not migration discovery. Passing a mixed assembly does not automatically filter it by scope.
-- Leave `MigrationAttribute.Scope` unset to inherit the provider scope. If you override it, it must align with the history the runner reads.
-- Duplicate versions are checked across the runner's whole loaded migration set. Separate scopes do not permit duplicate versions within one runner.
+- In the upgrade source, explicit scopes filter discovery; unscoped migrations inherit the runner scope. A scope partitions history, not database objects.
+- Leave `MigrationAttribute.Scope` unset to inherit the provider scope; set it to select a migration for one specific scope.
+- Duplicate versions are checked within the effective scope. Duplicate versions in distinct explicit scopes are independent.
 - Scopes do not isolate tables or data. Module migrations still need compatible table names and coordinated schema ownership.
 
 See [ProviderFactory](src/Migrator/ProviderFactory.cs), [MigrationLoader](src/Migrator/MigrationLoader.cs) and [history implementation](src/Migrator/Providers/TransformationProvider.cs).

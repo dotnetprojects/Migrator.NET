@@ -17,11 +17,6 @@ public class MigrateAnywhere : BaseMigrate
     public MigrateAnywhere(List<long> availableMigrations, ITransformationProvider provider, ILogger logger)
         : base(availableMigrations, provider, logger)
     {
-        _current = 0;
-        if (provider.AppliedMigrations.Count > 0)
-        {
-            _current = provider.AppliedMigrations.Max();
-        }
         _goForward = false;
     }
 
@@ -47,6 +42,7 @@ public class MigrateAnywhere : BaseMigrate
 
     public override bool Continue(long version)
     {
+        if (_availableMigrations.Count == 0) return false;
         // If we're going backwards and our current is less than the target, 
         // reverse direction.  Also, start over at zero to make sure we catch
         // any merged migrations that are less than the current target.

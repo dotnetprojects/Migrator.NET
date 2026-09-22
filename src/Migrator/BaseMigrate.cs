@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator;
@@ -11,24 +13,39 @@ public abstract class BaseMigrate
     protected bool _dryrun;
     protected ILogger _logger;
     protected List<long> _original;
+    private bool _initialized;
 
     protected BaseMigrate(List<long> availableMigrations, ITransformationProvider provider, ILogger logger)
     {
         _provider = provider;
-        _availableMigrations = availableMigrations;
-        _original = new List<long>(_provider.AppliedMigrations.ToArray()); //clone
+        _availableMigrations = availableMigrations.OrderBy(version => version).ToList();
         _logger = logger;
+    }
+
+    protected IReadOnlyList<long> ReadHistory()
+    {
+        if (_provider is IMigrationHistory history) return history.ReadAppliedMigrations();
+        if (DryRun) throw new NotSupportedException("Legacy dry-run requires IMigrationHistory on custom providers.");
+        return _provider.AppliedMigrations;
+    }
+
+    private void InitializeHistory()
+    {
+        if (_initialized) return;
+        _original = new List<long>(ReadHistory());
+        _current = _original.DefaultIfEmpty(0).Max();
+        _initialized = true;
     }
 
     public List<long> AppliedVersions
     {
-        get { return _original; }
+        get { InitializeHistory(); return _original; }
     }
 
     public virtual long Current
     {
-        get { return _current; }
-        protected set { _current = value; }
+        get { InitializeHistory(); return _current; }
+        protected set { InitializeHistory(); _current = value; }
     }
 
     public virtual bool DryRun
@@ -61,12 +78,13 @@ public abstract class BaseMigrate
     /// <returns>The migration number of the next available Migration.</returns>
     protected long NextMigration()
     {
+        if (_availableMigrations.Count == 0) return 0;
         // Start searching at the current index
         var migrationSearch = _availableMigrations.IndexOf(Current) + 1;
 
         // See if we can find a migration that matches the requirement
         while (migrationSearch < _availableMigrations.Count
-               && _provider.AppliedMigrations.Contains(_availableMigrations[migrationSearch]))
+               && ReadHistory().Contains(_availableMigrations[migrationSearch]))
         {
             migrationSearch++;
         }
@@ -93,7 +111,7 @@ public abstract class BaseMigrate
 
         // See if we can find a migration that matches the requirement
         while (migrationSearch > -1
-               && !_provider.AppliedMigrations.Contains(_availableMigrations[migrationSearch]))
+               && !ReadHistory().Contains(_availableMigrations[migrationSearch]))
         {
             migrationSearch--;
         }

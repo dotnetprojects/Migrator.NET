@@ -24,6 +24,47 @@ public class RunnerSafetyTests
         public override void Up() => throw new InvalidOperationException("original");
         public override void Down() => throw new InvalidOperationException("original");
     }
+    [Migration(4, Ignore = true)] public class CallbackContext : One
+    {
+        public override void AfterUp()
+        {
+            if (!ReferenceEquals(((TransformationProvider)Database).CurrentMigration, this)) throw new InvalidOperationException("Missing callback context.");
+            Database.ExecuteNonQuery("INSERT INTO Example VALUES (1)");
+        }
+    }
+    [Migration(5, Ignore = true)] public class FailedCallbackContext : CallbackContext
+    { public override void AfterUp() { base.AfterUp(); throw new InvalidOperationException("Callback failed."); } }
+
+    [Test, Category("SQLite")] public void LegacyDryRunConstructionAndNavigationAreReadOnly()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True"); connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        var legacy = new MigrateAnywhere(new List<long> { 1 }, provider, new Logger(false)) { DryRun = true };
+        Assert.That(legacy.Current, Is.Zero);
+        Assert.That(legacy.AppliedVersions, Is.Empty);
+        Assert.That(legacy.Continue(1), Is.True);
+        legacy.Migrate(new One { Database = provider });
+        Assert.That(provider.TableExists("SchemaInfo"), Is.False);
+        Assert.That(provider.TableExists("Example"), Is.False);
+        Assert.That(((DotNetProjects.Migrator.Providers.Impl.SQLite.SQLiteTransformationProvider)provider).IsPragmaForeignKeysOn(), Is.True);
+    }
+    [Test, Category("SQLite")] public void EmptyLatestRunDoesNotCreateHistory()
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        new DotNetProjects.Migrator.Migrator(provider, false, Array.Empty<Type>()).MigrateToLastVersion();
+        Assert.That(provider.TableExists("SchemaInfo"), Is.False);
+    }
+    [TestCase(false), TestCase(true), Category("SQLite")]
+    public void PostCommitCallbackHasContextAndAlwaysClearsIt(bool fail)
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        var runner = new DotNetProjects.Migrator.Migrator(provider, false, fail ? typeof(FailedCallbackContext) : typeof(CallbackContext));
+        if (fail) Assert.That(Assert.Throws<InvalidOperationException>(runner.MigrateToLastVersion).Message, Is.EqualTo("Callback failed."));
+        else runner.MigrateToLastVersion();
+        Assert.That(((TransformationProvider)provider).CurrentMigration, Is.Null);
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT COUNT(*) FROM Example")), Is.EqualTo(1));
+        Assert.That(provider.AppliedMigrations, Has.Count.EqualTo(1));
+    }
     [Test] public void CustomProvidersRetainExplicitMigrationScope()
     {
         var provider = Substitute.For<ITransformationProvider>();

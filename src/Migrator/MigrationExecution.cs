@@ -53,6 +53,15 @@ internal static class MigrationExecution
             }
         }
         // These callbacks intentionally run after commit; failure cannot be rolled back.
-        if (step.IsUp) migration.AfterUp(); else migration.AfterDown();
+        After(provider, migration, step.IsUp);
     }
+    internal static void After(ITransformationProvider provider, IMigration migration, bool up)
+    {
+        var concrete = provider as TransformationProvider;
+        var previous = concrete?.CurrentMigration;
+        if (concrete != null) concrete.CurrentMigration = migration;
+        try { if (up) migration.AfterUp(); else migration.AfterDown(); }
+        finally { if (concrete != null) concrete.CurrentMigration = previous; }
+    }
+
 }

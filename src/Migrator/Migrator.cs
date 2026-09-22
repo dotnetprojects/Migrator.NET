@@ -182,6 +182,11 @@ public class Migrator
     /// </summary>
     public void MigrateToLastVersion()
     {
+        if (_migrationLoader.GetAvailableMigrations().Count == 0)
+        {
+            Logger.Warn("No migrations found for the effective scope.");
+            return;
+        }
         MigrateTo(_migrationLoader.LastVersion);
     }
 
