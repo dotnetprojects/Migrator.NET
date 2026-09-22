@@ -1,6 +1,6 @@
 # Runner and fluent API upgrade
 
-These APIs describe the source upgrade under review in PRs #173, #174, #175 and #177. They are not a statement about the currently released NuGet packages. Build the repository to try them; no package publication is part of this change.
+These APIs describe the source upgrade merged through PRs #173, #174, #175 and #177. They are not a statement about the currently released NuGet packages. Build the repository to try them; no package publication is part of this change.
 
 ## Fluent quick start
 

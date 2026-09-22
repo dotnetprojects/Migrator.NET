@@ -800,3 +800,9 @@ footer .brand {
 
 #version-13 .snippet { margin: 1rem 0; }
 #version-13 p + p { margin-top: 1rem; }
+
+.project-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.project-badges a { display: inline-flex; }
+.project-badges img { height: 20px; max-width: 100%; }
+.test-counts { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 0; list-style: none; }
+.test-counts strong { display: block; font-size: 1.8rem; }
