@@ -563,6 +563,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
         var tableLiteral = table.Replace("'", "''");
         var schemaLiteral = schema.Replace("'", "''");
         var pkColumns = ExecuteStringQuery("SELECT cu.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_NAME=cu.CONSTRAINT_NAME AND tc.CONSTRAINT_SCHEMA=cu.CONSTRAINT_SCHEMA WHERE tc.TABLE_NAME='{0}' AND tc.TABLE_SCHEMA='{1}' AND tc.CONSTRAINT_TYPE='PRIMARY KEY'", tableLiteral, schemaLiteral);
+        var uniqueColumns = ExecuteStringQuery("SELECT MIN(cu.COLUMN_NAME) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ON tc.CONSTRAINT_NAME=cu.CONSTRAINT_NAME AND tc.CONSTRAINT_SCHEMA=cu.CONSTRAINT_SCHEMA WHERE tc.TABLE_NAME='{0}' AND tc.TABLE_SCHEMA='{1}' AND tc.CONSTRAINT_TYPE='UNIQUE' GROUP BY tc.CONSTRAINT_SCHEMA, tc.CONSTRAINT_NAME HAVING COUNT(*)=1", tableLiteral, schemaLiteral);
         var idtColumns = ExecuteStringQuery("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='{1}' AND TABLE_NAME='{0}' AND COLUMNPROPERTY(OBJECT_ID(QUOTENAME(TABLE_SCHEMA)+'.'+QUOTENAME(TABLE_NAME)),COLUMN_NAME,'IsIdentity')=1", tableLiteral, schemaLiteral);
 
         var columns = new List<Column>();
@@ -583,6 +584,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                 var defaultValueString = reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal).Trim();
                 var characterMaximumLength = reader.IsDBNull(characterMaximumLengthOrdinal) ? (int?)null : reader.GetInt32(characterMaximumLengthOrdinal);
 
+                if (uniqueColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.Unique;
                 if (pkColumns.Contains(column.Name))
                 {
                     column.ColumnProperty |= ColumnProperty.PrimaryKey;

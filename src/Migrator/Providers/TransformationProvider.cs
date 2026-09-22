@@ -2048,6 +2048,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             parameter.DbType = DbType.DateTime;
             parameter.Value = value;
         }
+        else if (value is TimeSpan timeSpan)
+        {
+            parameter.DbType = DbType.Time;
+            parameter.Value = timeSpan;
+        }
         else if (value is DateTimeOffset dateTimeOffset)
         {
             parameter.DbType = DbType.DateTimeOffset;

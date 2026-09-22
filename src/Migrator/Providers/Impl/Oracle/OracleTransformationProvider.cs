@@ -476,6 +476,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
         var userTabIdentityCols = _oracleSystemDataLoader.GetUserTabIdentityCols(tableName: table);
         var primaryKeyItems = _oracleSystemDataLoader.GetPrimaryKeyItems(tableName: table);
+        var uniqueColumns = ExecuteStringQuery("SELECT MIN(cc.COLUMN_NAME) FROM USER_CONSTRAINTS c JOIN USER_CONS_COLUMNS cc ON c.CONSTRAINT_NAME=cc.CONSTRAINT_NAME WHERE c.CONSTRAINT_TYPE='U' AND LOWER(c.TABLE_NAME)=LOWER('{0}') GROUP BY c.CONSTRAINT_NAME HAVING COUNT(*)=1", table.Replace("'", "''"));
 
         List<UserTabColumns> userTabColumns = [];
 
@@ -526,6 +527,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                     ColumnProperty = isNullable ? ColumnProperty.Null : ColumnProperty.NotNull
                 };
 
+                if (uniqueColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.Unique;
                 var isIdentity = userTabIdentityCols.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
                 var isPrimaryKey = primaryKeyItems.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
 
@@ -535,11 +537,11 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 }
                 else if (isIdentity)
                 {
-                    column.ColumnProperty.Set(ColumnProperty.Identity);
+                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.Identity);
                 }
                 else if (isPrimaryKey)
                 {
-                    column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
+                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
                 }
 
                 // Oracle does not have unsigned types. All NUMBER types can hold positive or negative values so we do not return DbType.UIntX types.

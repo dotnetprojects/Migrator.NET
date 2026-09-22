@@ -476,6 +476,9 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         var columnInfos = _postgreSQLSystemDataLoader.GetColumnInfos(table, "public");
         var columns = new List<Column>();
         var tableConstraints = _postgreSQLSystemDataLoader.GetTableConstraints(table);
+        var uniqueColumns = tableConstraints.Where(c => c.ConstraintType == "UNIQUE")
+            .GroupBy(c => new { c.TableSchema, c.ConstraintName }).Where(g => g.Count() == 1)
+            .Select(g => g.Single().ColumnName).ToHashSet(StringComparer.Ordinal);
 
         foreach (var columnInfo in columnInfos)
         {
@@ -594,6 +597,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             };
 
             column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
+            if (uniqueColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.Unique;
 
             if (isPrimaryKey)
             {

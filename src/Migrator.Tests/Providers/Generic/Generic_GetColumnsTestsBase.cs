@@ -9,6 +9,14 @@ namespace Migrator.Tests.Providers.Generic;
 public abstract class Generic_GetColumnsTestsBase : TransformationProviderBase
 {
     [Test]
+    public void CompositeUniqueDoesNotMarkItsIndividualColumnsUnique()
+    {
+        Provider.AddTable("CompositeUniqueMetadata", new Column("FirstId", DbType.Int32), new Column("SecondId", DbType.Int32));
+        Provider.AddUniqueConstraint("CompositeUniqueKey", "CompositeUniqueMetadata", "FirstId", "SecondId");
+        Assert.That(Provider.GetColumns("CompositeUniqueMetadata").All(c => !c.ColumnProperty.HasFlag(ColumnProperty.Unique)), Is.True);
+    }
+
+    [Test]
     public void GetColumns_UniqueButNotPrimaryKey_ReturnsFalse()
     {
         // Arrange
