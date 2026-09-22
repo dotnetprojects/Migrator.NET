@@ -65,10 +65,9 @@
     <span class="syntax-keyword">public override void</span> Up()
     {
         Database.AddTable(<span class="syntax-string">"Users"</span>,
-            <span class="syntax-keyword">new</span> Column(<span class="syntax-string">"Id"</span>, DbType.Int32,
-                ColumnProperty.NotNull),
-            <span class="syntax-keyword">new</span> Column(<span class="syntax-string">"Name"</span>, DbType.String, 255));
-        Database.AddPrimaryKey(<span class="syntax-string">"PK_Users"</span>, <span class="syntax-string">"Users"</span>, <span class="syntax-string">"Id"</span>);
+            <span class="syntax-keyword">new</span> Column(<span class="syntax-string">"Id"</span>, DbType.Int32) { IsNullable = <span class="syntax-keyword">false</span> },
+            <span class="syntax-keyword">new</span> Column(<span class="syntax-string">"Name"</span>, DbType.String, 255),
+            <span class="syntax-keyword">new</span> PrimaryKeyConstraint(<span class="syntax-string">"PK_Users"</span>, <span class="syntax-string">"Id"</span>));
     }
 
     <span class="syntax-keyword">public override void</span> Down()
@@ -130,6 +129,30 @@
           </article>
         </div>
       </section>
+      <section class="quick-section" id="version-13" aria-labelledby="v13-title">
+        <div class="container">
+          <div class="section-heading">
+            <div><p class="eyebrow">VERSION 13 · IN REVIEW</p><h2 id="v13-title">Explicit definitions, shared authoring.</h2></div>
+            <p>Breaking source changes. These features are not yet a released NuGet version.</p>
+          </div>
+          <p>Define primary, unique, foreign-key and check constraints as table objects.
+            The imperative and fluent APIs share column definitions, trusted SQL defaults and typed collation requests.</p>
+          <div class="snippet"><pre><code>new Column("Id", DbType.String, 27)
+    { DefaultValue = RawSql.Insert("ksuid_new()") };
+
+builder.Create.Table("Events")
+    .WithColumn("Id").AsString(27)
+    .WithDefaultValue(RawSql.Insert("ksuid_new()"))
+    .WithColumn("Name").AsString(100)
+    .WithCollation(Collation.CaseInsensitive);</code></pre></div>
+          <p>The target database must supply the SQL function. Collation mappings have explicit provider limits:
+            SQLite ASCII folding does not satisfy a Unicode case-insensitive request.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-column-model/docs/migration-guide-12.1-to-13.md">Read the 12.1-to-13 migration guide ↗</a>.</p>
+          <p>Additional databases require passing real-engine CI.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/182">SAP HANA provider in v13 review ↗</a>;
+            Redshift, Snowflake and Db2 for IBM i remain unsupported.</p>
+        </div>
+      </section>
       <section
         class="quick-section"
         id="quick-start"
@@ -142,17 +165,17 @@
               <h2 id="start-title">From code to schema.</h2>
             </div>
             <p>
-              A minimal SQLite example.<br />Use a .NET 9 console project for
-              the current source.
+              A minimal SQLite example for <strong>unreleased v13 source</strong>.<br />
+              Use .NET 9 and a checkout of the upgrade branch.
             </p>
           </div>
           <div class="step">
             <div class="step-description">
               <span class="step-index">1</span>
-              <h3>Install the packages</h3>
+              <h3>Reference the v13 source</h3>
               <p>
-                Add Migrator and an ADO.NET driver. This example passes an open
-                connection directly to the provider.
+                Run these commands from your Migrator.NET checkout. This example references
+                the source project and passes an open SQLite connection to the provider.
               </p>
               <a href="https://www.nuget.org/packages/DotNetProjects.Migrator/"
                 >View package versions on NuGet ↗</a
@@ -167,7 +190,7 @@
               </div>
               <pre><code id="install-code">dotnet new console -n MigrationDemo -f net9.0
 cd MigrationDemo
-dotnet add package DotNetProjects.Migrator
+dotnet add reference ../src/Migrator/DotNetProjects.Migrator.csproj
 dotnet add package Microsoft.Data.Sqlite --version 9.0.7</code></pre>
             </div>
           </div>
@@ -201,8 +224,8 @@ public class CreateUsers : Migration
     {
         Database.AddTable("Users",
             new Column("Id", DbType.Int32) { IsNullable = false },
-            new Column("Name", DbType.String, 255));
-        Database.AddPrimaryKey("PK_Users", "Users", "Id");
+            new Column("Name", DbType.String, 255),
+            new PrimaryKeyConstraint("PK_Users", "Id"));
     }
 
     public override void Down()
@@ -260,9 +283,8 @@ migrator.MigrateToLastVersion();</code></pre>
           <aside class="note">
             <strong>Working with multiple modules?</strong> Pass
             <code>scope: "billing"</code> to
-            <code>ProviderFactory.Create</code> and supply only billing
-            migrations to that runner. A scope partitions history; it does not
-            filter assembly discovery. Leave
+            <code>ProviderFactory.Create</code> to select billing migrations and its history. Explicit migration scopes
+            filter discovery; unscoped migrations inherit the runner scope. Leave
             <code>MigrationAttribute.Scope</code> unset to use the provider’s
             scope.
           </aside>
@@ -303,6 +325,7 @@ migrator.MigrateToLastVersion();</code></pre>
               <li>Firebird</li>
               <li>Ingres</li>
               <li>Sybase</li>
+              <li>SAP HANA (v13 source)</li>
             </ul>
           </div>
         </div>
@@ -311,12 +334,12 @@ migrator.MigrateToLastVersion();</code></pre>
           server or driver version. Schema operations and transactional DDL vary
           by provider. Check the
           <a
-            href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/ProviderFactory.cs"
+            href="https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/ProviderFactory.cs"
             >provider factory</a
           >
           and
           <a
-            href="https://github.com/dotnetprojects/Migrator.NET/tree/master/src/Migrator.Tests/Providers"
+            href="https://github.com/dotnetprojects/Migrator.NET/tree/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers"
             >provider tests</a
           >
           for your database.
@@ -342,7 +365,7 @@ migrator.MigrateToLastVersion();</code></pre>
           </div>
           <p class="comparison-intro"><strong>Source upgrade under review, not a NuGet release:</strong>
             fluent operations, SQL-preview subset, runner options, native locks and source CLI.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Read the runner guide and limitations</a>.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/runner-guide.md">Read the runner guide and limitations</a>.
             <a href="https://github.com/dotnetprojects/Migrator.NET/pull/177">Follow the PR stack</a>.
           </p>
           <p class="comparison-intro">
@@ -352,11 +375,11 @@ migrator.MigrateToLastVersion();</code></pre>
           </p>
           <p>
             <a
-              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md"
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/migration-framework-comparison.md"
               >Read the detailed feature comparison (Markdown) →</a
             ><br />
             <a
-              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md#sqlite-emulation-comparison"
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/migration-framework-comparison.md#sqlite-emulation-comparison"
               >Explore SQLite emulation, preservation limits and framework
               differences →</a
             >

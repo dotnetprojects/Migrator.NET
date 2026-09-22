@@ -7,7 +7,7 @@ This is an implementation gate, not a claim of released provider support.
 
 | Additional engine | Real-engine GitHub Actions route | Current disposition |
 | --- | --- | --- |
-| SAP HANA | Official HANA Express Linux container and SAP's .NET driver, disposable schema | Infrastructure passed; provider and mandatory matrix tests added, pending their actual-engine results |
+| SAP HANA | Official HANA Express Linux container and SAP's .NET driver, disposable schema | Implemented in the v13 source stack with a mandatory actual-engine matrix job; require green PR checks before merge |
 | Amazon Redshift | AWS test warehouse/serverless endpoint with CI credentials, network access and resource cleanup | No configured test infrastructure; defer provider |
 | Snowflake | Snowflake test account, warehouse, credentials and disposable database/schema | No configured test infrastructure; defer provider |
 | Db2 for IBM i | IBM i endpoint on Power infrastructure and compatible .NET/ODBC driver | No configured test infrastructure; defer provider |
@@ -30,7 +30,8 @@ and catalog checks. Any startup or behavioral failure fails the job. Logs and
 runner resource evidence are retained; cleanup runs independently of test success.
 The prerequisite probe passed in [run 35766200488](https://github.com/dotnetprojects/Migrator.NET/actions/runs/35766200488). The standalone workflow is replaced by the mandatory Hana job in the complete database matrix; the probe project remains reproducible evidence.
 
-Provider admission now requires the new matrix coverage for
+The provider matrix at source `eabec55` is recorded in [run 35770116342](https://github.com/dotnetprojects/Migrator.NET/actions/runs/35770116342).
+Provider admission requires this matrix to pass, covering
 imperative/fluent schema creation, constraint metadata, data, migration history,
 restart/rollback, preview parity and explicit unsupported operations. Do not mark
 a provider supported on the basis of SQL string tests or a skipped secret-gated job.
@@ -61,7 +62,9 @@ retains HANA's default DDL autocommit behavior; data rollback does not prove DDL
 Use explicit SQL for tenant administration, computed columns, specialized indexes,
 collation configuration, and provider-specific data types without a mapped CLR type.
 The provider rejects unsupported included/filtered/clustered indexes and semantic
-collation requests instead of ignoring them.
+collation requests instead of ignoring them. The packaged CLI does not bundle the SAP driver;
+use the library runner in a host that references the SAP package. Raw defaults retain HANA's
+engine restrictions: CURRENT_TIMESTAMP is valid, whereas arbitrary LOWER(...) defaults are not.
 
 [HANA constraints](https://help.sap.com/docs/SAP_HANA_PLATFORM/4fe29514fd584807ac9f2a04f6754767/209f7cf5751910149d9ce6b033d8ddce.html),
 [referential constraints](https://help.sap.com/docs/SAP_HANA_PLATFORM/4fe29514fd584807ac9f2a04f6754767/20ccc0a175191014901b88e6bc175c44.html),

@@ -14,7 +14,7 @@ Open http://localhost:8766. Content and navigation work without JavaScript. Copy
 
 ## Publish on GitHub Pages
 
-1. In the repository's **Settings â†’ Pages â†’ Build and deployment**, set **Source** to **GitHub Actions**.
+1. In the repository's **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**.
 2. Merge the site and `.github/workflows/pages.yml` into `master`.
 3. The workflow publishes only `docs/`. After enabling Pages, you can also run **Deploy homepage to GitHub Pages** manually on `master`.
 
@@ -24,6 +24,6 @@ All site assets use relative URLs, so the repository subpath works without a cus
 
 ## Keep the comparison accurate
 
-The comparison distinguishes source capabilities from guarantees about released packages or database compatibility. Update the review date and source links together when reviewing it. Avoid equating transaction rollback with reversing completed migrations, treating a provider enum as a support guarantee, or treating scoped history as a migration discovery filter.
+The comparison distinguishes source capabilities from guarantees about released packages or database compatibility. Update the review date and source links together when reviewing it. Avoid equating transaction rollback with reversing completed migrations, treating a provider enum as a support guarantee, or assuming scopes isolate physical tables. The v13 runner filters explicitly scoped migrations and lets unscoped migrations inherit its effective scope.
 
-The quick start targets the current source's .NET 9 API. Check the selected NuGet release's target frameworks. The SQLite driver version matches the repository test dependency. Validate authoring and runner snippets together when changing them.
+The quick start targets the unreleased v13 source's .NET 9 API and references the source project. Check the selected NuGet release's target frameworks. The SQLite driver version matches the repository test dependency. Validate authoring and runner snippets together when changing them.

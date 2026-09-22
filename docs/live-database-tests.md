@@ -15,9 +15,10 @@ The pull-request workflow runs independent jobs on GitHub-hosted Ubuntu 22.04 wi
 | Firebird | `firebirdsql/firebird:5.0.3` | FirebirdSql.Data.FirebirdClient 10.3.4 |
 | Db2 | `icr.io/db2_community/db2:11.5.9.0` | Net.IBM.Data.Db2-lnx 9.0.0.400 |
 | Informix | `icr.io/informix/informix-developer-database:15.0.1.0.3` | Informix.Net.Core-lnx 4.1501.2.2026 |
+| Hana | `saplabs/hanaexpress:2.00.088.00.20251110.1` | Sap.Data.Hana.Net.v8.0 2.30.27 |
 | Sybase | `datagrip/sybase:16.0` (ASE developer image) | AdoNetCore.AseClient 0.19.2 |
 
-The IBM Linux packages and ASE client are conditional test-project dependencies selected by `-p:LiveDatabase=Db2`, `Informix`, or `Sybase`. They do not become library dependencies. The library's provider identifiers and public API remain unchanged. Db2 and Informix containers need privileged mode. Image tags are fixed versions; container inspection artifacts record the actual downloaded image IDs.
+The IBM Linux packages and ASE client are conditional test-project dependencies selected by `-p:LiveDatabase=Db2`, `Informix`, or `Sybase`. They do not become library dependencies. The SAP client is also a test-only dependency; the core loads its factory dynamically. Db2 and Informix containers need privileged mode. Image tags are fixed versions; container inspection artifacts record the actual downloaded image IDs.
 
 ## Coverage and isolation
 
@@ -25,7 +26,9 @@ The IBM Linux packages and ASE client are conditional test-project dependencies 
 
 Every test creates a uniquely named database (a schema for Db2, an independent server-side file for Firebird). Connections disable pooling. Teardown disposes the provider and drops that database/schema; Db2 removes tables in dependency order first. Migration cycles reuse the same isolated store to exercise repeatability even on engines whose DDL commits automatically. ASE test databases enable full logging for ALTER TABLE and allow DDL in transactions and allocate 32 MB of data plus a separate 16 MB log allocation to accommodate the image's model database.
 
-Existing SQL Server, PostgreSQL, Oracle and SQLite suites continue to run in full. The Unit job uses the complement of all database categories. An audit compares NUnit's discovery count against the union of all job results and rejects missing or duplicate test assignments. Each job rejects zero executed tests; new suites also reject skips. Existing ignored tests retain their documented reasons: generic default removal (issue #139) and a SQL Server column-change regression (issue #132). TRX and NUnit XML expose each reason for review.
+The Hana suite creates a disposable schema per test and covers imperative/fluent/generated schema creation, timestamp expression defaults, constraint/index metadata, data and nullability/default changes, caller-owned connections, DML rollback, and migration history restart/downgrade. Its unsupported-operation tests reject unavailable capabilities.
+
+Existing SQL Server, PostgreSQL, Oracle and SQLite suites continue to run in full. The Unit job uses the complement of all database categories. An audit compares NUnit's discovery count against the union of all job results and rejects missing or duplicate test assignments. Each job rejects zero executed tests; new suites also reject skips. Previously ignored default-removal and SQL Server uniqueness cases have behavioral replacements. TRX and NUnit XML expose any remaining ignored case and its reason; a skipped case is never evidence of support.
 
 Readiness and startup are bounded; database jobs time out after 35 minutes. Startup logs, container logs/inspection, TRX and NUnit XML are uploaded on success or failure. Registry downloads may retry; test failures never do. A new commit cancels an obsolete run.
 
@@ -43,7 +46,11 @@ For a server-backed suite, use Linux with Docker, .NET 9 and PowerShell (`pwsh`)
 
 ```bash
 database=MySQL # or a server job name from the table
+export RUNNER_TEMP="$(mktemp -d)"
+export GITHUB_ENV="$RUNNER_TEMP/database.env"
+touch "$GITHUB_ENV"
 bash .github/scripts/start-database.sh "$database"
+while IFS= read -r setting; do export "$setting"; done < "$GITHUB_ENV"
 dotnet build Migrator.slnx -p:LiveDatabase="$database"
 pwsh -File .github/scripts/test.ps1 -Database "$database"
 docker logs migrator-db
@@ -65,7 +72,7 @@ export INFORMIXDIR="$output/native"
 export LD_LIBRARY_PATH="$output/native/lib:$output/native/lib/cli:$output/native/lib/esql"
 ```
 
-New suites accept `MIGRATOR_MYSQL`, `MIGRATOR_MARIADB`, `MIGRATOR_FIREBIRD`, `MIGRATOR_DB2`, `MIGRATOR_INFORMIX`, or `MIGRATOR_SYBASE` connection-string overrides. Use disposable servers with administrative database/schema creation permissions. Defaults match the startup script. ASE additionally expects the disposable `migrator_data` and `migrator_log` devices initialized by that script. Existing suites read `appsettings.json` through ConfigurationReader, with a `MIGRATOR_` plus uppercased configuration-key override.
+New suites accept `MIGRATOR_MYSQL`, `MIGRATOR_MARIADB`, `MIGRATOR_FIREBIRD`, `MIGRATOR_DB2`, `MIGRATOR_INFORMIX`, `MIGRATOR_SYBASE`, or `MIGRATOR_HANA` connection-string overrides. Use disposable servers with administrative database/schema creation permissions. Defaults match the startup script. ASE additionally expects the disposable `migrator_data` and `migrator_log` devices initialized by that script. Existing suites read `appsettings.json` through ConfigurationReader, with a `MIGRATOR_` plus uppercased configuration-key override.
 
 To reproduce the assignment audit, download all `test-results-*` artifacts from a single completed workflow into `TestResults`, preserving their per-database directories, then run:
 
@@ -75,6 +82,7 @@ python3 .github/scripts/verify-test-coverage.py TestResults
 
 ## Engine and provider limits
 
+- HANA Express startup needs Docker and the kernel settings in `start-hana.sh`; it takes several minutes. The test script creates and removes schemas, so its account needs those permissions. HANA defaults retain engine restrictions: `CURRENT_TIMESTAMP` is supported, arbitrary function calls such as `LOWER(...)` are not valid default clauses. DDL may autocommit; the provider rejects whole-session transactional DDL, native locking and tenant administration. See [additional database qualification](additional-database-qualification.md) for tested scope and deferred engines.
 - MySQL/MariaDB DDL may commit automatically; the suite uses independent databases instead of relying on rollback. Modern pinned versions enforce CHECK constraints.
 - Firebird identity columns require Firebird 3 or newer; this suite tests version 5. SQL cannot enumerate all server database files, so `GetDatabases` returns the attached database. Firebird has no general table rename operation.
 - Db2 primary-key and unique-constraint columns must be NOT NULL. Column changes can require REORG, which the provider performs. Foreign-key updates are restrictive; supported delete actions are translated separately. `GetDatabases` returns the current server database, not a client catalog.
