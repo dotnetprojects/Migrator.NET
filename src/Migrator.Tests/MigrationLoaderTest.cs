@@ -15,30 +15,18 @@ public class MigrationLoaderTest
     [SetUp]
     public void SetUp()
     {
-        SetUpCurrentVersion(0, false);
+        SetUpLoader();
     }
 
     #endregion
 
     private MigrationLoader _migrationLoader;
 
-    private void SetUpCurrentVersion(int version, bool assertRollbackIsCalled)
+    private void SetUpLoader()
     {
         var providerMock = Substitute.For<ITransformationProvider>();
 
         providerMock.Logger = new Logger(false);
-        providerMock.When(x => x.Dispose()).Do(_ =>
-        {
-            if (assertRollbackIsCalled)
-            {
-                providerMock.Received().Rollback();
-            }
-            else
-            {
-                providerMock.DidNotReceive().Rollback();
-            }
-        });
-
         _migrationLoader = new MigrationLoader(providerMock, Assembly.GetExecutingAssembly(), true);
         _migrationLoader.MigrationsTypes.Clear();
         _migrationLoader.MigrationsTypes.Add(typeof(MigratorTest.FirstMigration));

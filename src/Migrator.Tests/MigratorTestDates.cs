@@ -19,6 +19,7 @@ public class MigratorTestDates
     }
 
     private DotNetProjects.Migrator.Migrator _migrator;
+    private ITransformationProvider _provider;
 
     // Collections that contain the version that are called migrating up and down
     private static readonly List<long> _upCalled = [];
@@ -53,17 +54,7 @@ public class MigratorTestDates
         providerMock.AppliedMigrations.Returns(appliedVersions);
         providerMock.Logger.Returns(new Logger(false));
 
-        providerMock.When(x => x.Dispose()).Do(_ =>
-        {
-            if (assertRollbackIsCalled)
-            {
-                providerMock.Received().Rollback();
-            }
-            else
-            {
-                providerMock.DidNotReceive().Rollback();
-            }
-        });
+        _provider = providerMock;
 
         _migrator = new DotNetProjects.Migrator.Migrator((ITransformationProvider)providerMock, Assembly.GetExecutingAssembly(), false);
 
@@ -175,14 +166,8 @@ public class MigratorTestDates
     {
         SetUpCurrentVersion(2008060195, true);
 
-        try
-        {
-            _migrator.MigrateTo(3);
-            Assert.Fail("La migration 5 devrait lancer une exception");
-        }
-        catch (Exception)
-        {
-        }
+        Assert.That(Assert.Throws<Exception>(() => _migrator.MigrateTo(3)).Message, Is.EqualTo("oh uh!"));
+        _provider.Received(1).Rollback();
 
         Assert.That(0, Is.EqualTo(_upCalled.Count));
         Assert.That(1, Is.EqualTo(_downCalled.Count));
@@ -246,14 +231,8 @@ public class MigratorTestDates
     {
         SetUpCurrentVersion(2008030195, true);
 
-        try
-        {
-            _migrator.MigrateTo(2008060195);
-            Assert.Fail("La migration 5 devrait lancer une exception");
-        }
-        catch (Exception)
-        {
-        }
+        Assert.That(Assert.Throws<Exception>(() => _migrator.MigrateTo(2008060195)).Message, Is.EqualTo("oh uh!"));
+        _provider.Received(1).Rollback();
 
         Assert.That(1, Is.EqualTo(_upCalled.Count));
         Assert.That(0, Is.EqualTo(_downCalled.Count));
