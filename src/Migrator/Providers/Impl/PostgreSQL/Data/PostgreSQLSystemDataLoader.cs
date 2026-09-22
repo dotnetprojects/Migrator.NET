@@ -11,9 +11,7 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
 
     public List<TableConstraint> GetTableConstraints(string tableName, string schemaName = "public")
     {
-        var quotedTableName = _postgreSQLTransformationProvider.QuoteTableNameIfRequired(tableName);
-
-        var sql = $@"
+        var sql = @"
             SELECT
                 tc.TABLE_SCHEMA,
                 tc.TABLE_NAME,
@@ -26,13 +24,21 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
                 AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
                 AND tc.TABLE_NAME = kcu.TABLE_NAME
             WHERE 
-                LOWER(tc.table_name) = '{quotedTableName.ToLowerInvariant()}' 
-                AND tc.TABLE_SCHEMA = '{schemaName}'
+                tc.table_name = @table 
+                AND tc.TABLE_SCHEMA = @schema
         ";
 
         List<TableConstraint> tableConstraints = [];
 
         using var cmd = _postgreSQLTransformationProvider.CreateCommand();
+        var tableParameter = cmd.CreateParameter();
+        tableParameter.ParameterName = "table";
+        tableParameter.Value = tableName;
+        cmd.Parameters.Add(tableParameter);
+        var schemaParameter = cmd.CreateParameter();
+        schemaParameter.ParameterName = "schema";
+        schemaParameter.Value = schemaName;
+        cmd.Parameters.Add(schemaParameter);
         using var reader = _postgreSQLTransformationProvider.ExecuteQuery(cmd, sql);
 
         while (reader.Read())
@@ -60,7 +66,7 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
 
     public List<ColumnInfo> GetColumnInfos(string tableName, string schemaName = "public")
     {
-        var sql = $@"
+        var sql = @"
             SELECT
                 c.CHARACTER_MAXIMUM_LENGTH,
                 c.COLUMN_DEFAULT,
@@ -77,13 +83,22 @@ public class PostgreSQLSystemDataLoader(IPostgreSQLTransformationProvider postgr
                 c.TABLE_NAME
             FROM information_schema.columns c
             WHERE 
-                LOWER(c.table_name) = '{tableName.ToLowerInvariant()}' AND
-                c.TABLE_SCHEMA = '{schemaName}' 
+                c.table_name = @table AND
+                c.TABLE_SCHEMA = @schema
+            ORDER BY c.ORDINAL_POSITION 
         ";
 
         List<ColumnInfo> columns = [];
 
         using var cmd = _postgreSQLTransformationProvider.CreateCommand();
+        var tableParameter = cmd.CreateParameter();
+        tableParameter.ParameterName = "table";
+        tableParameter.Value = tableName;
+        cmd.Parameters.Add(tableParameter);
+        var schemaParameter = cmd.CreateParameter();
+        schemaParameter.ParameterName = "schema";
+        schemaParameter.Value = schemaName;
+        cmd.Parameters.Add(schemaParameter);
         using var reader = _postgreSQLTransformationProvider.ExecuteQuery(cmd, sql);
 
         while (reader.Read())

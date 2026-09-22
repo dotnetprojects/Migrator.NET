@@ -60,10 +60,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     protected override string GetPrimaryKeyConstraintName(string table)
     {
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT conname FROM pg_constraint WHERE contype = 'p' AND conrelid = (SELECT oid FROM pg_class WHERE relname = lower('{0}'));", table));
-
+        using var command = MetadataCommand(table);
+        using var reader = ExecuteQuery(command, "SELECT conname FROM pg_constraint WHERE contype = 'p' AND conrelid = to_regclass(@relation)");
         return reader.Read() ? reader.GetString(0) : null;
     }
 
@@ -313,43 +311,57 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         ExecuteNonQuery(string.Format("DROP TABLE IF EXISTS {0} CASCADE", name));
     }
 
+    private IDbCommand MetadataCommand(string relation, string name = null)
+    {
+        var command = CreateCommand();
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "relation";
+        parameter.Value = QuoteTableNameIfRequired(relation);
+        command.Parameters.Add(parameter);
+        if (name != null)
+        {
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "name";
+            parameter.Value = name;
+            command.Parameters.Add(parameter);
+        }
+        return command;
+    }
+
     public override bool ConstraintExists(string table, string name)
     {
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND constraint_name = lower('{0}')", name));
-
+        using var command = MetadataCommand(table, name);
+        using var reader = ExecuteQuery(command, "SELECT 1 FROM pg_constraint WHERE conrelid = to_regclass(@relation) AND (conname = @name OR conname = lower(@name))");
         return reader.Read();
     }
 
     public override bool ColumnExists(string table, string column)
     {
-        if (!TableExists(table))
-        {
-            return false;
-        }
-
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = lower('{0}') AND (column_name = lower('{1}') OR column_name = '{1}')", table, column));
+        using var command = MetadataCommand(table, column);
+        using var reader = ExecuteQuery(command, "SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass(@relation) AND attnum > 0 AND NOT attisdropped AND (attname = @name OR attname = lower(@name))");
         return reader.Read();
     }
 
     public override bool TableExists(string table)
     {
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = lower('{0}')", table));
+        using var command = MetadataCommand(table);
+        using var reader = ExecuteQuery(command, "SELECT 1 FROM pg_class WHERE oid = to_regclass(@relation) AND relkind IN ('r', 'p', 'f')");
         return reader.Read();
     }
 
     public override bool ViewExists(string view)
     {
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT table_name FROM information_schema.views WHERE table_schema = 'public' AND table_name = lower('{0}')", view));
-
+        using var command = MetadataCommand(view);
+        using var reader = ExecuteQuery(command, "SELECT 1 FROM pg_class WHERE oid = to_regclass(@relation) AND relkind IN ('v', 'm')");
         return reader.Read();
+    }
+
+    private (string Table, string Schema) ResolveRelation(string table)
+    {
+        using var command = MetadataCommand(table);
+        using var reader = ExecuteQuery(command, "SELECT c.relname, n.nspname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = to_regclass(@relation)");
+        if (!reader.Read()) throw new MigrationException("Table does not exist: " + table);
+        return (reader.GetString(0), reader.GetString(1));
     }
 
     public override List<string> GetDatabases()
@@ -473,9 +485,10 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     public override Column[] GetColumns(string table)
     {
-        var columnInfos = _postgreSQLSystemDataLoader.GetColumnInfos(table, "public");
+        var relation = ResolveRelation(table);
+        var columnInfos = _postgreSQLSystemDataLoader.GetColumnInfos(relation.Table, relation.Schema);
         var columns = new List<Column>();
-        var tableConstraints = _postgreSQLSystemDataLoader.GetTableConstraints(table);
+        var tableConstraints = _postgreSQLSystemDataLoader.GetTableConstraints(relation.Table, relation.Schema);
         var uniqueColumns = tableConstraints.Where(c => c.ConstraintType == "UNIQUE")
             .GroupBy(c => new { c.TableSchema, c.ConstraintName }).Where(g => g.Count() == 1)
             .Select(g => g.Single().ColumnName).ToHashSet(StringComparer.Ordinal);
@@ -562,7 +575,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             {
                 dbType = MigratorDbType.Xml;
             }
-            else if (columnInfo.DataType == "time")
+            else if (columnInfo.DataType == "time" || columnInfo.DataType == "time without time zone")
             {
                 dbType = MigratorDbType.Time;
             }
@@ -646,6 +659,13 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                     {
                         column.DefaultValue = double.Parse(columnInfo.ColumnDefault.ToString(), CultureInfo.InvariantCulture);
                     }
+                }
+                else if (column.MigratorDbType == MigratorDbType.Time)
+                {
+                    var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
+                    if (!match.Success || !TimeSpan.TryParse(match.Value, CultureInfo.InvariantCulture, out var time))
+                        throw new NotSupportedException("Cannot parse PostgreSQL time default: " + columnInfo.ColumnDefault);
+                    column.DefaultValue = time;
                 }
                 else if (column.MigratorDbType == MigratorDbType.Interval)
                 {
