@@ -47,6 +47,7 @@ public class DB2Dialect : Dialect
         public override void MapColumnProperties(Column column)
         {
             Name = column.Name;
+            _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
             var parts = new System.Collections.Generic.List<string>();
             AddName(parts);
             AddType(parts);

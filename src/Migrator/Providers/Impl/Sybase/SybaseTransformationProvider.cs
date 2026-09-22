@@ -67,13 +67,14 @@ public class SybaseTransformationProvider : TransformationProvider
     {
         var indexes = new List<Index>();
         using var cmd = CreateCommand();
-        using (var reader = ExecuteQuery(cmd, $"SELECT name,indid,status,keycnt FROM sysindexes WHERE id=object_id('{Literal(table)}') AND indid BETWEEN 1 AND 254"))
+        using (var reader = ExecuteQuery(cmd, $"SELECT name,indid,status,status2 FROM sysindexes WHERE id=object_id('{Literal(table)}') AND indid BETWEEN 1 AND 254"))
         {
             while (reader.Read())
             {
                 var status = Convert.ToInt32(reader.GetValue(2));
                 indexes.Add(new Index { Name = reader.GetString(0), Unique = (status & 2) != 0,
-                    PrimaryKey = (status & 2048) != 0, Clustered = Convert.ToInt32(reader.GetValue(1)) == 1 });
+                    PrimaryKey = (status & 2048) != 0, UniqueConstraint = (status & 2048) == 0 && (Convert.ToInt32(reader.GetValue(3)) & 2) != 0,
+                    Clustered = Convert.ToInt32(reader.GetValue(1)) == 1 || (Convert.ToInt32(reader.GetValue(3)) & 512) != 0 });
             }
         }
         foreach (var index in indexes)
