@@ -56,13 +56,13 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
         const string columnName = "TestColumn";
 
         Provider.AddTable(tableName, new Column(columnName,DbType.DateTime){IsNullable = false});
-        var columnBefore = Provider.GetColumnByName(tableName, columnName);
+        var columnBefore = Provider.ReadLegacyColumn(tableName, columnName);
 
         // Act
         Provider.ChangeColumn(tableName, new Column(columnName,DbType.DateTime2){IsNullable = false});
 
         // Assert
-        var columnAfter = Provider.GetColumnByName(tableName, columnName);
+        var columnAfter = Provider.ReadLegacyColumn(tableName, columnName);
 
         Assert.That(columnBefore.Type == DbType.DateTime);
         Assert.That(columnAfter.Type == DbType.DateTime2);

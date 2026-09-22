@@ -21,7 +21,7 @@ public class FluentOperationsTests
             builder.Execute.Script(path);
             builder.Execute.EmbeddedScript(typeof(ScriptTests).Assembly, "Migrator.Tests.ScriptResource.sql");
             Assert.That(builder.Build().All(x => x is ScriptOperation), Is.True);
-            var script = builder.Build().First().ToSql(new SqlGenerationContext(ProviderTypes.SqlServer));
+            var script = builder.Build()[0].ToSql(new SqlGenerationContext(ProviderTypes.SqlServer));
             Assert.That(script, Does.Contain("GO"));
             Assert.That(script.TrimEnd(), Does.EndWith("SELECT 2;"));
         }

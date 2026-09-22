@@ -14,7 +14,7 @@ internal static class RawDefaultRegression
         provider.AddTable("RawDefaultsSource", new Column("Id", DbType.Int32),
             new Column("ExpressionValue", DbType.String, 50) { DefaultValue = RawSql.Insert("LOWER('ABC')") },
             new Column("LiteralValue", DbType.String, 50) { DefaultValue = "LOWER('ABC')" });
-        var columns = provider.GetColumns("RawDefaultsSource");
+        var columns = provider.ReadLegacyColumns("RawDefaultsSource");
         Assert.That(columns.Single(c => c.Name.Equals("ExpressionValue", StringComparison.OrdinalIgnoreCase)).DefaultValue, Is.TypeOf<RawSql>());
         provider.AddTable("RawDefaultsCopy", columns);
         var builder = new MigrationBuilder();

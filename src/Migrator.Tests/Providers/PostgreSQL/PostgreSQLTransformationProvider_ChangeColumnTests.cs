@@ -36,7 +36,7 @@ public class PostgreSQLTransformationProvider_ChangeColumnTests : Generic_Change
 
         // Assert
         Provider.ChangeColumn(tableName, new Column(column2Name,DbType.DateTime2){IsNullable = false});
-        var column2 = Provider.GetColumnByName(tableName, column2Name);
+        var column2 = Provider.ReadLegacyColumn(tableName, column2Name);
 
         Assert.That(column2.MigratorDbType, Is.EqualTo(MigratorDbType.DateTime2));
         Assert.That(column2.DefaultValue, Is.Null);
@@ -59,13 +59,13 @@ public class PostgreSQLTransformationProvider_ChangeColumnTests : Generic_Change
         Provider.Insert(table: tableName, columns: [column2Name], values: [dateTimeOffsetInsert]);
         // Act
 
-        var column2 = Provider.GetColumnByName(tableName, column2Name);
+        var column2 = Provider.ReadLegacyColumn(tableName, column2Name);
         Assert.That(((DateTimeOffset)column2.DefaultValue).UtcDateTime, Is.EqualTo(dateTimeOffsetDefaultValue.UtcDateTime));
         Provider.ChangeColumn(tableName, new Column(column2Name,DbType.DateTime2,defaultValue: column2.DefaultValue){IsNullable = false});
 
 
         // Assert
-        column2 = Provider.GetColumnByName(tableName, column2Name);
+        column2 = Provider.ReadLegacyColumn(tableName, column2Name);
 
         // using var reader = Provider.Select(Provider.GetCommand(), what: column2Name, from: tableName);
         // var valueFromDatabase = reader.GetDateTime(0);
@@ -91,10 +91,10 @@ public class PostgreSQLTransformationProvider_ChangeColumnTests : Generic_Change
         Provider.AddTable(name: tableName4, new Column(columnName1,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName4, columnName1));
 
         // Act
-        var columnTable1 = Provider.GetColumnByName(table: tableName1, column: columnName1);
-        var columnTable2 = Provider.GetColumnByName(table: tableName2, column: columnName1);
-        var columnTable3 = Provider.GetColumnByName(table: tableName3, column: columnName1);
-        var columnTable4 = Provider.GetColumnByName(table: tableName4, column: columnName1);
+        var columnTable1 = Provider.ReadLegacyColumn(table: tableName1, column: columnName1);
+        var columnTable2 = Provider.ReadLegacyColumn(table: tableName2, column: columnName1);
+        var columnTable3 = Provider.ReadLegacyColumn(table: tableName3, column: columnName1);
+        var columnTable4 = Provider.ReadLegacyColumn(table: tableName4, column: columnName1);
 
         // Assert
         Assert.That(columnTable1.IsIdentity, Is.True);

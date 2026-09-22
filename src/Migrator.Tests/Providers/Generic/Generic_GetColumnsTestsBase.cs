@@ -43,7 +43,7 @@ public abstract class Generic_GetColumnsTestsBase : TransformationProviderBase
         Provider.AddTable(tableName, new Column("Id",DbType.Int32),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + tableName + "_" + "Id", "Id"));
 
         // Act
-        var columns = Provider.GetColumns(tableName);
+        var columns = Provider.ReadLegacyColumns(tableName);
 
         // Assert
         Assert.That(columns.Single().IsNullable, Is.True);

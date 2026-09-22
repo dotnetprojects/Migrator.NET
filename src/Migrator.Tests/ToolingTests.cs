@@ -42,6 +42,7 @@ public class ToolingTests
         Assert.That(MigratorCommand.Run(args, output, error), Is.EqualTo(exit));
     }
     [Migration(900002, Scope = "cli-spec")]
+    [Tags("cli", "shared")]
     public class CliMigration : DotNetProjects.Migrator.Framework.Fluent.AutoReversingMigration
     {
         public override void BuildUp(DotNetProjects.Migrator.Framework.Fluent.MigrationBuilder migration)
@@ -132,5 +133,81 @@ public class ToolingTests
         var exit = MigratorCommand.Run(new[] { "list", "--assembly", typeof(ToolingTests).Assembly.Location, "--provider", "SQLite", "--scope", "tooling-spec" }, output, error);
         Assert.That(exit, Is.Zero, error.ToString());
         Assert.That(output.ToString(), Does.Contain("900001"));
+    }
+
+    [TestCase("--timeout", "-1")]
+    [TestCase("--timeout", "SECRET_VALUE")]
+    [TestCase("--lock-timeout", "2147483648")]
+    [TestCase("--transaction", "SECRET_VALUE")]
+    [TestCase("--tag-match", "99")]
+    [TestCase("--target", "-1")]
+    public void CliValidatesOptionsBeforeAssemblyLoadingOrDatabaseAccess(string option, string value)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var exit = MigratorCommand.Run(new[] { "migrate", "--assembly", "missing-migrations.dll",
+            "--provider", "SQLite", option, value }, output, error);
+
+        Assert.That(exit, Is.EqualTo(2));
+        Assert.That(error.ToString(), Does.Contain(option).And.Not.Contain(value));
+        Assert.That(output.ToString(), Is.Empty);
+    }
+
+    [TestCase(new[] { "--offline", "--offline" }, "--offline")]
+    [TestCase(new[] { "--timeout", "1", "--timeout", "2" }, "--timeout")]
+    [TestCase(new[] { "--timeout" }, "--timeout")]
+    [TestCase(new[] { "--timeout", "--lock" }, "--timeout")]
+    [TestCase(new[] { "--unknown" }, "--unknown")]
+    public void CliRejectsDuplicateUnknownAndIncompleteOptions(string[] options, string expectedOption)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var args = new[] { "list", "--assembly", typeof(ToolingTests).Assembly.Location, "--provider", "SQLite" }.Concat(options).ToArray();
+        Assert.That(MigratorCommand.Run(args, output, error), Is.EqualTo(2));
+        Assert.That(error.ToString(), Does.Contain(expectedOption));
+    }
+
+    [TestCase("cli,missing", "Any", true)]
+    [TestCase("cli,shared", "All", true)]
+    [TestCase("cli,missing", "All", false)]
+    [TestCase("missing", "Any", false)]
+    public void CliListFiltersByScopeAndTags(string tags, string match, bool selected)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var args = new[] { "list", "--assembly", typeof(ToolingTests).Assembly.Location, "--provider", "SQLite",
+            "--scope", "cli-spec", "--tags", tags, "--tag-match", match };
+        Assert.That(MigratorCommand.Run(args, output, error), Is.Zero, error.ToString());
+        Assert.That(output.ToString().Contains("900002"), Is.EqualTo(selected));
+        Assert.That(output.ToString(), Does.Not.Contain("900001"));
+    }
+
+    [Test]
+    public void CliOfflineSqlUsesTargetAndOutputWithoutAConnection()
+    {
+        var file = Path.GetTempFileName();
+        try
+        {
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+            var args = new[] { "sql", "--assembly", typeof(ToolingTests).Assembly.Location, "--provider", "SQLite",
+                "--scope", "cli-spec", "--tags", "cli", "--offline", "--target", "900002", "--output", file,
+                "--connection-env", "MISSING_" + Guid.NewGuid().ToString("N") };
+            Assert.That(MigratorCommand.Run(args, output, error), Is.Zero, error.ToString());
+            Assert.That(File.ReadAllText(file), Does.Contain("CREATE TABLE").And.Contain("CliExample"));
+            Assert.That(output.ToString(), Is.Empty);
+        }
+        finally { File.Delete(file); }
+    }
+
+    [TestCase("plan", new[] { "--offline" })]
+    [TestCase("sql", new[] { "--offline", "--profiles", "example" })]
+    public void CliRejectsUnsupportedOfflineModes(string command, string[] options)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var args = new[] { command, "--assembly", typeof(ToolingTests).Assembly.Location, "--provider", "SQLite", "--scope", "cli-spec" }
+            .Concat(options).ToArray();
+        Assert.That(MigratorCommand.Run(args, output, error), Is.EqualTo(3));
     }
 }

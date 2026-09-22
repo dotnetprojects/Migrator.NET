@@ -40,7 +40,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
             var actual = stored is DateTime date ? date.TimeOfDay : stored is TimeSpan span ? span : TimeSpan.Parse(Convert.ToString(stored), System.Globalization.CultureInfo.InvariantCulture);
             Assert.That(actual, Is.EqualTo(time.ToTimeSpan()));
         }
-        Assert.That(provider.GetColumns("clock_values").Single(c => c.Name.Equals("value", StringComparison.OrdinalIgnoreCase)).Type, Is.EqualTo(DbType.Time));
+        Assert.That(provider.ReadLegacyColumns("clock_values").Single(c => c.Name.Equals("value", StringComparison.OrdinalIgnoreCase)).Type, Is.EqualTo(DbType.Time));
         if (providerType is ProviderTypes.Mysql or ProviderTypes.MariaDB) IntervalRegression.Verify(provider, false);
     }
 
@@ -275,7 +275,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         CreateItems();
         Assert.That(provider.TableExists("items"), Is.True);
         Assert.That(provider.GetTables(), Has.Some.EqualTo("items").IgnoreCase);
-        var columns = provider.GetColumns("items");
+        var columns = provider.ReadLegacyColumns("items");
         Assert.That(columns, Has.Length.EqualTo(3));
         Assert.That(columns.Single(c => c.Name.Equals("id", StringComparison.OrdinalIgnoreCase)).Type, Is.EqualTo(DbType.Int32));
         Assert.That(columns.Single(c => c.Name.Equals("label", StringComparison.OrdinalIgnoreCase)).IsNullable, Is.True);
@@ -321,7 +321,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.AddColumn("items", new Column("extra",DbType.String,20));
         provider.RenameColumn("items", "extra", "renamed");
         provider.ChangeColumn("items", new Column("renamed",DbType.String,80,"fallback"){IsNullable = false});
-        var changed = provider.GetColumns("items").Single(c => c.Name.Equals("renamed", StringComparison.OrdinalIgnoreCase));
+        var changed = provider.ReadLegacyColumns("items").Single(c => c.Name.Equals("renamed", StringComparison.OrdinalIgnoreCase));
         Assert.That(changed.Size, Is.EqualTo(80));
         Assert.That(changed.IsNullable, Is.False);
         provider.Insert("items", ["id"], [1]);
@@ -341,7 +341,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.Insert("items", ["label"], ["first"]);
         provider.Insert("items", ["label"], ["second"]);
         Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT COUNT(DISTINCT id) FROM items")), Is.EqualTo(2));
-        Assert.That(provider.GetColumns("items").Single(c => c.Name.Equals("id", StringComparison.OrdinalIgnoreCase)).IsIdentity, Is.True);
+        Assert.That(provider.ReadLegacyColumns("items").Single(c => c.Name.Equals("id", StringComparison.OrdinalIgnoreCase)).IsIdentity, Is.True);
     }
 
     [Test]

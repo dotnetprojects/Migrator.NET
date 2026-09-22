@@ -26,7 +26,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
         Provider.AddTable(tableName, new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, "Id"),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + tableName + "_" + "Id", "Id"));
 
         // Act
-        var columns = Provider.GetColumns(tableName);
+        var columns = Provider.ReadLegacyColumns(tableName);
 
         // Assert
         Assert.That(columns.Single().IsNullable, Is.False);
@@ -40,10 +40,10 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
         // Arrange
         const string tableName = "GetColumnsTest";
         Provider.AddTable(tableName, new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, "Id"));
-        Provider.GetColumns(tableName);
+        Provider.ReadLegacyColumns(tableName);
 
         // Act
-        var columns = Provider.GetColumns(tableName);
+        var columns = Provider.ReadLegacyColumns(tableName);
 
         // Assert
         Assert.That(columns.Single().IsNullable, Is.False);
@@ -61,7 +61,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
             new Column("Id2",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, "Id", "Id2")        );
 
         // Act
-        var columns = Provider.GetColumns(tableName);
+        var columns = Provider.ReadLegacyColumns(tableName);
 
         // Assert
         Assert.That(columns[0].IsNullable, Is.False);
@@ -82,7 +82,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
         Provider.AddUniqueConstraint(constraintName, tableName, column1Name, column2Name);
 
         // Act
-        var columns = Provider.GetColumns(tableName);
+        var columns = Provider.ReadLegacyColumns(tableName);
 
         // Assert
         Assert.That(columns[0].IsNullable, Is.True);

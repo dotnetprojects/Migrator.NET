@@ -27,9 +27,9 @@ public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTra
         Assert.That(Provider.ConstraintExists("metadata_a.sample", "same_name"), Is.True);
         Assert.That(Provider.ConstraintExists("metadata_b.sample", "same_name"), Is.False);
         Assert.That(Provider.GetTableConstraints("metadata_a.sample").OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>().Any(), Is.True);
-        Assert.That(Provider.GetColumns("metadata_b.sample").Single().MigratorDbType, Is.EqualTo(MigratorDbType.String));
+        Assert.That(Provider.ReadLegacyColumns("metadata_b.sample").Single().MigratorDbType, Is.EqualTo(MigratorDbType.String));
         Provider.ExecuteNonQuery("SET LOCAL search_path TO metadata_b");
-        Assert.That(Provider.GetColumns("sample").Single().Name, Is.EqualTo("value"));
+        Assert.That(Provider.ReadLegacyColumns("sample").Single().Name, Is.EqualTo("value"));
     }
 
     [Test]
@@ -46,7 +46,7 @@ public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTra
     {
         var value = new TimeOnly(12, 34, 56, 789);
         Provider.AddTable("NativeTimeRoundTrip", new Column("Value", DbType.Time, value));
-        var column = Provider.GetColumns("NativeTimeRoundTrip").Single();
+        var column = Provider.ReadLegacyColumns("NativeTimeRoundTrip").Single();
         Assert.That(column.MigratorDbType, Is.EqualTo(MigratorDbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(value));
         Provider.Insert("NativeTimeRoundTrip", new[] { "Value" }, new object[] { value });

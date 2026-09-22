@@ -33,8 +33,8 @@ public class OracleTransformationProvider_AddColumn_Tests : TransformationProvid
 
 
         // Assert
-        var column1 = Provider.GetColumnByName(tableName, column1Name);
-        var column2 = Provider.GetColumnByName(tableName, column2Name);
+        var column1 = Provider.ReadLegacyColumn(tableName, column1Name);
+        var column2 = Provider.ReadLegacyColumn(tableName, column2Name);
 
         Assert.That(column1.IsNullable, Is.False);
         Assert.That(column2.IsNullable, Is.False);

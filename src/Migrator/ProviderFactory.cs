@@ -1,4 +1,3 @@
-using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
@@ -20,11 +19,8 @@ namespace DotNetProjects.Migrator;
 /// </summary>
 public class ProviderFactory
 {
-    static ProviderFactory()
-    { }
-
     /// <summary>
-    /// 
+    ///
     /// </summary>
     /// <param name="providerType"></param>
     /// <param name="connectionString"></param>
@@ -53,35 +49,35 @@ public class ProviderFactory
             case ProviderTypes.Hana:
                 return new DotNetProjects.Migrator.Providers.Impl.Hana.HanaDialect();
             case ProviderTypes.SQLite:
-                return (Dialect)Activator.CreateInstance(typeof(SQLiteDialect));
+                return new SQLiteDialect();
             case ProviderTypes.MonoSQLite:
-                return (Dialect)Activator.CreateInstance(typeof(SQLiteMonoDialect));
+                return new SQLiteMonoDialect();
             case ProviderTypes.Mysql:
-                return (Dialect)Activator.CreateInstance(typeof(MysqlDialect));
+                return new MysqlDialect();
             case ProviderTypes.MariaDB:
-                return (Dialect)Activator.CreateInstance(typeof(MariaDBDialect));
+                return new MariaDBDialect();
             case ProviderTypes.Oracle:
-                return (Dialect)Activator.CreateInstance(typeof(OracleDialect));
+                return new OracleDialect();
             case ProviderTypes.PostgreSQL:
-                return (Dialect)Activator.CreateInstance(typeof(PostgreSQLDialect));
+                return new PostgreSQLDialect();
             case ProviderTypes.PostgreSQL82:
-                return (Dialect)Activator.CreateInstance(typeof(PostgreSQL82Dialect));
+                return new PostgreSQL82Dialect();
             case ProviderTypes.SqlServer:
-                return (Dialect)Activator.CreateInstance(typeof(SqlServerDialect));
+                return new SqlServerDialect();
             case ProviderTypes.SqlServer2005:
-                return (Dialect)Activator.CreateInstance(typeof(SqlServer2005Dialect));
+                return new SqlServer2005Dialect();
             case ProviderTypes.MsOracle:
-                return (Dialect)Activator.CreateInstance(typeof(MsOracleDialect));
+                return new MsOracleDialect();
             case ProviderTypes.IBM_DB2:
-                return (Dialect)Activator.CreateInstance(typeof(DB2Dialect));
+                return new DB2Dialect();
             case ProviderTypes.IBM_Informix:
-                return (Dialect)Activator.CreateInstance(typeof(InformixDialect));
+                return new InformixDialect();
             case ProviderTypes.Firebird:
-                return (Dialect)Activator.CreateInstance(typeof(FirebirdDialect));
+                return new FirebirdDialect();
             case ProviderTypes.Ingres:
-                return (Dialect)Activator.CreateInstance(typeof(IngresDialect));
+                return new IngresDialect();
             case ProviderTypes.Sybase:
-                return (Dialect)Activator.CreateInstance(typeof(SybaseDialect));
+                return new SybaseDialect();
         }
 
         return null;

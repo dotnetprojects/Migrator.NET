@@ -46,7 +46,7 @@ public class PostgreSQLTransformationProvider_GetColumnTypeTests : PostgreSQLTra
 
 
         // Act
-        var columns = Provider.GetColumns(testTableName);
+        var columns = Provider.ReadLegacyColumns(testTableName);
 
         var dateTimeColumn1 = columns.Single(x => x.Name == dateTimeColumnName1);
         var dateTimeColumn2 = columns.Single(x => x.Name == dateTimeColumnName2);

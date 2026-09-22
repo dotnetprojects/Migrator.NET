@@ -64,7 +64,7 @@ public class IdentifierAndTimeRegressionTests
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
         var time = new TimeOnly(12, 34, 56).Add(TimeSpan.FromTicks(1234560));
         provider.AddTable("Times", new Column("Id", DbType.Int32), new Column("Value", DbType.Time) { DefaultValue = time });
-        var column = provider.GetColumns("Times").Single(c => c.Name == "Value");
+        var column = provider.ReadLegacyColumns("Times").Single(c => c.Name == "Value");
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(time));
         provider.ChangeColumn("Times", new Column("Id", DbType.Int64));

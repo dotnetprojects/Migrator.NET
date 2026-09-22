@@ -61,8 +61,8 @@ public abstract class Generic_AddPrimaryTestsBase : TransformationProviderBase
         Provider.AddPrimaryKey(name: "MyPkName", table: tableName, columnName1);
 
         // Assert
-        var column1 = Provider.GetColumnByName(table: tableName, column: columnName1);
-        var column2 = Provider.GetColumnByName(table: tableName, column: columnName2);
+        var column1 = Provider.ReadLegacyColumn(table: tableName, column: columnName1);
+        var column2 = Provider.ReadLegacyColumn(table: tableName, column: columnName2);
 
         Assert.That(column1.IsNullable, Is.False);
         Assert.That(column2.IsNullable, Is.False);

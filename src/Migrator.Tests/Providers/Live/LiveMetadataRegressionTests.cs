@@ -33,11 +33,11 @@ public class LiveMetadataRegressionTests
     public void SybaseLargeTextMetadataPreservesCapacity() => new LiveDatabaseTests("Sybase", ProviderTypes.Sybase).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (text_value TEXT NULL, unicode_value UNITEXT NULL)");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         Assert.That(columns.Select(c => c.Type), Is.EqualTo(new[] { DbType.String, DbType.String }));
         Assert.That(columns.Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
         f.Provider.AddTable("copied_values", columns);
-        Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
+        Assert.That(f.Provider.ReadLegacyColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
         var content = new string('x', 5000);
         f.Provider.Insert("copied_values", ["text_value", "unicode_value"], [content, content]);
         Assert.That(f.Provider.ExecuteScalar("SELECT text_value FROM copied_values"), Is.EqualTo(content));
@@ -48,7 +48,7 @@ public class LiveMetadataRegressionTests
     public void InformixTypedDefaultsSurviveMetadataCopy() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (id INTEGER, amount INTEGER DEFAULT 7, price DECIMAL(12,3) DEFAULT 12.345, enabled BOOLEAN DEFAULT 't', disabled BOOLEAN DEFAULT 'f', label VARCHAR(40) DEFAULT ' O''Brien ', stamp DATETIME YEAR TO FRACTION(5) DEFAULT CURRENT YEAR TO FRACTION(5), today_value DATE DEFAULT TODAY, null_value INTEGER DEFAULT NULL)");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         foreach (var column in columns)
             TestContext.WriteLine($"Default {column.Name}: [{column.DefaultValue}] ({column.DefaultValue?.GetType().Name})");
         Assert.That(columns.Single(c => c.Name == "amount").DefaultValue, Is.TypeOf<int>().And.EqualTo(7));
@@ -92,16 +92,16 @@ public class LiveMetadataRegressionTests
     public void InformixLargeTextMetadataCopiesAsLargeObjects() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (text_value TEXT, clob_value CLOB)");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         Assert.That(columns.Select(c => c.Type), Is.EqualTo(new[] { DbType.String, DbType.String }));
         Assert.That(columns.Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
         f.Provider.AddTable("copied_values", columns);
-        Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
+        Assert.That(f.Provider.ReadLegacyColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { int.MaxValue, int.MaxValue }));
         // A maximum-width LVARCHAR leaves insufficient row space for an additional LOB locator.
         f.Provider.AddTable("bounded_values", new Column("bounded_value", DbType.String, 32739));
         f.Provider.AddTable("large_values", new Column("large_value", DbType.AnsiString, int.MaxValue));
-        Assert.That(f.Provider.GetColumns("bounded_values").Single().Size, Is.EqualTo(32739));
-        Assert.That(f.Provider.GetColumns("large_values").Single().Size, Is.EqualTo(int.MaxValue));
+        Assert.That(f.Provider.ReadLegacyColumns("bounded_values").Single().Size, Is.EqualTo(32739));
+        Assert.That(f.Provider.ReadLegacyColumns("large_values").Single().Size, Is.EqualTo(int.MaxValue));
         var content = new string('z', 40000);
         f.Provider.Insert("copied_values", ["text_value", "clob_value"], [content, content]);
         Assert.That(f.Provider.ExecuteScalar("SELECT text_value FROM copied_values"), Is.EqualTo(content));
@@ -112,12 +112,12 @@ public class LiveMetadataRegressionTests
     public void InformixCharacterLengthsSurviveMetadataCopy() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (long_text LVARCHAR(3000), short_text VARCHAR(40,10), fixed_text CHAR(300))");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         Assert.That(columns.Select(c => c.Size), Is.EqualTo(new[] { 3000, 40, 300 }));
         Assert.That(columns.Select(c => c.Type), Is.EqualTo(new[] { DbType.String, DbType.String, DbType.StringFixedLength }));
         f.Provider.AddTable("copied_values", columns);
-        Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { 3000, 40, 300 }));
-        Assert.That(f.Provider.GetColumns("copied_values").Last().Type, Is.EqualTo(DbType.StringFixedLength));
+        Assert.That(f.Provider.ReadLegacyColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { 3000, 40, 300 }));
+        Assert.That(f.Provider.ReadLegacyColumns("copied_values").Last().Type, Is.EqualTo(DbType.StringFixedLength));
         var content = new string('x', 2500);
         f.Provider.Insert("copied_values", ["long_text", "short_text", "fixed_text"], [content, "short", new string('y', 300)]);
         Assert.That(f.Provider.ExecuteScalar("SELECT long_text FROM copied_values"), Is.EqualTo(content));
@@ -128,10 +128,10 @@ public class LiveMetadataRegressionTests
     public void FirebirdNativeDateTimeAndBooleanSurviveMetadataCopy() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (date_value DATE, time_value TIME, enabled BOOLEAN)");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         Assert.That(columns.Select(c => c.Type), Is.EqualTo(new[] { DbType.Date, DbType.Time, DbType.Boolean }));
         f.Provider.AddTable("copied_values", columns);
-        Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Type), Is.EqualTo(new[] { DbType.Date, DbType.Time, DbType.Boolean }));
+        Assert.That(f.Provider.ReadLegacyColumns("copied_values").Select(c => c.Type), Is.EqualTo(new[] { DbType.Date, DbType.Time, DbType.Boolean }));
         f.Provider.ExecuteNonQuery("INSERT INTO copied_values VALUES (DATE '2026-09-22', TIME '12:34:56', TRUE)");
         Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM copied_values WHERE date_value = DATE '2026-09-22' AND time_value = TIME '12:34:56' AND enabled IS TRUE")), Is.EqualTo(1));
     });
@@ -143,21 +143,21 @@ public class LiveMetadataRegressionTests
     public void DecimalShapeSurvivesCreateAlterAndCopy(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
         f.Provider.AddTable("numbers", new Column("amount",DbType.Decimal){Precision = 12,Scale = 3 });
-        var original = f.Provider.GetColumns("numbers").Single();
+        var original = f.Provider.ReadLegacyColumns("numbers").Single();
         Assert.That(original.Precision, Is.EqualTo(12));
         Assert.That(original.Scale, Is.EqualTo(3));
         f.Provider.Insert("numbers", ["amount"], [123.456m]);
         f.Provider.ChangeColumn("numbers", new Column("amount",DbType.Decimal){Precision = 15,Scale = 3 });
-        var changed = f.Provider.GetColumns("numbers").Single();
+        var changed = f.Provider.ReadLegacyColumns("numbers").Single();
         Assert.That(changed.Precision, Is.EqualTo(15));
         Assert.That(changed.Scale, Is.EqualTo(3));
         Assert.That(Convert.ToDecimal(f.Provider.ExecuteScalar("SELECT amount FROM numbers")), Is.EqualTo(123.456m));
         f.Provider.AddTable("copied_numbers", changed);
-        var copied = f.Provider.GetColumns("copied_numbers").Single();
+        var copied = f.Provider.ReadLegacyColumns("copied_numbers").Single();
         Assert.That(copied.Precision, Is.EqualTo(15));
         Assert.That(copied.Scale, Is.EqualTo(3));
         f.Provider.AddColumn("copied_numbers", new Column("extra",DbType.Decimal){Precision = 10,Scale = 2 });
-        var added = f.Provider.GetColumns("copied_numbers").Single(c => c.Name.Equals("extra", StringComparison.OrdinalIgnoreCase));
+        var added = f.Provider.ReadLegacyColumns("copied_numbers").Single(c => c.Name.Equals("extra", StringComparison.OrdinalIgnoreCase));
         Assert.That(added.Precision, Is.EqualTo(10));
         Assert.That(added.Scale, Is.EqualTo(2));
     });
@@ -168,9 +168,9 @@ public class LiveMetadataRegressionTests
     public void PrimaryKeyMetadataIncludesIdentityAndCompositeMembers(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
         f.Provider.AddTable("identities", new Column("id",DbType.Int32){IsNullable = false,IsIdentity = true},new PrimaryKeyConstraint("PK_" + "identities", "id"));
-        Assert.That(f.Provider.GetColumns("identities").Single().IsIdentity, Is.True);
+        Assert.That(f.Provider.ReadLegacyColumns("identities").Single().IsIdentity, Is.True);
         f.Provider.AddTable("pairs", new Column("first_id",DbType.Int32){IsNullable = false}, new Column("second_id",DbType.Int32){IsNullable = false}, new Column("label", DbType.String, 20),new PrimaryKeyConstraint("PK_" + "pairs", "first_id", "second_id"));
-        var columns = f.Provider.GetColumns("pairs");
+        var columns = f.Provider.ReadLegacyColumns("pairs");
         Assert.That(f.Provider.GetTableConstraints("pairs").OfType<PrimaryKeyConstraint>().Single().KeyColumns.Length, Is.EqualTo(2));
         Assert.That(f.Provider.GetTableConstraints("pairs").OfType<PrimaryKeyConstraint>().Single().KeyColumns.Any(c => c.Equals("label", StringComparison.OrdinalIgnoreCase)), Is.False);
     });
@@ -179,11 +179,11 @@ public class LiveMetadataRegressionTests
     public void Db2DecfloatPrecisionRoundTrips() => new LiveDatabaseTests("Db2", ProviderTypes.IBM_DB2).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE floats (small_value DECFLOAT(16), large_value DECFLOAT(34))");
-        var columns = f.Provider.GetColumns("floats");
+        var columns = f.Provider.ReadLegacyColumns("floats");
         Assert.That(columns.Select(c => c.Type), Is.All.EqualTo(DbType.VarNumeric));
         Assert.That(columns.Select(c => c.Precision), Is.EqualTo(new int?[] { 16, 34 }));
         f.Provider.AddTable("copied_floats", columns);
-        Assert.That(f.Provider.GetColumns("copied_floats").Select(c => c.Precision), Is.EqualTo(new int?[] { 16, 34 }));
+        Assert.That(f.Provider.ReadLegacyColumns("copied_floats").Select(c => c.Precision), Is.EqualTo(new int?[] { 16, 34 }));
     });
 
     [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
@@ -193,7 +193,7 @@ public class LiveMetadataRegressionTests
         var boolean = database == "Db2" ? "BOOLEAN DEFAULT TRUE" : "BIT DEFAULT 1";
         var timestamp = database == "Db2" ? "TIMESTAMP DEFAULT CURRENT TIMESTAMP" : "DATETIME DEFAULT GETDATE()";
         f.Provider.ExecuteNonQuery($"CREATE TABLE source_values (id INTEGER, amount INTEGER DEFAULT 7, enabled {boolean}, label VARCHAR(40) DEFAULT 'O''Brien', stamp {timestamp})");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         Assert.That(columns.Single(c => c.Name.Equals("amount", StringComparison.OrdinalIgnoreCase)).DefaultValue, Is.TypeOf<int>().And.EqualTo(7));
         Assert.That(columns.Single(c => c.Name.Equals("enabled", StringComparison.OrdinalIgnoreCase)).DefaultValue, Is.TypeOf<bool>().And.EqualTo(true));
         Assert.That(columns.Single(c => c.Name.Equals("label", StringComparison.OrdinalIgnoreCase)).DefaultValue, Is.EqualTo("O'Brien"));
@@ -208,7 +208,7 @@ public class LiveMetadataRegressionTests
     public void FirebirdTextAndBinaryBlobsRoundTrip() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
     {
         f.Provider.AddTable("large_values", new Column("contents", DbType.String, int.MaxValue), new Column("binary_value", DbType.Binary));
-        var columns = f.Provider.GetColumns("large_values");
+        var columns = f.Provider.ReadLegacyColumns("large_values");
         Assert.That(columns[0].Type, Is.EqualTo(DbType.String));
         Assert.That(columns[0].Size, Is.EqualTo(int.MaxValue));
         Assert.That(columns[1].Type, Is.EqualTo(DbType.Binary));
@@ -224,7 +224,7 @@ public class LiveMetadataRegressionTests
     public void MySqlBlobVariantsRemainBinary(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE blobs (tiny_value TINYBLOB, medium_value MEDIUMBLOB, ordinary_value BLOB, large_value LONGBLOB)");
-        var columns = f.Provider.GetColumns("blobs");
+        var columns = f.Provider.ReadLegacyColumns("blobs");
         Assert.That(columns.Select(c => c.Type), Is.All.EqualTo(DbType.Binary));
         f.Provider.AddTable("copied_blobs", columns);
         f.Provider.Insert("copied_blobs", ["tiny_value", "medium_value"], [new byte[] { 0, 255 }, new byte[] { 1, 255 }]);
@@ -236,10 +236,10 @@ public class LiveMetadataRegressionTests
     public void InformixTimeMetadataRoundTrips() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
         f.Provider.AddTable("times", new Column("time_value", DbType.Time));
-        var column = f.Provider.GetColumns("times").Single();
+        var column = f.Provider.ReadLegacyColumns("times").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         f.Provider.AddTable("copied_times", column);
-        Assert.That(f.Provider.GetColumns("copied_times").Single().Type, Is.EqualTo(DbType.Time));
+        Assert.That(f.Provider.ReadLegacyColumns("copied_times").Single().Type, Is.EqualTo(DbType.Time));
         f.Provider.ExecuteNonQuery("INSERT INTO copied_times VALUES (DATETIME(12:34:56) HOUR TO SECOND)");
         Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM copied_times WHERE time_value=DATETIME(12:34:56) HOUR TO SECOND")), Is.EqualTo(1));
     });
@@ -248,7 +248,7 @@ public class LiveMetadataRegressionTests
     public void SybaseByteMetadataRoundTrips() => new LiveDatabaseTests("Sybase", ProviderTypes.Sybase).RunRegression(f =>
     {
         f.Provider.AddTable("bytes", new Column("byte_value", DbType.Byte));
-        var column = f.Provider.GetColumns("bytes").Single();
+        var column = f.Provider.ReadLegacyColumns("bytes").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Byte));
         f.Provider.AddTable("copied_bytes", column);
         f.Provider.Insert("copied_bytes", ["byte_value"], [(byte)255]);
@@ -279,7 +279,7 @@ public class LiveMetadataRegressionTests
     public void FirebirdDefaultsRoundTrip() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (amount INTEGER DEFAULT 7, label VARCHAR(40) DEFAULT 'O''Brien', stamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         Assert.That(columns.Single(c => c.Name == "AMOUNT").DefaultValue, Is.TypeOf<int>().And.EqualTo(7));
         Assert.That(columns.Single(c => c.Name == "LABEL").DefaultValue, Is.EqualTo("O'Brien"));
         f.Provider.AddTable("copied_values", columns);
@@ -293,7 +293,7 @@ public class LiveMetadataRegressionTests
     public void FirebirdDecimalPrecisionAndScale() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE numbers (amount DECIMAL(12,3))");
-        var column = f.Provider.GetColumns("numbers").Single();
+        var column = f.Provider.ReadLegacyColumns("numbers").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Decimal));
         Assert.That(column.Precision, Is.EqualTo(12));
         Assert.That(column.Scale, Is.EqualTo(3));
@@ -334,7 +334,7 @@ public class LiveMetadataRegressionTests
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE \"MixedCase\" (id INTEGER)");
         Assert.That(f.Provider.TableExists("\"MixedCase\""), Is.True);
-        Assert.That(f.Provider.GetColumns("\"MixedCase\"").Single().Name, Is.EqualTo("id"));
+        Assert.That(f.Provider.ReadLegacyColumns("\"MixedCase\"").Single().Name, Is.EqualTo("id"));
     });
 
     [TestCase("MySQL", ProviderTypes.Mysql, Category = "MySQL")]
@@ -342,7 +342,7 @@ public class LiveMetadataRegressionTests
     public void MySqlDefaultsAndBooleanMetadataRoundTrip(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE source_values (enabled TINYINT(1) DEFAULT 1, amount INTEGER DEFAULT 7, label VARCHAR(40) DEFAULT 'O''Brien', stamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-        var columns = f.Provider.GetColumns("source_values");
+        var columns = f.Provider.ReadLegacyColumns("source_values");
         Assert.That(columns.Single(c => c.Name == "enabled").Type, Is.EqualTo(DbType.Boolean));
         Assert.That(columns.Single(c => c.Name == "enabled").DefaultValue, Is.EqualTo(true));
         Assert.That(columns.Single(c => c.Name == "amount").DefaultValue, Is.TypeOf<int>().And.EqualTo(7));

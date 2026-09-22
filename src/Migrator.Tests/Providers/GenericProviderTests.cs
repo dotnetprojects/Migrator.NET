@@ -10,7 +10,7 @@ public class GenericProviderTests
     [Test]
     public void CanJoinColumnsAndValues()
     {
-        var provider = new GenericTransformationProvider();
+        using var provider = new GenericTransformationProvider();
         var result = provider.JoinColumnsAndValues(["foo", "bar"], ["123", "456"]);
 
         Assert.That("foo='123', bar='456'", Is.EqualTo(result));

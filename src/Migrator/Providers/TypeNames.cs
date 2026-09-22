@@ -56,25 +56,18 @@ public class TypeNames
 
     public DbType GetDbType(string type)
     {
-        type = type.Trim().ToLower();
-        var retval = defaults.Where(x => x.Value.Trim().ToLower().StartsWith(type)).Select(x => x.Key);
-        if (retval.Any())
-        {
-            return (DbType)retval.First();
-        }
+        type = type.Trim();
+        foreach (var entry in defaults)
+            if (entry.Value.Trim().StartsWith(type, StringComparison.OrdinalIgnoreCase))
+                return (DbType)entry.Key;
 
-        retval = weighted.Where(x => x.Value.Where(y => y.Value.Trim().ToLower().StartsWith(type)).Any()).Select(x => x.Key);
-        if (retval.Any())
-        {
-            return (DbType)retval.First();
-        }
+        foreach (var entry in weighted)
+            if (entry.Value.Values.Any(value => value.Trim().StartsWith(type, StringComparison.OrdinalIgnoreCase)))
+                return (DbType)entry.Key;
 
-        var alias = aliases.Where(x => x.Key.Trim().ToLower().StartsWith(type));
-
-        if (alias.Any())
-        {
-            return (DbType)alias.First().Value;
-        }
+        foreach (var entry in aliases)
+            if (entry.Key.Trim().StartsWith(type, StringComparison.OrdinalIgnoreCase))
+                return (DbType)entry.Value;
 
         return DbType.AnsiString;
     }
@@ -135,7 +128,7 @@ public class TypeNames
             }
         }
         //Could not find a specific type for the size, using the default
-        return Get(typecode);
+        return Replace(Get(typecode), size, precision, scale);
     }
 
     private static string Replace(string type, int size, int precision, int scale)
@@ -153,13 +146,7 @@ public class TypeNames
     /// <param name="value">The associated name</param>
     public void Put(DbType typecode, int capacity, string value)
     {
-        SortedList<int, string> map;
-        if (!weighted.TryGetValue((MigratorDbType)typecode, out map))
-        {
-            // add new ordered map
-            weighted[(MigratorDbType)typecode] = map = new SortedList<int, string>();
-        }
-        map[capacity] = value;
+        Put((MigratorDbType)typecode, capacity, value);
     }
 
     /// <summary>
@@ -186,7 +173,7 @@ public class TypeNames
     /// <param name="value"></param>
     public void Put(DbType typecode, string value)
     {
-        defaults[(MigratorDbType)typecode] = value;
+        Put((MigratorDbType)typecode, value);
     }
 
     /// <summary>
