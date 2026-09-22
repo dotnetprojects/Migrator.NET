@@ -1579,20 +1579,17 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     private void CompleteTransaction(bool commit)
     {
         var transaction = _transaction;
-        _transaction = null;
         try
         {
             if (transaction != null)
             {
                 if (commit) transaction.Commit();
                 else transaction.Rollback();
+                _transaction = null;
+                transaction.Dispose();
             }
         }
-        finally
-        {
-            try { transaction?.Dispose(); }
-            finally { InvalidateHistory(); }
-        }
+        finally { InvalidateHistory(); }
     }
 
     /// <summary>Reads existing history without creating or upgrading its table.</summary>

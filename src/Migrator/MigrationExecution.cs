@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
@@ -25,8 +26,8 @@ internal static class MigrationExecution
             else { logger.MigrateDown(step.Version, migration.Name); migration.Down(); }
             if (sqlite != null && !sqlite.CheckForeignKeyIntegrity())
                 throw new MigrationException("Migration would leave invalid SQLite foreign keys.");
-            if (step.IsUp) provider.MigrationApplied(step.Version, (provider as IMigrationHistory)?.Scope);
-            else provider.MigrationUnApplied(step.Version, (provider as IMigrationHistory)?.Scope);
+            if (step.IsUp) provider.MigrationApplied(step.Version, migration.GetType().GetCustomAttribute<MigrationAttribute>()?.Scope ?? (provider as IMigrationHistory)?.Scope);
+            else provider.MigrationUnApplied(step.Version, migration.GetType().GetCustomAttribute<MigrationAttribute>()?.Scope ?? (provider as IMigrationHistory)?.Scope);
             provider.Commit();
             began = false;
         }

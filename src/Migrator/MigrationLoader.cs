@@ -71,8 +71,8 @@ public class MigrationLoader
     }
 
     public IEnumerable<Type> SelectedTypes => _migrationsTypes.Where(t =>
-        t.GetCustomAttribute<MigrationAttribute>()?.Scope is not string scope ||
-        scope == (_provider as IMigrationHistory)?.Scope);
+        _provider is not IMigrationHistory history ||
+        t.GetCustomAttribute<MigrationAttribute>()?.Scope is not string scope || scope == history.Scope);
 
     public virtual void AddMigrations(Assembly migrationAssembly)
     {

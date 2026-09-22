@@ -207,9 +207,9 @@ public class Migrator
     public void MigrateTo(long version)
     {
         _migrationLoader.CheckForDuplicatedVersion();
-        var history = _provider is IMigrationHistory reader
-            ? reader.ReadAppliedMigrations().ToList()
-            : DryRun ? throw new NotSupportedException("DryRun requires IMigrationHistory on custom providers.")
+        var history = DryRun
+            ? _provider is IMigrationHistory reader ? reader.ReadAppliedMigrations().ToList()
+                : throw new NotSupportedException("DryRun requires IMigrationHistory on custom providers.")
             : new List<long>(_provider.AppliedMigrations);
         var plan = MigrationPlanner.Create(_migrationLoader.GetAvailableMigrations(), history, version);
         Logger.Started(history, version);

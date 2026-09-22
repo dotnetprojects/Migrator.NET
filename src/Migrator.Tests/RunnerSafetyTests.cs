@@ -24,6 +24,33 @@ public class RunnerSafetyTests
         public override void Up() => throw new InvalidOperationException("original");
         public override void Down() => throw new InvalidOperationException("original");
     }
+    [Test] public void CustomProvidersRetainExplicitMigrationScope()
+    {
+        var provider = Substitute.For<ITransformationProvider>();
+        provider.AppliedMigrations.Returns(new List<long>());
+        var runner = new DotNetProjects.Migrator.Migrator(provider, false, typeof(Other));
+        Assert.That(runner.AssemblyLastMigrationVersion, Is.EqualTo(1));
+        runner.MigrateToLastVersion();
+        provider.Received().MigrationApplied(1, "other");
+    }
+    [Test] public void FailedCommitRetainsTransactionForRollback()
+    {
+        var connection = Substitute.For<System.Data.IDbConnection>();
+        var transaction = Substitute.For<System.Data.IDbTransaction>();
+        connection.State.Returns(System.Data.ConnectionState.Open);
+        connection.BeginTransaction(System.Data.IsolationLevel.Serializable).Returns(transaction);
+        transaction.When(t => t.Commit()).Do(_ => throw new InvalidOperationException("commit"));
+        using var provider = new TransactionTestProvider(connection);
+        provider.BeginTransaction();
+        Assert.Throws<InvalidOperationException>(() => provider.Commit());
+        Assert.That(provider.HasActiveTransaction, Is.True);
+        provider.Rollback();
+        transaction.Received(1).Rollback();
+        transaction.Received(1).Dispose();
+        Assert.That(provider.HasActiveTransaction, Is.False);
+    }
+    private sealed class TransactionTestProvider(System.Data.IDbConnection connection)
+        : TransformationProvider(new DotNetProjects.Migrator.Providers.Impl.SQLite.SQLiteDialect(), connection, null, "default");
     [Test] public void LatestDoesNotDependOnRegistrationOrder()
     {
         var loader = new MigrationLoader(null, false, typeof(Six), typeof(One));
