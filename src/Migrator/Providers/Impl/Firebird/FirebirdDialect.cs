@@ -21,6 +21,7 @@ public class FirebirdDialect : Dialect
         RegisterColumnType(DbType.DateTime, "TIMESTAMP");
         RegisterColumnType(DbType.DateTimeOffset, "TIMESTAMP");
         RegisterColumnType(DbType.Decimal, "DECIMAL");
+        RegisterColumnTypeWithPrecision(DbType.Decimal, "DECIMAL({precision},{scale})");
         RegisterColumnType(DbType.Double, "DOUBLE PRECISION"); //synonym for FLOAT(53)
         RegisterColumnType(DbType.Guid, "CHAR(38)");
         RegisterColumnType(DbType.Int16, "SMALLINT");

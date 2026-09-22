@@ -23,6 +23,9 @@ public class InformixTransformationProvider : TransformationProvider
 
     private static string Name(string name) => (name.StartsWith('"') ? name[1..^1].Replace("\"\"", "\"") : name.ToLowerInvariant()).Replace("'", "''");
     public override string GenerateParameterName(int index) => "?";
+    public override void AddColumn(string table, Column column) =>
+        AddColumn(table, _dialect.GetAndMapColumnProperties(column).ColumnSql);
+
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
@@ -45,6 +48,7 @@ public class InformixTransformationProvider : TransformationProvider
 
     public override Column[] GetColumns(string table)
     {
+        var primaryColumns = GetIndexes(table).Where(i => i.PrimaryKey).SelectMany(i => i.KeyColumns).ToHashSet(StringComparer.Ordinal);
         var columns = new List<Column>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
@@ -60,7 +64,7 @@ public class InformixTransformationProvider : TransformationProvider
             {
                 1 => DbType.Int16, 2 or 6 => DbType.Int32, 17 or 18 or 52 or 53 => DbType.Int64,
                 3 => DbType.Double, 4 => DbType.Single, 5 or 8 => DbType.Decimal,
-                7 => DbType.Date, 10 => DbType.DateTime, 11 => DbType.Binary,
+                7 => DbType.Date, 10 => DbType.DateTime, 11 => DbType.Binary, 14 => DbType.Time,
                 45 => DbType.Boolean, _ => DbType.String
             };
             var column = new Column(reader.GetString(0).Trim(), type)
@@ -68,8 +72,15 @@ public class InformixTransformationProvider : TransformationProvider
                 ColumnProperty = (code & 256) != 0 ? ColumnProperty.NotNull : ColumnProperty.Null
             };
             if (type == DbType.String) column.Size = Convert.ToInt32(reader.GetValue(2)) & 255;
+            if (type == DbType.Decimal)
+            {
+                var length = Convert.ToInt32(reader.GetValue(2));
+                column.Precision = length >> 8;
+                column.Scale = (length & 255) == 255 ? null : length & 255;
+            }
             if ((code & 255) is 6 or 18 or 53) column.ColumnProperty |= ColumnProperty.Identity;
             if (!reader.IsDBNull(3)) column.DefaultValue = reader.GetString(3).Trim();
+            if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             columns.Add(column);
         }
         return columns.ToArray();

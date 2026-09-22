@@ -14,6 +14,125 @@ public class LiveMetadataRegressionTests
     [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
     [TestCase("Informix", ProviderTypes.IBM_Informix, Category = "Informix")]
     [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
+    public void DecimalShapeSurvivesCreateAlterAndCopy(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
+    {
+        f.Provider.AddTable("numbers", new Column("amount", DbType.Decimal, ColumnProperty.Null) { Precision = 12, Scale = 3 });
+        var original = f.Provider.GetColumns("numbers").Single();
+        Assert.That(original.Precision, Is.EqualTo(12));
+        Assert.That(original.Scale, Is.EqualTo(3));
+        f.Provider.Insert("numbers", ["amount"], [123.456m]);
+        f.Provider.ChangeColumn("numbers", new Column("amount", DbType.Decimal, ColumnProperty.Null) { Precision = 15, Scale = 3 });
+        var changed = f.Provider.GetColumns("numbers").Single();
+        Assert.That(changed.Precision, Is.EqualTo(15));
+        Assert.That(changed.Scale, Is.EqualTo(3));
+        Assert.That(Convert.ToDecimal(f.Provider.ExecuteScalar("SELECT amount FROM numbers")), Is.EqualTo(123.456m));
+        f.Provider.AddTable("copied_numbers", changed);
+        var copied = f.Provider.GetColumns("copied_numbers").Single();
+        Assert.That(copied.Precision, Is.EqualTo(15));
+        Assert.That(copied.Scale, Is.EqualTo(3));
+        f.Provider.AddColumn("copied_numbers", new Column("extra", DbType.Decimal, ColumnProperty.Null) { Precision = 10, Scale = 2 });
+        var added = f.Provider.GetColumns("copied_numbers").Single(c => c.Name.Equals("extra", StringComparison.OrdinalIgnoreCase));
+        Assert.That(added.Precision, Is.EqualTo(10));
+        Assert.That(added.Scale, Is.EqualTo(2));
+    });
+
+    [TestCase("Firebird", ProviderTypes.Firebird, Category = "Firebird")]
+    [TestCase("Informix", ProviderTypes.IBM_Informix, Category = "Informix")]
+    [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
+    public void PrimaryKeyMetadataIncludesIdentityAndCompositeMembers(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
+    {
+        f.Provider.AddTable("identities", new Column("id", DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity));
+        Assert.That(f.Provider.GetColumns("identities").Single().ColumnProperty.HasFlag(ColumnProperty.PrimaryKeyWithIdentity), Is.True);
+        f.Provider.AddTable("pairs", new Column("first_id", DbType.Int32, ColumnProperty.PrimaryKey), new Column("second_id", DbType.Int32, ColumnProperty.PrimaryKey), new Column("label", DbType.String, 20));
+        var columns = f.Provider.GetColumns("pairs");
+        Assert.That(columns.Count(c => c.IsPrimaryKey), Is.EqualTo(2));
+        Assert.That(columns.Single(c => c.Name.Equals("label", StringComparison.OrdinalIgnoreCase)).IsPrimaryKey, Is.False);
+    });
+
+    [Test, Category("Db2")]
+    public void Db2DecfloatPrecisionRoundTrips() => new LiveDatabaseTests("Db2", ProviderTypes.IBM_DB2).RunRegression(f =>
+    {
+        f.Provider.ExecuteNonQuery("CREATE TABLE floats (small_value DECFLOAT(16), large_value DECFLOAT(34))");
+        var columns = f.Provider.GetColumns("floats");
+        Assert.That(columns.Select(c => c.Type), Is.All.EqualTo(DbType.VarNumeric));
+        Assert.That(columns.Select(c => c.Precision), Is.EqualTo(new int?[] { 16, 34 }));
+        f.Provider.AddTable("copied_floats", columns);
+        Assert.That(f.Provider.GetColumns("copied_floats").Select(c => c.Precision), Is.EqualTo(new int?[] { 16, 34 }));
+    });
+
+    [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
+    [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
+    public void TypedCatalogDefaultsRoundTrip(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
+    {
+        var boolean = database == "Db2" ? "BOOLEAN DEFAULT TRUE" : "BIT DEFAULT 1";
+        var timestamp = database == "Db2" ? "TIMESTAMP DEFAULT CURRENT TIMESTAMP" : "DATETIME DEFAULT GETDATE()";
+        f.Provider.ExecuteNonQuery($"CREATE TABLE source_values (id INTEGER, amount INTEGER DEFAULT 7, enabled {boolean}, label VARCHAR(40) DEFAULT 'O''Brien', stamp {timestamp})");
+        var columns = f.Provider.GetColumns("source_values");
+        Assert.That(columns.Single(c => c.Name.Equals("amount", StringComparison.OrdinalIgnoreCase)).DefaultValue, Is.TypeOf<int>().And.EqualTo(7));
+        Assert.That(columns.Single(c => c.Name.Equals("enabled", StringComparison.OrdinalIgnoreCase)).DefaultValue, Is.TypeOf<bool>().And.EqualTo(true));
+        Assert.That(columns.Single(c => c.Name.Equals("label", StringComparison.OrdinalIgnoreCase)).DefaultValue, Is.EqualTo("O'Brien"));
+        f.Provider.AddTable("copied_values", columns);
+        f.Provider.Insert("copied_values", ["id"], [1]);
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT amount FROM copied_values")), Is.EqualTo(7));
+        Assert.That(f.Provider.ExecuteScalar("SELECT label FROM copied_values"), Is.EqualTo("O'Brien"));
+        Assert.That(f.Provider.ExecuteScalar("SELECT stamp FROM copied_values"), Is.Not.Null.And.Not.EqualTo(DBNull.Value));
+    });
+
+    [Test, Category("Firebird")]
+    public void FirebirdTextAndBinaryBlobsRoundTrip() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
+    {
+        f.Provider.AddTable("large_values", new Column("contents", DbType.String, int.MaxValue), new Column("binary_value", DbType.Binary));
+        var columns = f.Provider.GetColumns("large_values");
+        Assert.That(columns[0].Type, Is.EqualTo(DbType.String));
+        Assert.That(columns[0].Size, Is.EqualTo(int.MaxValue));
+        Assert.That(columns[1].Type, Is.EqualTo(DbType.Binary));
+        f.Provider.AddTable("copied_values", columns);
+        var content = new string('x', 5000);
+        f.Provider.Insert("copied_values", ["contents", "binary_value"], [content, new byte[] { 0, 1, 255 }]);
+        Assert.That(f.Provider.ExecuteScalar("SELECT contents FROM copied_values"), Is.EqualTo(content));
+        Assert.That(f.Provider.ExecuteScalar("SELECT binary_value FROM copied_values"), Is.EqualTo(new byte[] { 0, 1, 255 }));
+    });
+
+    [TestCase("MySQL", ProviderTypes.Mysql, Category = "MySQL")]
+    [TestCase("MariaDB", ProviderTypes.MariaDB, Category = "MariaDB")]
+    public void MySqlBlobVariantsRemainBinary(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
+    {
+        f.Provider.ExecuteNonQuery("CREATE TABLE blobs (tiny_value TINYBLOB, medium_value MEDIUMBLOB, ordinary_value BLOB, large_value LONGBLOB)");
+        var columns = f.Provider.GetColumns("blobs");
+        Assert.That(columns.Select(c => c.Type), Is.All.EqualTo(DbType.Binary));
+        f.Provider.AddTable("copied_blobs", columns);
+        f.Provider.Insert("copied_blobs", ["tiny_value", "medium_value"], [new byte[] { 0, 255 }, new byte[] { 1, 255 }]);
+        Assert.That(f.Provider.ExecuteScalar("SELECT tiny_value FROM copied_blobs"), Is.EqualTo(new byte[] { 0, 255 }));
+        Assert.That(f.Provider.ExecuteScalar("SELECT medium_value FROM copied_blobs"), Is.EqualTo(new byte[] { 1, 255 }));
+    });
+
+    [Test, Category("Informix")]
+    public void InformixTimeMetadataRoundTrips() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
+    {
+        f.Provider.AddTable("times", new Column("time_value", DbType.Time));
+        var column = f.Provider.GetColumns("times").Single();
+        Assert.That(column.Type, Is.EqualTo(DbType.Time));
+        f.Provider.AddTable("copied_times", column);
+        Assert.That(f.Provider.GetColumns("copied_times").Single().Type, Is.EqualTo(DbType.Time));
+        f.Provider.ExecuteNonQuery("INSERT INTO copied_times VALUES (INTERVAL(12:34:56) HOUR TO SECOND)");
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM copied_times WHERE time_value=INTERVAL(12:34:56) HOUR TO SECOND")), Is.EqualTo(1));
+    });
+
+    [Test, Category("Sybase")]
+    public void SybaseByteMetadataRoundTrips() => new LiveDatabaseTests("Sybase", ProviderTypes.Sybase).RunRegression(f =>
+    {
+        f.Provider.AddTable("bytes", new Column("byte_value", DbType.Byte));
+        var column = f.Provider.GetColumns("bytes").Single();
+        Assert.That(column.Type, Is.EqualTo(DbType.Byte));
+        f.Provider.AddTable("copied_bytes", column);
+        f.Provider.Insert("copied_bytes", ["byte_value"], [255]);
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT byte_value FROM copied_bytes")), Is.EqualTo(255));
+    });
+
+    [TestCase("Firebird", ProviderTypes.Firebird, Category = "Firebird")]
+    [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
+    [TestCase("Informix", ProviderTypes.IBM_Informix, Category = "Informix")]
+    [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
     public void InlineIndexedColumnCreatesIndex(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
         f.Provider.AddTable("indexed_values", new Column("amount", DbType.Int32, ColumnProperty.Indexed));

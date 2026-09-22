@@ -21,6 +21,9 @@ public class SybaseTransformationProvider : TransformationProvider
         : base(dialect, connection, null, scope) { }
 
     private static string Literal(string name) => name.Replace("'", "''");
+    public override void AddColumn(string table, Column column) =>
+        AddColumn(table, _dialect.GetAndMapColumnProperties(column).ColumnSql);
+
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
@@ -42,17 +45,19 @@ public class SybaseTransformationProvider : TransformationProvider
 
     public override Column[] GetColumns(string table)
     {
+        var primaryColumns = GetIndexes(table).Where(i => i.PrimaryKey).SelectMany(i => i.KeyColumns).ToHashSet(StringComparer.Ordinal);
+        var defaults = GetColumnDefaults(table);
         var columns = new List<Column>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
-            SELECT c.name,t.name,c.status,c.length FROM syscolumns c JOIN systypes t ON t.usertype=c.usertype
+            SELECT c.name,t.name,c.status,c.length,c.prec,c.scale FROM syscolumns c JOIN systypes t ON t.usertype=c.usertype
             WHERE c.id=object_id('{Literal(table)}') ORDER BY c.colid
             """);
         while (reader.Read())
         {
             var type = reader.GetString(1).Trim() switch
             {
-                "smallint" => DbType.Int16, "int" => DbType.Int32, "bigint" => DbType.Int64,
+                "tinyint" => DbType.Byte, "smallint" => DbType.Int16, "int" => DbType.Int32, "bigint" => DbType.Int64,
                 "numeric" or "decimal" or "money" => DbType.Decimal, "float" => DbType.Double,
                 "real" => DbType.Single, "date" => DbType.Date, "time" => DbType.Time,
                 "datetime" or "bigdatetime" => DbType.DateTime, "bit" => DbType.Boolean,
@@ -63,11 +68,40 @@ public class SybaseTransformationProvider : TransformationProvider
             {
                 ColumnProperty = (status & 8) != 0 ? ColumnProperty.Null : ColumnProperty.NotNull
             };
+            if (type == DbType.Decimal)
+            {
+                if (!reader.IsDBNull(4)) column.Precision = Convert.ToInt32(reader.GetValue(4));
+                if (!reader.IsDBNull(5)) column.Scale = Convert.ToInt32(reader.GetValue(5));
+            }
+            if (defaults.TryGetValue(column.Name, out var defaultSql)) column.DefaultValue = CatalogDefaultValue.Parse(defaultSql, type);
             if ((status & 128) != 0) column.ColumnProperty |= ColumnProperty.Identity;
             if (type == DbType.String) column.Size = Convert.ToInt32(reader.GetValue(3));
+            if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             columns.Add(column);
         }
         return columns.ToArray();
+    }
+
+    private Dictionary<string, string> GetColumnDefaults(string table)
+    {
+        var defaults = new Dictionary<string, string>();
+        using var command = CreateCommand();
+        using var reader = ExecuteQuery(command, $"SELECT c.name,d.text FROM syscolumns c JOIN syscomments d ON d.id=c.cdefault WHERE c.id=object_id('{Literal(table)}') ORDER BY c.colid,d.colid2,d.colid");
+        while (reader.Read())
+        {
+            var name = reader.GetString(0);
+            defaults.TryGetValue(name, out var text);
+            defaults[name] = text + reader.GetString(1);
+        }
+        foreach (var name in defaults.Keys.ToArray())
+        {
+            var sql = defaults[name].Trim();
+            if (sql.StartsWith("CREATE DEFAULT", StringComparison.OrdinalIgnoreCase))
+                sql = System.Text.RegularExpressions.Regex.Replace(sql, @"^CREATE\s+DEFAULT\s+.+?\s+AS\s+", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            if (sql.StartsWith("DEFAULT", StringComparison.OrdinalIgnoreCase)) sql = sql[7..].Trim();
+            defaults[name] = sql;
+        }
+        return defaults;
     }
 
     public override Index[] GetIndexes(string table)
@@ -121,7 +155,7 @@ public class SybaseTransformationProvider : TransformationProvider
     public override void RemoveColumnDefaultValue(string table, string column) => ExecuteNonQuery($"ALTER TABLE {table} REPLACE {column} DEFAULT NULL");
     public override void ChangeColumn(string table, Column column)
     {
-        var type = column.Size > 0 ? _dialect.GetTypeName(column.Type, column.Size) : _dialect.GetTypeName(column.Type);
+        var type = _dialect.GetColumnMapper(column).Type;
         var nullable = column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "NOT NULL" : "NULL";
         ExecuteNonQuery($"ALTER TABLE {table} MODIFY {column.Name} {type} {nullable}");
         ExecuteNonQuery($"ALTER TABLE {table} REPLACE {column.Name} {(column.DefaultValue == null ? "DEFAULT NULL" : _dialect.Default(column.DefaultValue))}");

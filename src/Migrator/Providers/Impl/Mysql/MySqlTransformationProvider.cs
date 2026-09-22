@@ -204,7 +204,7 @@ public class MySqlTransformationProvider : TransformationProvider
                 "bigint" => DbType.Int64, "tinyint" => reader.GetString(7).StartsWith("tinyint(1)", StringComparison.OrdinalIgnoreCase) ? DbType.Boolean : DbType.Byte,
                 "decimal" or "numeric" => DbType.Decimal, "double" => DbType.Double, "float" => DbType.Single,
                 "date" => DbType.Date, "datetime" or "timestamp" => DbType.DateTime, "time" => DbType.Time,
-                "blob" or "binary" or "varbinary" or "longblob" => DbType.Binary, _ => DbType.String
+                "tinyblob" or "mediumblob" or "blob" or "binary" or "varbinary" or "longblob" => DbType.Binary, _ => DbType.String
             };
             var column = new Column(reader.GetString(0), type);
             column.ColumnProperty = reader.GetString(2) == "YES" ? ColumnProperty.Null : ColumnProperty.NotNull;

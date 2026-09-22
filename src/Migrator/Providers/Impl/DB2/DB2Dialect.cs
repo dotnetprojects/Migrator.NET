@@ -23,6 +23,9 @@ public class DB2Dialect : Dialect
         RegisterColumnType(DbType.DateTime2, "TIMESTAMP");
         RegisterColumnType(DbType.DateTimeOffset, "TIMESTAMP");
         RegisterColumnType(DbType.Decimal, "DECIMAL(18,5)");
+        RegisterColumnTypeWithPrecision(DbType.Decimal, "DECIMAL({precision},{scale})");
+        RegisterColumnType(DbType.VarNumeric, "DECFLOAT(34)");
+        RegisterColumnTypeWithPrecision(DbType.VarNumeric, "DECFLOAT({precision})");
         RegisterColumnType(DbType.Double, "DOUBLE PRECISION");
         RegisterColumnType(DbType.Guid, "CHAR(36)");
         RegisterColumnType(DbType.Int16, "SMALLINT");
@@ -42,6 +45,8 @@ public class DB2Dialect : Dialect
     public override ColumnPropertiesMapper GetColumnMapper(Column column)
     {
         var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
+        if (column.Precision.HasValue || column.Scale.HasValue)
+            type = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 18, column.Scale ?? 0);
         return new NativeColumnMapper(this, type);
     }
 

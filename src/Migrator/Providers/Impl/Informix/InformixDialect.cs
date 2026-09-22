@@ -23,6 +23,7 @@ public class InformixDialect : Dialect
         RegisterColumnType(DbType.DateTime2, "DATETIME YEAR TO FRACTION(5)");
         RegisterColumnType(DbType.DateTimeOffset, "DATETIME YEAR TO FRACTION(5)");
         RegisterColumnType(DbType.Decimal, "DECIMAL(18,5)");
+        RegisterColumnTypeWithPrecision(DbType.Decimal, "DECIMAL({precision},{scale})");
         RegisterColumnType(DbType.Double, "DOUBLE PRECISION");
         RegisterColumnType(DbType.Guid, "CHAR(36)");
         RegisterColumnType(DbType.Int16, "SMALLINT");
@@ -43,6 +44,8 @@ public class InformixDialect : Dialect
     {
         var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
         if (column.IsIdentity) type = column.Type == DbType.Int64 ? "BIGSERIAL" : "SERIAL";
+        if (column.Precision.HasValue || column.Scale.HasValue)
+            type = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 18, column.Scale ?? 0);
         return new NativeColumnMapper(this, type);
     }
 

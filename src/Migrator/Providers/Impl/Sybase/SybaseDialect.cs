@@ -16,6 +16,7 @@ public class SybaseDialect : Dialect
         RegisterColumnType(DbType.Byte, "TINYINT");
         RegisterColumnType(DbType.Boolean, "BIT");
         RegisterColumnType(DbType.Decimal, "DECIMAL(18,5)");
+        RegisterColumnTypeWithPrecision(DbType.Decimal, "DECIMAL({precision},{scale})");
         RegisterColumnType(DbType.Currency, "MONEY");
         RegisterColumnType(DbType.Double, "FLOAT");
         RegisterColumnType(DbType.Single, "REAL");
@@ -39,12 +40,16 @@ public class SybaseDialect : Dialect
         RegisterProperty(ColumnProperty.Identity, "IDENTITY");
     }
 
+    public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 1" : "DEFAULT 0") : base.Default(value);
+
     public override string QuoteTemplate => "[{0}]";
     public override bool NeedsNullForNullableWhenAlteringTable => true;
 
     public override ColumnPropertiesMapper GetColumnMapper(Column column)
     {
         var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
+        if (column.Precision.HasValue || column.Scale.HasValue)
+            type = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 18, column.Scale ?? 0);
         return new NativeColumnMapper(this, type);
     }
 

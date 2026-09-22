@@ -26,6 +26,9 @@ public class FirebirdTransformationProvider : TransformationProvider
     private static string CatalogName(string name) =>
         (name.StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
 
+    public override void AddColumn(string table, Column column) =>
+        AddColumn(table, _dialect.GetAndMapColumnProperties(column).ColumnSql);
+
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
@@ -73,6 +76,7 @@ public class FirebirdTransformationProvider : TransformationProvider
 
     public override Column[] GetColumns(string table)
     {
+        var primaryColumns = GetIndexes(table).Where(i => i.PrimaryKey).SelectMany(i => i.KeyColumns).ToHashSet(StringComparer.Ordinal);
         var result = new List<Column>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
@@ -88,7 +92,7 @@ public class FirebirdTransformationProvider : TransformationProvider
             {
                 7 => DbType.Int16, 8 => DbType.Int32, 16 => DbType.Int64, 10 => DbType.Single,
                 27 => DbType.Double, 12 => DbType.Date, 13 => DbType.Time, 35 => DbType.DateTime,
-                23 => DbType.Boolean, 261 => DbType.Binary, _ => DbType.String
+                23 => DbType.Boolean, 261 => !reader.IsDBNull(6) && Convert.ToInt32(reader.GetValue(6)) == 1 ? DbType.String : DbType.Binary, _ => DbType.String
             };
             if (!reader.IsDBNull(6) && Convert.ToInt32(reader.GetValue(6)) is 1 or 2 && type is DbType.Int16 or DbType.Int32 or DbType.Int64)
                 type = DbType.Decimal;
@@ -103,7 +107,9 @@ public class FirebirdTransformationProvider : TransformationProvider
             }
             if (!reader.IsDBNull(3)) column.DefaultValue = ReadDefault(reader.GetString(3), type);
             if (!reader.IsDBNull(4)) column.Size = Convert.ToInt32(reader.GetValue(4));
+            if (Convert.ToInt32(reader.GetValue(1)) == 261 && type == DbType.String) column.Size = int.MaxValue;
             if (!reader.IsDBNull(5)) column.ColumnProperty |= ColumnProperty.Identity;
+            if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             result.Add(column);
         }
         return result.ToArray();
@@ -155,7 +161,7 @@ public class FirebirdTransformationProvider : TransformationProvider
     public override void ChangeColumn(string table, Column column)
     {
         var prefix = $"ALTER TABLE {QuoteTableNameIfRequired(table)} ALTER {QuoteColumnNameIfRequired(column.Name)}";
-        var type = column.Size > 0 ? _dialect.GetTypeName(column.Type, column.Size) : _dialect.GetTypeName(column.Type);
+        var type = _dialect.GetColumnMapper(column).Type;
         ExecuteNonQuery($"{prefix} TYPE {type}");
         if (column.DefaultValue != null || GetColumns(table).Single(c => c.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)).DefaultValue != null)
             ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");

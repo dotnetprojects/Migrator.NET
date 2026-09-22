@@ -24,6 +24,9 @@ public class DB2TransformationProvider : TransformationProvider
     private static string Name(string name) => (name.StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
     private static string Identifier(string name) => name.StartsWith('"') ? name : "\"" + name.ToUpperInvariant().Replace("\"", "\"\"") + "\"";
 
+    public override void AddColumn(string table, Column column) =>
+        AddColumn(table, _dialect.GetAndMapColumnProperties(column).ColumnSql);
+
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
@@ -50,7 +53,7 @@ public class DB2TransformationProvider : TransformationProvider
         var columns = new List<Column>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
-            SELECT COLNAME, TYPENAME, NULLS, DEFAULT, LENGTH, IDENTITY, KEYSEQ
+            SELECT COLNAME, TYPENAME, NULLS, DEFAULT, LENGTH, IDENTITY, KEYSEQ, SCALE
             FROM SYSCAT.COLUMNS WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' ORDER BY COLNO
             """);
         while (reader.Read())
@@ -58,7 +61,7 @@ public class DB2TransformationProvider : TransformationProvider
             var type = reader.GetString(1).Trim() switch
             {
                 "SMALLINT" => DbType.Int16, "INTEGER" => DbType.Int32, "BIGINT" => DbType.Int64,
-                "DECIMAL" or "DECFLOAT" => DbType.Decimal, "DOUBLE" => DbType.Double, "REAL" => DbType.Single,
+                "DECIMAL" => DbType.Decimal, "DECFLOAT" => DbType.VarNumeric, "DOUBLE" => DbType.Double, "REAL" => DbType.Single,
                 "DATE" => DbType.Date, "TIME" => DbType.Time, "TIMESTAMP" => DbType.DateTime,
                 "BLOB" or "BINARY" or "VARBINARY" => DbType.Binary, "BOOLEAN" => DbType.Boolean, _ => DbType.String
             };
@@ -66,8 +69,14 @@ public class DB2TransformationProvider : TransformationProvider
             {
                 ColumnProperty = reader.GetString(2) == "Y" ? ColumnProperty.Null : ColumnProperty.NotNull
             };
-            if (!reader.IsDBNull(3)) column.DefaultValue = reader.GetValue(3);
+            if (!reader.IsDBNull(3)) column.DefaultValue = CatalogDefaultValue.Parse(reader.GetString(3), type);
             if (type == DbType.String) column.Size = Convert.ToInt32(reader.GetValue(4));
+            if (type == DbType.Decimal)
+            {
+                column.Precision = Convert.ToInt32(reader.GetValue(4));
+                column.Scale = Convert.ToInt32(reader.GetValue(7));
+            }
+            if (type == DbType.VarNumeric) column.Precision = Convert.ToInt32(reader.GetValue(4)) == 8 ? 16 : 34;
             if (reader.GetString(5) == "Y") column.ColumnProperty |= ColumnProperty.Identity;
             if (!reader.IsDBNull(6)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             columns.Add(column);
@@ -121,7 +130,7 @@ public class DB2TransformationProvider : TransformationProvider
     public override void ChangeColumn(string table, Column column)
     {
         var prefix = $"ALTER TABLE {Identifier(table)} ALTER COLUMN {Identifier(column.Name)}";
-        var type = column.Size > 0 ? _dialect.GetTypeName(column.Type, column.Size) : _dialect.GetTypeName(column.Type);
+        var type = _dialect.GetColumnMapper(column).Type;
         ExecuteNonQuery($"{prefix} SET DATA TYPE {type}");
         if (column.DefaultValue != null || GetColumns(table).Single(c => c.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)).DefaultValue != null)
             ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");
