@@ -167,6 +167,7 @@ public class MySqlTransformationProvider : TransformationProvider
     public override Index[] GetIndexes(string table)
     {
         if (!TableExists(table)) return [];
+        var constraints = ExecuteStringQuery($"SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' AND CONSTRAINT_TYPE='UNIQUE'").ToHashSet(StringComparer.OrdinalIgnoreCase);
         var indexes = new Dictionary<string, Index>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"SHOW INDEX FROM {_dialect.Quote(table)}");
@@ -176,7 +177,7 @@ public class MySqlTransformationProvider : TransformationProvider
             var name = Convert.ToString(reader["Key_name"]);
             if (!indexes.ContainsKey(name))
             {
-                indexes[name] = new Index { Name = name, PrimaryKey = name == "PRIMARY", Unique = Convert.ToInt32(reader["Non_unique"]) == 0 };
+                indexes[name] = new Index { Name = name, PrimaryKey = name == "PRIMARY", UniqueConstraint = constraints.Contains(name), Unique = Convert.ToInt32(reader["Non_unique"]) == 0 };
                 columns[name] = new SortedDictionary<int, string>();
             }
             columns[name][Convert.ToInt32(reader["Seq_in_index"])] = Convert.ToString(reader["Column_name"]);

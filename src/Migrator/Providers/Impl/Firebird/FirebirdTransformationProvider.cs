@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
 using Index = DotNetProjects.Migrator.Framework.Index;
@@ -100,12 +101,37 @@ public class FirebirdTransformationProvider : TransformationProvider
                 if (!reader.IsDBNull(7)) column.Precision = Convert.ToInt32(reader.GetValue(7));
                 if (!reader.IsDBNull(8)) column.Scale = -Convert.ToInt32(reader.GetValue(8));
             }
-            if (!reader.IsDBNull(3)) column.DefaultValue = reader.GetString(3).Trim();
+            if (!reader.IsDBNull(3)) column.DefaultValue = ReadDefault(reader.GetString(3), type);
             if (!reader.IsDBNull(4)) column.Size = Convert.ToInt32(reader.GetValue(4));
             if (!reader.IsDBNull(5)) column.ColumnProperty |= ColumnProperty.Identity;
             result.Add(column);
         }
         return result.ToArray();
+    }
+
+    private sealed record DatabaseDefault(string Sql)
+    {
+        public override string ToString() => Sql;
+    }
+
+    private static object ReadDefault(string source, DbType type)
+    {
+        var value = source.Trim();
+        if (value.StartsWith("DEFAULT ", StringComparison.OrdinalIgnoreCase)) value = value[8..].Trim();
+        if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase)) return null;
+        if (value.StartsWith("'") && value.EndsWith("'"))
+        {
+            var literal = value[1..^1].Replace("''", "'");
+            if (type is DbType.Date or DbType.DateTime && DateTime.TryParse(literal, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                return DateTime.SpecifyKind(date, DateTimeKind.Utc);
+            return literal;
+        }
+        if (type == DbType.Int16 && short.TryParse(value, CultureInfo.InvariantCulture, out var small)) return small;
+        if (type == DbType.Int32 && int.TryParse(value, CultureInfo.InvariantCulture, out var integer)) return integer;
+        if (type == DbType.Int64 && long.TryParse(value, CultureInfo.InvariantCulture, out var large)) return large;
+        if (type == DbType.Decimal && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)) return number;
+        if (type == DbType.Boolean && bool.TryParse(value, out var boolean)) return boolean;
+        return new DatabaseDefault(value);
     }
 
     public override void AddColumn(string table, string sqlColumn) =>

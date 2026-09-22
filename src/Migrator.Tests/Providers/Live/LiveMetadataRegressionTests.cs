@@ -31,6 +31,20 @@ public class LiveMetadataRegressionTests
     });
 
     [Test, Category("Firebird")]
+    public void FirebirdDefaultsRoundTrip() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
+    {
+        f.Provider.ExecuteNonQuery("CREATE TABLE source_values (amount INTEGER DEFAULT 7, label VARCHAR(40) DEFAULT 'O''Brien', stamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+        var columns = f.Provider.GetColumns("source_values");
+        Assert.That(columns.Single(c => c.Name == "AMOUNT").DefaultValue, Is.TypeOf<int>().And.EqualTo(7));
+        Assert.That(columns.Single(c => c.Name == "LABEL").DefaultValue, Is.EqualTo("O'Brien"));
+        f.Provider.AddTable("copied_values", columns);
+        f.Provider.ExecuteNonQuery("INSERT INTO copied_values DEFAULT VALUES");
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT amount FROM copied_values")), Is.EqualTo(7));
+        Assert.That(f.Provider.ExecuteScalar("SELECT label FROM copied_values"), Is.EqualTo("O'Brien"));
+        Assert.That(f.Provider.ExecuteScalar("SELECT stamp FROM copied_values"), Is.Not.Null.And.Not.EqualTo(DBNull.Value));
+    });
+
+    [Test, Category("Firebird")]
     public void FirebirdDecimalPrecisionAndScale() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE numbers (amount DECIMAL(12,3))");
@@ -89,6 +103,8 @@ public class LiveMetadataRegressionTests
         Assert.That(columns.Single(c => c.Name == "amount").DefaultValue, Is.TypeOf<int>().And.EqualTo(7));
         Assert.That(columns.Single(c => c.Name == "label").DefaultValue, Is.EqualTo("O'Brien"));
         f.Provider.AddTable("copied_values", columns);
+        f.Provider.AddUniqueConstraint("uq_label", "copied_values", "label");
+        Assert.That(f.Provider.GetIndexes("copied_values").Single(i => i.Name == "uq_label").UniqueConstraint, Is.True);
         f.Provider.ExecuteNonQuery("INSERT INTO copied_values () VALUES ()");
         Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT amount FROM copied_values")), Is.EqualTo(7));
         Assert.That(f.Provider.ExecuteScalar("SELECT label FROM copied_values"), Is.EqualTo("O'Brien"));
