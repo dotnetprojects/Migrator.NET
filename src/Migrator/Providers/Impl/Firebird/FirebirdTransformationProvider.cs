@@ -37,6 +37,13 @@ public class FirebirdTransformationProvider : TransformationProvider
     // Firebird has no server-wide SQL database catalog; only the attached database is visible.
     public override List<string> GetDatabases() => [_connection.Database];
 
+    public override void DropDatabases(string databaseName)
+    {
+        if (!string.Equals(databaseName, _connection.Database, StringComparison.Ordinal))
+            throw new ArgumentException("Firebird can only drop the currently attached database.", nameof(databaseName));
+        ExecuteNonQuery("DROP DATABASE");
+    }
+
     public override string[] GetConstraints(string table) => ExecuteStringQuery(
         $"SELECT TRIM(RDB$CONSTRAINT_NAME) FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME='{CatalogName(table)}'").ToArray();
 
@@ -74,6 +81,11 @@ public class FirebirdTransformationProvider : TransformationProvider
             {
                 ColumnProperty = !reader.IsDBNull(2) && Convert.ToInt32(reader.GetValue(2)) == 1 ? ColumnProperty.NotNull : ColumnProperty.Null
             };
+            if (type == DbType.Decimal)
+            {
+                if (!reader.IsDBNull(7)) column.Precision = Convert.ToInt32(reader.GetValue(7));
+                if (!reader.IsDBNull(8)) column.Scale = -Convert.ToInt32(reader.GetValue(8));
+            }
             if (!reader.IsDBNull(3)) column.DefaultValue = reader.GetString(3).Trim();
             if (!reader.IsDBNull(4)) column.Size = Convert.ToInt32(reader.GetValue(4));
             if (!reader.IsDBNull(5)) column.ColumnProperty |= ColumnProperty.Identity;
@@ -150,4 +162,3 @@ public class FirebirdTransformationProvider : TransformationProvider
     public override bool IndexExists(string table, string name) =>
         GetIndexes(table).Any(i => i.Name == CatalogName(name));
 }
-

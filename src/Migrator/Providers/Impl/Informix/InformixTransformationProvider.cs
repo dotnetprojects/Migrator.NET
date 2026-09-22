@@ -21,7 +21,7 @@ public class InformixTransformationProvider : TransformationProvider
     public InformixTransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
         : base(dialect, connection, null, scope) { }
 
-    private static string Name(string name) => name.Trim('"').ToLowerInvariant().Replace("'", "''");
+    private static string Name(string name) => (name.StartsWith('"') ? name[1..^1].Replace("\"\"", "\"") : name.ToLowerInvariant()).Replace("'", "''");
     public override string GenerateParameterName(int index) => "?";
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
         $"SELECT COUNT(*) FROM systables WHERE tabname='{Name(table)}' AND owner=USER AND tabtype='T'")) > 0;
@@ -148,4 +148,3 @@ public class InformixTransformationProvider : TransformationProvider
         ExecuteNonQuery($"ALTER TABLE {childTable} ADD CONSTRAINT FOREIGN KEY ({string.Join(", ", childColumns)}) REFERENCES {parentTable} ({string.Join(", ", parentColumns)}){action} CONSTRAINT {name}");
     }
 }
-

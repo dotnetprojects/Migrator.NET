@@ -43,6 +43,7 @@ jobs:
             echo "DB2_CLI_DRIVER_INSTALL_PATH=$output/clidriver" >> "$GITHUB_ENV"
             echo "LD_LIBRARY_PATH=$output/clidriver/lib" >> "$GITHUB_ENV"
           else
+            echo "DELIMIDENT=y" >> "$GITHUB_ENV"
             echo "INFORMIXDIR=$output/native" >> "$GITHUB_ENV"
             echo "LD_LIBRARY_PATH=$output/native/lib:$output/native/lib/cli:$output/native/lib/esql" >> "$GITHUB_ENV"
           fi

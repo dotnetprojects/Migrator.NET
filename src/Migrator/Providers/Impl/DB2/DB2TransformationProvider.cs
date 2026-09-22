@@ -73,8 +73,9 @@ public class DB2TransformationProvider : TransformationProvider
         var indexes = new Dictionary<string, Index>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
-            SELECT i.INDNAME, i.UNIQUERULE, c.COLNAME FROM SYSCAT.INDEXES i
+            SELECT i.INDNAME, i.UNIQUERULE, c.COLNAME, d.CONSTNAME FROM SYSCAT.INDEXES i
             JOIN SYSCAT.INDEXCOLUSE c ON c.INDSCHEMA=i.INDSCHEMA AND c.INDNAME=i.INDNAME
+            LEFT JOIN SYSCAT.CONSTDEP d ON d.BSCHEMA=i.INDSCHEMA AND d.BNAME=i.INDNAME AND d.BTYPE='I' AND d.TABSCHEMA=i.TABSCHEMA AND d.TABNAME=i.TABNAME
             WHERE i.TABSCHEMA=CURRENT SCHEMA AND i.TABNAME='{Name(table)}'
             ORDER BY i.INDNAME, c.COLSEQ
             """);
@@ -83,12 +84,20 @@ public class DB2TransformationProvider : TransformationProvider
             var name = reader.GetString(0).Trim();
             if (!indexes.TryGetValue(name, out var index))
             {
-                index = new Index { Name = name, Unique = reader.GetString(1) != "D", PrimaryKey = reader.GetString(1) == "P" };
+                index = new Index { Name = name, Unique = reader.GetString(1) != "D", PrimaryKey = reader.GetString(1) == "P", UniqueConstraint = reader.GetString(1) == "U" && !reader.IsDBNull(3) };
                 indexes.Add(name, index);
             }
             index.KeyColumns = [..index.KeyColumns, reader.GetString(2).Trim()];
         }
         return indexes.Values.ToArray();
+    }
+
+    public override void RemoveAllIndexes(string table)
+    {
+        // Constraint and backing-index names need not match in Db2.
+        var constraints = ExecuteStringQuery($"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' AND TYPE IN ('P','U')");
+        foreach (var name in constraints) RemoveConstraint(table, name);
+        foreach (var index in GetIndexes(table)) RemoveIndex(table, index.Name);
     }
 
     public override bool IndexExists(string table, string name) => GetIndexes(table).Any(i => i.Name == Name(name));
@@ -139,4 +148,3 @@ public class DB2TransformationProvider : TransformationProvider
         ExecuteNonQuery($"ALTER TABLE {Identifier(childTable)} ADD CONSTRAINT {Identifier(name)} FOREIGN KEY ({string.Join(", ", childColumns.Select(Identifier))}) REFERENCES {Identifier(parentTable)} ({string.Join(", ", parentColumns.Select(Identifier))}) ON DELETE {delete} ON UPDATE NO ACTION");
     }
 }
-

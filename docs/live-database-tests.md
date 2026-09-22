@@ -21,7 +21,7 @@ The IBM Linux packages and ASE client are conditional test-project dependencies 
 
 ## Coverage and isolation
 
-`LiveDatabaseTests` adds nine scenarios each for MySQL, MariaDB, Firebird, Db2, Informix and Sybase: table/column metadata; persisted CRUD and defaults; column add/rename/type/nullability/default changes and removal; identity generation; primary-key enforcement/removal; foreign-key enforcement/removal; unique/check enforcement/removal; ordered composite index metadata/removal; and two complete migration up/down cycles with persisted version tracking.
+`LiveDatabaseTests` adds ten scenarios each for MySQL, MariaDB, Firebird, Db2, Informix and Sybase: database/view catalogs; table/column metadata; persisted CRUD and defaults; column add/rename/type/nullability/default changes and removal; identity generation; primary-key enforcement/removal; foreign-key enforcement/removal; unique/check enforcement/removal; ordered composite index metadata/removal; and two complete migration up/down cycles with persisted version tracking.
 
 Every test creates a uniquely named database (a schema for Db2, an independent server-side file for Firebird). Connections disable pooling. Teardown disposes the provider and drops that database/schema; Db2 removes tables in dependency order first. Migration cycles reuse the same isolated store to exercise repeatability even on engines whose DDL commits automatically. ASE test databases allow DDL in transactions and allocate 32 MB to accommodate the image's model database.
 

@@ -25,6 +25,23 @@ namespace Migrator.Tests.Providers.Live;
 public class LiveDatabaseTests(string database, ProviderTypes providerType)
 {
     private ITransformationProvider provider;
+    internal ITransformationProvider Provider => provider;
+
+    internal void RunRegression(Action<LiveDatabaseTests> action)
+    {
+        try { SetUp(); action(this); }
+        finally { TearDown(); }
+    }
+
+    internal void DropCreatedDatabase()
+    {
+        provider.DropDatabases(provider.GetDatabases().Single());
+        created = false;
+        provider.Dispose();
+        provider = null;
+        using var connection = new FbConnection(connectionString);
+        Assert.Catch<DbException>(() => connection.Open());
+    }
     private DbConnection admin;
     private string connectionString;
     private string isolatedName;
@@ -146,6 +163,19 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
             {
                 if (created)
                 {
+                    if (database == "Sybase")
+                    {
+                        // The managed ASE client closes its socket asynchronously. Wait only
+                        // for our isolated database's sessions to detach before dropping it.
+                        using var command = admin.CreateCommand();
+                        command.CommandText = "SELECT COUNT(*) FROM master..sysprocesses WHERE dbid=db_id('" + isolatedName + "')";
+                        var deadline = DateTime.UtcNow.AddSeconds(10);
+                        while (Convert.ToInt32(command.ExecuteScalar()) != 0)
+                        {
+                            if (DateTime.UtcNow >= deadline) throw new TimeoutException("ASE sessions did not detach from " + isolatedName);
+                            System.Threading.Thread.Sleep(100);
+                        }
+                    }
                     if (database == "Firebird") FbConnection.DropDatabase(connectionString);
                     else ExecuteAdmin("DROP " + (database == "Db2" ? "SCHEMA " + isolatedName + " RESTRICT" : "DATABASE " + isolatedName));
                 }
@@ -157,6 +187,13 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
                 created = false;
             }
         }
+    }
+
+    private void AssertDatabaseError(TestDelegate action)
+    {
+        // AdoNetCore's ASE exception predates DbException inheritance.
+        var error = Assert.Catch(action);
+        Assert.That(error is DbException || (database == "Sybase" && error.GetType().FullName == "AdoNetCore.AseClient.AseException"), Is.True, error?.ToString());
     }
 
     private void CreateItems() => provider.AddTable("items",
@@ -182,6 +219,19 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     }
 
     [Test]
+    public void DatabaseAndViewCatalogs()
+    {
+        Assert.That(provider.GetDatabases(), Is.Not.Empty);
+        Assert.That(provider.ViewExists("item_view"), Is.False);
+        CreateItems();
+        provider.ExecuteNonQuery("CREATE VIEW item_view AS SELECT id FROM items");
+        Assert.That(provider.ViewExists("item_view"), Is.True);
+        Assert.That(provider.TableExists("item_view"), Is.False);
+        provider.ExecuteNonQuery("DROP VIEW item_view");
+        Assert.That(provider.ViewExists("item_view"), Is.False);
+    }
+
+    [Test]
     public void DataDefaultsAndPersistence()
     {
         CreateItems();
@@ -204,10 +254,13 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.AddColumn("items", new Column("extra", DbType.String, 20, ColumnProperty.Null));
         provider.RenameColumn("items", "extra", "renamed");
         provider.ChangeColumn("items", new Column("renamed", DbType.String, 80, ColumnProperty.NotNull, "fallback"));
+        var changed = provider.GetColumns("items").Single(c => c.Name.Equals("renamed", StringComparison.OrdinalIgnoreCase));
+        Assert.That(changed.Size, Is.EqualTo(80));
+        Assert.That(changed.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
         provider.Insert("items", ["id"], [1]);
         Assert.That(provider.ExecuteScalar("SELECT renamed FROM items"), Is.EqualTo("fallback"));
         provider.RemoveColumnDefaultValue("items", "renamed");
-        Assert.Catch<DbException>(() => provider.Insert("items", ["id"], [2]));
+        AssertDatabaseError(() => provider.Insert("items", ["id"], [2]));
         provider.RemoveColumn("items", "renamed");
         Assert.That(provider.ColumnExists("items", "renamed"), Is.False);
     }
@@ -231,7 +284,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.AddPrimaryKey("pk_items", "items", "id");
         Assert.That(provider.PrimaryKeyExists("items", "pk_items"), Is.True);
         provider.Insert("items", ["id"], [1]);
-        Assert.Catch<DbException>(() => provider.Insert("items", ["id"], [1]));
+        AssertDatabaseError(() => provider.Insert("items", ["id"], [1]));
         provider.RemovePrimaryKey("items");
         Assert.That(provider.PrimaryKeyExists("items", "pk_items"), Is.False);
         provider.Insert("items", ["id"], [1]);
@@ -244,7 +297,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.AddTable("children", new Column("parentid", DbType.Int32));
         provider.AddForeignKey("fk_children", "children", "parentid", "items", "id");
         Assert.That(provider.ConstraintExists("children", "fk_children"), Is.True);
-        Assert.Catch<DbException>(() => provider.Insert("children", ["parentid"], [99]));
+        AssertDatabaseError(() => provider.Insert("children", ["parentid"], [99]));
         provider.Insert("items", ["id"], [1]);
         provider.Insert("children", ["parentid"], [1]);
         provider.RemoveForeignKey("children", "fk_children");
@@ -263,8 +316,8 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         Assert.That(provider.ConstraintExists("items", "uq_label"), Is.True);
         Assert.That(provider.ConstraintExists("items", "ck_amount"), Is.True);
         provider.Insert("items", ["id", "label"], [1, "unique"]);
-        Assert.Catch<DbException>(() => provider.Insert("items", ["id", "label"], [2, "unique"]));
-        Assert.Catch<DbException>(() => provider.Insert("items", ["id", "label", "amount"], [3, "negative", -1]));
+        AssertDatabaseError(() => provider.Insert("items", ["id", "label"], [2, "unique"]));
+        AssertDatabaseError(() => provider.Insert("items", ["id", "label", "amount"], [3, "negative", -1]));
         provider.RemoveConstraint("items", "ck_amount");
         provider.RemoveConstraint("items", "uq_label");
         provider.Insert("items", ["id", "label", "amount"], [2, "unique", -1]);
@@ -305,4 +358,3 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         public override void Down() => Database.RemoveTable("migration_items");
     }
 }
-

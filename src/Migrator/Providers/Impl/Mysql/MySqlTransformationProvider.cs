@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Globalization;
 using System.Linq;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
@@ -193,13 +194,13 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         var columns = new List<Column>();
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, $"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_MAXIMUM_LENGTH, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' ORDER BY ORDINAL_POSITION");
+        using var reader = ExecuteQuery(cmd, $"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_MAXIMUM_LENGTH, COLUMN_KEY, COLUMN_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' ORDER BY ORDINAL_POSITION");
         while (reader.Read())
         {
             var type = reader.GetString(1) switch
             {
                 "smallint" => DbType.Int16, "int" or "integer" or "mediumint" => DbType.Int32,
-                "bigint" => DbType.Int64, "tinyint" => DbType.Byte,
+                "bigint" => DbType.Int64, "tinyint" => reader.GetString(7).StartsWith("tinyint(1)", StringComparison.OrdinalIgnoreCase) ? DbType.Boolean : DbType.Byte,
                 "decimal" or "numeric" => DbType.Decimal, "double" => DbType.Double, "float" => DbType.Single,
                 "date" => DbType.Date, "datetime" or "timestamp" => DbType.DateTime, "time" => DbType.Time,
                 "blob" or "binary" or "varbinary" or "longblob" => DbType.Binary, _ => DbType.String
@@ -208,11 +209,49 @@ public class MySqlTransformationProvider : TransformationProvider
             column.ColumnProperty = reader.GetString(2) == "YES" ? ColumnProperty.Null : ColumnProperty.NotNull;
             if (reader.GetString(4).Contains("auto_increment")) column.ColumnProperty |= ColumnProperty.Identity;
             if (reader.GetString(6) == "PRI") column.ColumnProperty |= ColumnProperty.PrimaryKey;
-            if (!reader.IsDBNull(3)) column.DefaultValue = reader.GetValue(3);
+            if (!reader.IsDBNull(3)) column.DefaultValue = ReadDefault(reader.GetString(3), type, reader.GetString(4));
+            if (type == DbType.Decimal)
+            {
+                if (!reader.IsDBNull(8)) column.Precision = Convert.ToInt32(reader.GetValue(8));
+                if (!reader.IsDBNull(9)) column.Scale = Convert.ToInt32(reader.GetValue(9));
+            }
             if (!reader.IsDBNull(5)) column.Size = (int)Math.Min(int.MaxValue, Convert.ToInt64(reader.GetValue(5)));
             columns.Add(column);
         }
         return columns.ToArray();
+    }
+
+    // Non-string objects retain SQL expression semantics in Dialect.Default.
+    private sealed record DatabaseDefault(string Sql)
+    {
+        public override string ToString() => Sql;
+    }
+
+    private object ReadDefault(string value, DbType type, string extra)
+    {
+        if (_dialect is MariaDBDialect)
+        {
+            if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase)) return null;
+            if (value.StartsWith("'") && value.EndsWith("'"))
+                value = value[1..^1].Replace("''", "'").Replace("\\'", "'").Replace("\\\\", "\\");
+            else if (type == DbType.String) return new DatabaseDefault(value);
+        }
+        if (extra.Contains("DEFAULT_GENERATED", StringComparison.OrdinalIgnoreCase) ||
+            (type == DbType.DateTime && value.StartsWith("current_timestamp", StringComparison.OrdinalIgnoreCase)))
+            return new DatabaseDefault(value);
+        return type switch
+        {
+            DbType.Boolean => value != "0",
+            DbType.Byte => byte.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Int16 => short.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Int32 => int.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Int64 => long.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Decimal => decimal.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Double => double.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Single => float.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Date or DbType.DateTime => DateTime.SpecifyKind(DateTime.Parse(value, CultureInfo.InvariantCulture), DateTimeKind.Utc),
+            _ => value
+        };
     }
 
     public override string[] GetTables()

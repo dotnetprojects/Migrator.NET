@@ -102,6 +102,8 @@ public class SybaseTransformationProvider : TransformationProvider
         return name;
     }
 
+    public override void AddColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {table} ADD {sqlColumn}");
+
     public override void RemoveIndex(string table, string name) => ExecuteNonQuery($"DROP INDEX {table}.{name}");
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName) =>
         ExecuteNonQuery($"EXEC sp_rename '{Literal(tableName)}.{Literal(oldColumnName)}', '{Literal(newColumnName)}'");

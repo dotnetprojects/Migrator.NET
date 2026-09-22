@@ -1668,7 +1668,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void MigrationUnApplied(long version, string scope)
     {
         CreateSchemaInfoTable();
-        Delete(_schemaInfotable, ["Scope", "Version"], [scope ?? _scope, version.ToString()]);
+        Delete(_schemaInfotable, ["Scope", "Version"], [scope ?? _scope, version]);
         _appliedMigrations.Remove(version);
     }
 
