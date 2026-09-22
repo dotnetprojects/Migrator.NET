@@ -876,6 +876,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var triggers = ExecuteStringQuery("SELECT sql FROM sqlite_master WHERE type='trigger' AND lower(tbl_name)=lower('{0}')", oldName.Replace("'", "''"));
         if (triggers.Count > 0 && (oldName != sqliteTableInfo.TableNameMapping.NewName || sqliteTableInfo.ColumnMappings.Any(m => m.OldName != null && m.OldName != m.NewName)))
             throw new NotSupportedException("Use native SQLite rename when triggers reference renamed objects.");
+        var originalColumns = GetColumns(oldName);
+        if (triggers.Count > 0 && originalColumns.Any(c => !sqliteTableInfo.Columns.Any(n => n.Name.Equals(c.Name, StringComparison.OrdinalIgnoreCase))))
+            throw new NotSupportedException("Removing columns from a table with triggers requires native SQLite alteration or explicit trigger recreation.");
+        var sequence = TableExists("sqlite_sequence")
+            ? ExecuteScalar("SELECT seq FROM sqlite_sequence WHERE name='" + oldName.Replace("'", "''") + "'") : null;
+        var highWater = sequence == null || sequence == DBNull.Value ? (long?)null : Convert.ToInt64(sequence);
         var foreignKeys = IsPragmaForeignKeysOn();
         if (HasActiveTransaction && foreignKeys)
             throw new MigrationException("SQLite rebuild requires foreign keys to be disabled before beginning the transaction. Use the migration runner.");
@@ -889,6 +895,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 BeginTransaction();
             }
             RecreateTableCore(sqliteTableInfo);
+            if (highWater.HasValue && sqliteTableInfo.Columns.Any(c => c.IsIdentity))
+            {
+                var sequenceName = sqliteTableInfo.TableNameMapping.NewName.Replace("'", "''");
+                var sequenceValue = highWater.Value.ToString(CultureInfo.InvariantCulture);
+                ExecuteNonQuery($"UPDATE sqlite_sequence SET seq=MAX(seq, {sequenceValue}) WHERE name='{sequenceName}'");
+                ExecuteNonQuery($"INSERT INTO sqlite_sequence(name, seq) SELECT '{sequenceName}', {sequenceValue} WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='{sequenceName}')");
+            }
             foreach (var trigger in triggers) ExecuteNonQuery(trigger);
             if (ownsTransaction && !CheckForeignKeyIntegrity()) throw new MigrationException("SQLite rebuild would leave invalid foreign keys.");
             if (ownsTransaction) Commit();

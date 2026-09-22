@@ -53,6 +53,15 @@ public class ProviderCorrectionTests
         Assert.That(error.InnerException, Is.TypeOf<SqliteException>());
         Assert.That(provider.ExecuteScalar("SELECT Obsolete FROM Original"), Is.EqualTo("keep"));
     }
+    [Test] public void RebuildPreservesAutoincrementHighWaterAfterRowsWereDeleted()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+        using var provider = (SQLiteTransformationProvider)ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        provider.ExecuteNonQuery("CREATE TABLE Original (Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT); INSERT INTO Original(Id) VALUES(100); DELETE FROM Original");
+        provider.AddColumn("Original", new Column("Extra", DbType.String));
+        provider.ExecuteNonQuery("INSERT INTO Original(Name) VALUES ('next')");
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT Id FROM Original")), Is.EqualTo(101));
+    }
     [Test] public void UnsupportedRebuildLeavesTableIntact()
     {
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
