@@ -277,31 +277,40 @@ public class SqlServerTransformationProvider : TransformationProvider
 
     public override void ChangeColumn(string table, Column column)
     {
-        if (column.DefaultValue == null || column.DefaultValue == DBNull.Value)
+        var definition = new Column(column.Name, column.MigratorDbType, column.Size, column.ColumnProperty, column.DefaultValue)
+            { Precision = column.Precision, Scale = column.Scale };
+        var unique = definition.ColumnProperty.IsSet(ColumnProperty.Unique);
+        definition.ColumnProperty = definition.ColumnProperty.Clear(ColumnProperty.Unique);
+        var owned = new List<string>();
+        using (var command = CreateCommand())
         {
-            RemoveColumnDefaultValue(table, column.Name);
-            base.ChangeColumn(table, column);
+            command.CommandText = "SELECT kc.name FROM sys.key_constraints kc JOIN sys.extended_properties ep ON ep.class=1 AND ep.major_id=kc.object_id AND ep.minor_id=0 WHERE kc.parent_object_id=OBJECT_ID(@table) AND kc.type='UQ' AND ep.name=N'Migrator.NET.ColumnUnique' AND CONVERT(nvarchar(128),ep.value)=@column";
+            AddParameter(command, "@table", table); AddParameter(command, "@column", column.Name);
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) owned.Add(reader.GetString(0));
         }
-        else
+        foreach (var constraint in owned) RemoveConstraint(table, constraint);
+        RemoveColumnDefaultValue(table, definition.Name);
+        var requestedDefault = definition.DefaultValue;
+        definition.DefaultValue = null;
+        base.ChangeColumn(table, definition);
+        if (requestedDefault != null && requestedDefault != DBNull.Value)
+            ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD DEFAULT {_dialect.Default(requestedDefault)[8..]} FOR {QuoteColumnNameIfRequired(column.Name)}");
+        if (unique)
         {
-            var def = column.DefaultValue;
-            var notNull = column.ColumnProperty.IsSet(ColumnProperty.NotNull);
-            column.DefaultValue = null;
-            column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.Null);
-            column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.NotNull);
-
-            base.ChangeColumn(table, column);
-
-            var mapper = _dialect.GetAndMapColumnPropertiesWithoutDefault(column);
-            ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} {2} FOR {3}", this.QuoteTableNameIfRequired(table), "DF_" + table + "_" + column.Name, _dialect.Default(def), this.QuoteColumnNameIfRequired(column.Name)));
-
-            if (notNull)
-            {
-                column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.NotNull);
-                column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Null);
-                base.ChangeColumn(table, column);
-            }
+            var name = "UX_" + Guid.NewGuid().ToString("N");
+            AddUniqueConstraint(name, table, column.Name);
+            using var command = CreateCommand();
+            command.CommandText = "DECLARE @schema sysname=OBJECT_SCHEMA_NAME(OBJECT_ID(@table)); DECLARE @name sysname=OBJECT_NAME(OBJECT_ID(@table)); EXEC sys.sp_addextendedproperty @name=N'Migrator.NET.ColumnUnique', @value=@column, @level0type=N'SCHEMA', @level0name=@schema, @level1type=N'TABLE', @level1name=@name, @level2type=N'CONSTRAINT', @level2name=@constraint";
+            AddParameter(command, "@table", table); AddParameter(command, "@column", column.Name); AddParameter(command, "@constraint", name);
+            command.ExecuteNonQuery();
         }
+    }
+
+    private static void AddParameter(IDbCommand command, string name, object value)
+    {
+        var parameter = command.CreateParameter(); parameter.ParameterName = name; parameter.Value = value;
+        command.Parameters.Add(parameter);
     }
 
     public override bool ColumnExists(string table, string column)

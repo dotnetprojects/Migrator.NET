@@ -36,7 +36,19 @@ public class SQLServerTransformationProvider_ChangeColumnTests : Generic_ChangeC
         Assert.That(columnAfter.Type == DbType.DateTime2);
     }
 
-    [Test, Ignore("This issue is not yet fixed. See https://github.com/dotnetprojects/Migrator.NET/issues/132")]
+    [Test]
+    public void ChangeColumn_DoesNotRemoveUserOwnedUniqueOrMutateDefinition()
+    {
+        Provider.AddTable("UserOwned", new Column("Value", DbType.Int32, ColumnProperty.NotNull));
+        Provider.AddUniqueConstraint("UX_UserOwned_Value", "UserOwned", "Value");
+        var definition = new Column("Value", DbType.Int32, ColumnProperty.NotNull, 3);
+        Provider.ChangeColumn("UserOwned", definition);
+        Assert.That(Provider.ConstraintExists("UserOwned", "UX_UserOwned_Value"), Is.True);
+        Assert.That(definition.DefaultValue, Is.EqualTo(3));
+        Assert.That(definition.ColumnProperty, Is.EqualTo(ColumnProperty.NotNull));
+    }
+
+    [Test]
     public void ChangeColumn_WithUniqueThenReChangeToNonUnique_UniqueConstraintShouldBeRemoved()
     {
         // Arrange
