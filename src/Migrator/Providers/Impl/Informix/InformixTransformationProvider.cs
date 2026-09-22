@@ -81,12 +81,15 @@ public class InformixTransformationProvider : TransformationProvider
         var columns = GetColumnsForIndex(table);
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
-            SELECT i.* FROM sysindexes i JOIN systables t ON t.tabid=i.tabid
+            SELECT i.*, c.constrtype FROM sysindexes i JOIN systables t ON t.tabid=i.tabid
+            LEFT JOIN sysconstraints c ON c.tabid=i.tabid AND c.idxname=i.idxname AND c.constrtype IN ('P','U')
             WHERE t.owner=USER AND t.tabname='{Name(table)}'
             """);
         while (reader.Read())
         {
-            var index = new Index { Name = Convert.ToString(reader["idxname"]).Trim(), Unique = Convert.ToString(reader["idxtype"]).Trim() == "U" };
+            var index = new Index { Name = Convert.ToString(reader["idxname"]).Trim(), Unique = Convert.ToString(reader["idxtype"]).Trim() == "U",
+                PrimaryKey = Convert.ToString(reader["constrtype"]).Trim() == "P",
+                UniqueConstraint = Convert.ToString(reader["constrtype"]).Trim() == "U" };
             var keys = new List<string>();
             for (var part = 1; part <= 16; part++)
             {
@@ -107,6 +110,13 @@ public class InformixTransformationProvider : TransformationProvider
         using var reader = ExecuteQuery(cmd, $"SELECT c.colno,c.colname FROM syscolumns c JOIN systables t ON t.tabid=c.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}'");
         while (reader.Read()) columns[Convert.ToInt32(reader.GetValue(0))] = reader.GetString(1).Trim();
         return columns;
+    }
+
+    public override void RemoveAllIndexes(string table)
+    {
+        var constraints = ExecuteStringQuery($"SELECT c.constrname FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype IN ('P','U')");
+        foreach (var name in constraints) RemoveConstraint(table, name.Trim());
+        foreach (var index in GetIndexes(table)) RemoveIndex(table, index.Name);
     }
 
     public override bool IndexExists(string table, string name) => GetIndexes(table).Any(i => i.Name == Name(name));

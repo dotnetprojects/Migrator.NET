@@ -58,6 +58,19 @@ public class LiveMetadataRegressionTests
     });
 
     [Test, Category("Informix")]
+    public void InformixRemovesConstraintBackedIndexes() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
+    {
+        f.Provider.AddTable("numbers", new Column("id", DbType.Int32, ColumnProperty.NotNull), new Column("amount", DbType.Int32, ColumnProperty.NotNull));
+        f.Provider.AddPrimaryKey("pk_numbers", "numbers", "id");
+        f.Provider.AddUniqueConstraint("uq_amount", "numbers", "amount");
+        Assert.That(f.Provider.GetIndexes("numbers").Count(i => i.PrimaryKey), Is.EqualTo(1));
+        Assert.That(f.Provider.GetIndexes("numbers").Count(i => i.UniqueConstraint), Is.EqualTo(1));
+        f.Provider.RemoveAllIndexes("numbers");
+        Assert.That(f.Provider.GetIndexes("numbers"), Is.Empty);
+        Assert.That(f.Provider.ConstraintExists("numbers", "uq_amount"), Is.False);
+    });
+
+    [Test, Category("Informix")]
     public void InformixPreservesQuotedCatalogNames() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
     {
         f.Provider.ExecuteNonQuery("CREATE TABLE \"MixedCase\" (id INTEGER)");
