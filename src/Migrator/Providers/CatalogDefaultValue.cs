@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using System.Globalization;
+using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers;
 
@@ -8,11 +9,6 @@ namespace DotNetProjects.Migrator.Providers;
 // from expression objects. Keep expressions unquoted when a column is recreated.
 internal static class CatalogDefaultValue
 {
-    private sealed record Expression(string Sql)
-    {
-        public override string ToString() => Sql;
-    }
-
     internal static object Parse(string source, DbType type)
     {
         var value = source.Trim();
@@ -23,6 +19,7 @@ internal static class CatalogDefaultValue
             var literal = value[1..^1].Replace("''", "'");
             if (type is DbType.Date or DbType.DateTime or DbType.DateTime2 && DateTime.TryParse(literal, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                 return DateTime.SpecifyKind(date, DateTimeKind.Utc);
+            if (type == DbType.Guid && Guid.TryParse(literal, out var guid)) return guid;
             return literal;
         }
         if (type == DbType.Boolean)
@@ -30,6 +27,10 @@ internal static class CatalogDefaultValue
             if (bool.TryParse(value, out var boolean)) return boolean;
             if (value is "0" or "1") return value == "1";
         }
+        if (type == DbType.SByte && sbyte.TryParse(value, CultureInfo.InvariantCulture, out var signedByte)) return signedByte;
+        if (type == DbType.UInt16 && ushort.TryParse(value, CultureInfo.InvariantCulture, out var unsignedSmall)) return unsignedSmall;
+        if (type == DbType.UInt32 && uint.TryParse(value, CultureInfo.InvariantCulture, out var unsignedInteger)) return unsignedInteger;
+        if (type == DbType.UInt64 && ulong.TryParse(value, CultureInfo.InvariantCulture, out var unsignedLarge)) return unsignedLarge;
         if (type == DbType.Byte && byte.TryParse(value, CultureInfo.InvariantCulture, out var tiny)) return tiny;
         if (type == DbType.Int16 && short.TryParse(value, CultureInfo.InvariantCulture, out var small)) return small;
         if (type == DbType.Int32 && int.TryParse(value, CultureInfo.InvariantCulture, out var integer)) return integer;
@@ -37,7 +38,7 @@ internal static class CatalogDefaultValue
         if (type is DbType.Decimal or DbType.VarNumeric or DbType.Currency && decimal.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) return number;
         if (type == DbType.Double && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var floating)) return floating;
         if (type == DbType.Single && float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var real)) return real;
-        return new Expression(value);
+        return RawSql.Insert(source.Trim());
     }
 
     private static bool HasOuterParentheses(string value)

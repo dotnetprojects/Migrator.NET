@@ -19,7 +19,7 @@ public interface IColumn
 {
     bool IsNullable { get; set; }
     bool IsUnsigned { get; set; }
-    string Collation { get; set; }
+    Collation Collation { get; set; }
     int? Precision { get; set; }
     int? Scale { get; set; }
 

@@ -5,6 +5,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 
 public class MysqlDialect : Dialect
 {
+    protected override string ResolveCollation(CollationKind kind) => kind switch
+    {
+        CollationKind.Binary => "utf8mb4_0900_bin", CollationKind.CaseSensitive => "utf8mb4_0900_as_cs", CollationKind.CaseInsensitive => "utf8mb4_0900_as_ci",
+        _ => base.ResolveCollation(kind)
+    };
+
     public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
 
     public MysqlDialect()

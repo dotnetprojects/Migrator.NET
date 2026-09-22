@@ -36,6 +36,16 @@ public abstract class Dialect : IDialect
     }
 
     /// <summary>Render a named table constraint without accessing a database.</summary>
+    public virtual string GetCollationSql(Collation collation)
+    {
+        if (collation == null) throw new ArgumentNullException(nameof(collation));
+        return GetCollationSql(collation.Kind == CollationKind.Named ? collation.Name : ResolveCollation(collation.Kind));
+    }
+
+    /// <summary>Override to map semantic requests to collations installed on the target engine.</summary>
+    protected virtual string ResolveCollation(CollationKind kind) =>
+        throw new NotSupportedException($"{GetType().Name} cannot resolve {kind}. Use Collation.Named with an installed collation; no weaker comparison is substituted.");
+
     public virtual string GetCollationSql(string name) => throw new NotSupportedException("Column collations are not supported by this dialect.");
 
     public virtual string GetTableConstraintSql(TableConstraint constraint)
@@ -395,6 +405,7 @@ public abstract class Dialect : IDialect
 
     public virtual string Default(object defaultValue)
     {
+        if (defaultValue is RawSql expression) return "DEFAULT " + expression.Sql;
         if (defaultValue is string && defaultValue.ToString() == string.Empty)
         {
             defaultValue = "''";

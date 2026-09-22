@@ -6,6 +6,7 @@ public interface IDialect
 {
     string QuoteIdentifier(string name);
     string GetCollationSql(string name);
+    string GetCollationSql(Collation collation);
 
     string GetTableConstraintSql(TableConstraint constraint);
 

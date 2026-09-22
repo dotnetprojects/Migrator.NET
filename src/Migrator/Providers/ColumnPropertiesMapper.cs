@@ -32,8 +32,12 @@ public class ColumnPropertiesMapper
     }
     protected virtual void AddCollation(Column column, List<string> values)
     {
-        if (!string.IsNullOrWhiteSpace(column.Collation))
+        if (column.Collation != null)
+        {
+            if (column.Type is not (System.Data.DbType.String or System.Data.DbType.AnsiString or System.Data.DbType.StringFixedLength or System.Data.DbType.AnsiStringFixedLength))
+                throw new NotSupportedException("Collation requires a text column.");
             values.Add(_Dialect.GetCollationSql(column.Collation));
+        }
     }
     protected virtual void AddDefaultValue(Column column, List<string> values)
     {

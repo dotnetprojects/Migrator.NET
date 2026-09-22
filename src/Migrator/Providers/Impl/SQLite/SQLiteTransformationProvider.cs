@@ -1150,68 +1150,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             var defValue = pragmaTableInfoItem.DfltValue == DBNull.Value ? null : pragmaTableInfoItem.DfltValue;
 
-            if (defValue is string v && v.StartsWith("'") && v.EndsWith("'"))
-            {
-                column.DefaultValue = v.Substring(1, v.Length - 2);
-            }
-            else
-            {
-                column.DefaultValue = defValue;
-            }
-
-            if (column.DefaultValue != null)
-            {
-                if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
-                {
-                    column.DefaultValue = long.Parse(column.DefaultValue.ToString());
-                }
-                else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
-                {
-                    column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
-                }
-                else if (column.Type == DbType.Double || column.Type == DbType.Single)
-                {
-                    column.DefaultValue = double.Parse(column.DefaultValue.ToString());
-                }
-                else if (column.Type == DbType.Boolean)
-                {
-                    column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
-                }
-                else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
-                {
-                    if (column.DefaultValue is string defVal)
-                    {
-                        var dt = defVal;
-
-                        if (defVal.StartsWith("'"))
-                        {
-                            dt = defVal.Substring(1, defVal.Length - 2);
-                        }
-
-                        var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
-                        column.DefaultValue = d;
-                    }
-                }
-                else if (column.Type == DbType.Guid)
-                {
-                    if (column.DefaultValue is string defVal)
-                    {
-                        var dt = defVal;
-
-                        if (defVal.StartsWith("'"))
-                        {
-                            dt = defVal.Substring(1, defVal.Length - 2);
-                        }
-
-                        var d = Guid.Parse(dt);
-                        column.DefaultValue = d;
-                    }
-                }
-                else if (column.Type == DbType.Boolean)
-                {
-                    throw new NotSupportedException("SQLite does not support default values for BLOB columns.");
-                }
-            }
+            column.DefaultValue = defValue is string sqlDefault
+                ? CatalogDefaultValue.Parse(sqlDefault, column.Type) : defValue;
 
             var tableScript = GetSqlCreateTableScript(tableName);
 

@@ -6,6 +6,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 
 public class PostgreSQLDialect : Dialect
 {
+    protected override string ResolveCollation(CollationKind kind) => kind switch
+    {
+        CollationKind.Binary => "C",
+        _ => base.ResolveCollation(kind)
+    };
+
     public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
 
     public PostgreSQLDialect()

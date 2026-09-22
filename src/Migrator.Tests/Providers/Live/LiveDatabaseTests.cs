@@ -45,7 +45,10 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         var foreignKey = constraints.OfType<DotNetProjects.Migrator.Framework.ForeignKeyConstraint>().Single();
         Assert.That(foreignKey.ChildColumns.Select(c => c.ToLowerInvariant()), Is.EqualTo(new[] { "left_id", "right_id" }));
         Assert.That(foreignKey.ParentColumns.Select(c => c.ToLowerInvariant()), Is.EqualTo(new[] { "second_id", "first_id" }));
-        Assert.That(constraints.OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>(), Is.Empty);
+        if (providerType is ProviderTypes.Mysql or ProviderTypes.MariaDB)
+            Assert.That(constraints.OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>().Single().Name, Is.EqualTo("ux_separate"));
+        else
+            Assert.That(constraints.OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>(), Is.Empty);
         provider.Insert("parents", new[] { "first_id", "second_id" }, new object[] { 1, 2 });
         provider.Insert("children", new[] { "left_id", "right_id" }, new object[] { 2, 1 });
         AssertDatabaseError(() => provider.Insert("children", new[] { "left_id", "right_id" }, new object[] { 1, 2 }));

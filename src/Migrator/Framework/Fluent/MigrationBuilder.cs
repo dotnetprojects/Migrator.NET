@@ -81,7 +81,7 @@ public sealed class TableBuilder
     public TableBuilder NotNullable() { Current.IsNullable = false; return this; }
     public TableBuilder Nullable() { Current.IsNullable = true; return this; }
     public TableBuilder Unsigned() { Current.IsUnsigned = true; return this; }
-    public TableBuilder WithCollation(string name) { Current.Collation = name; return this; }
+    public TableBuilder WithCollation(Collation name) { Current.Collation = name; return this; }
     public TableBuilder Identity() { Current.IsIdentity = true; return this; }
 }
 public sealed class ColumnBuilder
@@ -99,7 +99,7 @@ public sealed class ColumnBuilder
     public ColumnBuilder NotNullable() { column.IsNullable = false; return this; }
     public ColumnBuilder Nullable() { column.IsNullable = true; return this; }
     public ColumnBuilder Unsigned() { column.IsUnsigned = true; return this; }
-    public ColumnBuilder WithCollation(string name) { column.Collation = name; return this; }
+    public ColumnBuilder WithCollation(Collation name) { column.Collation = name; return this; }
     public ColumnBuilder Identity() { column.IsIdentity = true; return this; }
 }
 public sealed class AlterRoot(MigrationBuilder builder)

@@ -1,4 +1,5 @@
 using System.Data;
+using DotNetProjects.Migrator.Framework;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.SqlServer;
@@ -17,6 +18,24 @@ public class SqlServerTransformationProviderGenericTests : TransformationProvide
         await BeginSQLServerTransactionAsync();
 
         AddDefaultTable();
+    }
+
+    [Test]
+    public void SemanticCollationAndRawDefaultsExecuteInBothApis()
+    {
+        Provider.AddTable("SemanticNames", new Column("Name", DbType.String, 40) { Collation = Collation.CaseInsensitive },
+            new Column("Token", DbType.Guid) { DefaultValue = RawSql.Insert("NEWID()") });
+        Provider.Insert("SemanticNames", ["Name"], ["é"]);
+        Assert.That(System.Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM SemanticNames WHERE Name=N'É'")), Is.EqualTo(1));
+        Assert.That(System.Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM SemanticNames WHERE Name=N'e'")), Is.EqualTo(0));
+        Assert.That(Provider.ExecuteScalar("SELECT Token FROM SemanticNames"), Is.TypeOf<System.Guid>());
+        var builder = new DotNetProjects.Migrator.Framework.Fluent.MigrationBuilder();
+        builder.Create.Table("SemanticNamesFluent").WithColumn("Name").AsString(40).WithCollation(Collation.CaseSensitive)
+            .WithColumn("Token").AsGuid().WithDefaultValue(RawSql.Insert("NEWID()"));
+        builder.Apply(Provider);
+        Provider.Insert("SemanticNamesFluent", ["Name"], ["é"]);
+        Assert.That(System.Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM SemanticNamesFluent WHERE Name=N'É'")), Is.EqualTo(0));
+        Assert.That(Provider.ExecuteScalar("SELECT Token FROM SemanticNamesFluent"), Is.TypeOf<System.Guid>());
     }
 
     [Test]

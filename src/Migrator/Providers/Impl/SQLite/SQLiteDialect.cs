@@ -5,6 +5,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
 public class SQLiteDialect : Dialect
 {
+    protected override string ResolveCollation(CollationKind kind) => kind switch
+    {
+        CollationKind.Binary => "BINARY", CollationKind.AsciiIgnoreCase => "NOCASE",
+        _ => base.ResolveCollation(kind)
+    };
+
     public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
 
     public SQLiteDialect()
@@ -59,6 +65,7 @@ public class SQLiteDialect : Dialect
 
     public override string Default(object defaultValue)
     {
+        if (defaultValue is RawSql expression) return "DEFAULT (" + expression.Sql + ")";
         if (defaultValue is bool)
         {
             return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");

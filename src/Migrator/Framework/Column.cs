@@ -75,7 +75,7 @@ public class Column : IColumn, IDbField
 
     public bool IsNullable { get; set; } = true;
     public bool IsUnsigned { get; set; }
-    public string Collation { get; set; }
+    public Collation Collation { get; set; }
 
     public string Name { get; set; }
 

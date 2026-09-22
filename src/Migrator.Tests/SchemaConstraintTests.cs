@@ -123,6 +123,57 @@ public class SchemaConstraintTests
     }
 
     [Test]
+    public void RawDefaultsWorkInBothApisAndSurviveMetadataAndRebuild()
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        provider.AddTable("RawImperative",
+            new Column("Id", DbType.Int32),
+            new Column("Token", DbType.String, 40) { DefaultValue = RawSql.Insert("lower(hex(randomblob(8)))") },
+            new Column("Literal", DbType.String, 40) { DefaultValue = "lower(hex(randomblob(8)))" });
+        var builder = new MigrationBuilder();
+        builder.Create.Table("RawFluent").WithColumn("Id").AsInt32()
+            .WithColumn("Token").AsString(40).WithDefaultValue(RawSql.Insert("lower(hex(randomblob(8)))"))
+            .WithColumn("Literal").AsString(40).WithDefaultValue("lower(hex(randomblob(8)))");
+        builder.Apply(provider);
+        foreach (var table in new[] { "RawImperative", "RawFluent" })
+        {
+            var defaultExpression = provider.GetColumns(table).Single(c => c.Name == "Token").DefaultValue;
+            Assert.That(defaultExpression, Is.TypeOf<RawSql>());
+            provider.ChangeColumn(table, new Column("Id", DbType.Int64));
+            provider.ExecuteNonQuery("INSERT INTO " + table + " (Id) VALUES (1)");
+            Assert.That(provider.ExecuteScalar("SELECT length(Token) FROM " + table), Is.EqualTo(16));
+            Assert.That(provider.ExecuteScalar("SELECT Literal FROM " + table), Is.EqualTo("lower(hex(randomblob(8)))"));
+        }
+        var preview = new MigrationBuilder();
+        preview.Create.Table("RawPreview").WithColumn("Token").AsString(40)
+            .WithDefaultValue(RawSql.Insert("lower(hex(randomblob(8)))"));
+        provider.ExecuteNonQuery(preview.Preview(new SqlGenerationContext(ProviderTypes.SQLite)).Single());
+        provider.ExecuteNonQuery("INSERT INTO RawPreview DEFAULT VALUES");
+        Assert.That(provider.ExecuteScalar("SELECT length(Token) FROM RawPreview"), Is.EqualTo(16));
+    }
+
+    [Test]
+    public void SemanticCollationDoesNotSilentlyDowngradeUnicodeToAscii()
+    {
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        Assert.Throws<NotSupportedException>(() => provider.AddTable("UnicodeNames",
+            new Column("Name", DbType.String, 40) { Collation = Collation.CaseInsensitive }));
+        Assert.That(provider.TableExists("UnicodeNames"), Is.False);
+        var builder = new MigrationBuilder();
+        builder.Create.Table("AsciiNames").WithColumn("Name").AsString(40).WithCollation(Collation.AsciiIgnoreCase)
+            .WithUniqueConstraint("UQ_Ascii", "Name");
+        provider.ExecuteNonQuery(builder.Preview(new SqlGenerationContext(ProviderTypes.SQLite)).Single());
+        provider.Insert("AsciiNames", ["Name"], ["hello"]);
+        Assert.Catch(() => provider.Insert("AsciiNames", ["Name"], ["HELLO"]));
+        provider.Insert("AsciiNames", ["Name"], ["é"]);
+        provider.Insert("AsciiNames", ["Name"], ["É"]);
+        Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT COUNT(*) FROM AsciiNames")), Is.EqualTo(3));
+        Assert.Throws<NotSupportedException>(() => provider.ChangeColumn("AsciiNames",
+            new Column("Name", DbType.String, 80) { Collation = Collation.AsciiIgnoreCase }));
+        Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT COUNT(*) FROM AsciiNames")), Is.EqualTo(3));
+    }
+
+    [Test]
     public void InvalidKeyDefinitionsFailBeforeCreatingTheTable()
     {
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);

@@ -143,3 +143,56 @@ Reviewed 2026-09-22:
 ## Additional v13 candidates
 
 Evaluate typed schema-qualified identifiers, explicit literal versus SQL-expression defaults, ordered constraint metadata, deterministic constraint naming, SQLite constraint parsing without regular-expression guesses, typed provider capabilities, and removal of obsolete duplicate authoring APIs. These are candidates, not claims of implemented functionality.
+
+## Explicit SQL defaults and semantic collations
+
+`RawSql.Insert("ksuid_new()")` marks trusted SQL as an expression in either API:
+
+```csharp
+new Column("Id", DbType.String, 27) { DefaultValue = RawSql.Insert("ksuid_new()") };
+// Fluent:
+builder.Create.Table("Events").WithColumn("Id").AsString(27)
+    .WithDefaultValue(RawSql.Insert("ksuid_new()"));
+```
+
+The database must provide that function. Strings remain quoted values, so
+`WithDefaultValue("ksuid_new()")` stores that text instead of calling a function.
+SQLite wraps expressions in parentheses as required for expression defaults.
+Metadata exposes unparsed SQL defaults as `RawSql`, replacing the previous private
+expression object; inspect `RawSql.Sql` instead of assuming every default is a string.
+Expression text is trusted migration code, not a parameter or a cross-database function abstraction.
+
+`Column.Collation` is now a typed `Collation` value. String assignment still selects
+a provider name through an implicit conversion; `Collation.Named("name")` is explicit.
+Fluent `.WithCollation(...)` takes the same type.
+
+```csharp
+new Column("Name", DbType.String, 100) { Collation = Collation.CaseInsensitive };
+builder.Create.Table("Names").WithColumn("Name").AsString(100)
+    .WithCollation(Collation.CaseInsensitive);
+```
+
+| Preset | SQL Server | MySQL 8 | MariaDB 10.10+ | PostgreSQL | SQLite |
+| --- | --- | --- | --- | --- | --- |
+| `CaseInsensitive` (accent-sensitive) | Latin1 General 100 CI AS SC | utf8mb4 0900 as ci | utf8mb4 UCA1400 nopad as ci | Explicit installed name required | Unsupported |
+| `CaseSensitive` (accent-sensitive) | Latin1 General 100 CS AS SC | utf8mb4 0900 as cs | utf8mb4 UCA1400 nopad as cs | Explicit installed name required | Explicit installed name required |
+| `Binary` | Latin1 General 100 BIN2 | utf8mb4 0900 bin | utf8mb4 nopad bin | C | BINARY |
+| `AsciiIgnoreCase` | Unsupported | Unsupported | Unsupported | Unsupported | NOCASE |
+
+These presets describe comparison intent, not identical sorting, normalization,
+language tailoring, or trailing-space behavior across engines. Use a named collation
+for a specific language or exact provider semantics. MySQL/MariaDB presets require
+utf8mb4-compatible text columns and the listed engine versions. Other dialects reject
+unmapped presets; custom dialects can override `ResolveCollation(CollationKind)`.
+Unsupported requests fail during SQL generation, before executing the table operation.
+SQLite never downgrades Unicode case-insensitivity to its ASCII-only NOCASE behavior.
+SQLite rebuilds involving collated columns still fail before replacing the table.
+
+For PostgreSQL, create an ICU nondeterministic collation explicitly (for example
+`CREATE COLLATION app_ci (provider=icu, locale='und-u-ks-level2', deterministic=false)`)
+and use `Collation.Named("app_ci")`. The framework does not silently create shared
+database objects while rendering a column or preview.
+
+MySQL/MariaDB expose unique indexes as unique constraints in their catalogs, so
+metadata cannot recover whether the original author used CREATE UNIQUE INDEX or
+a UNIQUE table clause. No ownership decision may be inferred from that syntax.

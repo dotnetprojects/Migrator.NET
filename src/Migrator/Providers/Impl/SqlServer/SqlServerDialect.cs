@@ -6,6 +6,12 @@ namespace DotNetProjects.Migrator.Providers.Impl.SqlServer;
 
 public class SqlServerDialect : Dialect
 {
+    protected override string ResolveCollation(CollationKind kind) => kind switch
+    {
+        CollationKind.Binary => "Latin1_General_100_BIN2", CollationKind.CaseSensitive => "Latin1_General_100_CS_AS_SC", CollationKind.CaseInsensitive => "Latin1_General_100_CI_AS_SC",
+        _ => base.ResolveCollation(kind)
+    };
+
     public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
 
     public override bool NeedsNullForNullableWhenAlteringTable => true;

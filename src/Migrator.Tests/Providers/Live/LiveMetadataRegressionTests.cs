@@ -10,6 +10,25 @@ namespace Migrator.Tests.Providers.Live;
 [NonParallelizable]
 public class LiveMetadataRegressionTests
 {
+    [TestCase("MySQL", ProviderTypes.Mysql, Category = "MySQL")]
+    [TestCase("MariaDB", ProviderTypes.MariaDB, Category = "MariaDB")]
+    public void SemanticCollationEnforcesCaseAndAccentSensitivity(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
+    {
+        var builder = new DotNetProjects.Migrator.Framework.Fluent.MigrationBuilder();
+        builder.Create.Table("ci_names").WithColumn("name").AsString(40).WithCollation(Collation.CaseInsensitive)
+            .WithUniqueConstraint("uq_ci", "name");
+        builder.Apply(f.Provider);
+        f.Provider.Insert("ci_names", ["name"], ["é"]);
+        f.AssertDatabaseError(() => f.Provider.Insert("ci_names", ["name"], ["É"]));
+        f.Provider.Insert("ci_names", ["name"], ["e"]);
+        f.Provider.AddTable("cs_names", new Column("name", DbType.String, 40) { Collation = Collation.CaseSensitive },
+            new DotNetProjects.Migrator.Framework.UniqueConstraint("uq_cs", "name"));
+        f.Provider.Insert("cs_names", ["name"], ["é"]);
+        f.Provider.Insert("cs_names", ["name"], ["É"]);
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM ci_names")), Is.EqualTo(2));
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM cs_names")), Is.EqualTo(2));
+    });
+
     [Test, Category("Sybase")]
     public void SybaseLargeTextMetadataPreservesCapacity() => new LiveDatabaseTests("Sybase", ProviderTypes.Sybase).RunRegression(f =>
     {
