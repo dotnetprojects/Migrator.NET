@@ -100,6 +100,32 @@ public class RunnerFeatureTests
         Assert.Throws<InvalidOperationException>(() => runner.MigrateToLastVersion());
         Assert.That(migrationLock.Disposed, Is.True);
     }
+    [Test] public void LegacyPreviewRequiresOptInAndNeverCreatesHistory()
+    {
+        using var p = Provider();
+        var runner = new DotNetProjects.Migrator.Migrator(p, false, typeof(First));
+        Assert.Throws<NotSupportedException>(() => runner.PreviewSql(1, ProviderTypes.SQLite));
+        Assert.That(Events, Is.Empty);
+        var sql = runner.PreviewSql(1, ProviderTypes.SQLite, allowLegacyBodies: true);
+        Assert.That(sql, Does.Contain("CREATE TABLE"));
+        Assert.That(p.TableExists("First"), Is.False);
+        Assert.That(p.TableExists(p.SchemaInfoTable), Is.False);
+        Assert.That(Events, Is.EqualTo(new[] { "first" })); // Opt-in still executes arbitrary C#.
+    }
+    [Migration(1)] internal class DirectConnection : Migration
+    {
+        public override void Up() => _ = Database.Connection;
+        public override void Down() => throw new NotSupportedException();
+    }
+    [Test] public void LegacyPreviewRejectsDirectConnectionsAndUnsupportedLocks()
+    {
+        using var p = Provider();
+        var runner = new DotNetProjects.Migrator.Migrator(p, false, typeof(DirectConnection));
+        Assert.Throws<NotSupportedException>(() => runner.PreviewSql(1, ProviderTypes.SQLite, true));
+        runner.Options.Lock = new DatabaseMigrationLock();
+        Assert.Throws<NotSupportedException>(() => runner.MigrateTo(1));
+        Assert.That(p.TableExists(p.SchemaInfoTable), Is.False);
+    }
     private sealed class ProbeLock : IMigrationLock, IDisposable
     {
         public bool Disposed { get; private set; }

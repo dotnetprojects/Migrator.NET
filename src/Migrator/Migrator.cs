@@ -26,7 +26,7 @@ namespace DotNetProjects.Migrator;
 /// </summary>
 public class Migrator
 {
-    public RunnerOptions Options { get; } = new();
+    public RunnerOptions Options { get; init; } = new();
     private readonly MigrationLoader _migrationLoader;
     private readonly ITransformationProvider _provider;
 
@@ -218,6 +218,35 @@ public class Migrator
         if (_provider is not IMigrationHistory history)
             throw new NotSupportedException("Read-only planning requires IMigrationHistory on custom providers.");
         return CreatePlan(history.ReadAppliedMigrations(), version);
+    }
+
+    public string PreviewSql(long version, ProviderTypes provider, bool allowLegacyBodies = false)
+    {
+        _migrationLoader.Activator = Options.Activator;
+        var plan = Plan(version);
+        var migrations = new List<(IMigration, bool)>();
+        void AddMaintenance(MaintenanceStage stage)
+        {
+            foreach (var type in _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<MaintenanceAttribute>() is { } a && a.Stage == stage && _migrationLoader.InScope(a.Scope))
+                .OrderBy(t => t.GetCustomAttribute<MaintenanceAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal))
+                migrations.Add((_migrationLoader.CreateInstance(type), true));
+        }
+        AddMaintenance(MaintenanceStage.BeforeRun);
+        foreach (var step in plan)
+        {
+            AddMaintenance(MaintenanceStage.BeforeMigration);
+            migrations.Add((_migrationLoader.GetMigration(step.Version), step.IsUp));
+            AddMaintenance(MaintenanceStage.AfterMigration);
+        }
+        foreach (var name in Options.Profiles)
+            if (!_migrationLoader.AuxiliaryTypes.Any(t => t.GetCustomAttribute<ProfileAttribute>() is { } a && a.Name == name && _migrationLoader.InScope(a.Scope)))
+                throw new MigrationException("Unknown profile: " + name);
+        foreach (var type in _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<ProfileAttribute>() is { } a && Options.Profiles.Contains(a.Name) && _migrationLoader.InScope(a.Scope))
+            .OrderBy(t => t.GetCustomAttribute<ProfileAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal))
+            migrations.Add((_migrationLoader.CreateInstance(type), true));
+        AddMaintenance(MaintenanceStage.AfterRun);
+        return MigrationSqlPreview.Generate(provider, migrations, allowLegacyBodies,
+            table => _provider.TableExists(table) ? _provider.GetColumns(table) : throw new MigrationException("Preview table does not exist: " + table));
     }
 
     public void MigrateTo(long version)

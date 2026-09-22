@@ -45,6 +45,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Migrator\DotNetProjects.Migrator.csproj" />
+    <ProjectReference Include="../Migrator.Tool/DotNetProjects.Migrator.Tool.csproj" />
+    <ProjectReference Include="../Migrator.Extensions.DependencyInjection/DotNetProjects.Migrator.Extensions.DependencyInjection.csproj" />
   </ItemGroup>
 
   <ItemGroup>

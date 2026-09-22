@@ -13,6 +13,14 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
   </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Migrator.Extensions.DependencyInjection/">
+    <Project Path="src/Migrator.Extensions.DependencyInjection/DotNetProjects.Migrator.Extensions.DependencyInjection.csproj" />
+  </Folder>
+  <Folder Name="/src/Migrator.Tool/">
+    <Project Path="src/Migrator.Tool/DotNetProjects.Migrator.Tool.csproj" />
+  </Folder>
+  <Folder Name="/src/Migrator/" />
   <Folder Name="/Tests/">
     <Project Path="src/Migrator.Tests/Migrator.Tests.csproj" />
   </Folder>
