@@ -9,7 +9,7 @@
 [![Source target: .NET 9](https://img.shields.io/badge/source_target-.NET_9-512BD4)](src/Migrator/DotNetProjects.Migrator.csproj)
 [![License: MPL-1.1](https://img.shields.io/badge/license-MPL--1.1-blue.svg)](https://www.mozilla.org/en-US/MPL/1.1/)
 
-[Homepage & documentation](https://dotnetprojects.github.io/Migrator.NET/) · [NuGet](https://www.nuget.org/packages/DotNetProjects.Migrator/) · [Releases](https://github.com/dotnetprojects/Migrator.NET/releases) · [Issues](https://github.com/dotnetprojects/Migrator.NET/issues) · [Feature comparison](https://dotnetprojects.github.io/Migrator.NET/#compare)
+[Homepage & documentation](https://dotnetprojects.github.io/Migrator.NET/) · [NuGet](https://www.nuget.org/packages/DotNetProjects.Migrator/) · [Releases](https://github.com/dotnetprojects/Migrator.NET/releases) · [Issues](https://github.com/dotnetprojects/Migrator.NET/issues) · [Feature comparison](https://dotnetprojects.github.io/Migrator.NET/#compare) · [CI test counts](https://dotnetprojects.github.io/Migrator.NET/#test-results)
 
 DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratordotnet/Migrator.NET). Write each schema change as a numbered C# class, commit it alongside your application, and use the runner to bring a database to the required version. The database records which migrations have already been applied.
 
@@ -20,6 +20,7 @@ DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratord
 - [Quick start](#quick-start)
 - [Migration versions and rollback](#migration-versions-and-rollback)
 - [Multiple modules and migration scopes](#multiple-modules-and-migration-scopes)
+- [Fluent API and deployment tooling](#fluent-api-and-deployment-tooling)
 - [Schema and data operations](#schema-and-data-operations)
 - [Database providers](#database-providers)
 - [Comparison with other .NET frameworks](#comparison-with-other-net-frameworks)
@@ -30,7 +31,7 @@ DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratord
 
 ## Why use it?
 
-- **Explicit C# migrations.** Define forward and reverse changes with `Up()` and `Down()`; review them like application code.
+- **Imperative or fluent C# migrations.** Use `Migration.Up/Down` or v13’s `FluentMigration.BuildUp/BuildDown`; review both like application code.
 - **No ORM dependency.** Use it alongside EF, Dapper, another data layer, or plain ADO.NET.
 - **Database transformation API.** Work with tables, columns, keys, indexes and data, with raw SQL available for provider-specific operations.
 - **Version tracking.** Apply pending migrations or target a specific version using database-backed history.
@@ -38,7 +39,7 @@ DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratord
 - **Bring your database driver.** The library does not directly reference database-driver packages; supply an ADO.NET connection or configure the driver factory.
 - **SQLite schema handling.** This fork includes schema inspection and table-recreation logic for operations SQLite cannot perform directly.
 
-The source upgrade adds a structured fluent API, runner filtering/lifecycle options, SQL-preview subset, native locking, a CLI project and optional Microsoft DI/logging integration. These changes are under review and **are not a released NuGet feature claim**. See the [runner and fluent guide](docs/runner-guide.md) and [detailed framework comparison](docs/migration-framework-comparison.md). EF-style model scaffolding and migration-content checksums remain outside the implementation.
+The source upgrade adds a structured fluent API, runner filtering/lifecycle options, SQL-preview subset, native locking, a CLI project and optional Microsoft DI/logging integration. These changes are merged in source and **are not a released NuGet feature claim**. See the [runner and fluent guide](docs/runner-guide.md) and [detailed framework comparison](docs/migration-framework-comparison.md). EF-style model scaffolding and migration-content checksums remain outside the implementation.
 
 ## Installation and requirements
 
@@ -58,7 +59,7 @@ Building the `.slnx` solution requires an SDK that understands that format, such
 
 ## Quick start
 
-This example targets **unreleased v13 source**. Clone/check out the upgrade branch before running these commands from the repository root. For published 12.1, follow its version-specific API; see the [migration guide](docs/migration-guide-12.1-to-13.md).
+This example targets **unreleased v13 source**. Clone/check out this repository before running these commands from the repository root. For published 12.1, follow its version-specific API; see the [migration guide](docs/migration-guide-12.1-to-13.md).
 
 ### 1. Create a migration host
 
@@ -152,7 +153,7 @@ Keep applied migration classes in source control. Change the schema with a new m
 
 With the runner above, `migrator.MigrateTo(0)` reverses all applied migrations in its set. In this example that drops `Users`, including its data. A `Down()` implementation is a reverse schema operation, not a backup restore.
 
-Migration execution starts a transaction for each migration and attempts rollback on failure. Actual atomicity depends on the database, driver and operation; some databases implicitly commit DDL. `AfterUp()` and `AfterDown()` run **after commit**, so a failure in those hooks cannot undo the committed migration.
+By default, migration execution starts a transaction for each migration and attempts rollback on failure. V13 also offers `None` and `WholeSession` transaction modes; whole-session support is limited to SQLite, PostgreSQL and SQL Server. Actual atomicity depends on the database, driver and operation; some databases implicitly commit DDL. `AfterUp()` and `AfterDown()` run **after commit**, so a failure in those hooks cannot undo the committed migration.
 
 For deployment, run a dedicated migration host before the application needs the new schema. Coordinate it so competing instances do not migrate the same database concurrently. Review and test both directions against your actual database engine.
 
@@ -190,6 +191,32 @@ Important details:
 See [ProviderFactory](src/Migrator/ProviderFactory.cs), [MigrationLoader](src/Migrator/MigrationLoader.cs) and [history implementation](src/Migrator/Providers/TransformationProvider.cs).
 
 ## Fluent API and deployment tooling
+
+For v13 source, replace the quick start’s `CreateUsers.cs` with this fluent equivalent; keep the same runner. Use one version-1 class, not both examples together.
+
+```csharp
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Fluent;
+
+[Migration(1)]
+public class CreateUsers : FluentMigration
+{
+    public override void BuildUp(MigrationBuilder migration)
+    {
+        migration.Create.Table("Users")
+            .WithColumn("Id").AsInt32().NotNullable()
+            .WithPrimaryKey("PK_Users", "Id")
+            .WithColumn("Name").AsString(255);
+    }
+
+    public override void BuildDown(MigrationBuilder migration)
+    {
+        migration.Delete.Table("Users");
+    }
+}
+```
+
+`FluentMigration` collects operations in `BuildUp` and uses your explicit `BuildDown`. `AutoReversingMigration` derives reverse operations for supported create/rename changes; it cannot recover deleted data.
 
 Run the [compiled fluent example](examples/FluentQuickStart/Program.cs):
 
@@ -253,18 +280,18 @@ Reviewed **22 September 2026**. Migrator's column describes this repository; the
 
 | Capability                   | Migrator.NET (this fork)          | FluentMigrator                               | EF Core                              | DbUp                       | Evolve                            |
 | ---------------------------- | --------------------------------- | -------------------------------------------- | ------------------------------------ | -------------------------- | --------------------------------- |
-| Authoring                    | Handwritten C# transformation API | Handwritten C# fluent DSL                    | C# scaffolded from model differences | SQL or C# scripts          | Versioned SQL files               |
+| Authoring                    | Imperative C# + structured fluent API | Handwritten C# fluent DSL                    | C# scaffolded from model differences | SQL or C# scripts          | Versioned SQL files               |
 | ORM-independent workflow     | Yes                               | Yes                                          | Uses EF model / DbContext            | Yes                        | Yes                               |
 | Model-difference scaffolding | No built-in generator             | Hand-authored                                | Yes, with model snapshots            | Hand-authored              | Hand-authored                     |
-| Downgrade applied migrations | Authored `Down()`                 | `Down()`; supported auto-reverse expressions | Generated/editable `Down()`          | Custom undo or forward fix | Forward fix; no Down command      |
+| Downgrade applied migrations | Authored `Down()` / `BuildDown()`; supported automatic reversal | `Down()`; supported auto-reverse expressions | Generated/editable `Down()`          | Custom undo or forward fix | Forward fix; no Down command      |
 | Separate histories           | Scope + selected assembly/types   | Custom version table + filtering             | Contexts + custom history table      | Journals + script filters  | Metadata table/schema + locations |
-| Execution                    | Library / custom host             | Library + CLI                                | CLI, scripts, bundles, runtime       | Library / custom host      | Library, .NET tool, CLI           |
-| Recurring work               | Custom code                       | Maintenance migrations / profiles            | Seeding APIs (EF 9+)                 | `RunAlways` scripts        | Checksum-based repeatable SQL     |
+| Execution                    | Library / source CLI (unreleased) | Library + CLI                                | CLI, scripts, bundles, runtime       | Library / custom host      | Library, .NET tool, CLI           |
+| Recurring work               | Ordered maintenance / named profiles                       | Maintenance migrations / profiles            | Seeding APIs (EF 9+)                 | `RunAlways` scripts        | Checksum-based repeatable SQL     |
 
-All five can execute raw SQL. Transaction support depends on database capabilities: Migrator starts one per migration; DbUp makes transactions opt-in; the others have configurable transaction behavior. Reversing a completed migration is different from rolling back a failed transaction. Evolve's checksum-based repeatables also differ from always-run scripts or lifecycle hooks.
+All five can execute raw SQL. Transaction support depends on database capabilities: Migrator defaults to per-migration transactions, with none or whole-session options (SQLite, PostgreSQL and SQL Server); DbUp makes transactions opt-in; the others have configurable transaction behavior. Reversing a completed migration is different from rolling back a failed transaction. Evolve's checksum-based repeatables also differ from always-run scripts or lifecycle hooks.
 
-- Choose **Migrator** for direct C# schema operations, scoped history and integration with your own host.
-- Consider **FluentMigrator** for its fluent authoring API, packaged runners, tags and profiles.
+- Choose **Migrator** for imperative or fluent C# schema operations, scoped history, tags/profiles and a source CLI or your own host.
+- **FluentMigrator** also offers fluent C# authoring, tags and profiles. Compare its published runner packages and provider behavior with Migrator’s v13 source tooling; fluent syntax alone is not a reason to switch.
 - Consider **EF Core migrations** when your EF model drives the schema and you want scaffolding and deployment artifacts.
 - Consider **DbUp** for a SQL-oriented runner composed in .NET, or **Evolve** for convention-based SQL with checksum validation and repeatables.
 
@@ -321,7 +348,7 @@ The package declares **Mozilla Public License 1.1 (MPL-1.1)** in its [project me
 
 ### Version 13 source changes
 
-The unreleased v13 stack separates columns from named table constraints and removes the old column flags and duplicate fluent builder. See the [12.1-to-13 migration guide](docs/migration-guide-12.1-to-13.md) before recompiling migrations. These source features are not claims about the published 12.1 NuGet package.
+The v13 source preview separates columns from named table constraints and removes the old column flags and duplicate fluent builder. See the [12.1-to-13 migration guide](docs/migration-guide-12.1-to-13.md) before recompiling migrations. These source features are not claims about the published 12.1 NuGet package.
 
 
 ### SQL expressions and collations in v13

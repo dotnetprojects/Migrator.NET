@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="DotNetProjects.Migrator: versioned database migrations in C#, independent of your ORM. Get started and compare FluentMigrator, EF Core, DbUp and Evolve."
+      content="DotNetProjects.Migrator: versioned database migrations in C#, independent of your ORM. Use imperative or fluent migrations and compare FluentMigrator, EF Core, DbUp and Evolve."
     />
     <meta name="theme-color" content="#101a2d" />
     <title>Migrator.NET — Database changes, in your code.</title>
@@ -22,7 +22,7 @@
           >Migrator<span class="brand-suffix">.NET</span></a
         >
         <nav aria-label="Main navigation">
-          <a href="#quick-start">Quick start</a
+          <a href="#quick-start">Quick start</a><a href="#fluent-api">Fluent API</a
           ><a href="#databases">Databases</a><a href="#compare">Compare</a
           ><a href="https://github.com/dotnetprojects/Migrator.NET"
             >GitHub <span aria-hidden="true">↗</span></a
@@ -37,7 +37,7 @@
             <p class="eyebrow">DOTNETPROJECTS / MIGRATOR.NET</p>
             <h1>Database changes.<br /><span>Part of your code.</span></h1>
             <p class="intro">
-              Write schema changes in C#. Version them with your application.
+              Write schema changes in C# with imperative or fluent APIs. Version them with your application.
               Run them with the database provider and ORM you choose.
             </p>
             <div class="actions">
@@ -47,6 +47,11 @@
               ><a class="button secondary" href="#compare"
                 >Compare frameworks</a
               >
+            </div>
+            <div class="project-badges" aria-label="Project status">
+              <a href="https://github.com/dotnetprojects/Migrator.NET/actions/workflows/dotnetpull.yml?query=branch%3Amaster"><img src="https://github.com/dotnetprojects/Migrator.NET/actions/workflows/dotnetpull.yml/badge.svg?branch=master" alt="Build and database tests on master" /></a>
+              <a href="https://www.nuget.org/packages/DotNetProjects.Migrator/"><img src="https://img.shields.io/nuget/v/DotNetProjects.Migrator" alt="Latest stable NuGet version" /></a>
+              <a href="https://www.mozilla.org/en-US/MPL/1.1/"><img src="https://img.shields.io/badge/license-MPL--1.1-blue" alt="License: MPL-1.1" /></a>
             </div>
             <p class="hero-meta">
               Open source · MPL-1.1 · Current source targets .NET 9
@@ -105,7 +110,7 @@
             <h3>C# without an ORM dependency</h3>
             <p>
               Define tables, columns, indexes and constraints through a
-              transformation API. Use raw SQL when a change needs
+              transformation API or structured fluent builders. Use raw SQL when a change needs
               database-specific behavior.
             </p>
           </article>
@@ -132,7 +137,7 @@
       <section class="quick-section" id="version-13" aria-labelledby="v13-title">
         <div class="container">
           <div class="section-heading">
-            <div><p class="eyebrow">VERSION 13 · IN REVIEW</p><h2 id="v13-title">Explicit definitions, shared authoring.</h2></div>
+            <div><p class="eyebrow">VERSION 13 · SOURCE PREVIEW</p><h2 id="v13-title">Explicit definitions, shared authoring.</h2></div>
             <p>Breaking source changes. These features are not yet a released NuGet version.</p>
           </div>
           <p>Define primary, unique, foreign-key and check constraints as table objects.
@@ -147,9 +152,9 @@ builder.Create.Table("Events")
     .WithCollation(Collation.CaseInsensitive);</code></pre></div>
           <p>The target database must supply the SQL function. Collation mappings have explicit provider limits:
             SQLite ASCII folding does not satisfy a Unicode case-insensitive request.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-column-model/docs/migration-guide-12.1-to-13.md">Read the 12.1-to-13 migration guide ↗</a>.</p>
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-guide-12.1-to-13.md">Read the 12.1-to-13 migration guide ↗</a>.</p>
           <p>Additional databases require passing real-engine CI.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/182">SAP HANA provider in v13 review ↗</a>;
+            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/182">SAP HANA provider qualification ↗</a>;
             Redshift, Snowflake and Db2 for IBM i remain unsupported.</p>
         </div>
       </section>
@@ -166,7 +171,7 @@ builder.Create.Table("Events")
             </div>
             <p>
               A minimal SQLite example for <strong>unreleased v13 source</strong>.<br />
-              Use .NET 9 and a checkout of the upgrade branch.
+              Use .NET 9 and a checkout of this repository.
             </p>
           </div>
           <div class="step">
@@ -290,6 +295,60 @@ migrator.MigrateToLastVersion();</code></pre>
           </aside>
         </div>
       </section>
+      <section class="section container" id="fluent-api" aria-labelledby="fluent-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">FLUENT API · V13 SOURCE PREVIEW</p>
+            <h2 id="fluent-title">Chain operations. Keep control.</h2>
+          </div>
+          <p>Use fluent and imperative migrations in the same assembly and runner.</p>
+        </div>
+        <div class="step">
+          <div class="step-description">
+            <h3>The same quick start, written fluently</h3>
+            <p>Replace <code>CreateUsers.cs</code> from step 2 with this class.
+              Keep the source reference and <code>Program.cs</code> from the quick start.</p>
+            <p><code>BuildUp</code> collects operations before execution;
+              <code>BuildDown</code> describes the reverse change.</p>
+            <p>Builders cover tables, columns, keys, indexes, data and SQL.
+              Database support still depends on the provider.</p>
+          </div>
+          <div class="snippet">
+            <div class="snippet-heading">
+              <span>CreateUsers.cs · fluent</span>
+              <button type="button" data-copy="fluent-code" hidden>Copy</button>
+            </div>
+            <pre><code id="fluent-code">using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Fluent;
+
+[Migration(1)]
+public class CreateUsers : FluentMigration
+{
+    public override void BuildUp(MigrationBuilder migration)
+    {
+        migration.Create.Table("Users")
+            .WithColumn("Id").AsInt32().NotNullable()
+            .WithPrimaryKey("PK_Users", "Id")
+            .WithColumn("Name").AsString(255);
+    }
+
+    public override void BuildDown(MigrationBuilder migration)
+    {
+        migration.Delete.Table("Users");
+    }
+}</code></pre>
+          </div>
+        </div>
+        <aside class="note">
+          <strong>Automatic reversal and SQL preview.</strong>
+          <code>AutoReversingMigration</code> can derive reverse operations for supported
+          create/rename changes. Destructive changes, data, SQL and callbacks need explicit
+          reverse operations; dropping a table does not restore its data.
+          SQL preview supports a subset and rejects unsupported operations.
+          <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Read the runner and fluent guide ↗</a>
+          or run the <a href="https://github.com/dotnetprojects/Migrator.NET/tree/master/examples/FluentQuickStart">SQLite example with preview and automatic reversal ↗</a>.
+        </aside>
+      </section>
       <section
         class="section container"
         id="databases"
@@ -345,6 +404,17 @@ migrator.MigrateToLastVersion();</code></pre>
           for your database.
         </p>
       </section>
+      <section class="section container" id="test-results" aria-labelledby="tests-title">
+        <p class="eyebrow">BUILD AND DATABASE TESTS</p>
+        <h2 id="tests-title">Evidence from CI.</h2>
+        <p>The CI matrix runs unit tests and 11 database suites, then checks for missing
+          or duplicate test assignments. Results count test executions across the matrix;
+          skipped tests are shown separately.</p>
+        <!-- TEST_RESULTS_START -->
+        <p>Test totals are populated during deployment from the latest completed master CI run.
+          <a href="https://github.com/dotnetprojects/Migrator.NET/actions/workflows/dotnetpull.yml?query=branch%3Amaster">View CI runs and test-result artifacts ↗</a>.</p>
+        <!-- TEST_RESULTS_END -->
+      </section>
       <section
         class="comparison-section"
         id="compare"
@@ -363,10 +433,10 @@ migrator.MigrateToLastVersion();</code></pre>
               >
             </p>
           </div>
-          <p class="comparison-intro"><strong>Source upgrade under review, not a NuGet release:</strong>
+          <p class="comparison-intro"><strong>Version 13 source preview, not a NuGet release:</strong>
             fluent operations, SQL-preview subset, runner options, native locks and source CLI.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/runner-guide.md">Read the runner guide and limitations</a>.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/177">Follow the PR stack</a>.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Read the runner guide and limitations</a>.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/177">Read the merged runner changes</a>.
           </p>
           <p class="comparison-intro">
             Migrator fits applications that want explicit C# migrations and
@@ -375,11 +445,11 @@ migrator.MigrateToLastVersion();</code></pre>
           </p>
           <p>
             <a
-              href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/migration-framework-comparison.md"
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md"
               >Read the detailed feature comparison (Markdown) →</a
             ><br />
             <a
-              href="https://github.com/dotnetprojects/Migrator.NET/blob/codex/migrator-v13-documentation/docs/migration-framework-comparison.md#sqlite-emulation-comparison"
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md#sqlite-emulation-comparison"
               >Explore SQLite emulation, preservation limits and framework
               differences →</a
             >
@@ -450,7 +520,7 @@ migrator.MigrateToLastVersion();</code></pre>
                 </tr>
                 <tr>
                   <th scope="row">Raw SQL</th>
-                  <td class="ours"><code>ExecuteNonQuery</code></td>
+                  <td class="ours"><code>ExecuteNonQuery</code> / fluent <code>Execute.Sql</code> / scripts</td>
                   <td><code>Execute.Sql</code> / scripts</td>
                   <td><code>migrationBuilder.Sql</code></td>
                   <td>Primary workflow</td>
@@ -482,7 +552,7 @@ migrator.MigrateToLastVersion();</code></pre>
                 </tr>
                 <tr>
                   <th scope="row">Transactions</th>
-                  <td class="ours">Per migration; none or verified whole-session modes</td>
+                  <td class="ours">Per migration by default; none or whole session (SQLite, PostgreSQL, SQL Server)</td>
                   <td>Per migration by default; configurable</td>
                   <td>Most migrations wrapped automatically</td>
                   <td>Opt-in per script or whole run; none by default</td>
@@ -538,8 +608,8 @@ migrator.MigrateToLastVersion();</code></pre>
             <article>
               <h3>Keep migrations in C#</h3>
               <p>
-                <strong>Migrator:</strong> direct schema operations, scoped
-                history, and integration through your own host.
+                <strong>Migrator:</strong> imperative and fluent schema operations, scoped
+                history, tags/profiles, and a source CLI or your own host.
                 <strong>FluentMigrator:</strong> a fluent DSL with packaged
                 runners, tags and profiles.
               </p>
@@ -583,7 +653,7 @@ migrator.MigrateToLastVersion();</code></pre>
                   >runner</a
                 >,
                 <a
-                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/MigrateAnywhere.cs"
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/MigrationExecution.cs"
                   >execution and transactions</a
                 >,
                 <a

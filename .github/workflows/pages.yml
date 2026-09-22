@@ -6,10 +6,17 @@ on:
     paths:
       - "docs/**"
       - ".github/workflows/pages.yml"
+      - ".github/scripts/render-homepage-tests.py"
+      - ".github/scripts/test-homepage-tests.py"
+  workflow_run:
+    workflows: [".NET Pull Request"]
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: github-pages
@@ -20,6 +27,8 @@ jobs:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
+      actions: read
       pages: write
       id-token: write
     environment:
@@ -27,6 +36,36 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: master
+      - name: Verify test-count renderer
+        run: python3 .github/scripts/test-homepage-tests.py
+      - name: Select latest completed master test run
+        id: tests
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              ...context.repo, workflow_id: 'dotnetpull.yml', branch: 'master',
+              event: 'push', status: 'completed', per_page: 1
+            });
+            const run = data.workflow_runs[0];
+            if (run) {
+              fs.writeFileSync('ci-run.json', JSON.stringify(run));
+              core.setOutput('run-id', String(run.id));
+            }
+      - name: Download test results from that run
+        if: steps.tests.outputs.run-id != ''
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.tests.outputs.run-id }}
+          pattern: test-results-*
+          path: ci-results
+      - name: Render test counts and provenance
+        if: steps.tests.outputs.run-id != ''
+        run: python3 .github/scripts/render-homepage-tests.py ci-results ci-run.json docs/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
