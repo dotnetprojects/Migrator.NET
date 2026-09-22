@@ -52,9 +52,9 @@ public class InformixTransformationProvider : TransformationProvider
         var columns = new List<Column>();
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
-            SELECT c.colname, c.coltype, c.collength, d.default, x.name
+            SELECT c.colname, c.coltype, c.collength, d.default, x.name, d.type
             FROM syscolumns c JOIN systables t ON c.tabid=t.tabid
-            LEFT JOIN sysdefaults d ON d.tabid=c.tabid AND d.colno=c.colno
+            LEFT JOIN sysdefaults d ON d.tabid=c.tabid AND d.colno=c.colno AND d.class='T'
             LEFT JOIN sysxtdtypes x ON x.extended_id=c.extended_id
             WHERE t.owner=USER AND t.tabname='{Name(table)}' ORDER BY c.colno
             """);
@@ -91,11 +91,34 @@ public class InformixTransformationProvider : TransformationProvider
                 column.Scale = (length & 255) == 255 ? null : length & 255;
             }
             if ((code & 255) is 6 or 18 or 53) column.ColumnProperty |= ColumnProperty.Identity;
-            if (!reader.IsDBNull(3)) column.DefaultValue = reader.GetString(3).Trim();
+            if (!reader.IsDBNull(5)) column.DefaultValue = ReadDefault(reader.IsDBNull(3) ? "" : reader.GetString(3), reader.GetString(5).Trim(), type);
             if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             columns.Add(column);
         }
         return columns.ToArray();
+    }
+
+    private static object ReadDefault(string catalogValue, string kind, DbType type)
+    {
+        // SYSDEFAULTS stores literal text without SQL quotes, and prefixes non-character
+        // literals with a six-bit encoding separated from the readable value by a space.
+        if (kind != "L")
+            return CatalogDefaultValue.Parse(kind switch
+            {
+                "N" => "NULL", "C" => "CURRENT", "T" => "TODAY",
+                "U" => "USER", "S" => "DBSERVERNAME",
+                _ => throw new NotSupportedException($"Unsupported Informix default kind: {kind}")
+            }, type);
+        var value = catalogValue.TrimEnd();
+        if (type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength)
+            return value;
+        if (type == DbType.Boolean)
+            return CatalogDefaultValue.Parse(value.Trim().Equals("t", StringComparison.OrdinalIgnoreCase) ? "true" :
+                value.Trim().Equals("f", StringComparison.OrdinalIgnoreCase) ? "false" : value, type);
+        var separator = value.IndexOf(' ');
+        if (separator >= 0) value = value[(separator + 1)..].Trim();
+        if (type is DbType.Date or DbType.DateTime or DbType.Time) value = "'" + value.Replace("'", "''") + "'";
+        return CatalogDefaultValue.Parse(value, type);
     }
 
     public override Index[] GetIndexes(string table)

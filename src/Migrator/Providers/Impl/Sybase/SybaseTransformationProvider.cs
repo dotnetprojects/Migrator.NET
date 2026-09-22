@@ -55,7 +55,8 @@ public class SybaseTransformationProvider : TransformationProvider
             """);
         while (reader.Read())
         {
-            var type = reader.GetString(1).Trim() switch
+            var nativeType = reader.GetString(1).Trim();
+            var type = nativeType switch
             {
                 "tinyint" => DbType.Byte, "smallint" => DbType.Int16, "int" => DbType.Int32, "bigint" => DbType.Int64,
                 "numeric" or "decimal" or "money" => DbType.Decimal, "float" => DbType.Double,
@@ -75,7 +76,7 @@ public class SybaseTransformationProvider : TransformationProvider
             }
             if (defaults.TryGetValue(column.Name, out var defaultSql)) column.DefaultValue = CatalogDefaultValue.Parse(defaultSql, type);
             if ((status & 128) != 0) column.ColumnProperty |= ColumnProperty.Identity;
-            if (type == DbType.String) column.Size = Convert.ToInt32(reader.GetValue(3));
+            if (type == DbType.String) column.Size = nativeType is "text" or "unitext" ? int.MaxValue : Convert.ToInt32(reader.GetValue(3));
             if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             columns.Add(column);
         }

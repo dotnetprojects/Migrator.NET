@@ -42,6 +42,8 @@ public class InformixDialect : Dialect
         RegisterProperty(ColumnProperty.Identity, "");
     }
 
+    public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 't'" : "DEFAULT 'f'") : base.Default(value);
+
     public override ColumnPropertiesMapper GetColumnMapper(Column column)
     {
         var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
