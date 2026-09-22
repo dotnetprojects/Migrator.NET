@@ -108,3 +108,5 @@ pwsh .github/scripts/test.ps1 -Database SQLite
 See [live database tests](live-database-tests.md) for the full matrix. Provider-specific changes need live provider evidence. Check PR CI and review threads after every push; reply with implementation/test evidence and resolve fixed findings. Keep commits descriptive and merge the PR stack in dependency order only after review.
 
 An auxiliary-only `MigrateToLastVersion()` run preserves existing version history while executing selected profiles and maintenance. A completely empty run does not create a history table. Post-commit callbacks receive their migration context in both per-migration and whole-session modes; callback failure cannot undo a committed migration.
+
+PostgreSQL column and constraint metadata resolves the requested relation through the database, including schema-qualified or explicitly quoted names and the connection search path. The lookup is parameterized and distinguishes same-named tables in different schemas. This does not imply complete schema qualification for every provider operation. Native `time without time zone` metadata and literal defaults map to `TimeSpan`.
