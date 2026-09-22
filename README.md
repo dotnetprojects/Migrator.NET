@@ -38,7 +38,7 @@ DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratord
 - **Bring your database driver.** The library does not directly reference database-driver packages; supply an ADO.NET connection or configure the driver factory.
 - **SQLite schema handling.** This fork includes schema inspection and table-recreation logic for operations SQLite cannot perform directly.
 
-Migrator is a library you embed in a migration host. It does not provide EF-style model-difference scaffolding, a packaged command-line runner, or built-in migration-content checksum validation.
+The source upgrade adds a structured fluent API, runner filtering/lifecycle options, SQL-preview subset, native locking, a CLI project and optional Microsoft DI/logging integration. These changes are under review and **are not a released NuGet feature claim**. See the [runner and fluent guide](docs/runner-guide.md) and [detailed framework comparison](docs/migration-framework-comparison.md). EF-style model scaffolding and migration-content checksums remain outside the implementation.
 
 ## Installation and requirements
 
@@ -186,6 +186,16 @@ Important details:
 - Scopes do not isolate tables or data. Module migrations still need compatible table names and coordinated schema ownership.
 
 See [ProviderFactory](src/Migrator/ProviderFactory.cs), [MigrationLoader](src/Migrator/MigrationLoader.cs) and [history implementation](src/Migrator/Providers/TransformationProvider.cs).
+
+## Fluent API and deployment tooling
+
+Run the [compiled fluent example](examples/FluentQuickStart/Program.cs):
+
+```sh
+dotnet run --project examples/FluentQuickStart
+```
+
+The example creates a complete table definition, previews it without changing history, runs a whole-session migration, then verifies automatic reversal. The [runner guide](docs/runner-guide.md) covers CLI commands, tags/profiles, maintenance, transactions, optional DI/logging, locks and preview limitations. Build the source packages locally to try the new tooling; no NuGet publication accompanies these PRs.
 
 ## Schema and data operations
 

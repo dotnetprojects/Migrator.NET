@@ -341,6 +341,11 @@ migrator.MigrateToLastVersion();</code></pre>
               >
             </p>
           </div>
+          <p class="comparison-intro"><strong>Source upgrade under review, not a NuGet release:</strong>
+            fluent operations, SQL-preview subset, runner options, native locks and source CLI.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Read the runner guide and limitations</a>.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/177">Follow the PR stack</a>.
+          </p>
           <p class="comparison-intro">
             Migrator fits applications that want explicit C# migrations and
             scoped history without coupling schema changes to an ORM. Other
@@ -397,7 +402,7 @@ migrator.MigrateToLastVersion();</code></pre>
               <tbody>
                 <tr>
                   <th scope="row">Authoring style</th>
-                  <td class="ours">Handwritten C#<br />Transformation API</td>
+                  <td class="ours">Imperative C# + structured fluent API</td>
                   <td>Handwritten C#<br />Fluent DSL</td>
                   <td>C# generated from model changes; editable</td>
                   <td>SQL scripts; C# scripts also supported</td>
@@ -432,7 +437,7 @@ migrator.MigrateToLastVersion();</code></pre>
                 <tr>
                   <th scope="row">Downgrade an applied version</th>
                   <td class="ours">
-                    Authored <code>Down()</code><br /><code>MigrateTo</code>
+                    Authored <code>Down()</code> or supported automatic reversal
                   </td>
                   <td>
                     <code>Down()</code>; auto-reverse for supported expressions
@@ -444,7 +449,7 @@ migrator.MigrateToLastVersion();</code></pre>
                 <tr>
                   <th scope="row">History / module separation</th>
                   <td class="ours">
-                    Scope in history table + selected assembly/types
+                    Scope-filtered discovery + history
                   </td>
                   <td>Custom version tables + migration filtering</td>
                   <td>
@@ -455,7 +460,7 @@ migrator.MigrateToLastVersion();</code></pre>
                 </tr>
                 <tr>
                   <th scope="row">Transactions</th>
-                  <td class="ours">Per migration</td>
+                  <td class="ours">Per migration; none or verified whole-session modes</td>
                   <td>Per migration by default; configurable</td>
                   <td>Most migrations wrapped automatically</td>
                   <td>Opt-in per script or whole run; none by default</td>
@@ -463,7 +468,7 @@ migrator.MigrateToLastVersion();</code></pre>
                 </tr>
                 <tr>
                   <th scope="row">Execution / deployment</th>
-                  <td class="ours">Library; write your own host</td>
+                  <td class="ours">Library + source CLI (unreleased)</td>
                   <td>In-process runner + CLI</td>
                   <td>CLI, SQL scripts, bundles, runtime API</td>
                   <td>Library; host in a console app or application</td>
@@ -481,7 +486,7 @@ migrator.MigrateToLastVersion();</code></pre>
                 </tr>
                 <tr>
                   <th scope="row">Repeatable / recurring work</th>
-                  <td class="ours">Custom application code</td>
+                  <td class="ours">Ordered maintenance + named profiles; no checksum repeatables</td>
                   <td>Maintenance migrations / profiles</td>
                   <td>Seeding APIs (EF 9+); custom code</td>
                   <td><code>RunAlways</code> scripts</td>
