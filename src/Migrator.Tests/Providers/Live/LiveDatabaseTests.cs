@@ -118,7 +118,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         }
         else
         {
-            ExecuteAdmin("CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : database == "Sybase" ? " ON default = 32 LOG ON default = 16" : ""));
+            ExecuteAdmin("CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : database == "Sybase" ? " ON migrator_data = 32 LOG ON migrator_log = 16" : ""));
             var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
             builder["Database"] = isolatedName;
             connectionString = builder.ConnectionString;

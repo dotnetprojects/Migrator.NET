@@ -65,7 +65,7 @@ export INFORMIXDIR="$output/native"
 export LD_LIBRARY_PATH="$output/native/lib:$output/native/lib/cli:$output/native/lib/esql"
 ```
 
-New suites accept `MIGRATOR_MYSQL`, `MIGRATOR_MARIADB`, `MIGRATOR_FIREBIRD`, `MIGRATOR_DB2`, `MIGRATOR_INFORMIX`, or `MIGRATOR_SYBASE` connection-string overrides. Use disposable servers with administrative database/schema creation permissions. Defaults match the startup script. Existing suites read `appsettings.json` through ConfigurationReader, with a `MIGRATOR_` plus uppercased configuration-key override.
+New suites accept `MIGRATOR_MYSQL`, `MIGRATOR_MARIADB`, `MIGRATOR_FIREBIRD`, `MIGRATOR_DB2`, `MIGRATOR_INFORMIX`, or `MIGRATOR_SYBASE` connection-string overrides. Use disposable servers with administrative database/schema creation permissions. Defaults match the startup script. ASE additionally expects the disposable `migrator_data` and `migrator_log` devices initialized by that script. Existing suites read `appsettings.json` through ConfigurationReader, with a `MIGRATOR_` plus uppercased configuration-key override.
 
 To reproduce the assignment audit, download all `test-results-*` artifacts from a single completed workflow into `TestResults`, preserving their per-database directories, then run:
 
