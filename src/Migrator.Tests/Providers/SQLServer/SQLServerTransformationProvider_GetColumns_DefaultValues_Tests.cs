@@ -9,7 +9,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
-[Category("SqlServer")]
+[Category("SQLServer")]
 public class SQLServerTransformationProvider_GetColumns_DefaultValues_Tests : TransformationProviderBase
 {
     [SetUp]

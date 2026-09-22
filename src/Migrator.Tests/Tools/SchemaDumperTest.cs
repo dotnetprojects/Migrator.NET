@@ -7,7 +7,7 @@
 //namespace Migrator.Tests.Tools;
 
 //[TestFixture]
-//[Category("MySql")]
+//[Category("MySQL")]
 //public class SchemaDumperTest
 //{
 //    [Test]

@@ -1,45 +1,151 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using DotNetProjects.Migrator.Framework;
+using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Informix;
 
-/// <summary>
-/// DB2 transformation provider
-/// </summary>
 public class InformixTransformationProvider : TransformationProvider
 {
     public InformixTransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
         : base(dialect, connectionString, null, scope)
     {
-        if (string.IsNullOrEmpty(providerName))
-        {
-            providerName = "IBM.Data.Informix.Client";
-        }
-
-        var fac = DbProviderFactoriesHelper.GetFactory(providerName, null, null);
-        _connection = fac.CreateConnection();
-        _connection.ConnectionString = _connectionString;
-        this._connection.Open();
+        var factory = DbProviderFactoriesHelper.GetFactory(string.IsNullOrEmpty(providerName) ? "IBM.Data.Informix.Client" : providerName, null, null);
+        _connection = factory.CreateConnection();
+        _connection.ConnectionString = connectionString;
+        _connection.Open();
     }
 
     public InformixTransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
-       : base(dialect, connection, null, scope)
+        : base(dialect, connection, null, scope) { }
+
+    private static string Name(string name) => name.Trim('"').ToLowerInvariant().Replace("'", "''");
+    public override string GenerateParameterName(int index) => "?";
+    public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
+        $"SELECT COUNT(*) FROM systables WHERE tabname='{Name(table)}' AND owner=USER AND tabtype='T'")) > 0;
+    public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(
+        $"SELECT COUNT(*) FROM systables WHERE tabname='{Name(view)}' AND owner=USER AND tabtype='V'")) > 0;
+    public override string[] GetTables() => ExecuteStringQuery(
+        "SELECT tabname FROM systables WHERE owner=USER AND tabid>=100 AND tabtype='T'").Select(n => n.Trim()).ToArray();
+    public override List<string> GetDatabases() => ExecuteStringQuery("SELECT name FROM sysmaster:sysdatabases");
+    public override string[] GetConstraints(string table) => ExecuteStringQuery(
+        $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}'").Select(n => n.Trim()).ToArray();
+    public override bool ConstraintExists(string table, string name) => GetConstraints(table).Contains(Name(name));
+    protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
+        $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype='P'").FirstOrDefault()?.Trim();
+
+    public override Column[] GetColumns(string table)
     {
+        var columns = new List<Column>();
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, $"""
+            SELECT c.colname, c.coltype, c.collength, d.default
+            FROM syscolumns c JOIN systables t ON c.tabid=t.tabid
+            LEFT JOIN sysdefaults d ON d.tabid=c.tabid AND d.colno=c.colno
+            WHERE t.owner=USER AND t.tabname='{Name(table)}' ORDER BY c.colno
+            """);
+        while (reader.Read())
+        {
+            var code = Convert.ToInt32(reader.GetValue(1));
+            var type = (code & 255) switch
+            {
+                1 => DbType.Int16, 2 or 6 => DbType.Int32, 17 or 18 or 52 or 53 => DbType.Int64,
+                3 => DbType.Double, 4 => DbType.Single, 5 or 8 => DbType.Decimal,
+                7 => DbType.Date, 10 => DbType.DateTime, 11 => DbType.Binary,
+                45 => DbType.Boolean, _ => DbType.String
+            };
+            var column = new Column(reader.GetString(0).Trim(), type)
+            {
+                ColumnProperty = (code & 256) != 0 ? ColumnProperty.NotNull : ColumnProperty.Null
+            };
+            if (type == DbType.String) column.Size = Convert.ToInt32(reader.GetValue(2)) & 255;
+            if ((code & 255) is 6 or 18 or 53) column.ColumnProperty |= ColumnProperty.Identity;
+            if (!reader.IsDBNull(3)) column.DefaultValue = reader.GetString(3).Trim();
+            columns.Add(column);
+        }
+        return columns.ToArray();
     }
 
-    public override List<string> GetDatabases()
+    public override Index[] GetIndexes(string table)
     {
-        throw new NotImplementedException();
+        var result = new List<Index>();
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, $"""
+            SELECT i.* FROM sysindexes i JOIN systables t ON t.tabid=i.tabid
+            WHERE t.owner=USER AND t.tabname='{Name(table)}'
+            """);
+        var columns = GetColumnsForIndex(table);
+        while (reader.Read())
+        {
+            var index = new Index { Name = Convert.ToString(reader["idxname"]).Trim(), Unique = Convert.ToString(reader["idxtype"]).Trim() == "U" };
+            var keys = new List<string>();
+            for (var part = 1; part <= 16; part++)
+            {
+                var number = Math.Abs(Convert.ToInt32(reader["part" + part]));
+                if (number == 0) break;
+                keys.Add(columns[number]);
+            }
+            index.KeyColumns = keys.ToArray();
+            result.Add(index);
+        }
+        return result.ToArray();
     }
 
-    public override bool ConstraintExists(string table, string name)
+    private Dictionary<int, string> GetColumnsForIndex(string table)
     {
-        throw new NotImplementedException();
+        var columns = new Dictionary<int, string>();
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, $"SELECT c.colno,c.colname FROM syscolumns c JOIN systables t ON t.tabid=c.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}'");
+        while (reader.Read()) columns[Convert.ToInt32(reader.GetValue(0))] = reader.GetString(1).Trim();
+        return columns;
     }
 
-    public override bool IndexExists(string table, string name)
+    public override bool IndexExists(string table, string name) => GetIndexes(table).Any(i => i.Name == Name(name));
+    public override string AddIndex(string table, Index index)
     {
-        throw new NotImplementedException();
+        if (index.KeyColumns.Length == 0) throw new ArgumentException("An index needs key columns.", nameof(index));
+        if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
+            throw new NotSupportedException("This Informix provider supports ordinary and unique indexes without INCLUDE, filters or clustering.");
+        var name = index.Name ?? $"ix_{table}_{string.Join("_", index.KeyColumns)}";
+        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {name} ON {table} ({string.Join(", ", index.KeyColumns)})");
+        return name;
+    }
+
+    public override void AddColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {table} ADD ({sqlColumn})");
+    public override void ChangeColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {table} MODIFY ({sqlColumn})");
+    public override void RemoveColumn(string tableName, string column) => ExecuteNonQuery($"ALTER TABLE {tableName} DROP ({column})");
+    public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
+    {
+        if (!ColumnExists(tableName, oldColumnName) || ColumnExists(tableName, newColumnName))
+            throw new MigrationException("Source column must exist and destination column must not exist.");
+        ExecuteNonQuery($"RENAME COLUMN {tableName}.{oldColumnName} TO {newColumnName}");
+    }
+    public override void RenameTable(string oldName, string newName) => ExecuteNonQuery($"RENAME TABLE {oldName} TO {newName}");
+    public override void RemoveColumnDefaultValue(string table, string column)
+    {
+        var existing = GetColumns(table).Single(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
+        existing.DefaultValue = null;
+        ChangeColumn(table, existing);
+    }
+
+    public override void AddPrimaryKey(string name, string table, params string[] columns) =>
+        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT PRIMARY KEY ({string.Join(", ", columns)}) CONSTRAINT {name}");
+    public override void AddUniqueConstraint(string name, string table, params string[] columns) =>
+        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT UNIQUE ({string.Join(", ", columns)}) CONSTRAINT {name}");
+    public override void AddCheckConstraint(string name, string table, string checkSql) =>
+        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT CHECK ({checkSql}) CONSTRAINT {name}");
+
+    public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns, ForeignKeyConstraintType constraint)
+    {
+        var action = constraint switch
+        {
+            ForeignKeyConstraintType.Cascade => " ON DELETE CASCADE",
+            ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict => "",
+            _ => throw new NotSupportedException("Informix supports cascading deletes or its default restrictive referential action.")
+        };
+        ExecuteNonQuery($"ALTER TABLE {childTable} ADD CONSTRAINT FOREIGN KEY ({string.Join(", ", childColumns)}) REFERENCES {parentTable} ({string.Join(", ", parentColumns)}){action} CONSTRAINT {name}");
     }
 }
+

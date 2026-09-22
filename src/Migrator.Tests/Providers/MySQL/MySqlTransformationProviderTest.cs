@@ -10,7 +10,7 @@
 // namespace Migrator.Tests.Providers.MySQL;
 
 // [TestFixture]
-// [Category("MySql")]
+// [Category("MySQL")]
 // public class MySqlTransformationProviderTest : TransformationProviderConstraintBase
 // {
 //     [SetUp]

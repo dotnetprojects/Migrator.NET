@@ -22,7 +22,9 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Start database
-        run: bash .github/scripts/start-database.sh "${{ matrix.database }}"
+        run: |
+          mkdir -p TestResults
+          bash .github/scripts/start-database.sh "${{ matrix.database }}" 2>&1 | tee TestResults/startup.log
         timeout-minutes: 15
       - name: Build
         run: dotnet build Migrator.slnx -p:LiveDatabase=${{ matrix.database }}

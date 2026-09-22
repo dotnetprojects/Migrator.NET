@@ -188,7 +188,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.Insert("items", ["id"], [1]);
         Assert.That(provider.ExecuteScalar("SELECT renamed FROM items"), Is.EqualTo("fallback"));
         provider.RemoveColumnDefaultValue("items", "renamed");
-        Assert.Catch<MigrationException>(() => provider.Insert("items", ["id"], [2]));
+        Assert.Catch<DbException>(() => provider.Insert("items", ["id"], [2]));
         provider.RemoveColumn("items", "renamed");
         Assert.That(provider.ColumnExists("items", "renamed"), Is.False);
     }
@@ -212,7 +212,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.AddPrimaryKey("pk_items", "items", "id");
         Assert.That(provider.PrimaryKeyExists("items", "pk_items"), Is.True);
         provider.Insert("items", ["id"], [1]);
-        Assert.Catch<MigrationException>(() => provider.Insert("items", ["id"], [1]));
+        Assert.Catch<DbException>(() => provider.Insert("items", ["id"], [1]));
         provider.RemovePrimaryKey("items");
         Assert.That(provider.PrimaryKeyExists("items", "pk_items"), Is.False);
         provider.Insert("items", ["id"], [1]);
@@ -225,7 +225,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider.AddTable("children", new Column("parentid", DbType.Int32));
         provider.AddForeignKey("fk_children", "children", "parentid", "items", "id");
         Assert.That(provider.ConstraintExists("children", "fk_children"), Is.True);
-        Assert.Catch<MigrationException>(() => provider.Insert("children", ["parentid"], [99]));
+        Assert.Catch<DbException>(() => provider.Insert("children", ["parentid"], [99]));
         provider.Insert("items", ["id"], [1]);
         provider.Insert("children", ["parentid"], [1]);
         provider.RemoveForeignKey("children", "fk_children");
@@ -242,8 +242,8 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         Assert.That(provider.ConstraintExists("items", "uq_label"), Is.True);
         Assert.That(provider.ConstraintExists("items", "ck_amount"), Is.True);
         provider.Insert("items", ["id", "label"], [1, "unique"]);
-        Assert.Catch<MigrationException>(() => provider.Insert("items", ["id", "label"], [2, "unique"]));
-        Assert.Catch<MigrationException>(() => provider.Insert("items", ["id", "amount"], [3, -1]));
+        Assert.Catch<DbException>(() => provider.Insert("items", ["id", "label"], [2, "unique"]));
+        Assert.Catch<DbException>(() => provider.Insert("items", ["id", "amount"], [3, -1]));
         provider.RemoveConstraint("items", "ck_amount");
         provider.RemoveConstraint("items", "uq_label");
         provider.Insert("items", ["id", "label", "amount"], [2, "unique", -1]);

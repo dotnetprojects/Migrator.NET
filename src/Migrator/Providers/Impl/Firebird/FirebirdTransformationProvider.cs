@@ -12,7 +12,7 @@ public class FirebirdTransformationProvider : TransformationProvider
     public FirebirdTransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
         : base(dialect, connectionString, null, scope)
     {
-        var factory = DbProviderFactoriesHelper.GetFactory(providerName ?? "FirebirdSql.Data.FirebirdClient",
+        var factory = DbProviderFactoriesHelper.GetFactory(string.IsNullOrEmpty(providerName) ? "FirebirdSql.Data.FirebirdClient" : providerName,
             "FirebirdSql.Data.FirebirdClient", "FirebirdSql.Data.FirebirdClient.FirebirdClientFactory");
         _connection = factory.CreateConnection();
         _connection.ConnectionString = connectionString;

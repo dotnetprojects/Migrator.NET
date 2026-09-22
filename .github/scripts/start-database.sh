@@ -32,7 +32,7 @@ case "$database" in
     ready() { docker logs migrator-db 2>&1 | grep -q 'Setup has completed'; }
     ;;
   Informix)
-    docker run -dt --name migrator-db --hostname ifx --privileged -p 9088:9088 -e LICENSE=accept icr.io/informix/informix-developer-database:15.0.0.0
+    docker run -dt --name migrator-db --hostname ifx --privileged -p 9088:9088 -e LICENSE=accept icr.io/informix/informix-developer-database:15.0.1.0.3
     ready() { docker exec migrator-db bash -lc 'onstat -' 2>/dev/null | grep -q 'On-Line'; }
     ;;
   *) echo "Unknown database: $database" >&2; exit 1 ;;

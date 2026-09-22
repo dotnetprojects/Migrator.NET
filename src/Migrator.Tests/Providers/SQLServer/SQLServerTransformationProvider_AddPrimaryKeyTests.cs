@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
-[Category("SqlServer")]
+[Category("SQLServer")]
 public class SQLServerTransformationProvider_AddPrimaryKeyTests : Generic_AddPrimaryTestsBase
 {
     [SetUp]
