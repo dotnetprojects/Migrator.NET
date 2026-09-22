@@ -10,6 +10,11 @@ public abstract record MigrationOperation
 {
     public abstract void Apply(ITransformationProvider provider);
     public virtual bool RequiresNoTransaction => false;
+    public virtual void Validate(ITransformationProvider provider)
+    {
+        if (RequiresNoTransaction && provider is TransformationProvider { HasActiveTransaction: true })
+            throw new MigrationException("Database administration requires an explicit no-transaction run.");
+    }
     public virtual MigrationOperation Reverse() => throw new IrreversibleMigrationException();
     public virtual void ValidateReverse(ITransformationProvider provider) => _ = Reverse();
     public virtual string ToSql(SqlGenerationContext context) => throw new NotSupportedException($"SQL preview is not supported for {GetType().Name}.");
@@ -170,12 +175,14 @@ public sealed record CallbackOperation(string Description, Action<ITransformatio
 }
 public sealed record ReversibleOperation(MigrationOperation Forward, MigrationOperation Backward) : MigrationOperation
 {
+    public override void Validate(ITransformationProvider p) => Forward.Validate(p);
     public override void Apply(ITransformationProvider p) => Forward.Apply(p);
     public override MigrationOperation Reverse() => new ReversibleOperation(Backward, Forward);
     public override string ToSql(SqlGenerationContext c) => Forward.ToSql(c);
 }
 public sealed record ConditionalOperation(string Provider, MigrationOperation Operation) : MigrationOperation
 {
+    public override void Validate(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Operation.Validate(p); }
     public override void Apply(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Operation.Apply(p); }
     public override void ValidateReverse(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Operation.ValidateReverse(p); }
     public override MigrationOperation Reverse() => new ConditionalReverseOperation(Provider, Operation);
@@ -183,6 +190,7 @@ public sealed record ConditionalOperation(string Provider, MigrationOperation Op
 }
 public sealed record ConditionalReverseOperation(string Provider, MigrationOperation Forward) : MigrationOperation
 {
+    public override void Validate(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Forward.Reverse().Validate(p); }
     public override void Apply(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Forward.Reverse().Apply(p); }
     public override MigrationOperation Reverse() => new ConditionalOperation(Provider, Forward);
     public override string ToSql(SqlGenerationContext c) => c.Dialect.GetType().Name.StartsWith(Provider, StringComparison.OrdinalIgnoreCase) ? Forward.Reverse().ToSql(c) : "";

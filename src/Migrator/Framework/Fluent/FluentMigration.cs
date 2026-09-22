@@ -13,8 +13,8 @@ public abstract class FluentMigration : Migration
         if (up) BuildUp(builder); else BuildDown(builder);
         return builder.Build();
     }
-    public override void Up() { foreach (var op in GetOperations(true)) op.Apply(Database); }
-    public override void Down() { foreach (var op in GetOperations(false)) op.Apply(Database); }
+    public override void Up() => MigrationBuilder.ApplyOperations(Database, GetOperations(true));
+    public override void Down() => MigrationBuilder.ApplyOperations(Database, GetOperations(false));
     protected SchemaInspector Schema => new(Database);
     protected ITransformationProvider Context => Database;
 }
@@ -24,7 +24,7 @@ public abstract class AutoReversingMigration : FluentMigration
     {
         var operations = GetOperations(true);
         foreach (var op in operations) op.ValidateReverse(Database); // Validate before the first change.
-        foreach (var op in operations) op.Apply(Database);
+        MigrationBuilder.ApplyOperations(Database, operations);
     }
     public override void BuildDown(MigrationBuilder migration)
     { foreach (var op in GetOperations(true).Reverse()) migration.Add(op.Reverse()); }

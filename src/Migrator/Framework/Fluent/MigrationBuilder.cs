@@ -25,7 +25,12 @@ public sealed class MigrationBuilder
     public void Add(MigrationOperation operation) => operations.Add(() => operation);
     internal void Add(Func<MigrationOperation> operation) => operations.Add(operation);
     public IReadOnlyList<MigrationOperation> Build() => operations.Select(x => x()).ToArray();
-    public void Apply(ITransformationProvider provider) { foreach (var op in Build()) op.Apply(provider); }
+    public void Apply(ITransformationProvider provider) => ApplyOperations(provider, Build());
+    internal static void ApplyOperations(ITransformationProvider provider, IReadOnlyList<MigrationOperation> operations)
+    {
+        foreach (var operation in operations) operation.Validate(provider);
+        foreach (var operation in operations) operation.Apply(provider);
+    }
     public IReadOnlyList<string> Preview(SqlGenerationContext context) => Build().Select(op => op.ToSql(context)).Where(sql => sql.Length != 0).ToArray();
     public void IfDatabase(string name, Action<MigrationBuilder> configure)
     {

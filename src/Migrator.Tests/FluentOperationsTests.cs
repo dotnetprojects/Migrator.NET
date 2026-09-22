@@ -27,6 +27,25 @@ public class FluentOperationsTests
         }
         finally { System.IO.File.Delete(path); }
     }
+    [Test, Category("SQLite")]
+    public void TransactionIncompatibilityIsRejectedBeforeEarlierOperationsRun()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        provider.BeginTransaction();
+        try
+        {
+            var builder = new MigrationBuilder();
+            builder.Create.Table("ShouldNotExist").WithColumn("Id").AsInt32();
+            builder.WithReverse(new DatabaseOperation(DatabaseOperationKind.Create, "Other"), new SqlOperation("SELECT 1"));
+            Assert.Throws<MigrationException>(() => builder.Apply(provider));
+            Assert.That(provider.TableExists("ShouldNotExist"), Is.False);
+            var conditional = new MigrationBuilder();
+            conditional.IfDatabase("PostgreSQL", nested => nested.Administration.CreateDatabase("Other"));
+            Assert.DoesNotThrow(() => conditional.Apply(provider));
+        }
+        finally { provider.Rollback(); }
+    }
     [Test] public void TableIsOneCompleteOperationAndDoesNotMutateInput()
     {
         var column = new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey);
