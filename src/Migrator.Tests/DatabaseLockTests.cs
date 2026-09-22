@@ -1,5 +1,6 @@
 using System;
 using System.Data.Common;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator.Framework;
@@ -84,7 +85,7 @@ public class DatabaseLockTests(ProviderTypes type)
         finally
         {
             state.Release.Set();
-            try { if (one != null) await one; if (two != null) await two; }
+            try { await Task.WhenAll(new[] { one, two }.Where(task => task != null)); }
             finally { p1.RemoveTable(p1.SchemaInfoTable); }
         }
     }
