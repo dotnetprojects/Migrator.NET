@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="DotNetProjects.Migrator: versioned database migrations in C#, independent of your ORM. Get started and compare FluentMigrator, EF Core, DbUp and Evolve."
+    />
+    <meta name="theme-color" content="#101a2d" />
+    <title>Migrator.NET — Database changes, in your code.</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/site.css" />
+    <script src="assets/site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="./" aria-label="Migrator.NET home"
+          ><span class="brand-mark" aria-hidden="true">M<span>↗</span></span
+          >Migrator<span class="brand-suffix">.NET</span></a
+        >
+        <nav aria-label="Main navigation">
+          <a href="#quick-start">Quick start</a
+          ><a href="#databases">Databases</a><a href="#compare">Compare</a
+          ><a href="https://github.com/dotnetprojects/Migrator.NET"
+            >GitHub <span aria-hidden="true">↗</span></a
+          >
+        </nav>
+      </div>
+    </header>
+    <main id="main">
+      <section class="hero">
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow">DOTNETPROJECTS / MIGRATOR.NET</p>
+            <h1>Database changes.<br /><span>Part of your code.</span></h1>
+            <p class="intro">
+              Write schema changes in C#. Version them with your application.
+              Run them with the database provider and ORM you choose.
+            </p>
+            <div class="actions">
+              <a class="button primary" href="#quick-start"
+                >Write your first migration
+                <span aria-hidden="true">↗</span></a
+              ><a class="button secondary" href="#compare"
+                >Compare frameworks</a
+              >
+            </div>
+            <p class="hero-meta">
+              Open source · MPL-1.1 · Current source targets .NET 9
+            </p>
+          </div>
+          <div class="code-window">
+            <div class="code-heading">
+              <span
+                ><span class="file-icon" aria-hidden="true">C#</span>
+                001_CreateUsers.cs</span
+              ><span>UP / DOWN</span>
+            </div>
+            <pre><code><span class="syntax-attribute">[Migration(1)]</span>
+<span class="syntax-keyword">public class</span> CreateUsers : Migration
+{
+    <span class="syntax-keyword">public override void</span> Up()
+    {
+        Database.AddTable(<span class="syntax-string">"Users"</span>,
+            <span class="syntax-keyword">new</span> Column(<span class="syntax-string">"Id"</span>, DbType.Int32,
+                ColumnProperty.NotNull),
+            <span class="syntax-keyword">new</span> Column(<span class="syntax-string">"Name"</span>, DbType.String, 255));
+        Database.AddPrimaryKey(<span class="syntax-string">"PK_Users"</span>, <span class="syntax-string">"Users"</span>, <span class="syntax-string">"Id"</span>);
+    }
+
+    <span class="syntax-keyword">public override void</span> Down()
+    {
+        Database.RemoveTable(<span class="syntax-string">"Users"</span>);
+    }
+}</code></pre>
+            <div class="code-footer">
+              <span>Explicit changes. Reviewable history.</span
+              ><a href="#quick-start">Full example →</a>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="database-strip">
+        <div class="container">
+          <span class="strip-label">PROVIDER DIALECTS</span
+          ><span>SQL Server</span><span>PostgreSQL</span><span>SQLite</span
+          ><span>MySQL / MariaDB</span><span>Oracle</span
+          ><a href="#databases">See all →</a>
+        </div>
+      </div>
+      <section
+        class="section container"
+        id="features"
+        aria-labelledby="features-title"
+      >
+        <p class="eyebrow">SMALL API. EXPLICIT CONTROL.</p>
+        <h2 id="features-title">
+          Your schema has a history.<br />Keep it in the repository.
+        </h2>
+        <div class="features-grid">
+          <article>
+            <span class="feature-number">01 / AUTHOR</span>
+            <h3>C# without an ORM dependency</h3>
+            <p>
+              Define tables, columns, indexes and constraints through a
+              transformation API. Use raw SQL when a change needs
+              database-specific behavior.
+            </p>
+          </article>
+          <article>
+            <span class="feature-number">02 / VERSION</span>
+            <h3>Move forward. Step back.</h3>
+            <p>
+              Number your migrations, implement <code>Up()</code> and
+              <code>Down()</code>, and migrate to a chosen version. Applied
+              migrations are recorded in the database.
+            </p>
+          </article>
+          <article>
+            <span class="feature-number">03 / ORGANIZE</span>
+            <h3>Separate histories by scope</h3>
+            <p>
+              Keep module version histories in one database using named scopes.
+              Select each module’s migration assembly or types when you create
+              its runner.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section
+        class="quick-section"
+        id="quick-start"
+        aria-labelledby="start-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">QUICK START</p>
+              <h2 id="start-title">From code to schema.</h2>
+            </div>
+            <p>
+              A minimal SQLite example.<br />Use a .NET 9 console project for
+              the current source.
+            </p>
+          </div>
+          <div class="step">
+            <div class="step-description">
+              <span class="step-index">1</span>
+              <h3>Install the packages</h3>
+              <p>
+                Add Migrator and an ADO.NET driver. This example passes an open
+                connection directly to the provider.
+              </p>
+              <a href="https://www.nuget.org/packages/DotNetProjects.Migrator/"
+                >View package versions on NuGet ↗</a
+              >
+            </div>
+            <div class="snippet">
+              <div class="snippet-heading">
+                <span>Terminal</span
+                ><button type="button" data-copy="install-code" hidden>
+                  Copy
+                </button>
+              </div>
+              <pre><code id="install-code">dotnet new console -n MigrationDemo -f net9.0
+cd MigrationDemo
+dotnet add package DotNetProjects.Migrator
+dotnet add package Microsoft.Data.Sqlite --version 9.0.7</code></pre>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-description">
+              <span class="step-index">2</span>
+              <h3>Describe the change</h3>
+              <p>
+                Add a public migration class. Each version must be unique within
+                the migration set loaded by a runner.
+              </p>
+              <p>
+                <code>Down()</code> is your explicit reverse operation; dropping
+                a table also removes its data.
+              </p>
+            </div>
+            <div class="snippet">
+              <div class="snippet-heading">
+                <span>CreateUsers.cs</span
+                ><button type="button" data-copy="migration-code" hidden>
+                  Copy
+                </button>
+              </div>
+              <pre><code id="migration-code">using System.Data;
+using DotNetProjects.Migrator.Framework;
+
+[Migration(1)]
+public class CreateUsers : Migration
+{
+    public override void Up()
+    {
+        Database.AddTable("Users",
+            new Column("Id", DbType.Int32,
+                ColumnProperty.NotNull),
+            new Column("Name", DbType.String, 255));
+        Database.AddPrimaryKey("PK_Users", "Users", "Id");
+    }
+
+    public override void Down()
+    {
+        Database.RemoveTable("Users");
+    }
+}</code></pre>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-description">
+              <span class="step-index">3</span>
+              <h3>Run pending migrations</h3>
+              <p>
+                Replace <code>Program.cs</code> with this code, then run
+                <code>dotnet run</code>. The runner discovers the migration in
+                your assembly and records it under the default scope.
+              </p>
+              <p>
+                Subsequent runs skip applied versions. Use
+                <code>MigrateTo(version)</code> to target an earlier or later
+                version.
+              </p>
+            </div>
+            <div class="snippet">
+              <div class="snippet-heading">
+                <span>Program.cs</span
+                ><button type="button" data-copy="runner-code" hidden>
+                  Copy
+                </button>
+              </div>
+              <pre><code id="runner-code">using DotNetProjects.Migrator;
+using DotNetProjects.Migrator.Providers;
+using Microsoft.Data.Sqlite;
+
+using var connection = new SqliteConnection("Data Source=app.db");
+connection.Open();
+
+using var provider = ProviderFactory.Create(
+    ProviderTypes.SQLite, connection, defaultSchema: null);
+
+var migrator = new Migrator(
+    provider, typeof(CreateUsers).Assembly, trace: false);
+
+if (migrator.LastAppliedMigrationVersion is long applied
+    && applied > migrator.AssemblyLastMigrationVersion)
+{
+    throw new InvalidOperationException(
+        "Database version is newer than this application.");
+}
+
+migrator.MigrateToLastVersion();</code></pre>
+            </div>
+          </div>
+          <aside class="note">
+            <strong>Working with multiple modules?</strong> Pass
+            <code>scope: "billing"</code> to
+            <code>ProviderFactory.Create</code> and supply only billing
+            migrations to that runner. A scope partitions history; it does not
+            filter assembly discovery. Leave
+            <code>MigrationAttribute.Scope</code> unset to use the provider’s
+            scope.
+          </aside>
+        </div>
+      </section>
+      <section
+        class="section container"
+        id="databases"
+        aria-labelledby="databases-title"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">DATABASE PROVIDERS</p>
+            <h2 id="databases-title">One API. Multiple dialects.</h2>
+          </div>
+          <p>
+            Supply your ADO.NET driver.<br />Migrator supplies the schema
+            operations.
+          </p>
+        </div>
+        <div class="provider-grid">
+          <div>
+            <h3>Common database families</h3>
+            <ul class="provider-list">
+              <li>SQL Server</li>
+              <li>PostgreSQL</li>
+              <li>SQLite</li>
+              <li>MySQL</li>
+              <li>MariaDB</li>
+              <li>Oracle</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Additional dialects in source</h3>
+            <ul class="provider-list">
+              <li>IBM Db2</li>
+              <li>IBM Informix</li>
+              <li>Firebird</li>
+              <li>Ingres</li>
+              <li>Sybase</li>
+            </ul>
+          </div>
+        </div>
+        <p class="muted">
+          This is an implementation inventory, not a certification of every
+          server or driver version. Schema operations and transactional DDL vary
+          by provider. Check the
+          <a
+            href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/ProviderFactory.cs"
+            >provider factory</a
+          >
+          and
+          <a
+            href="https://github.com/dotnetprojects/Migrator.NET/tree/master/src/Migrator.Tests/Providers"
+            >provider tests</a
+          >
+          for your database.
+        </p>
+      </section>
+      <section
+        class="comparison-section"
+        id="compare"
+        aria-labelledby="compare-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">THE .NET MIGRATION LANDSCAPE</p>
+              <h2 id="compare-title">Choose by how you work.</h2>
+            </div>
+            <p>
+              Feature comparison · Reviewed 22 September 2026<br /><a
+                href="#sources"
+                >Read the sources and qualifications ↓</a
+              >
+            </p>
+          </div>
+          <p class="comparison-intro">
+            Migrator fits applications that want explicit C# migrations and
+            scoped history without coupling schema changes to an ORM. Other
+            tools offer different authoring and deployment workflows.
+          </p>
+          <p class="table-hint" id="table-help">
+            Scroll horizontally to compare all five frameworks on smaller
+            screens.
+          </p>
+          <div
+            class="table-scroll"
+            role="region"
+            aria-label="Framework feature comparison"
+            aria-describedby="table-help"
+            tabindex="0"
+          >
+            <table>
+              <caption>
+                Built-in capabilities and documented workflows. “Custom” means
+                application code or configuration is needed.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Capability</th>
+                  <th scope="col" class="ours">
+                    Migrator.NET <span>DotNetProjects fork</span
+                    ><a href="#source-migrator">Source [1]</a>
+                  </th>
+                  <th scope="col">
+                    FluentMigrator <a href="#source-fluent">Sources [2]</a>
+                  </th>
+                  <th scope="col">
+                    EF Core <a href="#source-ef">Sources [3]</a>
+                  </th>
+                  <th scope="col">
+                    DbUp <a href="#source-dbup">Sources [4]</a>
+                  </th>
+                  <th scope="col">
+                    Evolve <a href="#source-evolve">Sources [5]</a>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Authoring style</th>
+                  <td class="ours">Handwritten C#<br />Transformation API</td>
+                  <td>Handwritten C#<br />Fluent DSL</td>
+                  <td>C# generated from model changes; editable</td>
+                  <td>SQL scripts; C# scripts also supported</td>
+                  <td>Versioned SQL files</td>
+                </tr>
+                <tr>
+                  <th scope="row">ORM-independent workflow</th>
+                  <td class="ours">Yes</td>
+                  <td>Yes</td>
+                  <td>Uses EF model and DbContext</td>
+                  <td>Yes</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Generate migrations from model differences
+                  </th>
+                  <td class="ours">No built-in generator</td>
+                  <td>Hand-authored</td>
+                  <td>Yes — model snapshots</td>
+                  <td>Hand-authored</td>
+                  <td>Hand-authored</td>
+                </tr>
+                <tr>
+                  <th scope="row">Raw SQL</th>
+                  <td class="ours"><code>ExecuteNonQuery</code></td>
+                  <td><code>Execute.Sql</code> / scripts</td>
+                  <td><code>migrationBuilder.Sql</code></td>
+                  <td>Primary workflow</td>
+                  <td>Primary workflow</td>
+                </tr>
+                <tr>
+                  <th scope="row">Downgrade an applied version</th>
+                  <td class="ours">
+                    Authored <code>Down()</code><br /><code>MigrateTo</code>
+                  </td>
+                  <td>
+                    <code>Down()</code>; auto-reverse for supported expressions
+                  </td>
+                  <td><code>Down()</code>; target an earlier migration</td>
+                  <td>Forward fixes; custom undo workflow</td>
+                  <td>Forward fixes; no Down command</td>
+                </tr>
+                <tr>
+                  <th scope="row">History / module separation</th>
+                  <td class="ours">
+                    Scope in history table + selected assembly/types
+                  </td>
+                  <td>Custom version tables + migration filtering</td>
+                  <td>
+                    Separate contexts / migrations + custom history tables
+                  </td>
+                  <td>Separate journals + script filtering</td>
+                  <td>Metadata table/schema + script locations</td>
+                </tr>
+                <tr>
+                  <th scope="row">Transactions</th>
+                  <td class="ours">Per migration</td>
+                  <td>Per migration by default; configurable</td>
+                  <td>Most migrations wrapped automatically</td>
+                  <td>Opt-in per script or whole run; none by default</td>
+                  <td>Per migration by default; whole-run option</td>
+                </tr>
+                <tr>
+                  <th scope="row">Execution / deployment</th>
+                  <td class="ours">Library; write your own host</td>
+                  <td>In-process runner + CLI</td>
+                  <td>CLI, SQL scripts, bundles, runtime API</td>
+                  <td>Library; host in a console app or application</td>
+                  <td>.NET library, .NET tool, CLI</td>
+                </tr>
+                <tr>
+                  <th scope="row">Database abstraction</th>
+                  <td class="ours">Provider dialects for schema operations</td>
+                  <td>Provider-specific SQL generators</td>
+                  <td>
+                    Relational providers; migrations may differ by provider
+                  </td>
+                  <td>Database integrations; you write dialect-specific SQL</td>
+                  <td>Database integrations; you write dialect-specific SQL</td>
+                </tr>
+                <tr>
+                  <th scope="row">Repeatable / recurring work</th>
+                  <td class="ours">Custom application code</td>
+                  <td>Maintenance migrations / profiles</td>
+                  <td>Seeding APIs (EF 9+); custom code</td>
+                  <td><code>RunAlways</code> scripts</td>
+                  <td>Repeatable SQL reruns on checksum change</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="comparison-notes">
+            <p>
+              <strong>Rollback has two meanings.</strong> Reversing an already
+              applied migration uses authored reverse operations. Rolling back a
+              failed transaction depends on the database’s DDL support. Neither
+              restores data removed by a successful destructive migration.
+            </p>
+            <p>
+              <strong
+                >Recurring work is not the same as change detection.</strong
+              >
+              Evolve stores script checksums and validates changes; Migrator
+              records versions and scopes without built-in content checksum
+              validation. Maintenance hooks, seeding and RunAlways have
+              different execution rules.
+            </p>
+          </div>
+          <div class="fit-grid">
+            <article>
+              <h3>Keep migrations in C#</h3>
+              <p>
+                <strong>Migrator:</strong> direct schema operations, scoped
+                history, and integration through your own host.
+                <strong>FluentMigrator:</strong> a fluent DSL with packaged
+                runners, tags and profiles.
+              </p>
+            </article>
+            <article>
+              <h3>Let the model drive changes</h3>
+              <p>
+                <strong>EF Core:</strong> a natural fit when an EF model defines
+                your schema and you want migration scaffolding, SQL generation
+                and deployment bundles.
+              </p>
+            </article>
+            <article>
+              <h3>Keep SQL as the source</h3>
+              <p>
+                <strong>DbUp:</strong> compose a script runner in .NET.
+                <strong>Evolve:</strong> convention-based versioned SQL,
+                checksum validation and repeatable scripts.
+              </p>
+            </article>
+          </div>
+          <details class="sources" id="sources">
+            <summary>Sources &amp; comparison methodology</summary>
+            <p>
+              Our column is based on the current repository source, which
+              targets <code>net9.0</code>. Other columns summarize official
+              documentation reviewed on 22 September 2026, rather than claiming
+              parity across every released package. Check your chosen release,
+              provider and database version. Suitability notes are our
+              interpretation of these documented capabilities.
+            </p>
+            <ol>
+              <li id="source-migrator">
+                <strong>DotNetProjects.Migrator:</strong>
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/DotNetProjects.Migrator.csproj"
+                  >target framework</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/Migrator.cs"
+                  >runner</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/MigrateAnywhere.cs"
+                  >execution and transactions</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/Providers/TransformationProvider.cs"
+                  >history and schema operations</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/MigrationLoader.cs"
+                  >migration discovery</a
+                >.
+              </li>
+              <li id="source-fluent">
+                <strong>FluentMigrator:</strong>
+                <a
+                  href="https://fluentmigrator.github.io/intro/quick-start.html"
+                  >quick start and runners</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/intro/configuration.html"
+                  >configuration and version tables</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/migration-types/auto-reversing.html"
+                  >auto-reversing migrations</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/migration-types/maintenance.html"
+                  >maintenance migrations</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/migration-types/profiles.html"
+                  >profiles</a
+                >,
+                <a href="https://fluentmigrator.github.io/"
+                  >authoring and providers</a
+                >.
+              </li>
+              <li id="source-ef">
+                <strong>EF Core:</strong>
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/"
+                  >model snapshots</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing"
+                  >authoring and transactions</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying"
+                  >scripts, bundles and downgrade</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/history-table"
+                  >custom history tables</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/providers"
+                  >multiple providers</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding"
+                  >seeding</a
+                >.
+              </li>
+              <li id="source-dbup">
+                <strong>DbUp:</strong>
+                <a href="https://dbup.readthedocs.io/en/latest/">execution</a>,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/transactions/"
+                  >transactions</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/journaling/"
+                  >journaling</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/script-types/"
+                  >script types</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/philosophy-behind-dbup/"
+                  >forward-change philosophy</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/script-providers/"
+                  >SQL and C# script providers</a
+                >.
+              </li>
+              <li id="source-evolve">
+                <strong>Evolve:</strong>
+                <a href="https://evolve-db.netlify.app/concepts/"
+                  >commands, checksums, repeatables and transactions</a
+                >,
+                <a href="https://evolve-db.netlify.app/configuration/options/"
+                  >configuration</a
+                >,
+                <a href="https://evolve-db.netlify.app/getting-started/"
+                  >execution options</a
+                >.
+              </li>
+            </ol>
+          </details>
+        </div>
+      </section>
+      <section class="container project-section">
+        <div>
+          <p class="eyebrow">CONTINUING MIGRATOR.NET</p>
+          <h2>A familiar idea.<br />A maintained fork.</h2>
+          <p>
+            DotNetProjects.Migrator continues the original Migrator.NET project,
+            bringing together fork contributions with work on SQLite schema
+            handling, provider independence and migration scopes.
+          </p>
+        </div>
+        <div class="project-links">
+          <a href="https://github.com/dotnetprojects/Migrator.NET"
+            >Explore the source <span>↗</span></a
+          ><a href="https://github.com/dotnetprojects/Migrator.NET/issues"
+            >Report an issue <span>↗</span></a
+          ><a href="https://www.nuget.org/packages/DotNetProjects.Migrator/"
+            >Get the NuGet package <span>↗</span></a
+          >
+        </div>
+      </section>
+    </main>
+    <footer class="container">
+      <a class="brand" href="./"
+        >Migrator<span class="brand-suffix">.NET</span></a
+      >
+      <p>DotNetProjects · Open source under MPL-1.1</p>
+      <a href="#main">Back to top ↑</a>
+    </footer>
+    <span
+      class="sr-only"
+      id="copy-status"
+      role="status"
+      aria-live="polite"
+    ></span>
+  </body>
+</html>
