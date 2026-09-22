@@ -44,7 +44,8 @@ public class LiveMetadataRegressionTests
         Assert.That(Convert.ToDecimal(f.Provider.ExecuteScalar("SELECT price FROM copied_values")), Is.EqualTo(12.345m));
         Assert.That(Convert.ToBoolean(f.Provider.ExecuteScalar("SELECT enabled FROM copied_values")), Is.True);
         Assert.That(Convert.ToBoolean(f.Provider.ExecuteScalar("SELECT disabled FROM copied_values")), Is.False);
-        Assert.That(f.Provider.ExecuteScalar("SELECT label FROM copied_values"), Is.EqualTo(" O'Brien "));
+        // Append a marker on the server so driver trailing-space trimming cannot affect the assertion.
+        Assert.That(f.Provider.ExecuteScalar("SELECT label || '!' FROM copied_values"), Is.EqualTo(" O'Brien !"));
         Assert.That(f.Provider.ExecuteScalar("SELECT stamp FROM copied_values"), Is.Not.Null.And.Not.EqualTo(DBNull.Value));
         Assert.That(f.Provider.ExecuteScalar("SELECT today_value FROM copied_values"), Is.Not.Null.And.Not.EqualTo(DBNull.Value));
         Assert.That(f.Provider.ExecuteScalar("SELECT null_value FROM copied_values"), Is.EqualTo(DBNull.Value));
