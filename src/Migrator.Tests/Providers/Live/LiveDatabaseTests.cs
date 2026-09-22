@@ -79,7 +79,10 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
 
         ProviderFactories.RegisterFactory(invariant, () => factory);
         admin = factory.CreateConnection();
-        admin.ConnectionString = connectionString;
+        var adminBuilder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+        // Informix CREATE DATABASE needs a server-only connection, not an open database.
+        if (database == "Informix") adminBuilder["Database"] = "";
+        admin.ConnectionString = adminBuilder.ConnectionString;
         admin.Open();
         if (database == "Firebird")
         {
@@ -104,6 +107,12 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
             connectionString = builder.ConnectionString;
         }
         created = true;
+        if (database == "Informix")
+        {
+            // CREATE DATABASE implicitly selects it; release that attachment for teardown.
+            admin.Close();
+            admin.Open();
+        }
         if (database == "Sybase") ExecuteAdmin("EXEC sp_dboption " + isolatedName + ", 'ddl in tran', true");
         provider = ProviderFactory.Create(providerType, connectionString, null);
         if (database == "Db2") provider.ExecuteNonQuery("SET CURRENT SCHEMA " + isolatedName);
