@@ -12,7 +12,13 @@ public class SqlServerDialect : Dialect
         _ => base.ResolveCollation(kind)
     };
 
-    public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
+    public override string GetCollationSql(string name)
+    {
+        // T-SQL requires a collation token rather than a bracket-delimited identifier.
+        if (string.IsNullOrWhiteSpace(name) || !System.Text.RegularExpressions.Regex.IsMatch(name, @"\A[A-Za-z][A-Za-z0-9_]*\z"))
+            throw new ArgumentException("SQL Server requires an unquoted collation name containing letters, digits and underscores.", nameof(name));
+        return "COLLATE " + name;
+    }
 
     public override bool NeedsNullForNullableWhenAlteringTable => true;
 
