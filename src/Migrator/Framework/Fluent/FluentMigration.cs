@@ -23,7 +23,7 @@ public abstract class AutoReversingMigration : FluentMigration
     public override void Up()
     {
         var operations = GetOperations(true);
-        foreach (var op in operations) _ = op.Reverse(); // Validate before the first change.
+        foreach (var op in operations) op.ValidateReverse(Database); // Validate before the first change.
         foreach (var op in operations) op.Apply(Database);
     }
     public override void BuildDown(MigrationBuilder migration)

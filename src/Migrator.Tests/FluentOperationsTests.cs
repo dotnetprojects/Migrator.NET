@@ -20,8 +20,44 @@ public class FluentOperationsTests
         Assert.That(((Column)operation.Fields.Single()).Name, Is.EqualTo("Id"));
         var provider = Substitute.For<ITransformationProvider>();
         builder.Apply(provider);
-        provider.Received(1).AddTable("Example", (string)null, Arg.Is<IDbField[]>(x => x.Length == 1));
+        provider.Received(1).AddTable("Example", Arg.Is<IDbField[]>(x => x.Length == 1));
         provider.DidNotReceiveWithAnyArgs().AddColumn(default, default(Column));
+    }
+    [Test] public void InvalidDataModifiersFailBeforeExecution()
+    {
+        var b = new MigrationBuilder();
+        Assert.Throws<InvalidOperationException>(() => b.Update.Table("Example").IfNotExists(new[] { "Id" }, new object[] { 1 }));
+        Assert.Throws<InvalidOperationException>(() => b.Delete.FromTable("Example").IfNotExists(new[] { "Id" }, new object[] { 1 }));
+        Assert.Throws<NotSupportedException>(() => b.Delete.FromTable("Example").WhereSql("Id = 1"));
+        var p = Substitute.For<ITransformationProvider>();
+        Assert.Throws<NotSupportedException>(() => new DataOperation(DataKind.Delete, "Example", null, null, WhereSql: "Id=1").Apply(p));
+        p.DidNotReceiveWithAnyArgs().Delete(default, default(string[]), default(object[]));
+    }
+    [TestCase(ProviderTypes.PostgreSQL)]
+    [TestCase(ProviderTypes.PostgreSQL82)]
+    public void PostgreSqlPreviewUsesProviderIdentifierAndBooleanSemantics(ProviderTypes provider)
+    {
+        var c = new SqlGenerationContext(provider);
+        Assert.That(c.Table("Example"), Is.EqualTo("Example"));
+        Assert.That(c.Quote("Id"), Is.EqualTo("Id"));
+        Assert.That(c.Literal(true), Is.EqualTo("TRUE"));
+    }
+    [TestCase(ProviderTypes.Oracle)]
+    [TestCase(ProviderTypes.MsOracle)]
+    public void OracleGuidPreviewUsesRawConversion(ProviderTypes provider)
+    {
+        var c = new SqlGenerationContext(provider);
+        Assert.That(c.Literal(Guid.Parse("00112233-4455-6677-8899-aabbccddeeff")), Is.EqualTo("HEXTORAW('00112233445566778899AABBCCDDEEFF')"));
+    }
+    [Test] public void InactiveProviderBranchCanBeAutomaticallyReversed()
+    {
+        var p = Substitute.For<ITransformationProvider>();
+        p.IsThisProvider("oracle").Returns(false);
+        var operation = new ConditionalOperation("oracle", new CallbackOperation("irreversible", _ => throw new Exception()));
+        Assert.DoesNotThrow(() => operation.ValidateReverse(p));
+        Assert.DoesNotThrow(() => operation.Reverse().Apply(p));
+        p.IsThisProvider("oracle").Returns(true);
+        Assert.Throws<IrreversibleMigrationException>(() => operation.ValidateReverse(p));
     }
     [Test] public void OfflinePreviewTracksCreatedThenRenamedTable()
     {
@@ -55,6 +91,17 @@ public class FluentOperationsTests
         Assert.That(provider.ExecuteScalar("SELECT Name FROM Example"), Is.EqualTo("O'Brien"));
         builder.Build()[0].Reverse().Apply(provider);
         Assert.That(provider.TableExists("Example"), Is.False);
+    }
+    [Test, Category("SQLite")] public void LegacyBuilderRetainsForeignKeyAction()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True"); connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        provider.AddTable("Parent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey));
+        var builder = new DotNetProjects.Migrator.Framework.SchemaBuilder.SchemaBuilder();
+        builder.AddTable("Child").AddColumn("ParentId").OfType(DbType.Int32).AsForeignKey().ReferencedTo("Parent", "Id").WithConstraint(ForeignKeyConstraintType.Cascade);
+        provider.ExecuteSchemaBuilder(builder);
+        provider.ExecuteNonQuery("INSERT INTO Parent VALUES (1); INSERT INTO Child VALUES (1); DELETE FROM Parent WHERE Id=1");
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT COUNT(*) FROM Child")), Is.Zero);
     }
     [Test, Category("SQLite")] public void LegacyBuilderCreatesCompleteTable()
     {

@@ -134,8 +134,8 @@ public sealed class DataBuilder
     public DataBuilder Row(string[] names, object[] data) { if (names.Length != data.Length) throw new ArgumentException("Columns and values must have equal lengths."); columns = names.ToArray(); values = data.ToArray(); return this; }
     public DataBuilder Set(string[] names, object[] data) => Row(names, data);
     public DataBuilder Where(string[] names, object[] data) { if (names.Length != data.Length) throw new ArgumentException("Where columns and values must have equal lengths."); whereColumns = names.ToArray(); whereValues = data.ToArray(); return this; }
-    public DataBuilder WhereSql(string sql) { whereSql = sql; return this; }
-    public DataBuilder IfNotExists(string[] names, object[] data) { kind = DataKind.InsertIfMissing; return Where(names, data); }
+    public DataBuilder WhereSql(string sql) { if (kind != DataKind.Update) throw new NotSupportedException("Raw predicates are supported only for Update; use Where columns/values for Delete."); whereSql = sql; return this; }
+    public DataBuilder IfNotExists(string[] names, object[] data) { if (kind is not (DataKind.Insert or DataKind.InsertIfMissing)) throw new InvalidOperationException("IfNotExists is only valid for Insert."); kind = DataKind.InsertIfMissing; return Where(names, data); }
 }
 public sealed class ExecuteRoot(MigrationBuilder builder)
 {

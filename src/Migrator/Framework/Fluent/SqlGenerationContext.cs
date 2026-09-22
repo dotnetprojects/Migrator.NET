@@ -15,21 +15,23 @@ public sealed class SqlGenerationContext
     public Dialect Dialect { get; }
     public SqlGenerationContext(ProviderTypes provider, Func<string, Column[]> existingTable = null)
     { Provider = provider; Dialect = ProviderFactory.DialectForProvider(provider) ?? throw new ArgumentException("Unknown provider."); this.existingTable = existingTable; }
-    public string Quote(string name)
+    private string AlwaysQuote(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Identifier cannot be empty.");
         var template = Dialect.QuoteTemplate;
         var closing = template[^1].ToString();
         return string.Format(CultureInfo.InvariantCulture, template, name.Replace(closing, closing + closing));
     }
-    public string Table(string name) => string.Join(".", name.Split('.').Select(Quote));
+    public string Quote(string name) => Dialect.ColumnNameNeedsQuote || Dialect.IsReservedWord(name) ? AlwaysQuote(name) : name;
+    public string Table(string name) => string.Join(".", name.Split('.').Select(part => Dialect.TableNameNeedsQuote || Dialect.IsReservedWord(part) ? AlwaysQuote(part) : part));
     public string Column(Column column) => Dialect.GetAndMapColumnProperties(Definitions.CopyColumn(column)).ColumnSql;
     public string Literal(object value) => value switch
     {
         null or DBNull => "NULL",
         string s => "'" + s.Replace("'", "''") + "'",
-        bool b => Provider == ProviderTypes.PostgreSQL ? (b ? "TRUE" : "FALSE") : (b ? "1" : "0"),
+        bool b => Provider is ProviderTypes.PostgreSQL or ProviderTypes.PostgreSQL82 ? (b ? "TRUE" : "FALSE") : (b ? "1" : "0"),
         DateTime d => "'" + d.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture) + "'",
+        Guid g when Dialect is DotNetProjects.Migrator.Providers.Impl.Oracle.OracleDialect => Dialect.Default(g)[8..],
         Guid g => "'" + g + "'",
         byte or sbyte or short or ushort or int or uint or long or ulong or decimal or float or double => Convert.ToString(value, CultureInfo.InvariantCulture),
         _ => throw new NotSupportedException("No portable SQL literal for " + value.GetType().Name)

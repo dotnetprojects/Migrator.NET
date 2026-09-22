@@ -10,12 +10,17 @@ public abstract record MigrationOperation
 {
     public abstract void Apply(ITransformationProvider provider);
     public virtual MigrationOperation Reverse() => throw new IrreversibleMigrationException();
+    public virtual void ValidateReverse(ITransformationProvider provider) => _ = Reverse();
     public virtual string ToSql(SqlGenerationContext context) => throw new NotSupportedException($"SQL preview is not supported for {GetType().Name}.");
 }
 
 public sealed record CreateTableOperation(string Table, string Engine, IDbField[] Fields) : MigrationOperation
 {
-    public override void Apply(ITransformationProvider p) => p.AddTable(Table, Engine, Fields.Select(Definitions.Copy).ToArray());
+    public override void Apply(ITransformationProvider p)
+    {
+        var fields = Fields.Select(Definitions.Copy).ToArray();
+        if (Engine == null) p.AddTable(Table, fields); else p.AddTable(Table, Engine, fields);
+    }
     public override MigrationOperation Reverse() => new RemoveOperation(RemoveKind.Table, Table);
     public override string ToSql(SqlGenerationContext c)
     {
@@ -125,7 +130,9 @@ public sealed record DataOperation(DataKind Kind, string Table, string[] Columns
             case DataKind.Update:
                 if (WhereSql != null) p.Update(Table, Columns, Values, WhereSql);
                 else p.Update(Table, Columns, Values, WhereColumns ?? Array.Empty<string>(), WhereValues ?? Array.Empty<object>()); break;
-            case DataKind.Delete: p.Delete(Table, WhereColumns, WhereValues); break;
+            case DataKind.Delete:
+                if (WhereSql != null) throw new NotSupportedException("Delete requires structured Where columns/values.");
+                p.Delete(Table, WhereColumns, WhereValues); break;
         }
     }
     public override string ToSql(SqlGenerationContext c)
@@ -157,8 +164,15 @@ public sealed record ReversibleOperation(MigrationOperation Forward, MigrationOp
 public sealed record ConditionalOperation(string Provider, MigrationOperation Operation) : MigrationOperation
 {
     public override void Apply(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Operation.Apply(p); }
-    public override MigrationOperation Reverse() => new ConditionalOperation(Provider, Operation.Reverse());
+    public override void ValidateReverse(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Operation.ValidateReverse(p); }
+    public override MigrationOperation Reverse() => new ConditionalReverseOperation(Provider, Operation);
     public override string ToSql(SqlGenerationContext c) => c.Dialect.GetType().Name.StartsWith(Provider, StringComparison.OrdinalIgnoreCase) ? Operation.ToSql(c) : "";
+}
+public sealed record ConditionalReverseOperation(string Provider, MigrationOperation Forward) : MigrationOperation
+{
+    public override void Apply(ITransformationProvider p) { if (p.IsThisProvider(Provider)) Forward.Reverse().Apply(p); }
+    public override MigrationOperation Reverse() => new ConditionalOperation(Provider, Forward);
+    public override string ToSql(SqlGenerationContext c) => c.Dialect.GetType().Name.StartsWith(Provider, StringComparison.OrdinalIgnoreCase) ? Forward.Reverse().ToSql(c) : "";
 }
 public static class Definitions
 {
