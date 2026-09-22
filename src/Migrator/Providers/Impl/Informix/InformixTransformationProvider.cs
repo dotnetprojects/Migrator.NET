@@ -1,3 +1,4 @@
+using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -29,8 +30,6 @@ public class InformixTransformationProvider : TransformationProvider
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
-        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
-            AddIndex(name, new Index { KeyColumns = [column.Name] });
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
@@ -74,7 +73,7 @@ public class InformixTransformationProvider : TransformationProvider
             if (extendedType == "boolean") type = DbType.Boolean;
             var column = new Column(reader.GetString(0).Trim(), type)
             {
-                ColumnProperty = (code & 256) != 0 ? ColumnProperty.NotNull : ColumnProperty.Null
+                IsNullable = !((code & 256) != 0)
             };
             if (type is DbType.String or DbType.StringFixedLength)
             {
@@ -90,12 +89,55 @@ public class InformixTransformationProvider : TransformationProvider
                 column.Precision = length >> 8;
                 column.Scale = (length & 255) == 255 ? null : length & 255;
             }
-            if ((code & 255) is 6 or 18 or 53) column.ColumnProperty |= ColumnProperty.Identity;
+            if ((code & 255) is 6 or 18 or 53) column.IsIdentity = true;
             if (!reader.IsDBNull(5)) column.DefaultValue = ReadDefault(reader.IsDBNull(3) ? "" : reader.GetString(3), reader.GetString(5).Trim(), type);
-            if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
             columns.Add(column);
         }
         return columns.ToArray();
+    }
+
+    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
+    {
+        var rows = new List<(string Name, string Parent, string ChildIndex, string ParentIndex, string Delete)>();
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,t2.tabname,c.idxname,p.idxname,r.delrule FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid JOIN sysreferences r ON r.constrid=c.constrid JOIN sysconstraints p ON p.constrid=r.primary JOIN systables t2 ON t2.tabid=r.ptabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND t2.owner=USER ORDER BY c.constrname"))
+            while (reader.Read())
+                rows.Add((reader.GetString(0).Trim(), reader.GetString(1).Trim(), reader.GetString(2).Trim(), reader.GetString(3).Trim(), reader.GetString(4).Trim()));
+        var childIndexes = GetIndexes(table).ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
+        return rows.Select(row => new ForeignKeyConstraint(row.Name, row.Parent,
+            GetIndexes(row.Parent).Single(i => i.Name.Equals(row.ParentIndex, StringComparison.OrdinalIgnoreCase)).KeyColumns,
+            table, childIndexes[row.ChildIndex].KeyColumns)
+            { OnDelete = row.Delete == "C" ? "CASCADE" : "RESTRICT", OnUpdate = "RESTRICT" }).ToArray();
+    }
+
+    public override TableConstraint[] GetTableConstraints(string table)
+    {
+        var indexes = GetIndexes(table).ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
+        var constraints = new List<TableConstraint>();
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,c.constrtype,c.idxname FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype IN ('P','U') ORDER BY c.constrname"))
+        {
+            while (reader.Read())
+            {
+                var name = reader.GetString(0).Trim();
+                var index = indexes[reader.GetString(2).Trim()];
+                constraints.Add(reader.GetString(1).Trim() == "P"
+                    ? new PrimaryKeyConstraint(name, index.KeyColumns)
+                    : new DotNetProjects.Migrator.Framework.UniqueConstraint(name, index.KeyColumns));
+            }
+        }
+        var checks = new Dictionary<string, System.Text.StringBuilder>();
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,ch.checktext FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid JOIN syschecks ch ON ch.constrid=c.constrid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype='C' AND ch.type='T' ORDER BY c.constrname,ch.seqno"))
+            while (reader.Read())
+            {
+                var name = reader.GetString(0).Trim();
+                if (!checks.TryGetValue(name, out var text)) checks[name] = text = new System.Text.StringBuilder();
+                text.Append(reader.GetString(1));
+            }
+        constraints.AddRange(checks.Select(c => new CheckConstraint(c.Key, ConstraintMetadataReader.CheckExpression(c.Value.ToString()))));
+        constraints.AddRange(GetForeignKeyConstraints(table));
+        return constraints.ToArray();
     }
 
     private static object ReadDefault(string catalogValue, string kind, DbType type)

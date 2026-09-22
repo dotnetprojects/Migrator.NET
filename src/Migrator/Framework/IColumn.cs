@@ -17,7 +17,11 @@ namespace DotNetProjects.Migrator.Framework;
 
 public interface IColumn
 {
-    ColumnProperty ColumnProperty { get; set; }
+    bool IsNullable { get; set; }
+    bool IsUnsigned { get; set; }
+    Collation Collation { get; set; }
+    int? Precision { get; set; }
+    int? Scale { get; set; }
 
     string Name { get; set; }
 
@@ -27,10 +31,8 @@ public interface IColumn
 
     int Size { get; set; }
 
-    bool IsIdentity { get; }
+    bool IsIdentity { get; set; }
 
-    bool IsPrimaryKey { get; }
-    bool IsPrimaryKeyNonClustered { get; }
 
     object DefaultValue { get; set; }
 }

@@ -20,9 +20,8 @@ public class SQLServerTransformationProvider_AddTableTests : Generic_AddTableTes
     public void AddTableWithCompoundPrimaryKey()
     {
         Provider.AddTable("Test",
-            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
-        );
+            new Column("PersonId",DbType.Int32){IsNullable = false},
+            new Column("AddressId",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "Test", "PersonId", "AddressId")        );
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
         Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
@@ -34,7 +33,7 @@ public class SQLServerTransformationProvider_AddTableTests : Generic_AddTableTes
         var tableName = "Table1";
         var columnName = "Column1";
 
-        Provider.AddTable(tableName, new Column(columnName, DbType.DateTime, ColumnProperty.NotNull));
+        Provider.AddTable(tableName, new Column(columnName,DbType.DateTime){IsNullable = false});
         var column = Provider.GetColumnByName(tableName, columnName);
 
         Assert.That(column.Type, Is.EqualTo(DbType.DateTime));
@@ -46,7 +45,7 @@ public class SQLServerTransformationProvider_AddTableTests : Generic_AddTableTes
         var tableName = "Table1";
         var columnName = "Column1";
 
-        Provider.AddTable(tableName, new Column(columnName, DbType.DateTime2, ColumnProperty.NotNull));
+        Provider.AddTable(tableName, new Column(columnName,DbType.DateTime2){IsNullable = false});
         var column = Provider.GetColumnByName(tableName, columnName);
 
         Assert.That(column.Type, Is.EqualTo(DbType.DateTime2));

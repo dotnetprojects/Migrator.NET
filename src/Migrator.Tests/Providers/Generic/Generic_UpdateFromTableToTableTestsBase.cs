@@ -29,8 +29,8 @@ public abstract class Generic_UpdateFromTableToTableTestsBase : TransformationPr
 
 
         Provider.AddTable(tableNameSource,
-            new Column(columnName1Source, DbType.Int32, ColumnProperty.NotNull),
-            new Column(columnName2Source, DbType.Int32, ColumnProperty.NotNull),
+            new Column(columnName1Source,DbType.Int32){IsNullable = false},
+            new Column(columnName2Source,DbType.Int32){IsNullable = false},
             new Column(columnName3Source, DbType.String),
             new Column(columnName4Source, DbType.String),
             new Column(columnName5Source, DbType.String)
@@ -39,8 +39,8 @@ public abstract class Generic_UpdateFromTableToTableTestsBase : TransformationPr
         Provider.AddPrimaryKey("PK_Source", tableNameSource, [columnName1Source, columnName2Source]);
 
         Provider.AddTable(tableNameTarget,
-            new Column(columnName1Target, DbType.Int32, ColumnProperty.NotNull),
-            new Column(columnName2Target, DbType.Int32, ColumnProperty.NotNull),
+            new Column(columnName1Target,DbType.Int32){IsNullable = false},
+            new Column(columnName2Target,DbType.Int32){IsNullable = false},
             new Column(columnName3Target, DbType.String),
             new Column(columnName4Target, DbType.String),
             new Column(columnName5Target, DbType.String)

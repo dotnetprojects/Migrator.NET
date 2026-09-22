@@ -175,7 +175,8 @@ internal static class SQLiteConstraintParser
             else if (sql[i] is '(' or ')' or ',' or '.') { result.Add(new Token(sql[i++].ToString(), start, i)); }
             else
             {
-                while (i < sql.Length && !char.IsWhiteSpace(sql[i]) && sql[i] is not ('(' or ')' or ',' or '.' or '\'' or '"' or '`' or '[')) i++;
+                while (i < sql.Length && !char.IsWhiteSpace(sql[i]) && sql[i] is not ('(' or ')' or ',' or '.' or '\'' or '"' or '`' or '[') &&
+                    !(i + 1 < sql.Length && ((sql[i] == '/' && sql[i + 1] == '*') || (sql[i] == '-' && sql[i + 1] == '-')))) i++;
                 result.Add(new Token(sql[start..i], start, i));
             }
         }

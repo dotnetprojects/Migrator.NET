@@ -5,6 +5,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.SQLite;
 
 public class SQLiteDialect : Dialect
 {
+    protected override string ResolveCollation(CollationKind kind) => kind switch
+    {
+        CollationKind.Binary => "BINARY", CollationKind.AsciiIgnoreCase => "NOCASE",
+        _ => base.ResolveCollation(kind)
+    };
+
+    public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
+
     public SQLiteDialect()
     {
         RegisterColumnType(DbType.Binary, "BINARY");
@@ -37,8 +45,7 @@ public class SQLiteDialect : Dialect
         RegisterColumnType(DbType.Boolean, "BOOLEAN"); // Important for Dapper to know it should map to a bool
         RegisterColumnType(DbType.Guid, "UNIQUEIDENTIFIER");
 
-        RegisterProperty(ColumnProperty.Identity, "AUTOINCREMENT");
-        RegisterProperty(ColumnProperty.CaseSensitive, "COLLATE NOCASE");
+        RegisterColumnAttribute(ColumnAttribute.Identity, "AUTOINCREMENT");
 
         AddReservedWords("ABORT", "ACTION", "ADD", "AFTER", "ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ATTACH",
             "AUTOINCREMENT", "BEFORE", "BEGIN", "BETWEEN", "BY", "CASCADE", "CASE", "CAST", "CHECK", "COLLATE", "COLUMN",
@@ -58,6 +65,7 @@ public class SQLiteDialect : Dialect
 
     public override string Default(object defaultValue)
     {
+        if (defaultValue is RawSql expression) return "DEFAULT (" + expression.Sql + ")";
         if (defaultValue is bool)
         {
             return string.Format("DEFAULT {0}", (bool)defaultValue ? "1" : "0");

@@ -200,8 +200,7 @@ public class CreateUsers : Migration
     public override void Up()
     {
         Database.AddTable("Users",
-            new Column("Id", DbType.Int32,
-                ColumnProperty.NotNull),
+            new Column("Id", DbType.Int32) { IsNullable = false },
             new Column("Name", DbType.String, 255));
         Database.AddPrimaryKey("PK_Users", "Users", "Id");
     }

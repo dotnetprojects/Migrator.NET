@@ -28,9 +28,8 @@ public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTe
     public void AddTableWithCompoundPrimaryKey()
     {
         Provider.AddTable("Test",
-            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
-        );
+            new Column("PersonId",DbType.Int32){IsNullable = false},
+            new Column("AddressId",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "Test", "PersonId", "AddressId")        );
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
         Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");
@@ -321,14 +320,12 @@ public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTe
     {
         // Arrange
         Provider.AddTable("trigger",
-            new Column(name: "id", type: DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
-            new Column(name: "test_run_id", type: DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(name: "id",type: DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(name: "test_run_id",type: DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "trigger", "id")        );
 
         Provider.AddTable("statistics",
-            new Column(name: "id", type: DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
-            new Column(name: "test_run_id", type: DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(name: "id",type: DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(name: "test_run_id",type: DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "statistics", "id")        );
 
         // Act
         var addIndexTriggerSql = Provider.AddIndex(name: "IX_trigger__test_run_id", table: "trigger", "test_run_id");

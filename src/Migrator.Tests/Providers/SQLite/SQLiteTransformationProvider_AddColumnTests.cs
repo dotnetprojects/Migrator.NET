@@ -26,9 +26,8 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         const string indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName2, propertyName2)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
@@ -36,7 +35,7 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
 
         // Act
-        Provider.AddColumn(table: testTableName, new Column(newColumn, DbType.String, ColumnProperty.Null));
+        Provider.AddColumn(table: testTableName, new Column(newColumn,DbType.String));
         Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}, {newColumn}) VALUES (2, 3, 'Hello')");
 
         // Assert
@@ -48,11 +47,11 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoAfter.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
 
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
@@ -73,10 +72,11 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         var tableInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Language");
         var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Language");
 
-        var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
+        var column = tableInfo.Columns.Single(x => x.Name == "LanguageID");
 
         // Assert        
-        Assert.That(script, Does.Contain("LanguageID TEXT NOT NULL PRIMARY KEY"));
+        Assert.That(column.IsNullable, Is.False);
+        Assert.That(tableInfo.PrimaryKey.KeyColumns, Is.EqualTo(new[] { "LanguageID" }));
     }
 
     [Test]
@@ -90,10 +90,11 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         var tableInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Language");
         var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Language");
 
-        var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
+        var column = tableInfo.Columns.Single(x => x.Name == "LanguageID");
 
         // Assert        
-        Assert.That(script, Does.Contain("LanguageID TEXT NOT NULL PRIMARY KEY"));
+        Assert.That(column.IsNullable, Is.False);
+        Assert.That(tableInfo.PrimaryKey.KeyColumns, Is.EqualTo(new[] { "LanguageID" }));
     }
 
     [Test]
@@ -107,11 +108,12 @@ public class SQLiteTransformationProvider_AddColumnTests : SQLiteTransformationP
         var tableInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Language");
         var script = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Language");
 
-        var columnProperty = tableInfo.Columns.Single(x => x.Name == "LanguageID").ColumnProperty;
-        var hasNull = columnProperty.IsSet(ColumnProperty.Null);
+        var column = tableInfo.Columns.Single(x => x.Name == "LanguageID");
+        var hasNull = column.IsNullable;
 
         // Assert  
-        Assert.That(script, Does.Contain("LanguageID INTEGER NOT NULL PRIMARY KEY"));
+        Assert.That(column.IsNullable, Is.False);
+        Assert.That(tableInfo.PrimaryKey.KeyColumns, Is.EqualTo(new[] { "LanguageID" }));
         Assert.That(hasNull, Is.False);
     }
 }

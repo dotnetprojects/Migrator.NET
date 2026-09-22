@@ -60,7 +60,7 @@ public sealed class TableBuilder
     private Column current;
     private string engine;
     internal TableBuilder(MigrationBuilder builder, string name) => builder.Add(() => new CreateTableOperation(name, engine, fields.Select(Definitions.Copy).ToArray()));
-    public TableBuilder WithColumn(string name) { current = new Column(name, DbType.String, ColumnProperty.Null); fields.Add(current); return this; }
+    public TableBuilder WithColumn(string name) { current = new Column(name,DbType.String); fields.Add(current); return this; }
     public TableBuilder WithFields(params IDbField[] values) { fields.AddRange(values.Select(Definitions.Copy)); return this; }
     public TableBuilder WithPrimaryKey(string name, params string[] columns) { fields.Add(new PrimaryKeyConstraint(name, columns)); return this; }
     public TableBuilder WithUniqueConstraint(string name, params string[] columns) { fields.Add(new UniqueConstraint(name, columns)); return this; }
@@ -78,17 +78,16 @@ public sealed class TableBuilder
     public TableBuilder WithSize(int size) { Current.Size = size; return this; }
     public TableBuilder WithPrecision(int precision, int scale) { Current.Precision = precision; Current.Scale = scale; return this; }
     public TableBuilder WithDefaultValue(object value) { Current.DefaultValue = value; return this; }
-    public TableBuilder WithProperty(ColumnProperty value) { Current.ColumnProperty = value; return this; }
-    public TableBuilder NotNullable() { Current.ColumnProperty = (Current.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull; return this; }
-    public TableBuilder Nullable() { Current.ColumnProperty = (Current.ColumnProperty & ~ColumnProperty.NotNull) | ColumnProperty.Null; return this; }
-    public TableBuilder PrimaryKey() { Current.ColumnProperty |= ColumnProperty.PrimaryKey; return NotNullable(); }
-    public TableBuilder Identity() { Current.ColumnProperty |= ColumnProperty.Identity; return this; }
-    public TableBuilder Unique() { Current.ColumnProperty |= ColumnProperty.Unique; return this; }
+    public TableBuilder NotNullable() { Current.IsNullable = false; return this; }
+    public TableBuilder Nullable() { Current.IsNullable = true; return this; }
+    public TableBuilder Unsigned() { Current.IsUnsigned = true; return this; }
+    public TableBuilder WithCollation(Collation name) { Current.Collation = name; return this; }
+    public TableBuilder Identity() { Current.IsIdentity = true; return this; }
 }
 public sealed class ColumnBuilder
 {
     private readonly Column column;
-    internal ColumnBuilder(MigrationBuilder builder, string table, string name, bool alter) { column = new Column(name, DbType.String, ColumnProperty.Null); builder.Add(() => new ColumnOperation(table, Definitions.CopyColumn(column), alter)); }
+    internal ColumnBuilder(MigrationBuilder builder, string table, string name, bool alter) { column = new Column(name,DbType.String); builder.Add(() => new ColumnOperation(table, Definitions.CopyColumn(column), alter)); }
     public ColumnBuilder OfType(DbType value) { column.Type = value; return this; }
     public ColumnBuilder OfType(MigratorDbType value) { column.MigratorDbType = value; return this; }
     public ColumnBuilder AsInt32() => OfType(DbType.Int32);
@@ -97,11 +96,11 @@ public sealed class ColumnBuilder
     public ColumnBuilder WithSize(int value) { column.Size = value; return this; }
     public ColumnBuilder WithPrecision(int precision, int scale) { column.Precision = precision; column.Scale = scale; return this; }
     public ColumnBuilder WithDefaultValue(object value) { column.DefaultValue = value; return this; }
-    public ColumnBuilder WithProperty(ColumnProperty value) { column.ColumnProperty = value; return this; }
-    public ColumnBuilder NotNullable() { column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull; return this; }
-    public ColumnBuilder Nullable() { column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.NotNull) | ColumnProperty.Null; return this; }
-    public ColumnBuilder Identity() { column.ColumnProperty |= ColumnProperty.Identity; return this; }
-    public ColumnBuilder PrimaryKey() { column.ColumnProperty |= ColumnProperty.PrimaryKey; return NotNullable(); }
+    public ColumnBuilder NotNullable() { column.IsNullable = false; return this; }
+    public ColumnBuilder Nullable() { column.IsNullable = true; return this; }
+    public ColumnBuilder Unsigned() { column.IsUnsigned = true; return this; }
+    public ColumnBuilder WithCollation(Collation name) { column.Collation = name; return this; }
+    public ColumnBuilder Identity() { column.IsIdentity = true; return this; }
 }
 public sealed class AlterRoot(MigrationBuilder builder)
 {

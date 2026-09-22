@@ -48,7 +48,7 @@ public class FluentOperationsTests
     }
     [Test] public void TableIsOneCompleteOperationAndDoesNotMutateInput()
     {
-        var column = new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey);
+        var column = new Column("Id",DbType.Int32){IsNullable = false};
         var builder = new MigrationBuilder(); builder.Create.Table("Example").WithFields(column);
         column.Name = "Changed";
         var operation = (CreateTableOperation)builder.Build().Single();
@@ -154,7 +154,7 @@ public class FluentOperationsTests
     }
     [Test, Category("SQLite")] public void FluentAndPreviewProduceEquivalentDataAndAutomaticDownRemovesTable()
     {
-        var builder = new MigrationBuilder(); builder.Create.Table("Example").WithColumn("Id").AsInt32().PrimaryKey().WithColumn("Name").AsString();
+        var builder = new MigrationBuilder(); builder.Create.Table("Example").WithColumn("Id").AsInt32().WithPrimaryKey("PK_Id", "Id").WithColumn("Name").AsString();
         builder.Insert.IntoTable("Example").Row(new[] { "Id", "Name" }, new object[] { 1, "O'Brien" });
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
@@ -166,24 +166,25 @@ public class FluentOperationsTests
         builder.Build()[0].Reverse().Apply(provider);
         Assert.That(provider.TableExists("Example"), Is.False);
     }
-    [Test, Category("SQLite")] public void LegacyBuilderRetainsForeignKeyAction()
+    [Test, Category("SQLite")] public void BuilderRetainsForeignKeyAction()
     {
         using var connection = new SqliteConnection("Data Source=:memory:;Foreign Keys=True"); connection.Open();
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
-        provider.AddTable("Parent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey));
-        var builder = new DotNetProjects.Migrator.Framework.SchemaBuilder.SchemaBuilder();
-        builder.AddTable("Child").AddColumn("ParentId").OfType(DbType.Int32).AsForeignKey().ReferencedTo("Parent", "Id").WithConstraint(ForeignKeyConstraintType.Cascade);
-        provider.ExecuteSchemaBuilder(builder);
+        provider.AddTable("Parent", new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "Parent", "Id"));
+        var builder = new MigrationBuilder();
+        builder.Create.Table("Child").WithColumn("ParentId").AsInt32();
+        builder.Create.ForeignKey("FK_Child", "Child", new[] { "ParentId" }, "Parent", new[] { "Id" }, ForeignKeyConstraintType.Cascade);
+        builder.Apply(provider);
         provider.ExecuteNonQuery("INSERT INTO Parent VALUES (1); INSERT INTO Child VALUES (1); DELETE FROM Parent WHERE Id=1");
         Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT COUNT(*) FROM Child")), Is.Zero);
     }
-    [Test, Category("SQLite")] public void LegacyBuilderCreatesCompleteTable()
+    [Test, Category("SQLite")] public void BuilderCreatesCompleteTable()
     {
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
-        var builder = new DotNetProjects.Migrator.Framework.SchemaBuilder.SchemaBuilder();
-        builder.AddTable("Example").AddColumn("Id").OfType(DbType.Int32);
-        provider.ExecuteSchemaBuilder(builder);
+        var builder = new MigrationBuilder();
+        builder.Create.Table("Example").WithColumn("Id").AsInt32();
+        builder.Apply(provider);
         Assert.That(provider.ColumnExists("Example", "Id"), Is.True);
     }
 }

@@ -56,38 +56,8 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         }
     }
 
-    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
-    {
-        var constraints = new List<ForeignKeyConstraint>();
-        var foreignKeyConstraintItems = _oracleSystemDataLoader.GetForeignKeyConstraintItems(table);
-
-        var schemaChildTableGroups = foreignKeyConstraintItems.GroupBy(x => new { x.SchemaName, x.ChildTableName }).Count();
-
-        if (schemaChildTableGroups > 1)
-        {
-            throw new MigrationException($"Duplicates found (grouping by schema name and child table name). Since we do not offer schemas in '{nameof(GetForeignKeyConstraints)}' at this moment in time we cannot filter your target schema. Your database use the same table name in different schemas.");
-        }
-
-        var groups = foreignKeyConstraintItems.GroupBy(x => x.ForeignKeyName);
-
-        foreach (var group in groups)
-        {
-            var first = group.First();
-
-            var foreignKeyConstraint = new ForeignKeyConstraint
-            {
-                Name = first.ForeignKeyName,
-                ParentTable = first.ParentTableName,
-                ParentColumns = [.. group.Select(x => x.ParentColumnName).Distinct()],
-                ChildTable = first.ChildTableName,
-                ChildColumns = [.. group.Select(x => x.ChildColumnName).Distinct()]
-            };
-
-            constraints.Add(foreignKeyConstraint);
-        }
-
-        return [.. constraints];
-    }
+    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table) =>
+        ForeignKeyMetadataReader.Read(this, table);
 
     public override void AddForeignKey(string name, string primaryTable, string[] primaryColumns, string refTable,
                                        string[] refColumns, ForeignKeyConstraintType constraint)
@@ -102,7 +72,8 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         ValidateIndex(tableName: table, index: index);
         var hasFilterItems = index.FilterItems != null && index.FilterItems.Count > 0;
 
-        // Oracle does not support included columns and clustered indexes. We ignore the values given in the properties SILENTLY for backwards compatibility.
+        if (index.IncludeColumns?.Length > 0 || index.Clustered)
+            throw new NotSupportedException("Oracle does not support included columns or SQL Server-style clustered indexes. Use an explicit Oracle operation.");
 
         if (index.Unique && hasFilterItems)
         {
@@ -196,56 +167,18 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void ChangeColumn(string table, Column column)
     {
-        column = column.CopyDefinition();
-        var existingColumn = GetColumnByName(table, column.Name);
-
-        if (column.Type == DbType.String)
-        {
-            RenameColumn(table, column.Name, TemporaryColumnName);
-
-            // check if this is not-null
-            var isNotNull = (column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull;
-
-            // remove the not-null option
-            column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.NotNull);
-
-            AddColumn(table, column);
-            CopyDataFromOneColumnToAnother(table, TemporaryColumnName, column.Name);
-            RemoveColumn(table, TemporaryColumnName);
-            //RenameColumn(table, TemporaryColumnName, column.Name);
-
-            var columnName = QuoteColumnNameIfRequired(column.Name);
-
-            // now set the column to not-null
-            if (isNotNull)
-            {
-                using var cmd = CreateCommand();
-                ExecuteQuery(cmd, string.Format("ALTER TABLE {0} MODIFY ({1} NOT NULL)", table, columnName));
-            }
-        }
-        else
-        {
-            // String changes replace the column, which already removes its default.
-            // For in-place changes Oracle otherwise retains the existing default.
-            if (column.DefaultValue == null) RemoveColumnDefaultValue(table, column.Name);
-            if (((existingColumn.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull)
-                && ((column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull))
-            {
-                // was not null, and is being change to not-null - drop the not-null all together
-                column.ColumnProperty = column.ColumnProperty & ~ColumnProperty.NotNull;
-            }
-            else if
-                (((existingColumn.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null)
-                && ((column.ColumnProperty & ColumnProperty.Null) == ColumnProperty.Null))
-            {
-                // was null, and is being changed to null - drop the null all together
-                column.ColumnProperty = column.ColumnProperty & ~ColumnProperty.Null;
-            }
-
-            var mapper = _dialect.GetAndMapColumnProperties(column);
-
-            ChangeColumn(table, mapper.ColumnSql);
-        }
+        var existing = GetColumnByName(table, column.Name);
+        var definition = column.CopyDefinition();
+        if (definition.DefaultValue == null) RemoveColumnDefaultValue(table, definition.Name);
+        // Oracle rejects restating an existing NOT NULL constraint. Render type/default
+        // separately and change nullability only when its value actually changes.
+        definition.IsNullable = true;
+        var mapper = _dialect.GetAndMapColumnProperties(definition);
+        var sql = mapper.ColumnSql;
+        if (sql.EndsWith(" NULL", StringComparison.Ordinal)) sql = sql[..^5];
+        if (existing.IsNullable != column.IsNullable)
+            sql += column.IsNullable ? " NULL" : " NOT NULL";
+        ChangeColumn(table, sql);
     }
 
     private void CopyDataFromOneColumnToAnother(string table, string fromColumn, string toColumn)
@@ -519,24 +452,23 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
                 var column = new Column(columnName, DbType.String)
                 {
-                    ColumnProperty = isNullable ? ColumnProperty.Null : ColumnProperty.NotNull
+                    IsNullable = isNullable
                 };
 
-                if (uniqueColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.Unique;
                 var isIdentity = userTabIdentityCols.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
                 var isPrimaryKey = primaryKeyItems.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
 
                 if (isIdentity && isPrimaryKey)
                 {
-                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKeyWithIdentity);
+                    column.IsIdentity = true;
                 }
                 else if (isIdentity)
                 {
-                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.Identity);
+                    column.IsIdentity = true;
                 }
                 else if (isPrimaryKey)
                 {
-                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
+
                 }
 
                 // Oracle does not have unsigned types. All NUMBER types can hold positive or negative values so we do not return DbType.UIntX types.
@@ -638,14 +570,19 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 // dataDefaultString contains ISEQ$$ if the column is an identity column
                 if (
                     !string.IsNullOrWhiteSpace(dataDefaultString) &&
-                    (column.Type == DbType.String || !dataDefaultString.Equals("null", StringComparison.OrdinalIgnoreCase)) &&
+                    !dataDefaultString.Trim().Equals("null", StringComparison.OrdinalIgnoreCase) &&
                     !dataDefaultString.Contains("ISEQ$$") &&
                     !dataDefaultString.Contains(".nextval"))
                 {
                     // This is only necessary because older versions of this migrator added single quotes for numerics.
                     var singleQuoteStrippedString = dataDefaultString.Replace("'", "");
 
-                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    var parsedDefault = CatalogDefaultValue.Parse(dataDefaultString, column.Type);
+                    if (column.Type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength
+                        || (parsedDefault is RawSql && !Regex.IsMatch(dataDefaultString,
+                            @"(?i)^\s*(TO_TIMESTAMP\s*\(|TIMESTAMP\s*'|HEXTORAW\s*\()")))
+                        column.DefaultValue = parsedDefault;
+                    else if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
                         column.DefaultValue = long.Parse(singleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
@@ -882,40 +819,12 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     public override void AddTable(string name, params IDbField[] fields)
     {
         GuardAgainstMaximumIdentifierLengthForOracle(name);
-        name = QuoteTableNameIfRequired(name);
-
-        var columns = fields.Where(x => x is Column).Cast<Column>().ToArray();
-
+        var columns = fields.OfType<Column>().ToArray();
         GuardAgainstMaximumColumnNameLengthForOracle(name, columns);
-
+        foreach (var identity in columns.Where(c => c.IsIdentity))
+            if (identity.Type is not (DbType.Int16 or DbType.Int32 or DbType.Int64 or DbType.UInt16 or DbType.UInt32 or DbType.UInt64))
+                throw new MigrationException("Oracle identity columns require an integer type.");
         base.AddTable(name, fields);
-
-        // Should be refactored
-        if (columns.Any(c => c.ColumnProperty == ColumnProperty.PrimaryKeyWithIdentity ||
-            (c.ColumnProperty.HasFlag(ColumnProperty.Identity) && c.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey))))
-        {
-            var identityColumn = columns.First(x => x.ColumnProperty.HasFlag(ColumnProperty.Identity) && x.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey));
-
-            List<DbType> allowedIdentityDbTypes = [DbType.Int16, DbType.Int32, DbType.Int64, DbType.UInt16, DbType.UInt32, DbType.UInt64];
-
-            if (!allowedIdentityDbTypes.Contains(identityColumn.Type))
-            {
-                var allowedIdentityDbTypesStringList = allowedIdentityDbTypes.Select(x => x.ToString()).ToList();
-                var allowedIdentityDbTypesString = $"{string.Join(", ", allowedIdentityDbTypesStringList[..^1])} and {allowedIdentityDbTypesStringList[^1..]}";
-
-                throw new MigrationException($"Identity columns can only be used with {allowedIdentityDbTypesString}");
-            }
-
-            var identityColumnNameQuoted = QuoteColumnNameIfRequired(identityColumn.Name);
-
-            using var cmd = CreateCommand();
-            // We use ALWAYS in order to prevent sequence problems in cases of misuse of the column by an unexperienced user. Inserting data will result in an exception.
-            ExecuteQuery(cmd, $"ALTER TABLE {name} MODIFY {identityColumnNameQuoted} GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE)");
-        }
-        else if (columns.Any(x => x.ColumnProperty.HasFlag(ColumnProperty.Identity) && !x.ColumnProperty.HasFlag(ColumnProperty.PrimaryKey)))
-        {
-            throw new MigrationException("Identity without Primary is currently not supported by this migrator");
-        }
     }
 
     public override void RemoveTable(string name)

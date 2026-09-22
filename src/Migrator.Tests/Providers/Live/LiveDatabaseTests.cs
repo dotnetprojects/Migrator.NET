@@ -33,6 +33,27 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         finally { TearDown(); }
     }
 
+    [Test]
+    public void ConstraintMetadataPreservesForeignKeyPairsAndSeparatesUniqueIndexes()
+    {
+        provider.AddTable("parents", new Column("first_id", DbType.Int32), new Column("second_id", DbType.Int32),
+            new PrimaryKeyConstraint("pk_parents", "second_id", "first_id"));
+        provider.AddTable("children", new Column("left_id", DbType.Int32), new Column("right_id", DbType.Int32));
+        provider.AddForeignKey("fk_pair", "children", new[] { "left_id", "right_id" }, "parents", new[] { "second_id", "first_id" });
+        provider.AddIndex("children", new DbIndex { Name = "ux_separate", KeyColumns = new[] { "left_id" }, Unique = true });
+        var constraints = provider.GetTableConstraints("children");
+        var foreignKey = constraints.OfType<DotNetProjects.Migrator.Framework.ForeignKeyConstraint>().Single();
+        Assert.That(foreignKey.ChildColumns.Select(c => c.ToLowerInvariant()), Is.EqualTo(new[] { "left_id", "right_id" }));
+        Assert.That(foreignKey.ParentColumns.Select(c => c.ToLowerInvariant()), Is.EqualTo(new[] { "second_id", "first_id" }));
+        if (providerType is ProviderTypes.Mysql or ProviderTypes.MariaDB)
+            Assert.That(constraints.OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>().Single().Name, Is.EqualTo("ux_separate"));
+        else
+            Assert.That(constraints.OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>(), Is.Empty);
+        provider.Insert("parents", new[] { "first_id", "second_id" }, new object[] { 1, 2 });
+        provider.Insert("children", new[] { "left_id", "right_id" }, new object[] { 2, 1 });
+        AssertDatabaseError(() => provider.Insert("children", new[] { "left_id", "right_id" }, new object[] { 1, 2 }));
+    }
+
     internal void DropCreatedDatabase()
     {
         provider.DropDatabases(provider.GetDatabases().Single());
@@ -202,9 +223,9 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     }
 
     private void CreateItems() => provider.AddTable("items",
-        new Column("id", DbType.Int32, ColumnProperty.PrimaryKey),
-        new Column("label", DbType.String, 40, ColumnProperty.Null),
-        new Column("amount", DbType.Int32, ColumnProperty.NotNull, 7));
+        new Column("id",DbType.Int32){IsNullable = false},
+        new Column("label",DbType.String,40),
+        new Column("amount", DbType.Int32) { DefaultValue = 7, IsNullable = false},new PrimaryKeyConstraint("PK_" + "items", "id"));
 
     [Test]
     public void TableAndColumnMetadata()
@@ -217,8 +238,8 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         var columns = provider.GetColumns("items");
         Assert.That(columns, Has.Length.EqualTo(3));
         Assert.That(columns.Single(c => c.Name.Equals("id", StringComparison.OrdinalIgnoreCase)).Type, Is.EqualTo(DbType.Int32));
-        Assert.That(columns.Single(c => c.Name.Equals("label", StringComparison.OrdinalIgnoreCase)).ColumnProperty.HasFlag(ColumnProperty.Null), Is.True);
-        Assert.That(columns.Single(c => c.Name.Equals("amount", StringComparison.OrdinalIgnoreCase)).ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(columns.Single(c => c.Name.Equals("label", StringComparison.OrdinalIgnoreCase)).IsNullable, Is.True);
+        Assert.That(columns.Single(c => c.Name.Equals("amount", StringComparison.OrdinalIgnoreCase)).IsNullable, Is.False);
         provider.RemoveTable("items");
         Assert.That(provider.TableExists("items"), Is.False);
     }
@@ -257,12 +278,12 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     public void AddRenameChangeAndDropColumn()
     {
         CreateItems();
-        provider.AddColumn("items", new Column("extra", DbType.String, 20, ColumnProperty.Null));
+        provider.AddColumn("items", new Column("extra",DbType.String,20));
         provider.RenameColumn("items", "extra", "renamed");
-        provider.ChangeColumn("items", new Column("renamed", DbType.String, 80, ColumnProperty.NotNull, "fallback"));
+        provider.ChangeColumn("items", new Column("renamed",DbType.String,80,"fallback"){IsNullable = false});
         var changed = provider.GetColumns("items").Single(c => c.Name.Equals("renamed", StringComparison.OrdinalIgnoreCase));
         Assert.That(changed.Size, Is.EqualTo(80));
-        Assert.That(changed.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(changed.IsNullable, Is.False);
         provider.Insert("items", ["id"], [1]);
         Assert.That(provider.ExecuteScalar("SELECT renamed FROM items"), Is.EqualTo("fallback"));
         provider.RemoveColumnDefaultValue("items", "renamed");
@@ -275,18 +296,18 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     public void PrimaryKeyAndIdentity()
     {
         provider.AddTable("items",
-            new Column("id", DbType.Int32, ColumnProperty.PrimaryKeyWithIdentity),
-            new Column("label", DbType.String, 40));
+            new Column("id",DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column("label", DbType.String, 40),new PrimaryKeyConstraint("PK_" + "items", "id"));
         provider.Insert("items", ["label"], ["first"]);
         provider.Insert("items", ["label"], ["second"]);
         Assert.That(Convert.ToInt32(provider.ExecuteScalar("SELECT COUNT(DISTINCT id) FROM items")), Is.EqualTo(2));
-        Assert.That(provider.GetColumns("items").Single(c => c.Name.Equals("id", StringComparison.OrdinalIgnoreCase)).ColumnProperty.HasFlag(ColumnProperty.Identity), Is.True);
+        Assert.That(provider.GetColumns("items").Single(c => c.Name.Equals("id", StringComparison.OrdinalIgnoreCase)).IsIdentity, Is.True);
     }
 
     [Test]
     public void NamedPrimaryKey()
     {
-        provider.AddTable("items", new Column("id", DbType.Int32, ColumnProperty.NotNull));
+        provider.AddTable("items", new Column("id",DbType.Int32){IsNullable = false});
         provider.AddPrimaryKey("pk_items", "items", "id");
         Assert.That(provider.PrimaryKeyExists("items", "pk_items"), Is.True);
         provider.Insert("items", ["id"], [1]);
@@ -316,7 +337,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     {
         CreateItems();
         // Db2 requires NOT NULL for columns participating in a UNIQUE constraint.
-        provider.ChangeColumn("items", new Column("label", DbType.String, 40, ColumnProperty.NotNull));
+        provider.ChangeColumn("items", new Column("label",DbType.String,40){IsNullable = false});
         provider.AddUniqueConstraint("uq_label", "items", "label");
         provider.AddCheckConstraint("ck_amount", "items", "amount >= 0");
         Assert.That(provider.ConstraintExists("items", "uq_label"), Is.True);

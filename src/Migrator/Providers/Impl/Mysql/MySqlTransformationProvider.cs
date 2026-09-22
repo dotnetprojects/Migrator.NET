@@ -207,9 +207,8 @@ public class MySqlTransformationProvider : TransformationProvider
                 "tinyblob" or "mediumblob" or "blob" or "binary" or "varbinary" or "longblob" => DbType.Binary, _ => DbType.String
             };
             var column = new Column(reader.GetString(0), type);
-            column.ColumnProperty = reader.GetString(2) == "YES" ? ColumnProperty.Null : ColumnProperty.NotNull;
-            if (reader.GetString(4).Contains("auto_increment")) column.ColumnProperty |= ColumnProperty.Identity;
-            if (reader.GetString(6) == "PRI") column.ColumnProperty |= ColumnProperty.PrimaryKey;
+            column.IsNullable = reader.GetString(2) == "YES";
+            if (reader.GetString(4).Contains("auto_increment")) column.IsIdentity = true;
             if (!reader.IsDBNull(3)) column.DefaultValue = ReadDefault(reader.GetString(3), type, reader.GetString(4));
             if (type == DbType.Decimal)
             {

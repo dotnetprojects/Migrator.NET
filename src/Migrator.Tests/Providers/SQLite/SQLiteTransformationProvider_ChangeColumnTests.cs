@@ -29,9 +29,8 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
         const string indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1, propertyName2]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
@@ -39,12 +38,13 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
         Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (1, 2)");
 
         // Act
-        Provider.ChangeColumn(table: testTableName, new Column(propertyName2, DbType.String, ColumnProperty.Unique | ColumnProperty.Null));
+        Provider.ChangeColumn(table: testTableName, new Column(propertyName2,DbType.String));
+        Provider.AddUniqueConstraint("UQ_Color2", testTableName, propertyName2);
         Provider.ExecuteNonQuery($"INSERT INTO {testTableName} ({propertyName1}, {propertyName2}) VALUES (2, 3)");
 
         // Assert
         var createScriptAfter = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
-        Assert.That(createScriptAfter, Does.Contain("Color2 TEXT NULL UNIQUE"));
+        Assert.That(Provider.GetColumns(testTableName).Single(c => c.Name == propertyName2).IsNullable, Is.True);
 
         using var command = Provider.GetCommand();
         using var reader = Provider.ExecuteQuery(command, $"SELECT COUNT(*) as Count from {testTableName}");
@@ -54,15 +54,15 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
 
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.False);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Null), Is.False);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.False);
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).IsNullable, Is.False);
+        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).IsNullable, Is.False);
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.False);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Null), Is.True);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoAfter.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).IsNullable, Is.True);
+        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).IsNullable, Is.True);
 
         var indexAfter = tableInfoAfter.Indexes.Single();
         Assert.That(indexAfter.Name, Is.EqualTo(indexName));
@@ -78,12 +78,11 @@ public class SQLiteTransformationProvider_ChangeColumnTests : Generic_ChangeColu
         const string propertyName2 = "Color2";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.String, 100, ColumnProperty.Null)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.String,100),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         // Act
-        Provider.ChangeColumn(table: testTableName, new Column(propertyName2, DbType.String, ColumnProperty.NotNull));
+        Provider.ChangeColumn(table: testTableName, new Column(propertyName2,DbType.String){IsNullable = false});
 
 
         // Assert

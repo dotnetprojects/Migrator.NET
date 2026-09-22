@@ -23,7 +23,7 @@ public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTra
         Assert.That(Provider.ColumnExists("metadata_b.sample", "id"), Is.False);
         Assert.That(Provider.ConstraintExists("metadata_a.sample", "same_name"), Is.True);
         Assert.That(Provider.ConstraintExists("metadata_b.sample", "same_name"), Is.False);
-        Assert.That(Provider.GetColumns("metadata_a.sample").Single().ColumnProperty.IsSet(ColumnProperty.Unique), Is.True);
+        Assert.That(Provider.GetTableConstraints("metadata_a.sample").OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>().Any(), Is.True);
         Assert.That(Provider.GetColumns("metadata_b.sample").Single().MigratorDbType, Is.EqualTo(MigratorDbType.String));
         Provider.ExecuteNonQuery("SET LOCAL search_path TO metadata_b");
         Assert.That(Provider.GetColumns("sample").Single().Name, Is.EqualTo("value"));
@@ -35,7 +35,7 @@ public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTra
         Provider.ExecuteNonQuery("CREATE TABLE \"Meta'Table\" (id integer CONSTRAINT \"Key'Name\" UNIQUE)");
         Assert.That(Provider.TableExists("\"Meta'Table\""), Is.True);
         Assert.That(Provider.ConstraintExists("\"Meta'Table\"", "Key'Name"), Is.True);
-        Assert.That(Provider.GetColumns("\"Meta'Table\"").Single().ColumnProperty.IsSet(ColumnProperty.Unique), Is.True);
+        Assert.That(Provider.GetTableConstraints("\"Meta'Table\"").OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>().Any(), Is.True);
     }
 
     [Test]

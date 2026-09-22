@@ -32,8 +32,6 @@ public class FirebirdTransformationProvider : TransformationProvider
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         base.AddTable(name, engine, fields);
-        foreach (var column in fields.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Indexed)))
-            AddIndex(name, new Index { KeyColumns = [column.Name] });
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
@@ -98,7 +96,7 @@ public class FirebirdTransformationProvider : TransformationProvider
                 type = DbType.Decimal;
             var column = new Column(reader.GetString(0), type)
             {
-                ColumnProperty = !reader.IsDBNull(2) && Convert.ToInt32(reader.GetValue(2)) == 1 ? ColumnProperty.NotNull : ColumnProperty.Null
+                IsNullable = !(!reader.IsDBNull(2) && Convert.ToInt32(reader.GetValue(2)) == 1)
             };
             if (type == DbType.Decimal)
             {
@@ -108,8 +106,7 @@ public class FirebirdTransformationProvider : TransformationProvider
             if (!reader.IsDBNull(3)) column.DefaultValue = ReadDefault(reader.GetString(3), type);
             if (!reader.IsDBNull(4)) column.Size = Convert.ToInt32(reader.GetValue(4));
             if (Convert.ToInt32(reader.GetValue(1)) == 261 && type == DbType.String) column.Size = int.MaxValue;
-            if (!reader.IsDBNull(5)) column.ColumnProperty |= ColumnProperty.Identity;
-            if (primaryColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.PrimaryKey;
+            if (!reader.IsDBNull(5)) column.IsIdentity = true;
             result.Add(column);
         }
         return result.ToArray();
@@ -160,16 +157,13 @@ public class FirebirdTransformationProvider : TransformationProvider
 
     public override void ChangeColumn(string table, Column column)
     {
-        var isUniqueSet = column.ColumnProperty.HasFlag(ColumnProperty.Unique);
-        column.ColumnProperty &= ~ColumnProperty.Unique;
+
         var prefix = $"ALTER TABLE {QuoteTableNameIfRequired(table)} ALTER {QuoteColumnNameIfRequired(column.Name)}";
         var type = _dialect.GetColumnMapper(column).Type;
         ExecuteNonQuery($"{prefix} TYPE {type}");
         if (column.DefaultValue != null || GetColumns(table).Single(c => c.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)).DefaultValue != null)
             ExecuteNonQuery($"{prefix} {(column.DefaultValue == null ? "DROP DEFAULT" : "SET " + _dialect.Default(column.DefaultValue))}");
-        ExecuteNonQuery($"{prefix} {(column.ColumnProperty.HasFlag(ColumnProperty.NotNull) ? "SET" : "DROP")} NOT NULL");
-        if (isUniqueSet)
-            AddUniqueConstraint($"UX_{table}_{column.Name}", table, [column.Name]);
+        ExecuteNonQuery($"{prefix} {(!column.IsNullable ? "SET" : "DROP")} NOT NULL");
     }
 
     public override string AddIndex(string table, Index index)

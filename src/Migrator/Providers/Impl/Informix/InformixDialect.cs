@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using DotNetProjects.Migrator.Framework;
 
@@ -39,7 +40,23 @@ public class InformixDialect : Dialect
         RegisterColumnType(DbType.AnsiStringFixedLength, 32767, "CHAR($l)");
         RegisterColumnType(DbType.String, int.MaxValue, "TEXT");
         RegisterColumnType(DbType.AnsiString, int.MaxValue, "TEXT");
-        RegisterProperty(ColumnProperty.Identity, "");
+        RegisterColumnAttribute(ColumnAttribute.Identity, "");
+    }
+
+    public override string GetTableConstraintSql(TableConstraint constraint)
+    {
+        var copy = constraint switch
+        {
+            PrimaryKeyConstraint p => (TableConstraint)new PrimaryKeyConstraint(null, p.KeyColumns) { NonClustered = p.NonClustered },
+            DotNetProjects.Migrator.Framework.UniqueConstraint u => new DotNetProjects.Migrator.Framework.UniqueConstraint(null, u.KeyColumns),
+            CheckConstraint c => new CheckConstraint(null, c.CheckConstraintString),
+            _ => throw new NotSupportedException("Unsupported Informix table constraint.")
+        };
+        var body = base.GetTableConstraintSql(copy);
+        if (constraint.Name == null) return body;
+        if (!System.Text.RegularExpressions.Regex.IsMatch(constraint.Name, @"^[A-Za-z_][A-Za-z0-9_$]*$"))
+            throw new NotSupportedException("Informix constraint names require simple identifiers unless DELIMIDENT is configured.");
+        return body + " CONSTRAINT " + constraint.Name;
     }
 
     public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 't'" : "DEFAULT 'f'") : base.Default(value);
@@ -58,15 +75,16 @@ public class InformixDialect : Dialect
         public override void MapColumnProperties(Column column)
         {
             Name = column.Name;
-            _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+
             var parts = new System.Collections.Generic.List<string>();
             AddName(parts);
             AddType(parts);
+            AddCollation(column, parts);
+            AddUnsigned(column, parts);
             AddIdentityAgain(column, parts);
             AddDefaultValue(column, parts);
             AddNotNull(column, parts);
-            AddPrimaryKey(column, parts);
-            AddUnique(column, parts);
+
             _ColumnSql = string.Join(" ", parts);
         }
     }

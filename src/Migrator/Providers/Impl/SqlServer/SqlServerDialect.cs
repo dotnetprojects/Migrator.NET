@@ -6,6 +6,22 @@ namespace DotNetProjects.Migrator.Providers.Impl.SqlServer;
 
 public class SqlServerDialect : Dialect
 {
+    protected override string ResolveCollation(CollationKind kind) => kind switch
+    {
+        CollationKind.Binary => "Latin1_General_100_BIN2", CollationKind.CaseSensitive => "Latin1_General_100_CS_AS_SC", CollationKind.CaseInsensitive => "Latin1_General_100_CI_AS_SC",
+        _ => base.ResolveCollation(kind)
+    };
+
+    public override string GetCollationSql(string name)
+    {
+        // T-SQL requires a collation token rather than a bracket-delimited identifier.
+        if (string.IsNullOrWhiteSpace(name) || !System.Text.RegularExpressions.Regex.IsMatch(name, @"\A[A-Za-z][A-Za-z0-9_]*\z"))
+            throw new ArgumentException("SQL Server requires an unquoted collation name containing letters, digits and underscores.", nameof(name));
+        return "COLLATE " + name;
+    }
+
+    public override bool NeedsNullForNullableWhenAlteringTable => true;
+
     public const string DboSchemaName = "dbo";
 
     public SqlServerDialect()
@@ -53,7 +69,7 @@ public class SqlServerDialect : Dialect
         RegisterColumnType(DbType.VarNumeric, 38, "NUMERIC($l,0)");
         RegisterColumnType(MigratorDbType.Interval, "BIGINT");
 
-        RegisterProperty(ColumnProperty.Identity, "IDENTITY");
+        RegisterColumnAttribute(ColumnAttribute.Identity, "IDENTITY");
 
         AddReservedWords("ADD", "EXCEPT", "PERCENT", "ALL", "EXEC", "PLAN", "ALTER", "EXECUTE", "PRECISION", "AND", "EXISTS", "PRIMARY", "ANY", "EXIT", "PRINT", "AS", "FETCH", "PROC", "ASC", "FILE", "PROCEDURE", "AUTHORIZATION", "FILLFACTOR", "PUBLIC", "BACKUP", "FOR", "RAISERROR", "BEGIN", "FOREIGN", "READ", "BETWEEN", "FREETEXT", "READTEXT", "BREAK", "FREETEXTTABLE", "RECONFIGURE", "BROWSE", "FROM", "REFERENCES", "BULK", "FULL", "REPLICATION", "BY", "FUNCTION", "RESTORE", "CASCADE", "GOTO", "RESTRICT", "CASE", "GRANT", "RETURN", "CHECK", "GROUP", "REVOKE", "CHECKPOINT", "HAVING", "RIGHT", "CLOSE", "HOLDLOCK", "ROLLBACK", "CLUSTERED", "IDENTITY", "ROWCOUNT", "COALESCE", "IDENTITY_INSERT", "ROWGUIDCOL", "COLLATE", "IDENTITYCOL", "RULE", "COLUMN", "IF", "SAVE", "COMMIT", "IN", "SCHEMA", "COMPUTE", "INDEX", "SELECT", "CONSTRAINT", "INNER", "SESSION_USER", "CONTAINS", "INSERT", "SET", "CONTAINSTABLE", "INTERSECT", "SETUSER", "CONTINUE", "INTO", "SHUTDOWN", "CONVERT", "IS", "SOME", "CREATE", "JOIN", "STATISTICS", "CROSS", "KEY", "SYSTEM_USER", "CURRENT", "KILL", "TABLE", "CURRENT_DATE", "LEFT", "TEXTSIZE", "CURRENT_TIME", "LIKE", "THEN", "CURRENT_TIMESTAMP", "LINENO", "TO", "CURRENT_USER", "LOAD", "TOP", "CURSOR", "NATIONAL", "TRAN", "DATABASE", "NOCHECK", "TRANSACTION", "DBCC", "NONCLUSTERED", "TRIGGER", "DEALLOCATE", "NOT", "TRUNCATE", "DECLARE", "NULL", "TSEQUAL", "DEFAULT", "NULLIF", "UNION", "DELETE", "OF", "UNIQUE", "DENY", "OFF", "UPDATE", "DESC", "OFFSETS", "UPDATETEXT", "DISK", "ON", "USE", "DISTINCT", "OPEN", "USER", "DISTRIBUTED", "OPENDATASOURCE", "VALUES", "DOUBLE", "OPENQUERY", "VARYING", "DROP", "OPENROWSET", "VIEW", "DUMMY", "OPENXML", "WAITFOR", "DUMP", "OPTION", "WHEN", "ELSE", "OR", "WHERE", "END", "ORDER", "WHILE", "ERRLVL", "OUTER", "WITH", "ESCAPE", "OVER", "WRITETEXT");
     }

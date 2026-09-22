@@ -32,18 +32,17 @@ public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
 
         // Act
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.DateTime, ColumnProperty.NotNull),
-            new Column(column2Name, DbType.DateTime, ColumnProperty.Null)
-        );
+            new Column(column1Name,DbType.DateTime){IsNullable = false},
+            new Column(column2Name,DbType.DateTime)        );
 
         // Assert
-        Provider.ChangeColumn(tableName, new Column(column1Name, DbType.DateTime2, ColumnProperty.NotNull));
-        Provider.ChangeColumn(tableName, new Column(column2Name, DbType.DateTime2, ColumnProperty.NotNull));
+        Provider.ChangeColumn(tableName, new Column(column1Name,DbType.DateTime2){IsNullable = false});
+        Provider.ChangeColumn(tableName, new Column(column2Name,DbType.DateTime2){IsNullable = false});
         var column1 = Provider.GetColumnByName(tableName, column1Name);
         var column2 = Provider.GetColumnByName(tableName, column2Name);
 
-        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
-        Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column1.IsNullable, Is.False);
+        Assert.That(column2.IsNullable, Is.False);
     }
 
     [Test]
@@ -57,13 +56,12 @@ public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
         var testTime = new DateTime(2025, 5, 5, 5, 5, 5, DateTimeKind.Utc);
 
         Provider.AddTable(tableName,
-            new Column(name: column1Name, type: DbType.Int32, property: ColumnProperty.NotNull),
-            new Column(name: column2Name, type: DbType.DateTime2, property: ColumnProperty.Null, defaultValue: testTime)
-        );
+            new Column(name: column1Name,type: DbType.Int32){IsNullable = false},
+            new Column(name: column2Name,type: DbType.DateTime2,defaultValue: testTime)        );
 
         // Act
         Provider.Insert(table: tableName, [column1Name], [1]);
-        Provider.ChangeColumn(table: tableName, column: new Column(name: column2Name, type: DbType.DateTime2, property: ColumnProperty.Null));
+        Provider.ChangeColumn(table: tableName, column: new Column(name: column2Name,type: DbType.DateTime2));
 
         // Assert
         Provider.Insert(table: tableName, [column1Name], [2]);

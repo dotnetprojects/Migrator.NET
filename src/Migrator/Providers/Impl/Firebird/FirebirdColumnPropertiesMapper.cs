@@ -14,23 +14,19 @@ public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
     {
         Name = column.Name;
 
-        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
 
         var vals = new List<string>();
 
         AddName(vals);
 
         AddType(vals);
+        AddCollation(column, vals);
+        AddUnsigned(column, vals);
 
         AddIdentity(column, vals);
 
         AddIdentityAgain(column, vals);
 
-        AddPrimaryKey(column, vals);
-
-        AddUnique(column, vals);
-
-        AddForeignKey(column, vals);
 
         AddDefaultValue(column, vals);
 

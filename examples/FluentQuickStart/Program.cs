@@ -24,7 +24,7 @@ public class CreateUsers : AutoReversingMigration
     public override void BuildUp(MigrationBuilder migration)
     {
         migration.Create.Table("Users")
-            .WithColumn("Id").AsInt32().PrimaryKey()
+            .WithColumn("Id").AsInt32().WithPrimaryKey("PK_Id", "Id")
             .WithColumn("Name").AsString(255).NotNullable();
     }
 }

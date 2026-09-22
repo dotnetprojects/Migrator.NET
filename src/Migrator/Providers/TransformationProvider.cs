@@ -14,7 +14,7 @@
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Loggers;
 using DotNetProjects.Migrator.Framework.Models;
-using DotNetProjects.Migrator.Framework.SchemaBuilder;
+
 using DotNetProjects.Migrator.Providers.Impl.SQLite;
 using DotNetProjects.Migrator.Providers.Models;
 using System;
@@ -133,7 +133,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
                 var column = new Column(reader.GetString(0), DbType.String);
                 var nullableStr = reader.GetString(1);
                 var isNullable = nullableStr == "YES";
-                column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
+                column.IsNullable = isNullable;
 
                 columns.Add(column);
             }
@@ -148,77 +148,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     /// <param name="table"></param>
     /// <returns></returns>
     /// <exception cref="MigrationException"></exception>
-    public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
-    {
-        var constraints = new List<ForeignKeyConstraint>();
-        var sb = new StringBuilder();
-        sb.AppendLine("SELECT");
-        sb.AppendLine("  tc.CONSTRAINT_NAME AS FK_KEY,");
-        sb.AppendLine("  tc.TABLE_SCHEMA,");
-        sb.AppendLine("  tc.TABLE_NAME AS CHILD_TABLE,");
-        sb.AppendLine("  kcu.COLUMN_NAME AS CHILD_COLUMN,");
-        sb.AppendLine("  ccu.TABLE_NAME AS PARENT_TABLE,");
-        sb.AppendLine("  ccu.COLUMN_NAME AS PARENT_COLUMN");
-        sb.AppendLine("FROM ");
-        sb.AppendLine("  INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ");
-        sb.AppendLine("JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu");
-        sb.AppendLine("  ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA");
-        sb.AppendLine("JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS as rc");
-        sb.AppendLine("  ON tc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA");
-        sb.AppendLine("JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu");
-        sb.AppendLine("  ON rc.UNIQUE_CONSTRAINT_NAME = ccu.CONSTRAINT_NAME AND rc.UNIQUE_CONSTRAINT_SCHEMA = ccu.CONSTRAINT_SCHEMA");
-        sb.AppendLine($"WHERE LOWER(tc.TABLE_NAME) = LOWER('{table}') AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'");
-        sb.AppendLine("ORDER BY kcu.ORDINAL_POSITION");
-
-        var sql = sb.ToString();
-        List<ForeignKeyConstraintItem> foreignKeyConstraintItems = [];
-
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, sql))
-        {
-            while (reader.Read())
-            {
-                var constraintItem = new ForeignKeyConstraintItem
-                {
-                    SchemaName = reader.GetString(reader.GetOrdinal("TABLE_SCHEMA")),
-                    ForeignKeyName = reader.GetString(reader.GetOrdinal("FK_KEY")),
-                    ChildTableName = reader.GetString(reader.GetOrdinal("CHILD_TABLE")),
-                    ChildColumnName = reader.GetString(reader.GetOrdinal("CHILD_COLUMN")),
-                    ParentTableName = reader.GetString(reader.GetOrdinal("PARENT_TABLE")),
-                    ParentColumnName = reader.GetString(reader.GetOrdinal("PARENT_COLUMN"))
-                };
-
-                foreignKeyConstraintItems.Add(constraintItem);
-            }
-        }
-
-        var schemaChildTableGroups = foreignKeyConstraintItems.GroupBy(x => new { x.SchemaName, x.ChildTableName }).Count();
-
-        if (schemaChildTableGroups > 1)
-        {
-            throw new MigrationException($"Duplicates found (grouping by schema name and child table name). Since we do not offer schemas in '{nameof(GetForeignKeyConstraints)}' at this moment in time we cannot filter your target schema. Your database use the same table name in different schemas.");
-        }
-
-        var groups = foreignKeyConstraintItems.GroupBy(x => x.ForeignKeyName);
-
-        foreach (var group in groups)
-        {
-            var first = group.First();
-
-            var foreignKeyConstraint = new ForeignKeyConstraint
-            {
-                Name = first.ForeignKeyName,
-                ParentTable = first.ParentTableName,
-                ParentColumns = [.. group.Select(x => x.ParentColumnName).Distinct()],
-                ChildTable = first.ChildTableName,
-                ChildColumns = [.. group.Select(x => x.ChildColumnName).Distinct()]
-            };
-
-            constraints.Add(foreignKeyConstraint);
-        }
-
-        return [.. constraints];
-    }
+    public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table) => ForeignKeyMetadataReader.Read(this, table);
 
     public virtual TableConstraint[] GetTableConstraints(string table) => ConstraintMetadataReader.Read(this, table);
 
@@ -403,65 +333,25 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     public virtual void AddTable(string name, string engine, params IDbField[] fields)
     {
         var columns = fields.OfType<Column>().Select(c => c.CopyDefinition()).ToArray();
-        var primaryKeys = fields.OfType<PrimaryKeyConstraint>().ToArray();
-        if (primaryKeys.Length > 1) throw new MigrationException("A table can have only one primary key.");
-        var explicitKey = primaryKeys.SingleOrDefault();
-        if (explicitKey != null)
+        var keys = fields.OfType<PrimaryKeyConstraint>().ToArray();
+        if (keys.Length > 1) throw new MigrationException("A table can have only one primary key.");
+        foreach (var key in keys)
         {
-            if (columns.Any(c => c.IsPrimaryKey)) throw new MigrationException("Do not combine column primary-key flags with a primary-key constraint.");
-            ValidateKeyColumns(explicitKey.Name, explicitKey.KeyColumns, columns);
-            foreach (var column in columns.Where(c => explicitKey.KeyColumns.Contains(c.Name)))
-                column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull;
+            ValidateKeyColumns(key.Name, key.KeyColumns, columns);
+            foreach (var column in columns.Where(c => key.KeyColumns.Contains(c.Name, StringComparer.OrdinalIgnoreCase)))
+                column.IsNullable = false;
         }
         foreach (var unique in fields.OfType<UniqueConstraint>()) ValidateKeyColumns(unique.Name, unique.KeyColumns, columns);
-
-        var pks = GetPrimaryKeys(columns);
-        var compoundPrimaryKey = pks.Count > 1;
-
-        var columnProviders = new List<ColumnPropertiesMapper>(columns.Count());
-
-        foreach (var column in columns)
-        {
-            // Remove the primary key notation if compound primary key because we'll add it back later
-            if (compoundPrimaryKey && column.IsPrimaryKey)
-            {
-                column.ColumnProperty = column.ColumnProperty ^ ColumnProperty.PrimaryKey;
-                column.ColumnProperty = column.ColumnProperty | ColumnProperty.NotNull; // PK is always not-null
-            }
-
-            var mapper = _dialect.GetAndMapColumnProperties(column);
-            columnProviders.Add(mapper);
-        }
-
-        var columnsAndIndexes = JoinColumnsAndIndexes(columnProviders);
-        foreach (var constraint in fields.OfType<TableConstraint>().Where(c => c is not ForeignKeyConstraint))
-            columnsAndIndexes += ", " + Dialect.GetTableConstraintSql(constraint);
-
-        AddTable(name, engine, columnsAndIndexes);
-
-        if (compoundPrimaryKey)
-        {
-            AddPrimaryKey(GetPrimaryKeyname(name), name, pks.ToArray());
-        }
-
-        var indexes = fields.Where(x => x is Index).Cast<Index>().ToArray();
-
-        foreach (var index in indexes)
-        {
-            AddIndex(name, index);
-        }
-
-        var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
-
-        foreach (var foreignKey in foreignKeys)
-        {
-            AddForeignKey(name, foreignKey);
-        }
+        var sql = columns.Select(c => _dialect.GetAndMapColumnProperties(c).ColumnSql)
+            .Concat(fields.OfType<TableConstraint>().Where(c => c is not ForeignKeyConstraint).Select(_dialect.GetTableConstraintSql));
+        AddTable(name, engine, string.Join(", ", sql));
+        foreach (var index in fields.OfType<Index>()) AddIndex(name, index);
+        foreach (var foreignKey in fields.OfType<ForeignKeyConstraint>()) AddForeignKey(name, foreignKey);
     }
 
-    protected static void ValidateKeyColumns(string name, string[] keys, Column[] columns)
+    protected internal static void ValidateKeyColumns(string name, string[] keys, Column[] columns)
     {
-        if (string.IsNullOrWhiteSpace(name)) throw new MigrationException("A constraint name is required.");
+        if (name != null && string.IsNullOrWhiteSpace(name)) throw new MigrationException("A constraint name must not be empty.");
         if (keys == null || keys.Length == 0 || keys.Any(string.IsNullOrWhiteSpace) || keys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != keys.Length)
             throw new MigrationException("A key needs distinct, non-empty column names.");
         if (keys.Any(key => !columns.Any(c => c.Name.Equals(key, StringComparison.OrdinalIgnoreCase))))
@@ -555,18 +445,13 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     public virtual void ChangeColumn(string table, Column column)
     {
         column = column.CopyDefinition();
-        var isUniqueSet = column.ColumnProperty.IsSet(ColumnProperty.Unique);
 
-        column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
 
         var mapper = _dialect.GetAndMapColumnProperties(column);
 
         ChangeColumn(table, mapper.ColumnSql);
 
-        if (isUniqueSet)
-        {
-            AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, [column.Name]);
-        }
+
     }
 
     public virtual void RemoveColumnDefaultValue(string table, string column)
@@ -612,77 +497,24 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         ExecuteNonQuery(string.Format("DROP DATABASE {0}", databaseName));
     }
 
-    /// <summary>
-    /// Add a new column to an existing table.
-    /// </summary>
-    /// <param name="table">Table to which to add the column</param>
-    /// <param name="column">Column name</param>
-    /// <param name="type">Date type of the column</param>
-    /// <param name="size">Max length of the column</param>
-    /// <param name="property">Properties of the column, see <see cref="ColumnProperty">ColumnProperty</see>,</param>
-    /// <param name="defaultValue">Default value</param>
-    public void AddColumn(string table, string column, DbType type, int size, ColumnProperty property,
-                                  object defaultValue)
-    {
-        AddColumn(table, column, (MigratorDbType)type, size, property, defaultValue);
-    }
-
-    /// <summary>
-    /// Add a new column to an existing table.
-    /// </summary>
-    /// <param name="table">Table to which to add the column</param>
-    /// <param name="column">Column name</param>
-    /// <param name="type">Date type of the column</param>
-    /// <param name="size">Max length of the column</param>
-    /// <param name="property">Properties of the column, see <see cref="ColumnProperty">ColumnProperty</see>,</param>
-    /// <param name="defaultValue">Default value</param>
-    public virtual void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property,
-                                  object defaultValue)
-    {
-        var mapper =
-            _dialect.GetAndMapColumnProperties(new Column(column, type, size, property, defaultValue));
-
-        AddColumn(table, mapper.ColumnSql);
-    }
-
-    /// <summary>
-    /// <see cref="TransformationProvider.AddColumn(string, string, DbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
     public virtual void AddColumn(string table, string column, DbType type)
     {
-        AddColumn(table, column, type, 0, ColumnProperty.Null, null);
+        AddColumn(table, new Column(column, type));
     }
 
-    /// <summary>
-    /// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
     public virtual void AddColumn(string table, string column, MigratorDbType type)
     {
-        AddColumn(table, column, type, 0, ColumnProperty.Null, null);
+        AddColumn(table, new Column(column, type));
     }
 
-    /// <summary>
-    /// <see cref="TransformationProvider.AddColumn(string, string, DbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
     public virtual void AddColumn(string table, string column, DbType type, int size)
     {
-        AddColumn(table, column, type, size, ColumnProperty.Null, null);
+        AddColumn(table, new Column(column, type, size));
     }
 
-    /// <summary>
-    /// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
     public virtual void AddColumn(string table, string column, MigratorDbType type, int size)
     {
-        AddColumn(table, column, type, size, ColumnProperty.Null, null);
+        AddColumn(table, new Column(column, type, size));
     }
 
     public virtual void AddColumn(string table, string column, DbType type, object defaultValue)
@@ -696,46 +528,6 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             _dialect.GetAndMapColumnProperties(new Column(column, type, defaultValue));
 
         AddColumn(table, mapper.ColumnSql);
-    }
-
-    /// <summary>
-    /// <see cref="TransformationProvider.AddColumn(string, string, DbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
-    public virtual void AddColumn(string table, string column, DbType type, ColumnProperty property)
-    {
-        AddColumn(table, column, type, 0, property, null);
-    }
-
-    /// <summary>
-    /// <see cref="TransformationProvider.AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
-    public virtual void AddColumn(string table, string column, MigratorDbType type, ColumnProperty property)
-    {
-        AddColumn(table, column, type, 0, property, null);
-    }
-
-    /// <summary>
-    /// <see cref="AddColumn(string, string, DbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
-    public virtual void AddColumn(string table, string column, DbType type, int size, ColumnProperty property)
-    {
-        AddColumn(table, column, type, size, property, null);
-    }
-
-    /// <summary>
-    /// <see cref="AddColumn(string, string, MigratorDbType, int, ColumnProperty, object)">
-    /// AddColumn(string, string, Type, int, ColumnProperty, object)
-    /// </see>
-    /// </summary>
-    public virtual void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property)
-    {
-        AddColumn(table, column, type, size, property, null);
     }
 
     /// <summary>
@@ -1701,14 +1493,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void AddColumn(string table, Column column)
     {
-        if (!column.Precision.HasValue && !column.Scale.HasValue)
-        {
-            AddColumn(table, column.Name, column.Type, column.Size, column.ColumnProperty, column.DefaultValue);
-            return;
-        }
-        var definition = new Column(column.Name, column.MigratorDbType, column.Size, column.ColumnProperty, column.DefaultValue)
-            { Precision = column.Precision, Scale = column.Scale };
-        AddColumn(table, _dialect.GetAndMapColumnProperties(definition).ColumnSql);
+        AddColumn(table, _dialect.GetAndMapColumnProperties(column.CopyDefinition()).ColumnSql);
     }
 
     public virtual void GenerateForeignKey(string primaryTable, string refTable)
@@ -1724,14 +1509,6 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     public virtual IDbCommand GetCommand()
     {
         return BuildCommand(null);
-    }
-
-    public virtual void ExecuteSchemaBuilder(SchemaBuilder builder)
-    {
-        foreach (var expr in builder.Expressions)
-        {
-            expr.Create(this);
-        }
     }
 
     public void Dispose()
@@ -1799,20 +1576,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         ExecuteNonQuery(sqlCreate);
     }
 
-    public virtual List<string> GetPrimaryKeys(IEnumerable<Column> columns)
-    {
-        var primaryKeys = new List<string>();
 
-        foreach (var col in columns)
-        {
-            if (col.IsPrimaryKey)
-            {
-                primaryKeys.Add(col.Name);
-            }
-        }
-
-        return primaryKeys;
-    }
 
     public virtual void AddColumnDefaultValue(string table, string column, object defaultValue)
     {
@@ -1840,34 +1604,6 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     {
         table = QuoteTableNameIfRequired(table);
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ALTER COLUMN {1}", table, sqlColumn));
-    }
-
-    protected virtual string JoinColumnsAndIndexes(IEnumerable<ColumnPropertiesMapper> columns)
-    {
-        var indexes = JoinIndexes(columns);
-        var columnsAndIndexes = JoinColumns(columns) + (indexes != null ? "," + indexes : string.Empty);
-        return columnsAndIndexes;
-    }
-
-    protected virtual string JoinIndexes(IEnumerable<ColumnPropertiesMapper> columns)
-    {
-        var indexes = new List<string>();
-        foreach (var column in columns)
-        {
-            var indexSql = column.IndexSql;
-
-            if (indexSql != null)
-            {
-                indexes.Add(indexSql);
-            }
-        }
-
-        if (indexes.Count == 0)
-        {
-            return null;
-        }
-
-        return string.Join(", ", [.. indexes]);
     }
 
     protected virtual string JoinColumns(IEnumerable<ColumnPropertiesMapper> columns)
@@ -1932,15 +1668,15 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         if (!TableExists(_schemaInfotable))
         {
             AddTable(_schemaInfotable,
-                new Column("Version", DbType.Int64, ColumnProperty.NotNull | ColumnProperty.PrimaryKey),
-                new Column("Scope", DbType.String, 50, ColumnProperty.NotNull | ColumnProperty.PrimaryKey, "default"),
+                new Column("Version",DbType.Int64){IsNullable = false},
+                new Column("Scope",DbType.String,50,"default"){IsNullable = false},
                 new Column("TimeStamp", DbType.DateTime));
         }
         else
         {
             if (!ColumnExists(_schemaInfotable, "Scope"))
             {
-                AddColumn(_schemaInfotable, "Scope", DbType.String, 50, ColumnProperty.NotNull, "default");
+                AddColumn(_schemaInfotable, new Column("Scope", DbType.String, 50) { IsNullable = false, DefaultValue = "default" });
                 RemoveAllConstraints(_schemaInfotable);
                 AddPrimaryKey("PK_SchemaInfo", _schemaInfotable, ["Version", "Scope"]);
             }

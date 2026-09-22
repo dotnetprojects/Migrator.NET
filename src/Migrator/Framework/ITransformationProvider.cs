@@ -47,28 +47,6 @@ public interface ITransformationProvider : IDisposable
     /// <param name="table">The name of the table that will get the new column</param>
     /// <param name="column">The name of the new column</param>
     /// <param name="type">The data type for the new columnd</param>
-    /// <param name="size">The precision or size of the column</param>
-    /// <param name="property">Properties that can be ORed together</param>
-    /// <param name="defaultValue">The default value of the column if no value is given in a query</param>
-    void AddColumn(string table, string column, DbType type, int size, ColumnProperty property, object defaultValue);
-
-    /// <summary>
-    /// Add a column to an existing table
-    /// </summary>
-    /// <param name="table">The name of the table that will get the new column</param>
-    /// <param name="column">The name of the new column</param>
-    /// <param name="type">The data type for the new columnd</param>
-    /// <param name="size">The precision or size of the column</param>
-    /// <param name="property">Properties that can be ORed together</param>
-    /// <param name="defaultValue">The default value of the column if no value is given in a query</param>
-    void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property, object defaultValue);
-
-    /// <summary>
-    /// Add a column to an existing table
-    /// </summary>
-    /// <param name="table">The name of the table that will get the new column</param>
-    /// <param name="column">The name of the new column</param>
-    /// <param name="type">The data type for the new columnd</param>
     void AddColumn(string table, string column, DbType type);
 
     /// <summary>
@@ -96,44 +74,6 @@ public interface ITransformationProvider : IDisposable
     /// <param name="type">The data type for the new columnd</param>
     /// <param name="size">The precision or size of the column</param>
     void AddColumn(string table, string column, MigratorDbType type, int size);
-
-    /// <summary>
-    /// Add a column to an existing table
-    /// </summary>
-    /// <param name="table">The name of the table that will get the new column</param>
-    /// <param name="column">The name of the new column</param>
-    /// <param name="type">The data type for the new columnd</param>
-    /// <param name="size">The precision or size of the column</param>
-    /// <param name="property">Properties that can be ORed together</param>
-    void AddColumn(string table, string column, DbType type, int size, ColumnProperty property);
-
-    /// <summary>
-    /// Add a column to an existing table
-    /// </summary>
-    /// <param name="table">The name of the table that will get the new column</param>
-    /// <param name="column">The name of the new column</param>
-    /// <param name="type">The data type for the new columnd</param>
-    /// <param name="size">The precision or size of the column</param>
-    /// <param name="property">Properties that can be ORed together</param>
-    void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property);
-
-    /// <summary>
-    /// Add a column to an existing table
-    /// </summary>
-    /// <param name="table">The name of the table that will get the new column</param>
-    /// <param name="column">The name of the new column</param>
-    /// <param name="type">The data type for the new columnd</param>
-    /// <param name="property">Properties that can be ORed together</param>
-    void AddColumn(string table, string column, DbType type, ColumnProperty property);
-
-    /// <summary>
-    /// Add a column to an existing table
-    /// </summary>
-    /// <param name="table">The name of the table that will get the new column</param>
-    /// <param name="column">The name of the new column</param>
-    /// <param name="type">The data type for the new columnd</param>
-    /// <param name="property">Properties that can be ORed together</param>
-    void AddColumn(string table, string column, MigratorDbType type, ColumnProperty property);
 
     /// <summary>
     /// Add a column to an existing table with the default column size.
@@ -675,12 +615,6 @@ public interface ITransformationProvider : IDisposable
     /// </summary>
     /// <returns></returns>
     IDbCommand GetCommand();
-
-    /// <summary>
-    /// Execute a schema builder
-    /// </summary>
-    /// <param name="schemaBuilder"></param>
-    void ExecuteSchemaBuilder(SchemaBuilder.SchemaBuilder schemaBuilder);
 
 
     void RemoveAllForeignKeys(string tableName, string columnName);

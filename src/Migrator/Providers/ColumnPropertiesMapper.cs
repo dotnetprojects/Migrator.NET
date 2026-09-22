@@ -1,251 +1,73 @@
+using System;
 using System.Collections.Generic;
 using DotNetProjects.Migrator.Framework;
 
 namespace DotNetProjects.Migrator.Providers;
 
-/// <summary>
-/// This is basically a just a helper base class
-/// per-database implementors may want to override ColumnSql
-/// </summary>
+/// <summary>Renders column attributes. Keys, constraints and indexes belong to the table definition.</summary>
 public class ColumnPropertiesMapper
 {
-    /// <summary>
-    /// the type of the column
-    /// </summary>
     protected string _ColumnSql;
-
-    /// <summary>
-    /// Sql if this column has a default value
-    /// </summary>
     protected object _DefaultVal;
-
     protected Dialect _Dialect;
-
-    /// <summary>
-    /// Sql if This column is Indexed
-    /// </summary>
-    protected bool _Indexed;
-
-    /// <summary>The name of the column</summary>
     protected string _Name;
-
-    /// <summary>The SQL type</summary>
-    public string Type { get; private set; }
-
-    public ColumnPropertiesMapper(Dialect dialect, string typeString)
-    {
-        _Dialect = dialect;
-        Type = typeString;
-    }
-
-    /// <summary>
-    /// The sql for this column, override in database-specific implementation classes
-    /// </summary>
-    public virtual string ColumnSql
-    {
-        get { return _ColumnSql; }
-    }
-
-    public string Name
-    {
-        get { return _Name; }
-        set { _Name = value; }
-    }
-
-    public object Default
-    {
-        get { return _DefaultVal; }
-        set { _DefaultVal = value; }
-    }
-
-    public string QuotedName
-    {
-        get { return _Dialect.Quote(Name); }
-    }
-
-    public string IndexSql
-    {
-        get
-        {
-            if (_Dialect.SupportsIndex && _Indexed)
-            {
-                return string.Format("INDEX({0})", _Dialect.Quote(_Name));
-            }
-
-            return null;
-        }
-    }
-
-    public virtual void MapColumnProperties(Column column)
+    public string Type { get; }
+    public ColumnPropertiesMapper(Dialect dialect, string typeString) { _Dialect = dialect; Type = typeString; }
+    public virtual string ColumnSql => _ColumnSql;
+    public string Name { get => _Name; set => _Name = value; }
+    public object Default { get => _DefaultVal; set => _DefaultVal = value; }
+    public string QuotedName => _Dialect.QuoteIdentifier(Name);
+    public virtual void MapColumnProperties(Column column) => Map(column, true);
+    public virtual void MapColumnPropertiesWithoutDefault(Column column) => Map(column, false);
+    private void Map(Column column, bool includeDefault)
     {
         Name = column.Name;
-
-        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
-
-        var vals = new List<string>();
-
-        AddName(vals);
-
-        AddType(vals);
-
-        AddCaseSensitive(column, vals);
-
-        AddIdentity(column, vals);
-
-        AddUnsigned(column, vals);
-
-        AddNotNull(column, vals);
-
-        AddNull(column, vals);
-
-        AddPrimaryKey(column, vals);
-
-        AddPrimaryKeyNonClustered(column, vals);
-
-        AddIdentityAgain(column, vals);
-
-        AddUnique(column, vals);
-
-        AddForeignKey(column, vals);
-
-        AddDefaultValue(column, vals);
-
-        _ColumnSql = string.Join(" ", vals.ToArray());
+        var values = new List<string>();
+        AddName(values); AddType(values); AddCollation(column, values);
+        AddIdentity(column, values); AddUnsigned(column, values);
+        AddNotNull(column, values); AddNull(column, values);
+        AddIdentityAgain(column, values);
+        if (includeDefault) AddDefaultValue(column, values);
+        _ColumnSql = string.Join(" ", values);
     }
-
-    public virtual void MapColumnPropertiesWithoutDefault(Column column)
+    protected virtual void AddCollation(Column column, List<string> values)
     {
-        Name = column.Name;
-
-        _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
-
-        var vals = new List<string>();
-
-        AddName(vals);
-
-        AddType(vals);
-
-        AddCaseSensitive(column, vals);
-
-        AddIdentity(column, vals);
-
-        AddUnsigned(column, vals);
-
-        AddNotNull(column, vals);
-
-        AddNull(column, vals);
-
-        AddPrimaryKey(column, vals);
-
-        AddIdentityAgain(column, vals);
-
-        AddPrimaryKeyNonClustered(column, vals);
-
-        AddUnique(column, vals);
-
-        AddForeignKey(column, vals);
-
-        _ColumnSql = string.Join(" ", vals.ToArray());
-    }
-
-    protected virtual void AddCaseSensitive(Column column, List<string> vals)
-    {
-        AddValueIfSelected(column, ColumnProperty.CaseSensitive, vals);
-    }
-
-    protected virtual void AddDefaultValue(Column column, List<string> vals)
-    {
-        if (column.DefaultValue != null)
+        if (column.Collation != null)
         {
-            vals.Add(_Dialect.Default(column.DefaultValue));
+            if (column.Type is not (System.Data.DbType.String or System.Data.DbType.AnsiString or System.Data.DbType.StringFixedLength or System.Data.DbType.AnsiStringFixedLength))
+                throw new NotSupportedException("Collation requires a text column.");
+            values.Add(_Dialect.GetCollationSql(column.Collation));
         }
     }
-
-    protected virtual void AddForeignKey(Column column, List<string> vals)
+    protected virtual void AddDefaultValue(Column column, List<string> values)
     {
-        // TODO Does that really make sense?
-        // AddValueIfSelected(column, ColumnProperty.ForeignKey, vals);
+        if (column.DefaultValue != null) values.Add(_Dialect.Default(column.DefaultValue));
     }
-
-    protected virtual void AddUnique(Column column, List<string> vals)
+    protected virtual void AddIdentity(Column column, List<string> values)
     {
-        AddValueIfSelected(column, ColumnProperty.Unique, vals);
+        if (!_Dialect.IdentityNeedsType && column.IsIdentity) values.Add(_Dialect.SqlForColumnAttribute(ColumnAttribute.Identity, column));
     }
-
-    protected virtual void AddIdentityAgain(Column column, List<string> vals)
+    protected virtual void AddIdentityAgain(Column column, List<string> values)
     {
-        if (_Dialect.IdentityNeedsType)
-        {
-            AddValueIfSelected(column, ColumnProperty.Identity, vals);
-        }
+        if (_Dialect.IdentityNeedsType && column.IsIdentity) values.Add(_Dialect.SqlForColumnAttribute(ColumnAttribute.Identity, column));
     }
-    protected virtual void AddPrimaryKeyNonClustered(Column column, List<string> vals)
+    protected virtual void AddNull(Column column, List<string> values)
     {
-        if (_Dialect.SupportsNonClustered)
-        {
-            AddValueIfSelected(column, ColumnProperty.PrimaryKeyNonClustered, vals);
-        }
+        if (column.IsNullable && _Dialect.NeedsNullForNullableWhenAlteringTable)
+            values.Add(_Dialect.SqlForColumnAttribute(ColumnAttribute.Null, column));
     }
-    protected virtual void AddPrimaryKey(Column column, List<string> vals)
+    protected virtual void AddNotNull(Column column, List<string> values)
     {
-        AddValueIfSelected(column, ColumnProperty.PrimaryKey, vals);
+        if (!column.IsNullable) values.Add(_Dialect.SqlForColumnAttribute(ColumnAttribute.NotNull, column));
     }
-
-    protected virtual void AddNull(Column column, List<string> vals)
+    protected virtual void AddUnsigned(Column column, List<string> values)
     {
-        if (!PropertySelected(column.ColumnProperty, ColumnProperty.PrimaryKey))
-        {
-            if (_Dialect.NeedsNullForNullableWhenAlteringTable)
-            {
-                AddValueIfSelected(column, ColumnProperty.Null, vals);
-            }
-        }
+        if (!column.IsUnsigned) return;
+        if (!_Dialect.IsUnsignedCompatible(column.Type)) throw new NotSupportedException("Unsigned is unsupported for this column type.");
+        var sql = _Dialect.SqlForColumnAttribute(ColumnAttribute.Unsigned, column);
+        if (string.IsNullOrWhiteSpace(sql)) throw new NotSupportedException("Unsigned columns are unsupported by this dialect.");
+        values.Add(sql);
     }
-
-    protected virtual void AddNotNull(Column column, List<string> vals)
-    {
-        if (!PropertySelected(column.ColumnProperty, ColumnProperty.Null) && (!PropertySelected(column.ColumnProperty, ColumnProperty.PrimaryKey) || _Dialect.NeedsNotNullForIdentity))
-        {
-            AddValueIfSelected(column, ColumnProperty.NotNull, vals);
-        }
-    }
-
-    protected virtual void AddUnsigned(Column column, List<string> vals)
-    {
-        if (_Dialect.IsUnsignedCompatible(column.Type))
-        {
-            AddValueIfSelected(column, ColumnProperty.Unsigned, vals);
-        }
-    }
-
-    protected virtual void AddIdentity(Column column, List<string> vals)
-    {
-        if (!_Dialect.IdentityNeedsType)
-        {
-            AddValueIfSelected(column, ColumnProperty.Identity, vals);
-        }
-    }
-
-    protected virtual void AddType(List<string> vals)
-    {
-        vals.Add(Type);
-    }
-
-    protected virtual void AddName(List<string> vals)
-    {
-        vals.Add(_Dialect.ColumnNameNeedsQuote || _Dialect.IsReservedWord(Name) ? QuotedName : Name);
-    }
-
-    protected virtual void AddValueIfSelected(Column column, ColumnProperty property, ICollection<string> vals)
-    {
-        if (PropertySelected(column.ColumnProperty, property))
-        {
-            vals.Add(_Dialect.SqlForProperty(property, column));
-        }
-    }
-
-    public static bool PropertySelected(ColumnProperty source, ColumnProperty comparison)
-    {
-        return (source & comparison) == comparison;
-    }
+    protected virtual void AddType(List<string> values) => values.Add(Type);
+    protected virtual void AddName(List<string> values) => values.Add(_Dialect.ColumnNameNeedsQuote || _Dialect.IsReservedWord(Name) ? QuotedName : Name);
 }

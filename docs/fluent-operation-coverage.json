@@ -69,6 +69,5 @@
   "MigrationApplied": "Explicit Context history/transaction APIs; not schema expressions",
   "MigrationUnApplied": "Explicit Context history/transaction APIs; not schema expressions",
   "IsMigrationApplied": "Explicit Context history/transaction APIs; not schema expressions",
-  "ExecuteSchemaBuilder": "Execute.WithProvider(p => p.ExecuteSchemaBuilder(legacyBuilder))",
   "GetTableConstraints": "Schema.Table(table).ConstraintDefinitions()"
 }

@@ -32,8 +32,8 @@ public static class JoiningTableTransformationProviderExtensions
         var joinRhsKey = Inflector.Singularize(rhsTableName) + "Id";
 
         database.AddTable(joiningTableWithSchema,
-                                            new Column(joinLhsKey, DbType.Guid, ColumnProperty.NotNull),
-                                            new Column(joinRhsKey, DbType.Guid, ColumnProperty.NotNull));
+                                            new Column(joinLhsKey,DbType.Guid){IsNullable = false},
+                                            new Column(joinRhsKey,DbType.Guid){IsNullable = false});
 
         var pkName = "PK_" + joiningTableName;
 

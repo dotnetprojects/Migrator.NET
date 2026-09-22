@@ -373,9 +373,6 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
     {
         var oldColumn = GetColumnByName(table, column.Name);
 
-        var isUniqueSet = column.ColumnProperty.IsSet(ColumnProperty.Unique);
-
-        column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
 
         var mapper = _dialect.GetAndMapColumnProperties(column);
 
@@ -408,7 +405,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             ChangeColumn(table, change2);
         }
 
-        if (column.ColumnProperty.HasFlag(ColumnProperty.NotNull))
+        if (!column.IsNullable)
         {
             var change3 = string.Format("{0} SET NOT NULL", QuoteColumnNameIfRequired(mapper.Name));
             ChangeColumn(table, change3);
@@ -419,10 +416,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             ChangeColumn(table, change3);
         }
 
-        if (isUniqueSet)
-        {
-            AddUniqueConstraint(string.Format("UX_{0}_{1}", table, column.Name), table, [column.Name]);
-        }
+
     }
 
     public override void CreateDatabases(string databaseName)
@@ -609,22 +603,34 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                 Size = size ?? 0
             };
 
-            column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
-            if (uniqueColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.Unique;
+            column.IsNullable = isNullable;
 
             if (isPrimaryKey)
             {
-                column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
+
             }
 
             if (isIdentity)
             {
-                column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.Identity);
+                column.IsIdentity = true;
             }
 
-            if (columnInfo.ColumnDefault != null)
+            if (columnInfo.ColumnDefault != null && !isIdentity)
             {
-                if (column.MigratorDbType == MigratorDbType.Int16 || column.MigratorDbType == MigratorDbType.Int32 || column.MigratorDbType == MigratorDbType.Int64)
+                // Catalog casts on literal values retain the existing CLR conversion.
+                // All other expressions must survive inspection without evaluation or quoting.
+                var parsedDefault = CatalogDefaultValue.Parse(columnInfo.ColumnDefault, column.Type);
+                var isCastLiteral = Regex.IsMatch(columnInfo.ColumnDefault,
+                    @"\A'(?:[^']|'')*'(?:::[A-Za-z0-9_ .\[\](),]+)?\z");
+                if (column.Type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength)
+                {
+                    var literal = Regex.Match(columnInfo.ColumnDefault, @"\A('(?:[^']|'')*')(?:::[A-Za-z0-9_ .\[\](),]+)?\z");
+                    column.DefaultValue = literal.Success
+                        ? CatalogDefaultValue.Parse(literal.Groups[1].Value, column.Type) : parsedDefault;
+                }
+                else if (parsedDefault is RawSql && !isCastLiteral)
+                    column.DefaultValue = parsedDefault;
+                else if (column.MigratorDbType == MigratorDbType.Int16 || column.MigratorDbType == MigratorDbType.Int32 || column.MigratorDbType == MigratorDbType.Int64)
                 {
                     var match = stripSingleQuoteRegEx.Match(columnInfo.ColumnDefault);
                     if (match.Success)

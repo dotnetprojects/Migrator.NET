@@ -55,20 +55,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
         _connection.ConnectionString = _connectionString;
         _connection.Open();
 
-        string collationString = null;
-        var collation = ExecuteScalar("SELECT DATABASEPROPERTYEX('" + _connection.Database + "', 'Collation')");
 
-        if (collation != null)
-        {
-            collationString = collation.ToString();
-        }
-
-        if (string.IsNullOrWhiteSpace(collationString))
-        {
-            collationString = "Latin1_General_CI_AS";
-        }
-
-        Dialect.RegisterProperty(ColumnProperty.CaseSensitive, "COLLATE " + collationString.Replace("_CI_", "_CS_"));
     }
 
     public override void CopyDataFromTableToTable(string sourceTableName, List<string> sourceColumnNames, string targetTableName, List<string> targetColumnNames, List<string> orderBySourceColumns = null)
@@ -277,78 +264,15 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
         return sql;
     }
 
-    public override void AddTable(string name, string engine, params IDbField[] fields)
-    {
-        var definitions = fields.Select(field => field is Column column ? column.CopyDefinition() : field).ToArray();
-        var owned = definitions.OfType<Column>().Where(c => c.ColumnProperty.HasFlag(ColumnProperty.Unique)).ToArray();
-        foreach (var column in owned) column.ColumnProperty &= ~ColumnProperty.Unique;
-        base.AddTable(name, engine, definitions);
-        foreach (var column in owned) AddOwnedColumnUnique(name, column.Name);
-    }
-
-    public override void AddColumn(string table, Column column)
-    {
-        var definition = column.CopyDefinition();
-        var owned = definition.ColumnProperty.HasFlag(ColumnProperty.Unique);
-        definition.ColumnProperty &= ~ColumnProperty.Unique;
-        base.AddColumn(table, definition);
-        if (owned) AddOwnedColumnUnique(table, column.Name);
-    }
-
-    public override void AddColumn(string table, string column, MigratorDbType type, int size, ColumnProperty property, object defaultValue)
-    {
-        base.AddColumn(table, column, type, size, property & ~ColumnProperty.Unique, defaultValue);
-        if (property.HasFlag(ColumnProperty.Unique)) AddOwnedColumnUnique(table, column);
-    }
-
-    private void AddOwnedColumnUnique(string table, string column)
-    {
-        var name = "UX_" + Guid.NewGuid().ToString("N");
-        AddUniqueConstraint(name, table, column);
-        MarkColumnUniqueOwned(table, column, name);
-    }
-
-    /// <summary>Explicitly adopt a caller-owned, single-column legacy UNIQUE constraint.
-    /// No ownership is inferred from its name. Future ChangeColumn calls may remove it.</summary>
-    public void AdoptColumnUniqueConstraint(string table, string column, string constraint)
-    {
-        using var command = CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM sys.key_constraints kc JOIN sys.index_columns ic ON ic.object_id=kc.parent_object_id AND ic.index_id=kc.unique_index_id JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id WHERE kc.parent_object_id=OBJECT_ID(@table) AND kc.type='UQ' AND kc.name=@constraint AND ic.key_ordinal=1 AND c.name=@column AND NOT EXISTS (SELECT 1 FROM sys.index_columns more WHERE more.object_id=ic.object_id AND more.index_id=ic.index_id AND more.key_ordinal>1)";
-        AddParameter(command, "@table", table); AddParameter(command, "@column", column); AddParameter(command, "@constraint", constraint);
-        if (Convert.ToInt32(command.ExecuteScalar()) != 1) throw new MigrationException("Ownership requires an existing single-column UNIQUE constraint on the specified table and column.");
-        MarkColumnUniqueOwned(table, column, constraint);
-    }
-
-    private void MarkColumnUniqueOwned(string table, string column, string constraint)
-    {
-        using var command = CreateCommand();
-        command.CommandText = "DECLARE @schema sysname=OBJECT_SCHEMA_NAME(OBJECT_ID(@table)); DECLARE @name sysname=OBJECT_NAME(OBJECT_ID(@table)); IF EXISTS (SELECT 1 FROM sys.extended_properties ep JOIN sys.key_constraints kc ON ep.class=1 AND ep.major_id=kc.object_id AND ep.minor_id=0 WHERE kc.parent_object_id=OBJECT_ID(@table) AND kc.name=@constraint AND ep.name=N'Migrator.NET.ColumnUnique') EXEC sys.sp_updateextendedproperty @name=N'Migrator.NET.ColumnUnique', @value=@column, @level0type=N'SCHEMA', @level0name=@schema, @level1type=N'TABLE', @level1name=@name, @level2type=N'CONSTRAINT', @level2name=@constraint; ELSE EXEC sys.sp_addextendedproperty @name=N'Migrator.NET.ColumnUnique', @value=@column, @level0type=N'SCHEMA', @level0name=@schema, @level1type=N'TABLE', @level1name=@name, @level2type=N'CONSTRAINT', @level2name=@constraint";
-        AddParameter(command, "@table", table); AddParameter(command, "@column", column); AddParameter(command, "@constraint", constraint);
-        command.ExecuteNonQuery();
-    }
-
     public override void ChangeColumn(string table, Column column)
     {
-        var definition = new Column(column.Name, column.MigratorDbType, column.Size, column.ColumnProperty, column.DefaultValue)
-            { Precision = column.Precision, Scale = column.Scale };
-        var unique = definition.ColumnProperty.IsSet(ColumnProperty.Unique);
-        definition.ColumnProperty = definition.ColumnProperty.Clear(ColumnProperty.Unique);
-        var owned = new List<string>();
-        using (var command = CreateCommand())
-        {
-            command.CommandText = "SELECT kc.name FROM sys.key_constraints kc JOIN sys.extended_properties ep ON ep.class=1 AND ep.major_id=kc.object_id AND ep.minor_id=0 WHERE kc.parent_object_id=OBJECT_ID(@table) AND kc.type='UQ' AND ep.name=N'Migrator.NET.ColumnUnique' AND CONVERT(nvarchar(128),ep.value)=@column";
-            AddParameter(command, "@table", table); AddParameter(command, "@column", column.Name);
-            using var reader = command.ExecuteReader();
-            while (reader.Read()) owned.Add(reader.GetString(0));
-        }
-        foreach (var constraint in owned) RemoveConstraint(table, constraint);
+        var definition = column.CopyDefinition();
         RemoveColumnDefaultValue(table, definition.Name);
         var requestedDefault = definition.DefaultValue;
         definition.DefaultValue = null;
         base.ChangeColumn(table, definition);
         if (requestedDefault != null && requestedDefault != DBNull.Value)
             ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD DEFAULT {_dialect.Default(requestedDefault)[8..]} FOR {QuoteColumnNameIfRequired(column.Name)}");
-        if (unique) AddOwnedColumnUnique(table, column.Name);
     }
 
     private static void AddParameter(IDbCommand command, string name, object value)
@@ -626,15 +550,14 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                 var defaultValueString = reader.IsDBNull(defaultValueOrdinal) ? null : reader.GetString(defaultValueOrdinal).Trim();
                 var characterMaximumLength = reader.IsDBNull(characterMaximumLengthOrdinal) ? (int?)null : reader.GetInt32(characterMaximumLengthOrdinal);
 
-                if (uniqueColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.Unique;
                 if (pkColumns.Contains(column.Name))
                 {
-                    column.ColumnProperty |= ColumnProperty.PrimaryKey;
+
                 }
 
                 if (idtColumns.Contains(column.Name))
                 {
-                    column.ColumnProperty |= ColumnProperty.Identity;
+                    column.IsIdentity = true;
                 }
 
                 var nullableStr = reader.GetString(1);
@@ -727,7 +650,12 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                     var bracesStrippedString = defaultValueString.Replace("(", "").Replace(")", "").Trim();
                     var bracesAndSingleQuoteStrippedString = bracesStrippedString.Replace("'", "");
 
-                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
+                    var parsedDefault = CatalogDefaultValue.Parse(defaultValueString, column.Type);
+                    if (column.Type is DbType.String or DbType.AnsiString or DbType.StringFixedLength or DbType.AnsiStringFixedLength
+                        || (parsedDefault is RawSql && !System.Text.RegularExpressions.Regex.IsMatch(defaultValueString,
+                            @"(?i)^\(*\s*(CONVERT\s*\(|0x[0-9a-f]+\)*)")))
+                        column.DefaultValue = parsedDefault;
+                    else if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
                     {
                         column.DefaultValue = long.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
@@ -842,7 +770,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                     }
                 }
 
-                column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
+                column.IsNullable = isNullable;
 
                 columns.Add(column);
             }

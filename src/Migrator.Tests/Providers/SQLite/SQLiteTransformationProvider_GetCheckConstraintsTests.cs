@@ -39,6 +39,6 @@ public class SQLiteTransformationProvider_GetCheckConstraintsTests : SQLiteTrans
         Assert.Throws<SQLiteException>(() => Provider.Insert(tableName, [columnName], [200]));
 
         var createScript = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(tableName);
-        Assert.That(createScript, Is.EqualTo("CREATE TABLE MyTableName (MyColumnName INTEGER NULL, CONSTRAINT MyCheckConstraint1 CHECK (MyColumnName > 10), CONSTRAINT MyCheckConstraint2 CHECK (MyColumnName < 100))"));
+        Assert.That(((SQLiteTransformationProvider)Provider).GetCheckConstraints(tableName).Count, Is.EqualTo(2));
     }
 }

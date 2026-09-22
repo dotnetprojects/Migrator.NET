@@ -373,12 +373,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
 
         var sqliteTableInfo = GetSQLiteTableInfo(table);
-        if (!sqliteTableInfo.ForeignKeys.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        if (!sqliteTableInfo.ForeignKeys.Any(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new MigrationException($"Foreign key '{name}' does not exist.");
         }
 
-        sqliteTableInfo.ForeignKeys.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        sqliteTableInfo.ForeignKeys.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
         RecreateTable(sqliteTableInfo);
     }
@@ -426,7 +426,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             var info = GetSQLiteTableInfo(tableName);
             var definition = info.Columns.SingleOrDefault(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
             bool Matches(string name) => string.Equals(name, column, StringComparison.OrdinalIgnoreCase);
-            var dependent = definition == null || definition.IsPrimaryKey || definition.ColumnProperty.HasFlag(ColumnProperty.Unique)
+            var dependent = definition == null || info.PrimaryKey?.KeyColumns.Contains(column, StringComparer.OrdinalIgnoreCase) == true || info.Uniques.Any(u => u.KeyColumns.Contains(column, StringComparer.OrdinalIgnoreCase))
                 || info.CheckConstraints.Count != 0
                 || info.Uniques.Any(u => u.KeyColumns.Any(Matches))
                 || info.Indexes.Any(i => i.KeyColumns.Any(Matches) || i.FilterItems.Count != 0)
@@ -693,47 +693,17 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void AddPrimaryKey(string name, string tableName, params string[] columnNames)
     {
-        if (!TableExists(tableName))
-        {
-            throw new Exception("Table does not exist");
-        }
-
-        var sqliteTableInfo = GetSQLiteTableInfo(tableName);
-
-        foreach (var column in sqliteTableInfo.Columns)
-        {
-            if (columnNames.Any(x => x.Equals(column.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
-            }
-            else
-            {
-                column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.PrimaryKey);
-            }
-        }
-
-        var columnNamesList = columnNames.ToList();
-
-        var columnsReordered = sqliteTableInfo.Columns.OrderBy(x =>
-        {
-            var index = columnNamesList.IndexOf(x.Name);
-            return index >= 0 ? index : int.MaxValue;
-        }).ToList();
-
-        sqliteTableInfo.Columns = columnsReordered;
-
-        RecreateTable(sqliteTableInfo);
+        var info = GetSQLiteTableInfo(tableName) ?? throw new MigrationException("Table does not exist.");
+        if (info.PrimaryKey != null) throw new MigrationException("The table already has a primary key. Remove it explicitly first.");
+        ValidateKeyColumns(name, columnNames, info.Columns.ToArray());
+        info.PrimaryKey = new PrimaryKeyConstraint(name, columnNames);
+        RecreateTable(info);
     }
 
     public override bool PrimaryKeyExists(string table, string name)
     {
-        var sqliteTableInfo = GetSQLiteTableInfo(table);
-
-        // SQLite does not offer named primary keys BUT since there can only be one primary key per table we return true if there is any primary key.
-
-        var hasPrimaryKey = sqliteTableInfo.Columns.Any(x => x.ColumnProperty.IsSet(ColumnProperty.PrimaryKey));
-
-        return hasPrimaryKey;
+        var key = GetTableConstraints(table).OfType<PrimaryKeyConstraint>().SingleOrDefault();
+        return key != null && string.Equals(key.Name, name, StringComparison.OrdinalIgnoreCase);
     }
 
     public override void AddUniqueConstraint(string name, string table, params string[] columns)
@@ -745,7 +715,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var sqliteTableInfo = GetSQLiteTableInfo(table);
 
-        if (sqliteTableInfo.Uniques.Any(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        if (sqliteTableInfo.Uniques.Any(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new MigrationException("A unique constraint with the same name already exists.");
         }
@@ -759,8 +729,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override void RemoveConstraint(string table, string name)
     {
         var sqliteTableInfo = GetSQLiteTableInfo(table);
-        sqliteTableInfo.Uniques.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        sqliteTableInfo.CheckConstraints.RemoveAll(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        sqliteTableInfo.Uniques.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+        sqliteTableInfo.CheckConstraints.RemoveAll(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
         RecreateTable(sqliteTableInfo);
     }
@@ -776,7 +746,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             TableNameMapping = new MappingInfo { OldName = tableName, NewName = tableName },
             Columns = GetColumns(tableName).ToList(),
-            PrimaryKey = GetTableConstraints(tableName).OfType<PrimaryKeyConstraint>().SingleOrDefault(c => c.Name != null),
+            PrimaryKey = GetTableConstraints(tableName).OfType<PrimaryKeyConstraint>().SingleOrDefault(),
             ForeignKeys = GetForeignKeyConstraints(tableName).ToList(),
             Indexes = GetIndexes(tableName).ToList(),
             Uniques = GetUniques(tableName).ToList(),
@@ -902,11 +872,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var targetIntermediateTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}{IntermediateTableSuffix}");
         var targetTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}");
 
-        // Catalog columns still expose legacy membership flags during the v13 transition.
-        // The table constraint is authoritative; clear flags only on private copies.
         var columns = sqliteTableInfo.Columns.Select(c => c.CopyDefinition()).ToArray();
-        if (sqliteTableInfo.PrimaryKey != null)
-            foreach (var column in columns) column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
         var columnDbFields = columns.Cast<IDbField>();
         var foreignKeyDbFields = sqliteTableInfo.ForeignKeys.Cast<IDbField>();
         var indexDbFields = sqliteTableInfo.Indexes.Cast<IDbField>();
@@ -1017,28 +983,6 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         AddColumn(table, column);
     }
 
-    public override void AddColumn(string table, string columnName, DbType type, ColumnProperty property)
-    {
-        var column = new Column(columnName, type, property);
-
-        AddColumn(table, column);
-    }
-
-    public override void AddColumn(string table, string columnName, MigratorDbType type, ColumnProperty property)
-    {
-        var column = new Column(columnName, type, property);
-
-        AddColumn(table, column);
-    }
-
-    public override void AddColumn(string table, string columnName, MigratorDbType type, int size, ColumnProperty property,
-                                  object defaultValue)
-    {
-        var column = new Column(columnName, type, property) { Size = size, DefaultValue = defaultValue };
-
-        AddColumn(table, column);
-    }
-
     public override void AddColumn(string table, string columnName, DbType type)
     {
         var column = new Column(columnName, type);
@@ -1049,20 +993,6 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override void AddColumn(string table, string columnName, MigratorDbType type)
     {
         var column = new Column(columnName, type);
-
-        AddColumn(table, column);
-    }
-
-    public override void AddColumn(string table, string columnName, DbType type, int size, ColumnProperty property)
-    {
-        var column = new Column(columnName, type, size, property);
-
-        AddColumn(table, column);
-    }
-
-    public override void AddColumn(string table, string columnName, MigratorDbType type, int size, ColumnProperty property)
-    {
-        var column = new Column(columnName, type, size, property);
 
         AddColumn(table, column);
     }
@@ -1197,17 +1127,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
         var pragmaTableInfoItems = GetPragmaTableInfoItems(tableName);
 
-        // Column provides no way to store the primary key sequence number and we do not want to change the class for all database types for now
-        // so we sort the columns.
-        var tableInfoPrimaryKeys = pragmaTableInfoItems.Where(x => x.Pk > 0)
-            .OrderBy(x => x.Pk)
-            .ToList();
-
-        var tableInfoNonPrimaryKeys = pragmaTableInfoItems.Where(x => x.Pk < 1)
-            .OrderBy(x => x.Cid)
-            .ToList();
-
-        var pragmaTableInfoItemsSorted = tableInfoPrimaryKeys.Concat(tableInfoNonPrimaryKeys).ToList();
+        var tableInfoPrimaryKeys = pragmaTableInfoItems.Where(x => x.Pk > 0).ToList();
+        var pragmaTableInfoItemsSorted = pragmaTableInfoItems.OrderBy(x => x.Cid).ToList();
 
         var columns = new List<Column>();
 
@@ -1220,106 +1141,17 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
             if (pragmaTableInfoItem.NotNull)
             {
-                column.ColumnProperty |= ColumnProperty.NotNull;
+                column.IsNullable = false;
             }
             else
             {
-                column.ColumnProperty |= ColumnProperty.Null;
+                column.IsNullable = true;
             }
 
             var defValue = pragmaTableInfoItem.DfltValue == DBNull.Value ? null : pragmaTableInfoItem.DfltValue;
 
-            if (defValue is string v && v.StartsWith("'") && v.EndsWith("'"))
-            {
-                column.DefaultValue = v.Substring(1, v.Length - 2);
-            }
-            else
-            {
-                column.DefaultValue = defValue;
-            }
-
-            if (column.DefaultValue != null)
-            {
-                if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
-                {
-                    column.DefaultValue = long.Parse(column.DefaultValue.ToString());
-                }
-                else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
-                {
-                    column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
-                }
-                else if (column.Type == DbType.Double || column.Type == DbType.Single)
-                {
-                    column.DefaultValue = double.Parse(column.DefaultValue.ToString());
-                }
-                else if (column.Type == DbType.Boolean)
-                {
-                    column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE";
-                }
-                else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
-                {
-                    if (column.DefaultValue is string defVal)
-                    {
-                        var dt = defVal;
-
-                        if (defVal.StartsWith("'"))
-                        {
-                            dt = defVal.Substring(1, defVal.Length - 2);
-                        }
-
-                        var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
-                        column.DefaultValue = d;
-                    }
-                }
-                else if (column.Type == DbType.Guid)
-                {
-                    if (column.DefaultValue is string defVal)
-                    {
-                        var dt = defVal;
-
-                        if (defVal.StartsWith("'"))
-                        {
-                            dt = defVal.Substring(1, defVal.Length - 2);
-                        }
-
-                        var d = Guid.Parse(dt);
-                        column.DefaultValue = d;
-                    }
-                }
-                else if (column.Type == DbType.Boolean)
-                {
-                    throw new NotSupportedException("SQLite does not support default values for BLOB columns.");
-                }
-            }
-
-            if (pragmaTableInfoItem.Pk > 0)
-            {
-                if (new[] { DbType.UInt16, DbType.UInt32, DbType.UInt64, DbType.Int16, DbType.Int32, DbType.Int64 }.Contains(column.Type))
-                {
-                    column.ColumnProperty |= ColumnProperty.PrimaryKey;
-                    column.ColumnProperty |= ColumnProperty.NotNull;
-                    column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Null);
-                }
-                else
-                {
-                    column.ColumnProperty |= ColumnProperty.PrimaryKey;
-                }
-            }
-
-            var indexListItems = GetPragmaIndexListItems(tableName);
-            var uniqueConstraints = indexListItems.Where(x => x.Unique && x.Origin == "u");
-
-            foreach (var uniqueConstraint in uniqueConstraints)
-            {
-                var indexInfos = GetPragmaIndexInfo(uniqueConstraint.Name);
-
-                if (indexInfos.Count == 1 && indexInfos.First().Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    column.ColumnProperty |= ColumnProperty.Unique;
-
-                    break;
-                }
-            }
+            column.DefaultValue = defValue is string sqlDefault
+                ? CatalogDefaultValue.Parse(sqlDefault, column.Type) : defValue;
 
             var tableScript = GetSqlCreateTableScript(tableName);
 
@@ -1328,9 +1160,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             var hasCompoundPrimaryKey = tableInfoPrimaryKeys.Count > 1;
 
             // Implicit in SQLite
-            if (columnTableInfoItem.Type == "INTEGER" && columnTableInfoItem.Pk == 1 && !hasCompoundPrimaryKey)
+            if (columnTableInfoItem.Type == "INTEGER" && columnTableInfoItem.Pk == 1 && !hasCompoundPrimaryKey && Regex.IsMatch(tableScript, @"\bAUTOINCREMENT\b", RegexOptions.IgnoreCase))
             {
-                column.ColumnProperty |= ColumnProperty.Identity;
+                column.IsIdentity = true;
             }
 
             columns.Add(column);
@@ -1461,151 +1293,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
-        var columns = fields.Where(x => x is Column)
-            .Cast<Column>()
-            .Select(column => column.CopyDefinition())
-            .ToArray();
-
-        var explicitKeys = fields.OfType<PrimaryKeyConstraint>().ToArray();
-        if (explicitKeys.Length > 1) throw new MigrationException("A table can have only one primary key.");
-        var explicitKey = explicitKeys.SingleOrDefault();
-        if (explicitKey != null)
-        {
-            ValidateKeyColumns(explicitKey.Name, explicitKey.KeyColumns, columns);
-            if (explicitKey.NonClustered) throw new NotSupportedException("SQLite does not support nonclustered primary keys.");
-            if (columns.Any(c => c.IsPrimaryKey)) throw new MigrationException("Do not combine column primary-key flags with a primary-key constraint.");
-            foreach (var column in columns.Where(c => explicitKey.KeyColumns.Contains(c.Name)))
-                column.ColumnProperty = (column.ColumnProperty & ~ColumnProperty.Null) | ColumnProperty.NotNull;
-            var identities = columns.Where(c => c.IsIdentity).ToArray();
-            if (identities.Length != 0 && (identities.Length != 1 || explicitKey.KeyColumns.Length != 1 || explicitKey.KeyColumns[0] != identities[0].Name || _dialect.GetTypeName(identities[0].Type) != "INTEGER"))
-                throw new MigrationException("SQLite identity requires one INTEGER primary-key column.");
-        }
-        foreach (var unique in fields.OfType<UniqueConstraint>()) ValidateKeyColumns(unique.Name, unique.KeyColumns, columns);
-
-        var pks = GetPrimaryKeys(columns);
-        var hasCompoundPrimaryKey = pks.Count > 1;
-
-        var columnProviders = new List<ColumnPropertiesMapper>(columns.Length);
-
-        foreach (var column in columns)
-        {
-            if (!hasCompoundPrimaryKey && column.IsPrimaryKey)
-            {
-                // We implicitly set NOT NULL for non-composite primary keys like in other RDBMS.
-                column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Null);
-                column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.NotNull);
-            }
-
-            if (hasCompoundPrimaryKey && column.IsPrimaryKey)
-            {
-                // We remove PrimaryKey here and readd it as compound later ("...PRIMARY KEY(column1,column2)");
-                column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
-
-                // AUTOINCREMENT cannot be used in compound primary keys in SQLite so we remove Identity here
-                column.ColumnProperty &= ~ColumnProperty.Identity;
-            }
-
-            var mapped = column.CopyDefinition();
-            if (explicitKey != null && mapped.IsIdentity) mapped.ColumnProperty &= ~ColumnProperty.Identity;
-            var mapper = _dialect.GetAndMapColumnProperties(mapped);
-            columnProviders.Add(mapper);
-        }
-
-        var columnSql = columnProviders.Select((mapper, index) =>
-            explicitKey != null && columns[index].IsIdentity
-                ? mapper.ColumnSql + $" CONSTRAINT {_dialect.QuoteIdentifier(explicitKey.Name)} PRIMARY KEY AUTOINCREMENT"
-                : mapper.ColumnSql);
-        var columnsAndIndexes = string.Join(", ", columnSql);
-        if (explicitKey != null && !columns.Any(c => c.IsIdentity))
-            columnsAndIndexes += ", " + _dialect.GetTableConstraintSql(explicitKey);
-
+        if (engine != null) throw new NotSupportedException("SQLite does not support table engines.");
         var table = _dialect.TableNameNeedsQuote ? _dialect.Quote(name) : QuoteTableNameIfRequired(name);
-        StringBuilder stringBuilder = new();
-
-        stringBuilder.Append(string.Format("CREATE TABLE {0} ({1}", table, columnsAndIndexes));
-
-        if (hasCompoundPrimaryKey)
-        {
-            stringBuilder.Append(string.Format(", PRIMARY KEY ({0})", string.Join(", ", pks.ToArray())));
-        }
-
-
-        // Uniques
-        var uniques = fields.Where(x => x is UniqueConstraint).Cast<UniqueConstraint>().ToArray();
-
-        foreach (var u in uniques)
-        {
-            if (!string.IsNullOrEmpty(u.Name))
-            {
-                stringBuilder.Append($", CONSTRAINT {QuoteConstraintNameIfRequired(u.Name)}");
-            }
-            else
-            {
-                stringBuilder.Append(", ");
-            }
-
-            var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns.Select(QuoteColumnNameIfRequired));
-            stringBuilder.Append($" UNIQUE ({uniqueColumnsCommaSeparated})");
-        }
-
-        // Foreign keys
-        var foreignKeys = fields.Where(x => x is ForeignKeyConstraint).Cast<ForeignKeyConstraint>().ToArray();
-
-        List<string> foreignKeyStrings = [];
-
-        foreach (var fk in foreignKeys)
-        {
-            var sourceColumnNamesQuotedString = string.Join(", ", fk.ChildColumns.Select(QuoteColumnNameIfRequired));
-            var parentColumnNamesQuotedString = string.Join(", ", fk.ParentColumns.Select(QuoteColumnNameIfRequired));
-            var parentTableNameQuoted = QuoteTableNameIfRequired(fk.ParentTable);
-
-            if (string.IsNullOrWhiteSpace(fk.Name))
-            {
-                throw new Exception("No foreign key constraint name given");
-            }
-
-            var foreignKeySql = $"CONSTRAINT {QuoteConstraintNameIfRequired(fk.Name)} FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})";
-            if (!string.IsNullOrWhiteSpace(fk.OnDelete) && !string.Equals(fk.OnDelete, "NO ACTION", StringComparison.OrdinalIgnoreCase))
-            {
-                foreignKeySql += $" ON DELETE {ValidateForeignKeyAction(fk.OnDelete)}";
-            }
-
-            if (!string.IsNullOrWhiteSpace(fk.OnUpdate)) foreignKeySql += $" ON UPDATE {ValidateForeignKeyAction(fk.OnUpdate)}";
-            foreignKeyStrings.Add(foreignKeySql);
-        }
-
-        if (foreignKeyStrings.Count > 0)
-        {
-            stringBuilder.Append(", ");
-            stringBuilder.Append(string.Join(", ", foreignKeyStrings));
-        }
-
-        // Check Constraints
-        var checkConstraints = fields.Where(x => x is CheckConstraint).OfType<CheckConstraint>().ToArray();
-        List<string> checkConstraintStrings = [];
-
-        foreach (var checkConstraint in checkConstraints)
-        {
-            checkConstraintStrings.Add($"CONSTRAINT {QuoteConstraintNameIfRequired(checkConstraint.Name)} CHECK ({checkConstraint.CheckConstraintString})");
-        }
-
-        if (checkConstraintStrings.Count > 0)
-        {
-            stringBuilder.Append($", {string.Join(", ", checkConstraintStrings)}");
-        }
-
-        stringBuilder.Append(')');
-
-        ExecuteNonQuery(stringBuilder.ToString());
-
-        var indexes = fields.Where(x => x is Index)
-            .Cast<Index>()
-            .ToArray();
-
-        foreach (var index in indexes)
-        {
-            AddIndex(name, index);
-        }
+        ExecuteNonQuery(SQLiteTableSql.Generate(_dialect, table, fields));
+        foreach (var index in fields.OfType<Index>()) AddIndex(name, index);
     }
 
     public override string AddIndex(string table, Index index)
@@ -1677,50 +1368,27 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     protected override string GetPrimaryKeyConstraintName(string table)
     {
-        throw new NotImplementedException();
+        return GetTableConstraints(table).OfType<PrimaryKeyConstraint>().SingleOrDefault()?.Name;
     }
 
     public override void RemoveAllConstraints(string table)
     {
-        RemovePrimaryKey(table);
-
-        var sqliteTableInfo = GetSQLiteTableInfo(table);
-
-        // Remove unique constraints
-        sqliteTableInfo.Uniques = [];
-
-        foreach (var column in sqliteTableInfo.Columns)
-        {
-            column.ColumnProperty &= ~ColumnProperty.PrimaryKey;
-            column.ColumnProperty &= ~ColumnProperty.Unique;
-        }
-
-        sqliteTableInfo.ForeignKeys.Clear();
-        sqliteTableInfo.CheckConstraints.Clear();
-
-        RecreateTable(sqliteTableInfo);
+        var info = GetSQLiteTableInfo(table);
+        info.PrimaryKey = null;
+        info.Uniques.Clear();
+        info.ForeignKeys.Clear();
+        info.CheckConstraints.Clear();
+        foreach (var column in info.Columns) column.IsIdentity = false;
+        RecreateTable(info);
     }
 
     public override void RemovePrimaryKey(string tableName)
     {
-        if (!TableExists(tableName))
-        {
-            return;
-        }
-
-        var sqliteInfoTable = GetSQLiteTableInfo(tableName);
-        sqliteInfoTable.PrimaryKey = null;
-
-        foreach (var column in sqliteInfoTable.Columns)
-        {
-            if (column.IsPrimaryKey)
-            {
-                column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.PrimaryKey);
-                column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.PrimaryKeyWithIdentity);
-            }
-        }
-
-        RecreateTable(sqliteInfoTable);
+        if (!TableExists(tableName)) return;
+        var info = GetSQLiteTableInfo(tableName);
+        info.PrimaryKey = null;
+        foreach (var column in info.Columns) column.IsIdentity = false;
+        RecreateTable(info);
     }
 
     public override void RemoveAllIndexes(string tableName)
@@ -1732,14 +1400,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var sqliteInfoTable = GetSQLiteTableInfo(tableName);
 
-        sqliteInfoTable.Uniques = [];
         sqliteInfoTable.Indexes = [];
 
         RecreateTable(sqliteInfoTable);
     }
 
     public List<UniqueConstraint> GetUniques(string tableName) => GetTableConstraints(tableName)
-        .OfType<UniqueConstraint>().Where(c => c.Name != null).ToList();
+        .OfType<UniqueConstraint>().ToList();
 
     public List<PragmaIndexInfoItem> GetPragmaIndexInfo(string indexNameNotQuoted)
     {

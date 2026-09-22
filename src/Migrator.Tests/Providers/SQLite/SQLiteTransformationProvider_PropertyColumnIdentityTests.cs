@@ -19,13 +19,13 @@ public class SQLiteTransformationProvider_PropertyColumnIdentityTests : SQLiteTr
         const string propertyName2 = "Color2";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.Identity),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(propertyName2,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         var sql = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
 
         // NOT NULL implicitly set in SQLite
-        Assert.That(sql, Does.Contain("Color1 INTEGER NOT NULL PRIMARY KEY"));
+        Assert.That(Provider.GetColumnByName(testTableName, "Color1").IsIdentity, Is.True);
+        Assert.That(Provider.GetColumnByName(testTableName, "Color1").IsNullable, Is.False);
     }
 }

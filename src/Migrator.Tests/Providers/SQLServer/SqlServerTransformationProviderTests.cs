@@ -17,7 +17,7 @@ public class SqlServerTransformationProviderTests : SQLServerTransformationProvi
     public void TimeTypeDefaultAndValueRoundTripThroughMetadata()
     {
         var time = new TimeSpan(0, 12, 34, 56, 789);
-        Provider.AddTable("ClockValues", new Column("Moment", DbType.Time, ColumnProperty.Null, time));
+        Provider.AddTable("ClockValues", new Column("Moment",DbType.Time,time));
         var column = Provider.GetColumns("ClockValues").Single();
         Assert.That(column.Type, Is.EqualTo(DbType.Time));
         Assert.That(column.DefaultValue, Is.EqualTo(time));
@@ -39,8 +39,8 @@ public class SqlServerTransformationProviderTests : SQLServerTransformationProvi
     [Test]
     public void IndependentForeignKeyActionsCascadeUpdateAndSetNullOnDelete()
     {
-        Provider.AddTable("ActionParent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.NotNull));
-        Provider.AddTable("ActionChild", new Column("ParentId", DbType.Int32, ColumnProperty.Null));
+        Provider.AddTable("ActionParent", new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "ActionParent", "Id"));
+        Provider.AddTable("ActionChild", new Column("ParentId",DbType.Int32));
         ((IForeignKeyActions)Provider).AddForeignKey("ActionForeignKey", "ActionChild", new[] { "ParentId" },
             "ActionParent", new[] { "Id" }, ForeignKeyConstraintType.SetNull, ForeignKeyConstraintType.Cascade);
         Provider.ExecuteNonQuery("INSERT INTO ActionParent VALUES (1); INSERT INTO ActionChild VALUES (1); UPDATE ActionParent SET Id=2 WHERE Id=1");

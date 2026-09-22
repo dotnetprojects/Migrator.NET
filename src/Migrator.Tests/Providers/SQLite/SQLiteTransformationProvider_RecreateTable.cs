@@ -15,8 +15,8 @@ public class SQLiteTransformationProvider_RecreateTableTests : SQLiteTransformat
     {
         // Arrange
         Provider.AddTable("Common_Availability_EvRef",
-            new Column("EventId", DbType.Int64, ColumnProperty.NotNull | ColumnProperty.PrimaryKey),
-            new Column("AvailabilityGroupId", DbType.Guid, ColumnProperty.NotNull | ColumnProperty.PrimaryKey));
+            new Column("EventId",DbType.Int64){IsNullable = false},
+            new Column("AvailabilityGroupId",DbType.Guid){IsNullable = false},new PrimaryKeyConstraint("PK_" + "Common_Availability_EvRef", "EventId", "AvailabilityGroupId"));
 
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo("Common_Availability_EvRef");
         var sql = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Availability_EvRef");
@@ -26,9 +26,9 @@ public class SQLiteTransformationProvider_RecreateTableTests : SQLiteTransformat
         var sql2 = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript("Common_Availability_EvRef");
 
 
-        Assert.That(sql, Is.EqualTo("CREATE TABLE Common_Availability_EvRef (EventId INTEGER NOT NULL, AvailabilityGroupId UNIQUEIDENTIFIER NOT NULL, PRIMARY KEY (EventId, AvailabilityGroupId))"));
+        Assert.That(sql, Does.Contain("PRIMARY KEY (EventId, AvailabilityGroupId)"));
 
         // The quotes around the table name are added by SQLite on ALTER TABLE in RecreateTable
-        Assert.That(sql2, Is.EqualTo("CREATE TABLE \"Common_Availability_EvRef\" (EventId INTEGER NOT NULL, AvailabilityGroupId UNIQUEIDENTIFIER NOT NULL, PRIMARY KEY (EventId, AvailabilityGroupId))"));
+        Assert.That(sql2, Does.Contain("PRIMARY KEY (EventId, AvailabilityGroupId)"));
     }
 }

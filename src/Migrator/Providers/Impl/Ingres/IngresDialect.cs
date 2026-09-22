@@ -46,8 +46,8 @@ public class IngresDialect : Dialect
         this.RegisterColumnType(DbType.String, 1073741823, "LONGTEXT");
         this.RegisterColumnType(DbType.Time, "TIME");
 
-        this.RegisterProperty(ColumnProperty.Unsigned, "UNSIGNED");
-        this.RegisterProperty(ColumnProperty.Identity, "AUTO_INCREMENT");
+        this.RegisterColumnAttribute(ColumnAttribute.Unsigned, "UNSIGNED");
+        this.RegisterColumnAttribute(ColumnAttribute.Identity, "AUTO_INCREMENT");
 
         this.RegisterUnsignedCompatible(DbType.Int16);
         this.RegisterUnsignedCompatible(DbType.Int32);

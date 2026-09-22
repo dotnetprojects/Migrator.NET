@@ -23,17 +23,15 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Id", DbType.Int32, ColumnProperty.Unique | ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableName, new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, "Id"),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + tableName + "_" + "Id", "Id"));
 
         // Act
         var columns = Provider.GetColumns(tableName);
 
         // Assert
-        Assert.That(columns.Single().ColumnProperty, Is.EqualTo(
-            ColumnProperty.NotNull |
-            ColumnProperty.Identity |
-            ColumnProperty.Unique |
-            ColumnProperty.PrimaryKey));
+        Assert.That(columns.Single().IsNullable, Is.False);
+        Assert.That(columns.Single().IsIdentity, Is.False);
+        Assert.That(Provider.GetTableConstraints(tableName).OfType<PrimaryKeyConstraint>().Single().KeyColumns, Is.EqualTo(new[] { "Id" }));
     }
 
     [Test]
@@ -41,15 +39,15 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
     {
         // Arrange
         const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableName, new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, "Id"));
         Provider.GetColumns(tableName);
 
         // Act
         var columns = Provider.GetColumns(tableName);
 
         // Assert
-        Assert.That(columns.Single().ColumnProperty, Is.EqualTo(ColumnProperty.NotNull |
-            ColumnProperty.PrimaryKeyWithIdentity));
+        Assert.That(columns.Single().IsNullable, Is.False);
+        Assert.That(columns.Single().IsIdentity, Is.False);
     }
 
     [Test]
@@ -59,16 +57,15 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
         const string tableName = "GetColumnsTest";
 
         Provider.AddTable(tableName,
-            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("Id2", DbType.Int32, ColumnProperty.PrimaryKey)
-        );
+            new Column("Id",DbType.Int32){IsNullable = false},
+            new Column("Id2",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, "Id", "Id2")        );
 
         // Act
         var columns = Provider.GetColumns(tableName);
 
         // Assert
-        Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.NotNull));
-        Assert.That(columns[1].ColumnProperty, Is.EqualTo(ColumnProperty.PrimaryKey | ColumnProperty.NotNull));
+        Assert.That(columns[0].IsNullable, Is.False);
+        Assert.That(columns[1].IsNullable, Is.False);
     }
 
     [Test]
@@ -88,7 +85,7 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
         var columns = Provider.GetColumns(tableName);
 
         // Assert
-        Assert.That(columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.Null));
+        Assert.That(columns[0].IsNullable, Is.True);
     }
 
     [Test, Description("Add index. The index should be added and then being detected as index.")]
@@ -103,8 +100,8 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
         var sqliteInfo = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableName);
 
         // Assert
-        Assert.That(sqliteInfo.Columns[0].ColumnProperty, Is.EqualTo(ColumnProperty.Null));
-        Assert.That(sqliteInfo.Columns[1].ColumnProperty, Is.EqualTo(ColumnProperty.Null));
+        Assert.That(sqliteInfo.Columns[0].IsNullable, Is.True);
+        Assert.That(sqliteInfo.Columns[1].IsNullable, Is.True);
         Assert.That(sqliteInfo.Uniques, Is.Empty);
         Assert.That(sqliteInfo.Indexes.Single().Unique, Is.False);
     }

@@ -5,6 +5,14 @@ namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 
 public class MysqlDialect : Dialect
 {
+    protected override string ResolveCollation(CollationKind kind) => kind switch
+    {
+        CollationKind.Binary => "utf8mb4_0900_bin", CollationKind.CaseSensitive => "utf8mb4_0900_as_cs", CollationKind.CaseInsensitive => "utf8mb4_0900_as_ci",
+        _ => base.ResolveCollation(kind)
+    };
+
+    public override string GetCollationSql(string name) => "COLLATE " + QuoteIdentifier(name);
+
     public MysqlDialect()
     {
         // TODO: As per http://dev.mysql.com/doc/refman/5.0/en/char.html 5.0.3 and above
@@ -52,9 +60,8 @@ public class MysqlDialect : Dialect
         RegisterColumnType(DbType.String, int.MaxValue, "LONGTEXT");
         RegisterColumnType(DbType.Time, "TIME");
 
-        RegisterProperty(ColumnProperty.Unsigned, "UNSIGNED");
-        RegisterProperty(ColumnProperty.Identity, "AUTO_INCREMENT");
-        RegisterProperty(ColumnProperty.CaseSensitive, "BINARY");
+        RegisterColumnAttribute(ColumnAttribute.Unsigned, "UNSIGNED");
+        RegisterColumnAttribute(ColumnAttribute.Identity, "AUTO_INCREMENT");
 
         RegisterUnsignedCompatible(DbType.Int16);
         RegisterUnsignedCompatible(DbType.Int32);

@@ -26,18 +26,17 @@ public class OracleTransformationProvider_AddColumn_Tests : TransformationProvid
 
 
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(column1Name,DbType.Int32){IsNullable = false}        );
 
         // Act
-        Provider.AddColumn(table: tableName, column: new Column(column2Name, DbType.DateTime, ColumnProperty.NotNull));
+        Provider.AddColumn(table: tableName, column: new Column(column2Name,DbType.DateTime){IsNullable = false});
 
 
         // Assert
         var column1 = Provider.GetColumnByName(tableName, column1Name);
         var column2 = Provider.GetColumnByName(tableName, column2Name);
 
-        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
-        Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column1.IsNullable, Is.False);
+        Assert.That(column2.IsNullable, Is.False);
     }
 }

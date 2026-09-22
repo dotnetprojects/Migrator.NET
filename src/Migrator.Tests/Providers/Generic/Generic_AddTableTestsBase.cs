@@ -20,16 +20,15 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
 
         // Act
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.NotNull | ColumnProperty.PrimaryKeyWithIdentity),
-            new Column(column2Name, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(column1Name,DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(column2Name,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, column1Name)        );
 
         // Assert
         var column1 = Provider.GetColumnByName(tableName, column1Name);
         var column2 = Provider.GetColumnByName(tableName, column2Name);
 
-        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.PrimaryKeyWithIdentity), Is.True);
-        Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column1.IsIdentity, Is.True);
+        Assert.That(column2.IsNullable, Is.False);
     }
 
     [Test]
@@ -42,16 +41,15 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
 
         // Act
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.NotNull | ColumnProperty.PrimaryKey | ColumnProperty.Identity),
-            new Column(column2Name, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(column1Name,DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(column2Name,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, column1Name)        );
 
         // Assert
         var column1 = Provider.GetColumnByName(tableName, column1Name);
         var column2 = Provider.GetColumnByName(tableName, column2Name);
 
-        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.PrimaryKeyWithIdentity), Is.True);
-        Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column1.IsIdentity, Is.True);
+        Assert.That(column2.IsNullable, Is.False);
     }
 
     [Test]
@@ -64,9 +62,8 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
 
         // Act
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.NotNull | ColumnProperty.PrimaryKey | ColumnProperty.Identity),
-            new Column(column2Name, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(column1Name,DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(column2Name,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, column1Name)        );
 
         Provider.Insert(table: tableName, [column2Name], [999]);
 
@@ -86,8 +83,8 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
 
         Assert.That(records.Single().Item1, Is.EqualTo(1));
 
-        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.PrimaryKeyWithIdentity), Is.True);
-        Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column1.IsIdentity, Is.True);
+        Assert.That(column2.IsNullable, Is.False);
     }
 
     [Test]
@@ -100,16 +97,15 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
 
         // Act
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.Identity),
-            new Column(column2Name, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(column1Name,DbType.Int32){IsNullable = false,IsIdentity = true},
+            new Column(column2Name,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableName, column1Name)        );
 
         // Assert
         var column1 = Provider.GetColumnByName(tableName, column1Name);
         var column2 = Provider.GetColumnByName(tableName, column2Name);
 
-        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.PrimaryKeyWithIdentity), Is.True);
-        Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column1.IsIdentity, Is.True);
+        Assert.That(column2.IsNullable, Is.False);
     }
 
     [Test]
@@ -121,13 +117,12 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
 
         // Act
         Provider.AddTable(tableName,
-            new Column(column1Name, DbType.Int32, ColumnProperty.NotNull)
-        );
+            new Column(column1Name,DbType.Int32){IsNullable = false}        );
 
         // Assert
         var column1 = Provider.GetColumnByName(tableName, column1Name);
 
-        Assert.That(column1.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
+        Assert.That(column1.IsNullable, Is.False);
     }
 
 
@@ -135,9 +130,8 @@ public abstract class Generic_AddTableTestsBase : TransformationProviderBase
     public void AddTableWithCompoundPrimaryKey()
     {
         Provider.AddTable("Test",
-            new Column("PersonId", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column("AddressId", DbType.Int32, ColumnProperty.PrimaryKey)
-        );
+            new Column("PersonId",DbType.Int32){IsNullable = false},
+            new Column("AddressId",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "Test", "PersonId", "AddressId")        );
 
         Assert.That(Provider.TableExists("Test"), Is.True, "Table doesn't exist");
         Assert.That(Provider.PrimaryKeyExists("Test", "PK_Test"), Is.True, "Constraint doesn't exist");

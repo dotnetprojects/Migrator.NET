@@ -24,17 +24,16 @@ public class SQLiteTransformationProvider_RenameColumnTests : SQLiteTransformati
         const string propertyLevel1IdRenamed = "Level1IdRenamed";
         const string propertyLevel2Id = "Level2Id";
 
-        Provider.AddTable(tableNameLevel1, new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(tableNameLevel1, new Column(propertyId,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + tableNameLevel1, propertyId));
 
         Provider.AddTable(tableNameLevel2,
-            new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyLevel1Id, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyId,DbType.Int32){IsNullable = false},
+            new Column(propertyLevel1Id,DbType.Int32),new PrimaryKeyConstraint("PK_" + tableNameLevel2, propertyId),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + tableNameLevel2 + "_" + propertyLevel1Id, propertyLevel1Id)        );
 
         Provider.AddTable(tableNameLevel3,
-            new Column(propertyId, DbType.Int32, ColumnProperty.PrimaryKey),
+            new Column(propertyId,DbType.Int32){IsNullable = false},
             new Column(propertyLevel2Id, DbType.Int32)
-        );
+,new PrimaryKeyConstraint("PK_" + tableNameLevel3, propertyId)        );
 
         Provider.AddForeignKey("Level2ToLevel1", tableNameLevel2, propertyLevel1Id, tableNameLevel1, propertyId);
         Provider.AddForeignKey("Level3ToLevel2", tableNameLevel3, propertyLevel2Id, tableNameLevel2, propertyId);
@@ -64,8 +63,8 @@ public class SQLiteTransformationProvider_RenameColumnTests : SQLiteTransformati
 
         var tableInfoLevel2After = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(tableNameLevel2);
 
-        Assert.That(tableInfoLevel2Before.Columns.Single(x => x.Name == propertyId).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoLevel2Before.Columns.Single(x => x.Name == propertyLevel1Id).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoLevel2Before.PrimaryKey?.KeyColumns.Contains(propertyId) == true), Is.True);
+        Assert.That(tableInfoLevel2Before.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyLevel1Id), Is.True);
         Assert.That(tableInfoLevel2Before.ForeignKeys.Single().ChildColumns.Single(), Is.EqualTo(propertyLevel1Id));
 
         Assert.That(tableInfoLevel2After.Columns.FirstOrDefault(x => x.Name == propertyId), Is.Null);

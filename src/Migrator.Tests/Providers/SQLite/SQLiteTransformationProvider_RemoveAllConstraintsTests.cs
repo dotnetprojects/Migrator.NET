@@ -24,10 +24,9 @@ public class SQLiteTransformationProvider_RemoveAllConstraints : SQLiteTransform
         const string indexName = "MyIndexName";
 
         Provider.AddTable(testTableName,
-            new Column(propertyName1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(propertyName2, DbType.Int32, ColumnProperty.Unique),
-            new Column(propertyName3, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(propertyName1,DbType.Int32){IsNullable = false},
+            new Column(propertyName2,DbType.Int32),
+            new Column(propertyName3,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName2, propertyName2),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + testTableName + "_" + propertyName3, propertyName3)        );
 
         Provider.AddIndex(indexName, testTableName, [propertyName1]);
         var tableInfoBefore = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
@@ -48,13 +47,13 @@ public class SQLiteTransformationProvider_RemoveAllConstraints : SQLiteTransform
         var tableInfoAfter = ((SQLiteTransformationProvider)Provider).GetSQLiteTableInfo(testTableName);
         var sqlAfter = ((SQLiteTransformationProvider)Provider).GetSqlCreateTableScript(testTableName);
 
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
-        Assert.That(tableInfoBefore.Columns.Single(x => x.Name == propertyName3).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.True);
+        Assert.That((tableInfoBefore.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.True);
+        Assert.That(tableInfoBefore.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName3), Is.True);
 
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName1).ColumnProperty.HasFlag(ColumnProperty.PrimaryKey), Is.False);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName2).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.False);
-        Assert.That(tableInfoAfter.Columns.Single(x => x.Name == propertyName3).ColumnProperty.HasFlag(ColumnProperty.Unique), Is.False);
+        Assert.That((tableInfoAfter.PrimaryKey?.KeyColumns.Contains(propertyName1) == true), Is.False);
+        Assert.That(tableInfoAfter.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName2), Is.False);
+        Assert.That(tableInfoAfter.Uniques.Any(u => u.KeyColumns.Length == 1 && u.KeyColumns[0] == propertyName3), Is.False);
 
         Assert.That(sqlAfter.Contains("unique", StringComparison.OrdinalIgnoreCase), Is.False);
 

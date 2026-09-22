@@ -26,19 +26,18 @@ public class SQLiteTransformationProvider_GetForeignKeysTests : SQLiteTransforma
         const string foreignKeyStringA = "ForeignKeyStringA";
         const string foreignKeyStringB = "ForeignKeyStringB";
 
-        Provider.AddTable(parentA, new Column(parentAProperty1, DbType.Int32, ColumnProperty.PrimaryKey));
+        Provider.AddTable(parentA, new Column(parentAProperty1,DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + parentA, parentAProperty1));
 
         Provider.AddTable(parentB,
-            new Column(parentBProperty1, DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(parentBProperty2, DbType.Int32, ColumnProperty.Unique)
-        );
+            new Column(parentBProperty1,DbType.Int32){IsNullable = false},
+            new Column(parentBProperty2,DbType.Int32),new PrimaryKeyConstraint("PK_" + parentB, parentBProperty1),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + parentB + "_" + parentBProperty2, parentBProperty2)        );
 
         Provider.AddTable(child,
-            new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey),
-            new Column(childColumnFKToParentAProperty1, DbType.Int32, ColumnProperty.Unique),
+            new Column("Id",DbType.Int32){IsNullable = false},
+            new Column(childColumnFKToParentAProperty1,DbType.Int32),
             new Column(childColumnFKToParentBProperty1, DbType.Int32),
             new Column(childColumnFKToParentBProperty2, DbType.Int32)
-        );
+,new PrimaryKeyConstraint("PK_" + child, "Id"),new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ_" + child + "_" + childColumnFKToParentAProperty1, childColumnFKToParentAProperty1)        );
 
         Provider.AddForeignKey(foreignKeyStringA, child, childColumnFKToParentAProperty1, parentA, parentAProperty1);
         Provider.AddForeignKey(foreignKeyStringB, child, [childColumnFKToParentBProperty1, childColumnFKToParentBProperty2], parentB, [parentBProperty1, parentBProperty2]);
