@@ -27,6 +27,12 @@ Use `DotNetProjects.Migrator`, `.Framework` and `.Framework.Fluent`. A table def
 
 The builder has `Create`, `Alter`, `Delete`, `Rename`, `Insert`, `Update`, `Execute` and `Administration`. Schema inspection is exposed through `FluentMigration.Schema`, and the provider through `Context`. History and transaction methods remain explicit context operations. Administrative operations, views, data copying and updates from another table have typed operations; their SQL preview is currently unsupported. See the [operation coverage inventory](fluent-operation-coverage.md) for the normal API mappings and test limits.
 
+## Scripts and provider-specific cleanup
+
+`Execute.Script(path)` and `Execute.EmbeddedScript(assembly, resourceName)` capture script text as dedicated operations. Imperative callers can use `ExecuteScript(path)`, `ExecuteResourceScript(assembly, name)` and `ExecuteSqlScript(text)`. SQL Server splits standalone `GO` lines, including an optional `--` comment, while respecting strings, quoted identifiers and nested comments. GO repetition and SQLCMD directives fail explicitly before executing batches. Ordinary `ExecuteNonQuery` and fluent `Execute.Sql` never split client separators. Other providers receive the script as one command unless they implement `IScriptBatchProvider`; this is not a complete SQL*Plus, mysql-client or isql interpreter.
+
+Oracle `RemoveTable` leaves unrelated sequences intact and relies on Oracle to remove table-owned triggers and native identity objects. For legacy sequences you explicitly own, use `OracleTransformationProvider.RemoveTableWithOwnedSequences(table, sequenceNames)` through an explicit provider context/callback. It accepts simple unquoted sequence names, validates existence before dropping the table, and propagates cleanup failures. Oracle DDL is not atomic. SQL Server removes only column-unique constraints carrying its ownership marker; historical unmarked objects need an explicit migration rather than name guessing.
+
 ## Runner options
 
 `runner.Options` supports:
@@ -65,6 +71,8 @@ Imperative bodies require `allowLegacyBodies: true`. Provider calls are captured
 dotnet pack src/Migrator.Tool -o artifacts/packages
 dotnet tool install DotNetProjects.Migrator.Tool --add-source artifacts/packages --tool-path artifacts/tools
 ```
+
+On Windows, use a short tool installation directory (or the default global-tool directory): the bundled SQLite native library failed to load from this review workspace's deeply nested tool path, while the same package passed from a short temporary path.
 
 Set `MIGRATOR_CONNECTION` in your environment; the tool does not print its value. Common commands:
 
