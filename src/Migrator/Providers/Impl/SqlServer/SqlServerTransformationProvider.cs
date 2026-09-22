@@ -640,6 +640,10 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                 {
                     column.MigratorDbType = MigratorDbType.Decimal;
                 }
+                else if (dataTypeString == "time")
+                {
+                    column.MigratorDbType = MigratorDbType.Time;
+                }
                 else if (dataTypeString == "datetime")
                 {
                     column.MigratorDbType = MigratorDbType.DateTime;
@@ -690,6 +694,10 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                     else if (column.Type == DbType.Double || column.Type == DbType.Single)
                     {
                         column.DefaultValue = double.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
+                    }
+                    else if (column.Type == DbType.Time)
+                    {
+                        column.DefaultValue = TimeSpan.Parse(bracesAndSingleQuoteStrippedString, CultureInfo.InvariantCulture);
                     }
                     else if (column.Type == DbType.Boolean)
                     {

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Linq;
 using System;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
@@ -12,6 +13,21 @@ namespace Migrator.Tests.Providers.SQLServer;
 [Category("SQLServer")]
 public class SqlServerTransformationProviderTests : SQLServerTransformationProviderTestBase
 {
+    [Test]
+    public void TimeTypeDefaultAndValueRoundTripThroughMetadata()
+    {
+        var time = new TimeSpan(0, 12, 34, 56, 789);
+        Provider.AddTable("ClockValues", new Column("Moment", DbType.Time, ColumnProperty.Null, time));
+        var column = Provider.GetColumns("ClockValues").Single();
+        Assert.That(column.Type, Is.EqualTo(DbType.Time));
+        Assert.That(column.DefaultValue, Is.EqualTo(time));
+        Provider.AddTable("CopiedClock", column);
+        Provider.ExecuteNonQuery("INSERT INTO CopiedClock DEFAULT VALUES");
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM CopiedClock"), Is.EqualTo(time));
+        Provider.Insert("ClockValues", new[] { "Moment" }, new object[] { time });
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM ClockValues"), Is.EqualTo(time));
+    }
+
     [Test]
     public void ExplicitScriptSplitsGoWithoutSplittingMultilineValues()
     {
