@@ -852,7 +852,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         var constraintResolved = constraintMapper.SqlForConstraint(constraint);
 
-        // TODO Issue #52 still unresolved
+        // Legacy overload preserves one action for both clauses; IForeignKeyActions provides independent actions.
         var childColumnsString = string.Join(", ", childColumns);
         var parentColumnsString = string.Join(", ", parentColumns);
 

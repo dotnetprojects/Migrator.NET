@@ -41,6 +41,15 @@ public class ProviderDefinitionTests
         provider.ChangeColumn("Example", column);
         Assert.That(column.ColumnProperty, Is.EqualTo(ColumnProperty.Unique | ColumnProperty.NotNull));
     }
+    [Test] public void QuotingReturnsNewArrayWithoutChangingCallerNames()
+    {
+        using var provider = new RecordingProvider();
+        var names = new[] { "select", "Normal" };
+        var quoted = provider.QuoteColumnNamesIfRequired(names);
+        Assert.That(quoted, Is.Not.SameAs(names));
+        Assert.That(names, Is.EqualTo(new[] { "select", "Normal" }));
+        Assert.That(quoted[0], Is.EqualTo("[select]"));
+    }
     [Test] public void AddColumnCarriesPrecisionAndScaleIntoDialectMapping()
     {
         using var provider = new RecordingProvider();

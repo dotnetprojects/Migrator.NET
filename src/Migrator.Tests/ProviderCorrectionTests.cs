@@ -11,6 +11,19 @@ namespace Migrator.Tests;
 [Category("SQLite")]
 public class ProviderCorrectionTests
 {
+    [Test] public void NullableResultsDistinguishEmptyNullAndPopulatedData()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
+        provider.AddTable("NullableData", new Column("Id", DbType.Int32), new Column("Value", DbType.String));
+        Assert.That(provider.ExecuteNullableScalar<long>("SELECT MAX(Id) FROM NullableData"), Is.Null);
+        Assert.That(provider.GetNullableColumnContentSize("NullableData", "Value"), Is.Null);
+        provider.ExecuteNonQuery("INSERT INTO NullableData VALUES (NULL, NULL)");
+        Assert.That(provider.GetNullableColumnContentSize("NullableData", "Value"), Is.Null);
+        provider.ExecuteNonQuery("INSERT INTO NullableData VALUES (7, 'hello')");
+        Assert.That(provider.ExecuteNullableScalar<long>("SELECT MAX(Id) FROM NullableData"), Is.EqualTo(7));
+        Assert.That(provider.GetNullableColumnContentSize("NullableData", "Value"), Is.EqualTo(5));
+    }
     [Test] public void TableCreationRetainsCallerPrimaryKeyDefinitions()
     {
         using var connection = new SqliteConnection("Data Source=:memory:"); connection.Open();
