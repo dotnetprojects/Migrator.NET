@@ -11,11 +11,14 @@
 
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
 namespace DotNetProjects.Migrator.Framework.SchemaBuilder;
 
 public class AddTableExpression : ISchemaBuilderExpression
 {
     private readonly string _newTable;
+    public List<IFluentColumn> Columns { get; } = new();
 
     public AddTableExpression(string newTable)
     {
@@ -24,6 +27,11 @@ public class AddTableExpression : ISchemaBuilderExpression
 
     public void Create(ITransformationProvider provider)
     {
-        provider.AddTable(_newTable);
+        var fields = Columns.Select(c => (IDbField)new Column(c.Name, c.Type, c.Size, c.ColumnProperty, c.DefaultValue)).ToList();
+        foreach (var c in Columns.Where(c => c.ForeignKey != null))
+            fields.Add(new ForeignKeyConstraint("FK_" + _newTable + "_" + c.Name + "_" + c.ForeignKey.PrimaryTable + "_" + c.ForeignKey.PrimaryKey,
+                c.ForeignKey.PrimaryTable, new[] { c.ForeignKey.PrimaryKey }, _newTable, new[] { c.Name })
+                { OnDelete = new DotNetProjects.Migrator.Providers.ForeignKeyConstraintMapper().SqlForConstraint(c.Constraint) });
+        provider.AddTable(_newTable, fields.ToArray());
     }
 }

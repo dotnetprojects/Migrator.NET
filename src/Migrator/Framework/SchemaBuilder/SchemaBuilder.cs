@@ -22,6 +22,7 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     private readonly IList<ISchemaBuilderExpression> _exprs;
     private IFluentColumn _currentColumn;
     private string _currentTable;
+    private AddTableExpression _creatingTable;
 
     public SchemaBuilder()
     {
@@ -69,7 +70,8 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
             throw new ArgumentNullException("name");
         }
 
-        _exprs.Add(new AddTableExpression(name));
+        _creatingTable = new AddTableExpression(name);
+        _exprs.Add(_creatingTable);
         _currentTable = name;
 
         return this;
@@ -82,6 +84,7 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
             throw new ArgumentNullException("name");
         }
 
+        _creatingTable = null;
         _currentTable = "";
         _currentColumn = null;
 
@@ -97,6 +100,7 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
     /// <returns>SchemaBuilder for chaining</returns>
     public SchemaBuilder WithTable(string name)
     {
+        _creatingTable = null;
         if (string.IsNullOrEmpty(name))
         {
             throw new ArgumentNullException("name");
@@ -126,6 +130,7 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
             throw new ArgumentNullException("newName");
         }
 
+        _creatingTable = null;
         _exprs.Add(new RenameTableExpression(_currentTable, newName));
         _currentTable = newName;
 
@@ -152,7 +157,8 @@ public class SchemaBuilder : IColumnOptions, IForeignKeyOptions, IDeleteTableOpt
         IFluentColumn column = new FluentColumn(name);
         _currentColumn = column;
 
-        _exprs.Add(new AddColumnExpression(_currentTable, column));
+        if (_creatingTable != null) _creatingTable.Columns.Add(column);
+        else _exprs.Add(new AddColumnExpression(_currentTable, column));
         return this;
     }
 
