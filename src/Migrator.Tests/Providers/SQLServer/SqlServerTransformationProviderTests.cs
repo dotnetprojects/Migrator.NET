@@ -1,4 +1,7 @@
 using System.Data;
+using System.Linq;
+using System;
+using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using Migrator.Tests.Providers.SQLServer.Base;
@@ -10,6 +13,43 @@ namespace Migrator.Tests.Providers.SQLServer;
 [Category("SQLServer")]
 public class SqlServerTransformationProviderTests : SQLServerTransformationProviderTestBase
 {
+    [Test]
+    public void TimeTypeDefaultAndValueRoundTripThroughMetadata()
+    {
+        var time = new TimeSpan(0, 12, 34, 56, 789);
+        Provider.AddTable("ClockValues", new Column("Moment", DbType.Time, ColumnProperty.Null, time));
+        var column = Provider.GetColumns("ClockValues").Single();
+        Assert.That(column.Type, Is.EqualTo(DbType.Time));
+        Assert.That(column.DefaultValue, Is.EqualTo(time));
+        Provider.AddTable("CopiedClock", column);
+        Provider.ExecuteNonQuery("INSERT INTO CopiedClock DEFAULT VALUES");
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM CopiedClock"), Is.EqualTo(time));
+        Provider.Insert("ClockValues", new[] { "Moment" }, new object[] { time });
+        Assert.That(Provider.ExecuteScalar("SELECT Moment FROM ClockValues"), Is.EqualTo(time));
+    }
+
+    [Test]
+    public void ExplicitScriptSplitsGoWithoutSplittingMultilineValues()
+    {
+        Provider.ExecuteSqlScript("CREATE TABLE ScriptBatches (Value nvarchar(100));\nGO\nINSERT INTO ScriptBatches VALUES ('before\nGO\nafter');\nGO -- final batch\nINSERT INTO ScriptBatches VALUES ('last');");
+        Assert.That(Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM ScriptBatches")), Is.EqualTo(2));
+        Assert.That(Provider.ExecuteScalar("SELECT Value FROM ScriptBatches WHERE Value LIKE 'before%'"), Does.Contain("GO"));
+    }
+
+    [Test]
+    public void IndependentForeignKeyActionsCascadeUpdateAndSetNullOnDelete()
+    {
+        Provider.AddTable("ActionParent", new Column("Id", DbType.Int32, ColumnProperty.PrimaryKey | ColumnProperty.NotNull));
+        Provider.AddTable("ActionChild", new Column("ParentId", DbType.Int32, ColumnProperty.Null));
+        ((IForeignKeyActions)Provider).AddForeignKey("ActionForeignKey", "ActionChild", new[] { "ParentId" },
+            "ActionParent", new[] { "Id" }, ForeignKeyConstraintType.SetNull, ForeignKeyConstraintType.Cascade);
+        Provider.ExecuteNonQuery("INSERT INTO ActionParent VALUES (1); INSERT INTO ActionChild VALUES (1); UPDATE ActionParent SET Id=2 WHERE Id=1");
+        Assert.That(Convert.ToInt32(Provider.ExecuteScalar("SELECT ParentId FROM ActionChild")), Is.EqualTo(2));
+        Provider.ExecuteNonQuery("DELETE FROM ActionParent WHERE Id=2");
+        Assert.That(Provider.ExecuteNullableScalar<int>("SELECT ParentId FROM ActionChild"), Is.Null);
+        Assert.That(Convert.ToInt32(Provider.ExecuteScalar("SELECT COUNT(*) FROM ActionChild")), Is.EqualTo(1));
+    }
+
     [Test]
     public void ByteColumnWillBeCreatedAsBlob()
     {

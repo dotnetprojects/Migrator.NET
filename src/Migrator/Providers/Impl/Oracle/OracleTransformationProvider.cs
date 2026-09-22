@@ -94,12 +94,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     {
         GuardAgainstMaximumIdentifierLengthForOracle(name);
 
-        primaryTable = QuoteTableNameIfRequired(primaryTable);
-        refTable = QuoteTableNameIfRequired(refTable);
-        var primaryColumnsSql = string.Join(",", primaryColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
-        var refColumnsSql = string.Join(",", refColumns.Select(col => QuoteColumnNameIfRequired(col)).ToArray());
-
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} FOREIGN KEY ({2}) REFERENCES {3} ({4})", primaryTable, name, primaryColumnsSql, refTable, refColumnsSql));
+        AddForeignKey(name, primaryTable, primaryColumns, refTable, refColumns, constraint, ForeignKeyConstraintType.NoAction);
     }
 
     public override string AddIndex(string table, Index index)
@@ -148,7 +143,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 value = filterItem.Value switch
                 {
                     bool booleanValue => booleanValue ? "TRUE" : "FALSE",
-                    string stringValue => $"'{stringValue}'",
+                    string stringValue => $"'{stringValue.Replace("'", "''")}'",
                     byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
                     sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
                     _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),
@@ -201,6 +196,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void ChangeColumn(string table, Column column)
     {
+        column = column.CopyDefinition();
         var existingColumn = GetColumnByName(table, column.Name);
 
         if (column.Type == DbType.String)
@@ -229,6 +225,9 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         }
         else
         {
+            // String changes replace the column, which already removes its default.
+            // For in-place changes Oracle otherwise retains the existing default.
+            if (column.DefaultValue == null) RemoveColumnDefaultValue(table, column.Name);
             if (((existingColumn.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull)
                 && ((column.ColumnProperty & ColumnProperty.NotNull) == ColumnProperty.NotNull))
             {
@@ -472,6 +471,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
         var userTabIdentityCols = _oracleSystemDataLoader.GetUserTabIdentityCols(tableName: table);
         var primaryKeyItems = _oracleSystemDataLoader.GetPrimaryKeyItems(tableName: table);
+        var uniqueColumns = ExecuteStringQuery("SELECT MIN(cc.COLUMN_NAME) FROM USER_CONSTRAINTS c JOIN USER_CONS_COLUMNS cc ON c.CONSTRAINT_NAME=cc.CONSTRAINT_NAME WHERE c.CONSTRAINT_TYPE='U' AND LOWER(c.TABLE_NAME)=LOWER('{0}') GROUP BY c.CONSTRAINT_NAME HAVING COUNT(*)=1", table.Replace("'", "''"));
 
         List<UserTabColumns> userTabColumns = [];
 
@@ -522,6 +522,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                     ColumnProperty = isNullable ? ColumnProperty.Null : ColumnProperty.NotNull
                 };
 
+                if (uniqueColumns.Contains(column.Name)) column.ColumnProperty |= ColumnProperty.Unique;
                 var isIdentity = userTabIdentityCols.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
                 var isPrimaryKey = primaryKeyItems.Any(x => x.ColumnName.Equals(columnName, StringComparison.OrdinalIgnoreCase));
 
@@ -531,11 +532,11 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 }
                 else if (isIdentity)
                 {
-                    column.ColumnProperty.Set(ColumnProperty.Identity);
+                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.Identity);
                 }
                 else if (isPrimaryKey)
                 {
-                    column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
+                    column.ColumnProperty = column.ColumnProperty.Set(ColumnProperty.PrimaryKey);
                 }
 
                 // Oracle does not have unsigned types. All NUMBER types can hold positive or negative values so we do not return DbType.UIntX types.
@@ -919,30 +920,39 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void RemoveTable(string name)
     {
+        // Oracle drops table-owned triggers and native identity sequences itself.
+        // A legacy-looking sequence name is not evidence of ownership.
         base.RemoveTable(name);
+    }
 
-        try
+    /// <summary>Drop a table and explicitly identified, unquoted legacy sequence names.
+    /// The caller must own these sequences. Oracle DDL is not transactional.</summary>
+    public void RemoveTableWithOwnedSequences(string name, params string[] ownedSequenceNames)
+    {
+        ArgumentNullException.ThrowIfNull(ownedSequenceNames);
+        var sequences = ownedSequenceNames.Select(sequence =>
         {
-            using var cmd = CreateCommand();
-            ExecuteQuery(cmd, string.Format(@"DROP SEQUENCE {0}_SEQUENCE", name));
-        }
-        catch (Exception)
+            GuardAgainstMaximumIdentifierLengthForOracle(sequence);
+            if (!System.Text.RegularExpressions.Regex.IsMatch(sequence, @"^[A-Za-z][A-Za-z0-9_$#]*$"))
+                throw new ArgumentException("Legacy sequence cleanup requires simple unquoted sequence names.", nameof(ownedSequenceNames));
+            return sequence.ToUpperInvariant();
+        }).Distinct(StringComparer.Ordinal).ToArray();
+        foreach (var sequence in sequences)
         {
-            // swallow this because sequence may not have existed.
+            using var command = CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM USER_SEQUENCES WHERE SEQUENCE_NAME = :sequenceName";
+            var parameter = command.CreateParameter(); parameter.ParameterName = "sequenceName"; parameter.Value = sequence;
+            command.Parameters.Add(parameter);
+            if (Convert.ToInt32(command.ExecuteScalar()) != 1) throw new MigrationException("Owned legacy sequence was not found: " + sequence);
         }
+        if (!TableExists(name)) throw new MigrationException("Table was not found: " + name);
+        base.RemoveTable(name);
+        foreach (var sequence in sequences) ExecuteNonQuery("DROP SEQUENCE " + _dialect.Quote(sequence));
     }
 
     private void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
     {
-        foreach (var column in columns)
-        {
-            if (column.Name.Length > 30)
-            {
-                throw new ArgumentException(
-                    string.Format("When adding table: \"{0}\", the column: \"{1}\", the name of the column is: {2} characters in length, but maximum length for an oracle identifier is 30 characters", name,
-                                  column.Name, column.Name.Length), "columns");
-            }
-        }
+        foreach (var column in columns) GuardAgainstMaximumIdentifierLengthForOracle(column.Name);
     }
 
     public override string Encode(Guid guid)

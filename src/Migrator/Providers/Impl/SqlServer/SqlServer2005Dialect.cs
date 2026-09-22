@@ -7,6 +7,8 @@ public class SqlServer2005Dialect : SqlServerDialect
 {
     public SqlServer2005Dialect()
     {
+        // Keep the historical representation for the explicitly selected pre-TIME dialect.
+        RegisterColumnType(DbType.Time, "DATETIME");
         RegisterColumnType(DbType.AnsiString, 2147483647, "VARCHAR(MAX)");
         RegisterColumnType(DbType.Binary, 2147483647, "VARBINARY(MAX)");
         RegisterColumnType(DbType.String, 1073741823, "NVARCHAR(MAX)");

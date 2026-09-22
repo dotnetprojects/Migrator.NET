@@ -11,6 +11,18 @@ namespace Migrator.Tests.Providers.Generic;
 public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
 {
     [Test]
+    public void AddColumn_PrecisionAndScale_PersistFractionalValue()
+    {
+        Provider.AddTable("PrecisionRoundTrip", new Column("Id", DbType.Int32));
+        Provider.AddColumn("PrecisionRoundTrip", new Column("Amount", DbType.Decimal) { Precision = 12, Scale = 4 });
+        Provider.Insert("PrecisionRoundTrip", new[] { "Id", "Amount" }, new object[] { 1, 12.3456m });
+        using var command = Provider.CreateCommand();
+        using var reader = Provider.Select(command, "PrecisionRoundTrip", new[] { "Amount" });
+        Assert.That(reader.Read(), Is.True);
+        Assert.That(reader.GetDecimal(0), Is.EqualTo(12.3456m));
+    }
+
+    [Test]
     public void ChangeColumn_NotNullAndNullToNotNull_Success()
     {
         // Arrange
@@ -34,7 +46,7 @@ public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
         Assert.That(column2.ColumnProperty.HasFlag(ColumnProperty.NotNull), Is.True);
     }
 
-    [Test, Ignore("Not yet implemented. See issue https://github.com/dotnetprojects/Migrator.NET/issues/139")]
+    [Test]
     public void ChangeColumn_RemoveDefaultValue_Success()
     {
         // Arrange
@@ -59,11 +71,11 @@ public abstract class Generic_ChangeColumnTestsBase : TransformationProviderBase
         using var cmd = Provider.CreateCommand();
         using var reader = Provider.Select(cmd: cmd, table: tableName, columns: [column1Name, column2Name]);
 
-        List<(int, DateTime)> records = [];
+        List<(int, DateTime?)> records = [];
 
         while (reader.Read())
         {
-            records.Add((reader.GetInt32(0), reader.GetDateTime(1)));
+            records.Add((reader.GetInt32(0), reader.IsDBNull(1) ? null : reader.GetDateTime(1)));
         }
 
         Assert.That(records.Count, Is.EqualTo(2));

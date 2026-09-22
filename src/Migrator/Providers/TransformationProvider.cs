@@ -34,7 +34,7 @@ namespace DotNetProjects.Migrator.Providers;
 /// Base class for every transformation providers.
 /// A 'tranformation' is an operation that modifies the database.
 /// </summary>
-public abstract class TransformationProvider : ITransformationProvider, IMigrationHistory
+public abstract class TransformationProvider : ITransformationProvider, IMigrationHistory, IForeignKeyActions
 {
     private string _scope;
     protected readonly string _connectionString;
@@ -534,6 +534,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void ChangeColumn(string table, Column column)
     {
+        column = column.CopyDefinition();
         var isUniqueSet = column.ColumnProperty.IsSet(ColumnProperty.Unique);
 
         column.ColumnProperty = column.ColumnProperty.Clear(ColumnProperty.Unique);
@@ -728,7 +729,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         table = QuoteTableNameIfRequired(table);
 
         ExecuteNonQuery(
-            string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY ({2}) ", table, name,
+            string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} PRIMARY KEY ({2}) ", table, QuoteConstraintNameIfRequired(name),
                           string.Join(",", QuoteColumnNamesIfRequired(columns))));
     }
     public virtual void AddPrimaryKeyNonClustered(string name, string table, params string[] columns)
@@ -739,7 +740,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     {
         table = QuoteTableNameIfRequired(table);
 
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} UNIQUE({2}) ", table, name,
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} UNIQUE({2}) ", table, QuoteConstraintNameIfRequired(name),
                           string.Join(", ", QuoteColumnNamesIfRequired(columns))));
     }
 
@@ -747,7 +748,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     {
         table = QuoteTableNameIfRequired(table);
 
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} CHECK ({2}) ", table, name, checkSql));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD CONSTRAINT {1} CHECK ({2}) ", table, QuoteConstraintNameIfRequired(name), checkSql));
     }
 
     /// <summary>
@@ -800,7 +801,17 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void AddForeignKey(string table, ForeignKeyConstraint fk)
     {
-        AddForeignKey(fk.Name, table, fk.ParentColumns, fk.ChildTable, fk.ChildColumns);
+        if (string.IsNullOrWhiteSpace(fk.OnDelete) && string.IsNullOrWhiteSpace(fk.OnUpdate))
+            AddForeignKey(fk.Name, table, (string[])fk.ChildColumns.Clone(), fk.ParentTable, (string[])fk.ParentColumns.Clone());
+        else
+            AddForeignKey(fk.Name, table, (string[])fk.ChildColumns.Clone(), fk.ParentTable, (string[])fk.ParentColumns.Clone(), ParseAction(fk.OnDelete), ParseAction(fk.OnUpdate));
+
+        static ForeignKeyConstraintType ParseAction(string action)
+        {
+            if (string.IsNullOrWhiteSpace(action)) return ForeignKeyConstraintType.NoAction;
+            return Enum.TryParse<ForeignKeyConstraintType>(action.Replace(" ", ""), true, out var parsed) && Enum.IsDefined(parsed)
+                ? parsed : throw new ArgumentException("Unsupported foreign-key action.", nameof(fk));
+        }
     }
 
     public virtual void AddForeignKey(string name, string childTable, string childColumn, string parentTable, string parentColumn)
@@ -835,18 +846,19 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     {
         childTable = QuoteTableNameIfRequired(childTable);
         parentTable = QuoteTableNameIfRequired(parentTable);
-        QuoteColumnNames(parentColumns);
-        QuoteColumnNames(childColumns);
+        parentColumns = QuoteColumnNamesIfRequired(parentColumns);
+        childColumns = QuoteColumnNamesIfRequired(childColumns);
+        name = QuoteConstraintNameIfRequired(name);
 
         var constraintResolved = constraintMapper.SqlForConstraint(constraint);
 
-        // TODO Issue #52 still unresolved
+        // Legacy overload preserves one action for both clauses; IForeignKeyActions provides independent actions.
         var childColumnsString = string.Join(", ", childColumns);
         var parentColumnsString = string.Join(", ", parentColumns);
 
         var stringBuilder = new StringBuilder();
         stringBuilder.Append($"ALTER TABLE {childTable} ADD CONSTRAINT {name} FOREIGN KEY ({childColumnsString}) REFERENCES {parentTable} ({parentColumnsString})");
-        stringBuilder.Append($"ON UPDATE {constraintResolved} ON DELETE {constraintResolved}");
+        stringBuilder.Append($"ON DELETE {constraintResolved} ON UPDATE {constraintResolved}");
 
         ExecuteNonQuery(stringBuilder.ToString());
     }
@@ -944,23 +956,18 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void ExecuteScript(string fileName)
     {
-        if (CurrentMigration != null)
-        {
-#if NETSTANDARD
-            var assembly = CurrentMigration.GetType().GetTypeInfo().Assembly;
-#else
-            var assembly = CurrentMigration.GetType().Assembly;
-#endif
+        if (string.IsNullOrWhiteSpace(fileName)) throw new ArgumentException("A script path is required.", nameof(fileName));
+        var root = CurrentMigration == null ? AppContext.BaseDirectory : Path.GetDirectoryName(CurrentMigration.GetType().Assembly.Location);
+        var path = Path.IsPathRooted(fileName) ? fileName : Path.Combine(root ?? AppContext.BaseDirectory, fileName);
+        this.ExecuteSqlScript(File.ReadAllText(path));
+    }
 
-            string sqlText;
-            var file = (new System.Uri(assembly.CodeBase)).AbsolutePath;
-            using (var reader = File.OpenText(file))
-            {
-                sqlText = reader.ReadToEnd();
-            }
-
-            ExecuteNonQuery(sqlText);
-        }
+    public virtual void ExecuteResourceScript(System.Reflection.Assembly assembly, string resourceName)
+    {
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new FileNotFoundException("Embedded SQL resource not found.", resourceName);
+        using var reader = new StreamReader(stream);
+        this.ExecuteSqlScript(reader.ReadToEnd());
     }
 
     /// <summary>
@@ -1115,7 +1122,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual object SelectScalar(string what, string from, string[] whereColumns, object[] whereValues)
     {
-        using var command = _connection.CreateCommand();
+        using var command = CreateCommand();
         if (CommandTimeout.HasValue)
         {
             command.CommandTimeout = CommandTimeout.Value;
@@ -1189,7 +1196,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             builder.Append(GenerateParameterName(i));
         }
 
-        using var command = _connection.CreateCommand();
+        using var command = CreateCommand();
         if (CommandTimeout.HasValue)
         {
             command.CommandTimeout = CommandTimeout.Value;
@@ -1267,7 +1274,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             builder.Append(GenerateParameterName(i));
         }
 
-        using var command = _connection.CreateCommand();
+        using var command = CreateCommand();
         if (CommandTimeout.HasValue)
         {
             command.CommandTimeout = CommandTimeout.Value;
@@ -1363,7 +1370,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         var parameterNames = builder.ToString();
 
-        using var command = _connection.CreateCommand();
+        using var command = CreateCommand();
         if (CommandTimeout.HasValue)
         {
             command.CommandTimeout = CommandTimeout.Value;
@@ -1504,7 +1511,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         {
             table = QuoteTableNameIfRequired(table);
 
-            using var command = _connection.CreateCommand();
+            using var command = CreateCommand();
             if (CommandTimeout.HasValue)
             {
                 command.CommandTimeout = CommandTimeout.Value;
@@ -1551,6 +1558,22 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     public virtual int TruncateTable(string table)
     {
         return ExecuteNonQuery(string.Format("TRUNCATE TABLE {0} ", table));
+    }
+
+    public virtual void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
+        ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
+    {
+        var deleteAction = constraintMapper.SqlForConstraint(onDelete);
+        var updateAction = constraintMapper.SqlForConstraint(onUpdate);
+        var oracle = _dialect is DotNetProjects.Migrator.Providers.Impl.Oracle.OracleDialect;
+        if (oracle && onUpdate != ForeignKeyConstraintType.NoAction)
+            throw new NotSupportedException("Oracle does not support ON UPDATE foreign key actions.");
+        if (oracle && onDelete is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict or ForeignKeyConstraintType.Cascade or ForeignKeyConstraintType.SetNull))
+            throw new NotSupportedException("Oracle supports default restrictive, CASCADE or SET NULL deletion actions.");
+        var sql = $"ALTER TABLE {QuoteTableNameIfRequired(childTable)} ADD CONSTRAINT {QuoteConstraintNameIfRequired(name)} FOREIGN KEY ({string.Join(", ", QuoteColumnNamesIfRequired(childColumns))}) REFERENCES {QuoteTableNameIfRequired(parentTable)} ({string.Join(", ", QuoteColumnNamesIfRequired(parentColumns))})";
+        if (!oracle || onDelete is not (ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict)) sql += $" ON DELETE {deleteAction}";
+        if (!oracle) sql += $" ON UPDATE {updateAction}";
+        ExecuteNonQuery(sql);
     }
 
     /// <summary>
@@ -1658,7 +1681,14 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void AddColumn(string table, Column column)
     {
-        AddColumn(table, column.Name, column.Type, column.Size, column.ColumnProperty, column.DefaultValue);
+        if (!column.Precision.HasValue && !column.Scale.HasValue)
+        {
+            AddColumn(table, column.Name, column.Type, column.Size, column.ColumnProperty, column.DefaultValue);
+            return;
+        }
+        var definition = new Column(column.Name, column.MigratorDbType, column.Size, column.ColumnProperty, column.DefaultValue)
+            { Precision = column.Precision, Scale = column.Scale };
+        AddColumn(table, _dialect.GetAndMapColumnProperties(definition).ColumnSql);
     }
 
     public virtual void GenerateForeignKey(string primaryTable, string refTable)
@@ -2020,6 +2050,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             parameter.DbType = DbType.DateTime;
             parameter.Value = value;
         }
+        else if (value is TimeSpan timeSpan)
+        {
+            parameter.DbType = DbType.Time;
+            parameter.Value = timeSpan;
+        }
         else if (value is DateTimeOffset dateTimeOffset)
         {
             parameter.DbType = DbType.DateTimeOffset;
@@ -2087,7 +2122,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     protected string QuoteConstraintNameIfRequired(string name)
     {
-        return _dialect.ConstraintNameNeedsQuote ? _dialect.Quote(name) : name;
+        if (!_dialect.ConstraintNameNeedsQuote && !_dialect.IsReservedWord(name)
+            && System.Text.RegularExpressions.Regex.IsMatch(name, @"^[A-Za-z_][A-Za-z0-9_$#]*$")) return name;
+        var template = _dialect.QuoteTemplate;
+        var closing = template[^1].ToString();
+        return string.Format(template, name.Replace(closing, closing + closing));
     }
 
     public abstract bool IndexExists(string table, string name);

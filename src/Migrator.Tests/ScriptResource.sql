@@ -1,0 +1,1 @@
+INSERT INTO ScriptData VALUES (2);

@@ -94,6 +94,21 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteTableInfo);
     }
 
+    public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
+        ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
+    {
+        var info = GetSQLiteTableInfo(childTable) ?? throw new MigrationException("Child table does not exist.");
+        if (string.IsNullOrWhiteSpace(name) || info.ForeignKeys.Select(f => f.Name).Concat(info.Uniques.Select(u => u.Name))
+            .Any(existing => string.Equals(existing, name, StringComparison.OrdinalIgnoreCase)))
+            throw new MigrationException("A unique foreign key name is required.");
+        info.ForeignKeys.Add(new ForeignKeyConstraint(name, parentTable, (string[])parentColumns.Clone(), childTable, (string[])childColumns.Clone())
+        {
+            OnDelete = new ForeignKeyConstraintMapper().SqlForConstraint(onDelete),
+            OnUpdate = new ForeignKeyConstraintMapper().SqlForConstraint(onUpdate)
+        });
+        RecreateTable(info);
+    }
+
     public string[] GetColumnDefs(string table, out string compositeDefSql)
     {
         return ParseSqlColumnDefs(GetSqlCreateTableScript(table), out compositeDefSql);
@@ -444,6 +459,26 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void RemoveColumn(string tableName, string column)
     {
+        if (Version.Parse(Convert.ToString(ExecuteScalar("SELECT sqlite_version()"))) >= new Version(3, 35, 0)
+            && TableExists(tableName))
+        {
+            var info = GetSQLiteTableInfo(tableName);
+            var definition = info.Columns.SingleOrDefault(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
+            bool Matches(string name) => string.Equals(name, column, StringComparison.OrdinalIgnoreCase);
+            var dependent = definition == null || definition.IsPrimaryKey || definition.ColumnProperty.HasFlag(ColumnProperty.Unique)
+                || info.CheckConstraints.Count != 0
+                || info.Uniques.Any(u => u.KeyColumns.Any(Matches))
+                || info.Indexes.Any(i => i.KeyColumns.Any(Matches) || i.FilterItems.Count != 0)
+                || info.ForeignKeys.Any(f => f.ChildColumns.Any(Matches))
+                || GetTables().Any(t => GetForeignKeyConstraints(t).Any(f => f.ParentTable.Equals(tableName, StringComparison.OrdinalIgnoreCase) && f.ParentColumns.Any(Matches)));
+            if (!dependent)
+            {
+                // SQLite itself validates trigger/view dependencies atomically. A rejection is
+                // surfaced rather than retrying with a potentially lossy reconstruction.
+                ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} DROP COLUMN {Dialect.Quote(definition.Name)}");
+                return;
+            }
+        }
         // In SQLite we need to recreate the table even if we only want to add, alter or drop a foreign key. So we not only recreate the table given 
         // as parameter but also the tables with FKs pointing to the column you want to remove.
         // In order to perform it smoothly, the PRAGMA foreign keys should be set off.
@@ -584,6 +619,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         if (!TableExists(tableName))
         {
             throw new Exception($"Table {tableName} does not exist");
+        }
+
+        if (Version.Parse(Convert.ToString(ExecuteScalar("SELECT sqlite_version()"))) >= new Version(3, 26, 0))
+        {
+            if (string.IsNullOrWhiteSpace(newColumnName)) throw new ArgumentException("A column name is required.");
+            ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} RENAME COLUMN {Dialect.Quote(oldColumnName)} TO {Dialect.Quote(newColumnName)}");
+            return;
         }
 
         var isPragmaForeignKeysOn = IsPragmaForeignKeysOn();
@@ -817,7 +859,70 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         ExecuteNonQuery($"PRAGMA foreign_keys = {onOffString}");
     }
 
+    private static string ValidateForeignKeyAction(string action)
+    {
+        var normalized = action.ToUpperInvariant();
+        if (normalized is not ("CASCADE" or "RESTRICT" or "SET NULL" or "SET DEFAULT" or "NO ACTION"))
+            throw new MigrationException("Unsupported foreign key action: " + action);
+        return normalized;
+    }
+
     public void RecreateTable(SQLiteTableInfo sqliteTableInfo)
+    {
+        var oldName = sqliteTableInfo.TableNameMapping.OldName;
+        var script = GetSqlCreateTableScript(oldName);
+        if (Regex.IsMatch(script, @"\b(STRICT|GENERATED|DEFERRABLE|COLLATE)\b|WITHOUT\s+ROWID|CREATE\s+VIRTUAL|ON\s+CONFLICT", RegexOptions.IgnoreCase))
+            throw new NotSupportedException("This table contains SQLite features that cannot be reconstructed faithfully. Use native SQL.");
+        var triggers = ExecuteStringQuery("SELECT sql FROM sqlite_master WHERE type='trigger' AND lower(tbl_name)=lower('{0}')", oldName.Replace("'", "''"));
+        if (triggers.Count > 0 && (oldName != sqliteTableInfo.TableNameMapping.NewName || sqliteTableInfo.ColumnMappings.Any(m => m.OldName != null && m.OldName != m.NewName)))
+            throw new NotSupportedException("Use native SQLite rename when triggers reference renamed objects.");
+        var originalColumns = GetColumns(oldName);
+        if (triggers.Count > 0 && originalColumns.Any(c => !sqliteTableInfo.Columns.Any(n => n.Name.Equals(c.Name, StringComparison.OrdinalIgnoreCase))))
+            throw new NotSupportedException("Removing columns from a table with triggers requires native SQLite alteration or explicit trigger recreation.");
+        var sequence = TableExists("sqlite_sequence")
+            ? ExecuteScalar("SELECT seq FROM sqlite_sequence WHERE name='" + oldName.Replace("'", "''") + "'") : null;
+        var highWater = sequence == null || sequence == DBNull.Value ? (long?)null : Convert.ToInt64(sequence);
+        var foreignKeys = IsPragmaForeignKeysOn();
+        if (HasActiveTransaction && foreignKeys)
+            throw new MigrationException("SQLite rebuild requires foreign keys to be disabled before beginning the transaction. Use the migration runner.");
+        var ownsTransaction = !HasActiveTransaction;
+        Exception failure = null;
+        try
+        {
+            if (ownsTransaction)
+            {
+                if (foreignKeys) SetPragmaForeignKeys(false);
+                BeginTransaction();
+            }
+            RecreateTableCore(sqliteTableInfo);
+            if (highWater.HasValue && sqliteTableInfo.Columns.Any(c => c.IsIdentity))
+            {
+                var sequenceName = sqliteTableInfo.TableNameMapping.NewName.Replace("'", "''");
+                var sequenceValue = highWater.Value.ToString(CultureInfo.InvariantCulture);
+                ExecuteNonQuery($"UPDATE sqlite_sequence SET seq=MAX(seq, {sequenceValue}) WHERE name='{sequenceName}'");
+                ExecuteNonQuery($"INSERT INTO sqlite_sequence(name, seq) SELECT '{sequenceName}', {sequenceValue} WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='{sequenceName}')");
+            }
+            foreach (var trigger in triggers) ExecuteNonQuery(trigger);
+            if (ownsTransaction && !CheckForeignKeyIntegrity()) throw new MigrationException("SQLite rebuild would leave invalid foreign keys.");
+            if (ownsTransaction) Commit();
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+            if (ownsTransaction)
+            {
+                try { Rollback(); } catch (Exception rollback) { ex.Data["RollbackException"] = rollback; }
+            }
+            throw;
+        }
+        finally
+        {
+            try { if (ownsTransaction && foreignKeys) SetPragmaForeignKeys(true); }
+            catch (Exception restore) { if (failure == null) throw; failure.Data["ConnectionRestoreException"] = restore; }
+        }
+    }
+
+    private void RecreateTableCore(SQLiteTableInfo sqliteTableInfo)
     {
         var sourceTableQuoted = QuoteTableNameIfRequired(sqliteTableInfo.TableNameMapping.OldName);
         var targetIntermediateTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}{IntermediateTableSuffix}");
@@ -874,7 +979,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         using (var cmd = CreateCommand())
         {
             var sql = $"INSERT INTO {targetIntermediateTableQuoted} ({targetColumnsQuotedString}) SELECT {sourceColumnsQuotedString} FROM {sourceTableQuoted}";
-            ExecuteQuery(cmd, sql);
+            ExecuteNonQuery(sql);
         }
 
         RemoveTable(sourceTableQuoted);
@@ -883,7 +988,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             // Rename to original name
             var sql = $"ALTER TABLE {targetIntermediateTableQuoted} RENAME TO {targetTableQuoted}";
-            ExecuteQuery(cmd, sql);
+            ExecuteNonQuery(sql);
         }
 
         foreach (var index in sqliteTableInfo.Indexes)
@@ -1381,6 +1486,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
         var columns = fields.Where(x => x is Column)
             .Cast<Column>()
+            .Select(column => column.CopyDefinition())
             .ToArray();
 
         var pks = GetPrimaryKeys(columns);
@@ -1430,14 +1536,14 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         {
             if (!string.IsNullOrEmpty(u.Name))
             {
-                stringBuilder.Append($", CONSTRAINT {u.Name}");
+                stringBuilder.Append($", CONSTRAINT {QuoteConstraintNameIfRequired(u.Name)}");
             }
             else
             {
                 stringBuilder.Append(", ");
             }
 
-            var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns);
+            var uniqueColumnsCommaSeparated = string.Join(", ", u.KeyColumns.Select(QuoteColumnNameIfRequired));
             stringBuilder.Append($" UNIQUE ({uniqueColumnsCommaSeparated})");
         }
 
@@ -1457,12 +1563,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 throw new Exception("No foreign key constraint name given");
             }
 
-            var foreignKeySql = $"CONSTRAINT {fk.Name} FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})";
+            var foreignKeySql = $"CONSTRAINT {QuoteConstraintNameIfRequired(fk.Name)} FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}({parentColumnNamesQuotedString})";
             if (!string.IsNullOrWhiteSpace(fk.OnDelete) && !string.Equals(fk.OnDelete, "NO ACTION", StringComparison.OrdinalIgnoreCase))
             {
-                foreignKeySql += $" ON DELETE {fk.OnDelete}";
+                foreignKeySql += $" ON DELETE {ValidateForeignKeyAction(fk.OnDelete)}";
             }
 
+            if (!string.IsNullOrWhiteSpace(fk.OnUpdate)) foreignKeySql += $" ON UPDATE {ValidateForeignKeyAction(fk.OnUpdate)}";
             foreignKeyStrings.Add(foreignKeySql);
         }
 
@@ -1478,7 +1585,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         foreach (var checkConstraint in checkConstraints)
         {
-            checkConstraintStrings.Add($"CONSTRAINT {checkConstraint.Name} CHECK ({checkConstraint.CheckConstraintString})");
+            checkConstraintStrings.Add($"CONSTRAINT {QuoteConstraintNameIfRequired(checkConstraint.Name)} CHECK ({checkConstraint.CheckConstraintString})");
         }
 
         if (checkConstraintStrings.Count > 0)
@@ -1539,7 +1646,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 value = filterItem.Value switch
                 {
                     bool booleanValue => booleanValue ? "1" : "0",
-                    string stringValue => $"'{stringValue}'",
+                    string stringValue => $"'{stringValue.Replace("'", "''")}'",
                     byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
                     sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
                     _ => throw new NotImplementedException("Given type is not implemented. Please file an issue."),
@@ -1587,8 +1694,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             column.ColumnProperty &= ~ColumnProperty.Unique;
         }
 
-        // TODO CHECK is not implemented yet 
-        // https://github.com/dotnetprojects/Migrator.NET/issues/64
+        sqliteTableInfo.ForeignKeys.Clear();
+        sqliteTableInfo.CheckConstraints.Clear();
 
         RecreateTable(sqliteTableInfo);
     }
@@ -1936,3 +2043,4 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
     }
 }
+
