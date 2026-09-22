@@ -148,77 +148,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     /// <param name="table"></param>
     /// <returns></returns>
     /// <exception cref="MigrationException"></exception>
-    public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
-    {
-        var constraints = new List<ForeignKeyConstraint>();
-        var sb = new StringBuilder();
-        sb.AppendLine("SELECT");
-        sb.AppendLine("  tc.CONSTRAINT_NAME AS FK_KEY,");
-        sb.AppendLine("  tc.TABLE_SCHEMA,");
-        sb.AppendLine("  tc.TABLE_NAME AS CHILD_TABLE,");
-        sb.AppendLine("  kcu.COLUMN_NAME AS CHILD_COLUMN,");
-        sb.AppendLine("  ccu.TABLE_NAME AS PARENT_TABLE,");
-        sb.AppendLine("  ccu.COLUMN_NAME AS PARENT_COLUMN");
-        sb.AppendLine("FROM ");
-        sb.AppendLine("  INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc ");
-        sb.AppendLine("JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE as kcu");
-        sb.AppendLine("  ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA");
-        sb.AppendLine("JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS as rc");
-        sb.AppendLine("  ON tc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = rc.CONSTRAINT_SCHEMA");
-        sb.AppendLine("JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu");
-        sb.AppendLine("  ON rc.UNIQUE_CONSTRAINT_NAME = ccu.CONSTRAINT_NAME AND rc.UNIQUE_CONSTRAINT_SCHEMA = ccu.CONSTRAINT_SCHEMA");
-        sb.AppendLine($"WHERE LOWER(tc.TABLE_NAME) = LOWER('{table}') AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'");
-        sb.AppendLine("ORDER BY kcu.ORDINAL_POSITION");
-
-        var sql = sb.ToString();
-        List<ForeignKeyConstraintItem> foreignKeyConstraintItems = [];
-
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, sql))
-        {
-            while (reader.Read())
-            {
-                var constraintItem = new ForeignKeyConstraintItem
-                {
-                    SchemaName = reader.GetString(reader.GetOrdinal("TABLE_SCHEMA")),
-                    ForeignKeyName = reader.GetString(reader.GetOrdinal("FK_KEY")),
-                    ChildTableName = reader.GetString(reader.GetOrdinal("CHILD_TABLE")),
-                    ChildColumnName = reader.GetString(reader.GetOrdinal("CHILD_COLUMN")),
-                    ParentTableName = reader.GetString(reader.GetOrdinal("PARENT_TABLE")),
-                    ParentColumnName = reader.GetString(reader.GetOrdinal("PARENT_COLUMN"))
-                };
-
-                foreignKeyConstraintItems.Add(constraintItem);
-            }
-        }
-
-        var schemaChildTableGroups = foreignKeyConstraintItems.GroupBy(x => new { x.SchemaName, x.ChildTableName }).Count();
-
-        if (schemaChildTableGroups > 1)
-        {
-            throw new MigrationException($"Duplicates found (grouping by schema name and child table name). Since we do not offer schemas in '{nameof(GetForeignKeyConstraints)}' at this moment in time we cannot filter your target schema. Your database use the same table name in different schemas.");
-        }
-
-        var groups = foreignKeyConstraintItems.GroupBy(x => x.ForeignKeyName);
-
-        foreach (var group in groups)
-        {
-            var first = group.First();
-
-            var foreignKeyConstraint = new ForeignKeyConstraint
-            {
-                Name = first.ForeignKeyName,
-                ParentTable = first.ParentTableName,
-                ParentColumns = [.. group.Select(x => x.ParentColumnName).Distinct()],
-                ChildTable = first.ChildTableName,
-                ChildColumns = [.. group.Select(x => x.ChildColumnName).Distinct()]
-            };
-
-            constraints.Add(foreignKeyConstraint);
-        }
-
-        return [.. constraints];
-    }
+    public virtual ForeignKeyConstraint[] GetForeignKeyConstraints(string table) => ForeignKeyMetadataReader.Read(this, table);
 
     public virtual TableConstraint[] GetTableConstraints(string table) => ConstraintMetadataReader.Read(this, table);
 
@@ -419,7 +349,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         foreach (var foreignKey in fields.OfType<ForeignKeyConstraint>()) AddForeignKey(name, foreignKey);
     }
 
-    protected static void ValidateKeyColumns(string name, string[] keys, Column[] columns)
+    protected internal static void ValidateKeyColumns(string name, string[] keys, Column[] columns)
     {
         if (name != null && string.IsNullOrWhiteSpace(name)) throw new MigrationException("A constraint name must not be empty.");
         if (keys == null || keys.Length == 0 || keys.Any(string.IsNullOrWhiteSpace) || keys.Distinct(StringComparer.OrdinalIgnoreCase).Count() != keys.Length)

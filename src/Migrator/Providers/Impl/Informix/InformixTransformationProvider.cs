@@ -1,3 +1,4 @@
+using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -93,6 +94,20 @@ public class InformixTransformationProvider : TransformationProvider
             columns.Add(column);
         }
         return columns.ToArray();
+    }
+
+    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
+    {
+        var rows = new List<(string Name, string Parent, string ChildIndex, string ParentIndex, string Delete)>();
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,t2.tabname,c.idxname,p.idxname,r.delrule FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid JOIN sysreferences r ON r.constrid=c.constrid JOIN sysconstraints p ON p.constrid=r.primary JOIN systables t2 ON t2.tabid=r.ptabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND t2.owner=USER ORDER BY c.constrname"))
+            while (reader.Read())
+                rows.Add((reader.GetString(0).Trim(), reader.GetString(1).Trim(), reader.GetString(2).Trim(), reader.GetString(3).Trim(), reader.GetString(4).Trim()));
+        var childIndexes = GetIndexes(table).ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
+        return rows.Select(row => new ForeignKeyConstraint(row.Name, row.Parent,
+            GetIndexes(row.Parent).Single(i => i.Name.Equals(row.ParentIndex, StringComparison.OrdinalIgnoreCase)).KeyColumns,
+            table, childIndexes[row.ChildIndex].KeyColumns)
+            { OnDelete = row.Delete == "C" ? "CASCADE" : "RESTRICT", OnUpdate = "RESTRICT" }).ToArray();
     }
 
     public override TableConstraint[] GetTableConstraints(string table)

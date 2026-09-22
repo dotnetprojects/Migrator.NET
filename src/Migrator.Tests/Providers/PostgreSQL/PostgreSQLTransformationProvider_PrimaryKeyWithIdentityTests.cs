@@ -20,7 +20,7 @@ public class PostgreSQLTransformationProvider_PrimaryKeyWithIdentityTests : Post
 
         Provider.AddTable(testTableName,
             new Column(propertyName1,DbType.Int32){IsNullable = false,IsIdentity = true},
-            new Column(propertyName2,DbType.Int32){IsUnsigned = true},new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
+            new Column(propertyName2,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         // Act
         Provider.Insert(testTableName, [propertyName2], [1]);

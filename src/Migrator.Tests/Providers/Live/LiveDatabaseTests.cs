@@ -33,6 +33,24 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         finally { TearDown(); }
     }
 
+    [Test]
+    public void ConstraintMetadataPreservesForeignKeyPairsAndSeparatesUniqueIndexes()
+    {
+        provider.AddTable("parents", new Column("first_id", DbType.Int32), new Column("second_id", DbType.Int32),
+            new PrimaryKeyConstraint("pk_parents", "second_id", "first_id"));
+        provider.AddTable("children", new Column("left_id", DbType.Int32), new Column("right_id", DbType.Int32));
+        provider.AddForeignKey("fk_pair", "children", new[] { "left_id", "right_id" }, "parents", new[] { "second_id", "first_id" });
+        provider.AddIndex("children", new DbIndex { Name = "ux_separate", KeyColumns = new[] { "left_id" }, Unique = true });
+        var constraints = provider.GetTableConstraints("children");
+        var foreignKey = constraints.OfType<DotNetProjects.Migrator.Framework.ForeignKeyConstraint>().Single();
+        Assert.That(foreignKey.ChildColumns.Select(c => c.ToLowerInvariant()), Is.EqualTo(new[] { "left_id", "right_id" }));
+        Assert.That(foreignKey.ParentColumns.Select(c => c.ToLowerInvariant()), Is.EqualTo(new[] { "second_id", "first_id" }));
+        Assert.That(constraints.OfType<DotNetProjects.Migrator.Framework.UniqueConstraint>(), Is.Empty);
+        provider.Insert("parents", new[] { "first_id", "second_id" }, new object[] { 1, 2 });
+        provider.Insert("children", new[] { "left_id", "right_id" }, new object[] { 2, 1 });
+        AssertDatabaseError(() => provider.Insert("children", new[] { "left_id", "right_id" }, new object[] { 1, 2 }));
+    }
+
     internal void DropCreatedDatabase()
     {
         provider.DropDatabases(provider.GetDatabases().Single());

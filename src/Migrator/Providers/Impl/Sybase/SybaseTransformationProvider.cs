@@ -1,3 +1,4 @@
+using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -78,6 +79,30 @@ public class SybaseTransformationProvider : TransformationProvider
             columns.Add(column);
         }
         return columns.ToArray();
+    }
+
+    public override ForeignKeyConstraint[] GetForeignKeyConstraints(string table)
+    {
+        var columns = string.Join(",", Enumerable.Range(1, 16).Select(n => $"col_name(r.tableid,r.fokey{n}),col_name(r.reftabid,r.refkey{n})"));
+        var result = new List<ForeignKeyConstraint>();
+        using var command = CreateCommand();
+        using var reader = ExecuteQuery(command, $"SELECT object_name(r.constrid),object_name(r.reftabid),r.keycnt,r.frgndbname,r.pmrydbname,{columns} FROM sysreferences r WHERE r.tableid=object_id('{Literal(table)}') ORDER BY r.constrid");
+        while (reader.Read())
+        {
+            if (!reader.IsDBNull(3) || !reader.IsDBNull(4))
+                throw new NotSupportedException("Cross-database ASE foreign keys require qualified metadata support.");
+            var count = Convert.ToInt32(reader.GetValue(2));
+            if (count is < 1 or > 16) throw new NotSupportedException("Unsupported ASE foreign-key column count.");
+            var children = new string[count]; var parents = new string[count];
+            for (var index = 0; index < count; index++)
+            {
+                children[index] = reader.GetString(5 + index * 2);
+                parents[index] = reader.GetString(6 + index * 2);
+            }
+            result.Add(new ForeignKeyConstraint(reader.GetString(0), reader.GetString(1), parents, table, children)
+                { OnDelete = "NO ACTION", OnUpdate = "NO ACTION" });
+        }
+        return result.ToArray();
     }
 
     public override TableConstraint[] GetTableConstraints(string table)

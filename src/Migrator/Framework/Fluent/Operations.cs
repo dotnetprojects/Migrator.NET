@@ -31,6 +31,14 @@ public sealed record CreateTableOperation(string Table, string Engine, IDbField[
     public override MigrationOperation Reverse() => new RemoveOperation(RemoveKind.Table, Table);
     public override string ToSql(SqlGenerationContext c)
     {
+        if (c.Provider is ProviderTypes.SQLite or ProviderTypes.MonoSQLite)
+        {
+            if (Engine != null || Fields.Any(f => f is Index))
+                throw new NotSupportedException("Preview table indexes as separate operations; SQLite table engines are unsupported.");
+            var sql = DotNetProjects.Migrator.Providers.Impl.SQLite.SQLiteTableSql.Generate(c.Dialect, c.Table(Table), Fields);
+            c.AddTable(Table, Fields.OfType<Column>());
+            return sql + ";";
+        }
         if (Engine != null || Fields.Any(f => f is not (Column or PrimaryKeyConstraint or UniqueConstraint or CheckConstraint))) throw new NotSupportedException("This table contains an unsupported preview definition.");
         var columns = Fields.OfType<Column>().Select(Definitions.CopyColumn).ToArray();
         var primary = Fields.OfType<PrimaryKeyConstraint>().SingleOrDefault();
@@ -38,8 +46,6 @@ public sealed record CreateTableOperation(string Table, string Engine, IDbField[
         {
             foreach (var column in columns.Where(x => primary.KeyColumns.Contains(x.Name)))
                 column.IsNullable = false;
-            if (c.Provider == ProviderTypes.SQLite && columns.Any(x => x.IsIdentity))
-                throw new NotSupportedException("Named SQLite identity-key preview requires the complete table generator.");
         }
         var definitions = columns.Select(c.Column).ToList();
         definitions.AddRange(Fields.OfType<TableConstraint>().Select(c.Dialect.GetTableConstraintSql));

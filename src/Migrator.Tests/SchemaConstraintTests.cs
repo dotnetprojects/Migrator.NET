@@ -106,6 +106,23 @@ public class SchemaConstraintTests
     }
 
     [Test]
+    public void OfflineIdentityPreviewExecutesTheSameSchemaAsImperativeCreation()
+    {
+        var builder = new MigrationBuilder();
+        builder.Create.Table("PreviewIdentity").WithColumn("Id").AsInt32().Identity()
+            .WithColumn("Value").AsString(20).WithCollation("NOCASE")
+            .WithPrimaryKey("PK_PreviewIdentity", "Id")
+            .WithUniqueConstraint("UQ_Value", "Value");
+        var sql = builder.Preview(new SqlGenerationContext(ProviderTypes.SQLite)).Single();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        provider.ExecuteNonQuery(sql);
+        provider.ExecuteNonQuery("INSERT INTO PreviewIdentity (Value) VALUES ('Hello')");
+        Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT Id FROM PreviewIdentity")), Is.EqualTo(1));
+        Assert.Catch(() => provider.ExecuteNonQuery("INSERT INTO PreviewIdentity (Value) VALUES ('HELLO')"));
+        Assert.That(provider.GetTableConstraints("PreviewIdentity").OfType<PrimaryKeyConstraint>().Single().Name, Is.EqualTo("PK_PreviewIdentity"));
+    }
+
+    [Test]
     public void InvalidKeyDefinitionsFailBeforeCreatingTheTable()
     {
         using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);

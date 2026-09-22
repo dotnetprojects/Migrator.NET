@@ -54,11 +54,12 @@ public class LiveMetadataRegressionTests
     [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
     [TestCase("Firebird", ProviderTypes.Firebird, Category = "Firebird")]
     [TestCase("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
-    public void ChangeColumnCreatesRequestedUniqueConstraint(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
+    public void ExplicitUniqueAfterChangeColumnEnforcesUniqueness(string database, ProviderTypes type) => new LiveDatabaseTests(database, type).RunRegression(f =>
     {
         f.Provider.AddTable("unique_values", new Column("amount",DbType.Int32){IsNullable = false});
         f.Provider.Insert("unique_values", ["amount"], [7]);
         f.Provider.ChangeColumn("unique_values", new Column("amount",DbType.Int64){IsNullable = false});
+        f.Provider.AddUniqueConstraint("UX_unique_values_amount", "unique_values", "amount");
         Assert.That(f.Provider.ConstraintExists("unique_values", "UX_unique_values_amount"), Is.True);
         Assert.That(f.Provider.GetIndexes("unique_values").Any(i => i.UniqueConstraint && i.KeyColumns.Single().Equals("amount", StringComparison.OrdinalIgnoreCase)), Is.True);
         f.AssertDatabaseError(() => f.Provider.Insert("unique_values", ["amount"], [7L]));

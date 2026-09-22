@@ -599,7 +599,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 // dataDefaultString contains ISEQ$$ if the column is an identity column
                 if (
                     !string.IsNullOrWhiteSpace(dataDefaultString) &&
-                    (column.Type == DbType.String || !dataDefaultString.Equals("null", StringComparison.OrdinalIgnoreCase)) &&
+                    !dataDefaultString.Trim().Equals("null", StringComparison.OrdinalIgnoreCase) &&
                     !dataDefaultString.Contains("ISEQ$$") &&
                     !dataDefaultString.Contains(".nextval"))
                 {

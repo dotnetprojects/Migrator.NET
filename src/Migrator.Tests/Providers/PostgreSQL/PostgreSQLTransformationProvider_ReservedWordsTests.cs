@@ -19,7 +19,7 @@ public class PostgreSQLTransformationProvider_ReservedWordsTests : PostgreSQLTra
 
         Provider.AddTable(testTableName,
             new Column(propertyName1,DbType.Int32){IsNullable = false,IsIdentity = true},
-            new Column(propertyName2,DbType.Int32){IsUnsigned = true},new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
+            new Column(propertyName2,DbType.Int32),new PrimaryKeyConstraint("PK_" + testTableName, propertyName1)        );
 
         // Act/Assert
         Provider.AddIndex(testTableName, new Index
