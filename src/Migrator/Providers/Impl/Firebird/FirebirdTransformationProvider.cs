@@ -85,6 +85,14 @@ public class FirebirdTransformationProvider : TransformationProvider
     public override void AddColumn(string table, string sqlColumn) =>
         ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD {sqlColumn}");
 
+    public override void RemoveColumn(string tableName, string column)
+    {
+        if (!ColumnExists(tableName, column))
+            throw new MigrationException($"Column '{column}' does not exist in '{tableName}'.");
+        var existing = GetColumns(tableName).Single(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(tableName)} DROP {_dialect.Quote(existing.Name)}");
+    }
+
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
     {
         if (!ColumnExists(tableName, oldColumnName) || ColumnExists(tableName, newColumnName))

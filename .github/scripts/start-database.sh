@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 database="$1"
+# Registry timeouts are transient; retry downloads, never test failures.
+pull() {
+  for attempt in 1 2 3; do
+    if docker pull "$1"; then return 0; fi
+    sleep 5
+  done
+  return 1
+}
 case "$database" in
   Unit|SQLite) exit 0 ;;
   MySQL)
@@ -28,10 +36,12 @@ case "$database" in
     ready() { echo 'select 1 from rdb$database;' | docker exec -i migrator-db isql -b -u SYSDBA -p masterkey localhost:/var/lib/firebird/data/test.fdb >/dev/null 2>&1; }
     ;;
   Db2)
+    pull icr.io/db2_community/db2:11.5.9.0
     docker run -d --name migrator-db --privileged -p 50000:50000 -e LICENSE=accept -e DB2INST1_PASSWORD=testpass -e DBNAME=testdb -e ARCHIVE_LOGS=false -e AUTOCONFIG=false icr.io/db2_community/db2:11.5.9.0
     ready() { docker logs migrator-db 2>&1 | grep -q 'Setup has completed'; }
     ;;
   Informix)
+    pull icr.io/informix/informix-developer-database:15.0.1.0.3
     docker run -dt --name migrator-db --hostname ifx --privileged -p 9088:9088 -e LICENSE=accept icr.io/informix/informix-developer-database:15.0.1.0.3
     ready() { docker exec migrator-db bash -lc 'onstat -' 2>/dev/null | grep -q 'On-Line'; }
     ;;
