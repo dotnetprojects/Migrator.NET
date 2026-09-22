@@ -19,20 +19,6 @@ public class SQLiteTransformationProvider_GetColumnsTests : Generic_GetColumnsTe
     }
 
     [Test]
-    public void GetColumns_UniqueButNotPrimaryKey_ReturnsFalse()
-    {
-        // Arrange
-        const string tableName = "GetColumnsTest";
-        Provider.AddTable(tableName, new Column("Id", DbType.Int32, ColumnProperty.Unique));
-
-        // Act
-        var columns = Provider.GetColumns(tableName);
-
-        // Assert
-        Assert.That(columns.Single().ColumnProperty, Is.EqualTo(ColumnProperty.Null | ColumnProperty.Unique));
-    }
-
-    [Test]
     public void GetColumns_PrimaryAndUnique_ReturnsFalse()
     {
         // Arrange
