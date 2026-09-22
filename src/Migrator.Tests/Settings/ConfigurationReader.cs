@@ -21,6 +21,10 @@ public class ConfigurationReader() : IConfigurationReader
     /// <returns></returns>
     public DatabaseConnectionConfig GetDatabaseConnectionConfigById(string id)
     {
+        var overrideConnection = Environment.GetEnvironmentVariable("MIGRATOR_" + id.ToUpperInvariant());
+        if (!string.IsNullOrEmpty(overrideConnection))
+            return new DatabaseConnectionConfig { Id = id, ConnectionString = overrideConnection };
+
         var configurationRoot = GetConfigurationRoot();
         var aspNetCoreVariable = GetAspNetCoreEnvironmentVariable();
 

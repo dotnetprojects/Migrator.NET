@@ -24,9 +24,9 @@ public class FirebirdColumnPropertiesMapper : ColumnPropertiesMapper
 
         AddIdentity(column, vals);
 
-        AddPrimaryKey(column, vals);
-
         AddIdentityAgain(column, vals);
+
+        AddPrimaryKey(column, vals);
 
         AddUnique(column, vals);
 

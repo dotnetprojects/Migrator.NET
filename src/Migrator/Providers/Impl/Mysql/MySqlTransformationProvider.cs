@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Globalization;
+using System.Linq;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
 namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
@@ -116,33 +118,21 @@ public class MySqlTransformationProvider : TransformationProvider
 
     public override void RemoveConstraint(string table, string name)
     {
-        if (ConstraintExists(table, name))
+        var type = Convert.ToString(ExecuteScalar($"SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' AND CONSTRAINT_NAME='{name.Replace("'", "''")}'"));
+        var action = type switch
         {
-            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP KEY {1}", table, _dialect.Quote(name)));
-        }
+            "PRIMARY KEY" => "DROP PRIMARY KEY",
+            "FOREIGN KEY" => "DROP FOREIGN KEY " + _dialect.Quote(name),
+            "UNIQUE" => "DROP INDEX " + _dialect.Quote(name),
+            "CHECK" => (_dialect is MariaDBDialect ? "DROP CONSTRAINT " : "DROP CHECK ") + _dialect.Quote(name),
+            _ => throw new MigrationException($"Constraint '{name}' does not exist")
+        };
+        ExecuteNonQuery($"ALTER TABLE {_dialect.Quote(table)} {action}");
     }
 
     public override bool ConstraintExists(string table, string name)
     {
-        if (!TableExists(table))
-        {
-            return false;
-        }
-
-        var sqlConstraint = string.Format("SHOW KEYS FROM {0}", table);
-
-        using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, sqlConstraint);
-
-        while (reader.Read())
-        {
-            if (reader["Key_name"].ToString().ToLower() == name.ToLower())
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' AND CONSTRAINT_NAME='{name.Replace("'", "''")}'")) > 0;
     }
 
     public bool ForeignKeyExists(string table, string name)
@@ -176,32 +166,24 @@ public class MySqlTransformationProvider : TransformationProvider
 
     public override Index[] GetIndexes(string table)
     {
-        var retVal = new List<Index>();
-
-        var sql = @"SHOW INDEX FROM {0}";
-
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
+        if (!TableExists(table)) return [];
+        var constraints = ExecuteStringQuery($"SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' AND CONSTRAINT_TYPE='UNIQUE'").ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var indexes = new Dictionary<string, Index>();
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, $"SHOW INDEX FROM {_dialect.Quote(table)}");
+        var columns = new Dictionary<string, SortedDictionary<int, string>>();
+        while (reader.Read())
         {
-            while (reader.Read())
+            var name = Convert.ToString(reader["Key_name"]);
+            if (!indexes.ContainsKey(name))
             {
-                if (!reader.IsDBNull(1))
-                {
-                    var idx = new Index
-                    {
-                        Name = reader.GetString(2),
-                        PrimaryKey = reader.GetString(2) == "PRIMARY",
-                        Unique = !reader.GetBoolean(1),
-                    };
-                    //var cols = reader.GetString(7);
-                    //cols = cols.Substring(1, cols.Length - 2);
-                    //idx.KeyColumns = cols.Split(',');                        
-                    retVal.Add(idx);
-                }
+                indexes[name] = new Index { Name = name, PrimaryKey = name == "PRIMARY", UniqueConstraint = constraints.Contains(name), Unique = Convert.ToInt32(reader["Non_unique"]) == 0 };
+                columns[name] = new SortedDictionary<int, string>();
             }
+            columns[name][Convert.ToInt32(reader["Seq_in_index"])] = Convert.ToString(reader["Column_name"]);
         }
-
-        return retVal.ToArray();
+        foreach (var item in indexes) item.Value.KeyColumns = columns[item.Key].Values.ToArray();
+        return indexes.Values.ToArray();
     }
 
     public override bool PrimaryKeyExists(string table, string name)
@@ -212,78 +194,65 @@ public class MySqlTransformationProvider : TransformationProvider
     public override Column[] GetColumns(string table)
     {
         var columns = new List<Column>();
-        using (var cmd = CreateCommand())
-        using (
-            var reader =
-                ExecuteQuery(cmd,
-                    string.Format("SHOW COLUMNS FROM {0}", table)))
+        using var cmd = CreateCommand();
+        using var reader = ExecuteQuery(cmd, $"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_MAXIMUM_LENGTH, COLUMN_KEY, COLUMN_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' ORDER BY ORDINAL_POSITION");
+        while (reader.Read())
         {
-            while (reader.Read())
+            var type = reader.GetString(1) switch
             {
-                var column = new Column(reader.GetString(0), DbType.String);
-                var nullableStr = reader.GetString(2);
-                var isNullable = nullableStr == "YES";
-                var defaultValue = reader.GetValue(4);
-                column.ColumnProperty |= isNullable ? ColumnProperty.Null : ColumnProperty.NotNull;
-
-                if (defaultValue != null && defaultValue != DBNull.Value)
-                {
-                    column.DefaultValue = defaultValue;
-                }
-
-                if (column.DefaultValue != null)
-                {
-                    if (column.Type == DbType.Int16 || column.Type == DbType.Int32 || column.Type == DbType.Int64)
-                    {
-                        column.DefaultValue = long.Parse(column.DefaultValue.ToString());
-                    }
-                    else if (column.Type == DbType.UInt16 || column.Type == DbType.UInt32 || column.Type == DbType.UInt64)
-                    {
-                        column.DefaultValue = ulong.Parse(column.DefaultValue.ToString());
-                    }
-                    else if (column.Type == DbType.Double || column.Type == DbType.Single)
-                    {
-                        column.DefaultValue = double.Parse(column.DefaultValue.ToString());
-                    }
-                    else if (column.Type == DbType.Boolean)
-                    {
-                        column.DefaultValue = column.DefaultValue.ToString().Trim() == "1" || column.DefaultValue.ToString().Trim().ToUpper() == "TRUE" || column.DefaultValue.ToString().Trim() == "YES";
-                    }
-                    else if (column.Type == DbType.DateTime || column.Type == DbType.DateTime2)
-                    {
-                        if (column.DefaultValue is string defVal)
-                        {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
-                            {
-                                dt = defVal.Substring(1, defVal.Length - 2);
-                            }
-
-                            var d = DateTime.ParseExact(dt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                            column.DefaultValue = d;
-                        }
-                    }
-                    else if (column.Type == DbType.Guid)
-                    {
-                        if (column.DefaultValue is string defVal)
-                        {
-                            var dt = defVal;
-                            if (defVal.StartsWith("'"))
-                            {
-                                dt = defVal.Substring(1, defVal.Length - 2);
-                            }
-
-                            var d = Guid.Parse(dt);
-                            column.DefaultValue = d;
-                        }
-                    }
-                }
-
-                columns.Add(column);
+                "smallint" => DbType.Int16, "int" or "integer" or "mediumint" => DbType.Int32,
+                "bigint" => DbType.Int64, "tinyint" => reader.GetString(7).StartsWith("tinyint(1)", StringComparison.OrdinalIgnoreCase) ? DbType.Boolean : DbType.Byte,
+                "decimal" or "numeric" => DbType.Decimal, "double" => DbType.Double, "float" => DbType.Single,
+                "date" => DbType.Date, "datetime" or "timestamp" => DbType.DateTime, "time" => DbType.Time,
+                "tinyblob" or "mediumblob" or "blob" or "binary" or "varbinary" or "longblob" => DbType.Binary, _ => DbType.String
+            };
+            var column = new Column(reader.GetString(0), type);
+            column.ColumnProperty = reader.GetString(2) == "YES" ? ColumnProperty.Null : ColumnProperty.NotNull;
+            if (reader.GetString(4).Contains("auto_increment")) column.ColumnProperty |= ColumnProperty.Identity;
+            if (reader.GetString(6) == "PRI") column.ColumnProperty |= ColumnProperty.PrimaryKey;
+            if (!reader.IsDBNull(3)) column.DefaultValue = ReadDefault(reader.GetString(3), type, reader.GetString(4));
+            if (type == DbType.Decimal)
+            {
+                if (!reader.IsDBNull(8)) column.Precision = Convert.ToInt32(reader.GetValue(8));
+                if (!reader.IsDBNull(9)) column.Scale = Convert.ToInt32(reader.GetValue(9));
             }
+            if (!reader.IsDBNull(5)) column.Size = (int)Math.Min(int.MaxValue, Convert.ToInt64(reader.GetValue(5)));
+            columns.Add(column);
         }
-
         return columns.ToArray();
+    }
+
+    // Non-string objects retain SQL expression semantics in Dialect.Default.
+    private sealed record DatabaseDefault(string Sql)
+    {
+        public override string ToString() => Sql;
+    }
+
+    private object ReadDefault(string value, DbType type, string extra)
+    {
+        if (_dialect is MariaDBDialect)
+        {
+            if (value.Equals("NULL", StringComparison.OrdinalIgnoreCase)) return null;
+            if (value.StartsWith("'") && value.EndsWith("'"))
+                value = value[1..^1].Replace("''", "'").Replace("\\'", "'").Replace("\\\\", "\\");
+            else if (type == DbType.String) return new DatabaseDefault(value);
+        }
+        if (extra.Contains("DEFAULT_GENERATED", StringComparison.OrdinalIgnoreCase) ||
+            (type == DbType.DateTime && value.StartsWith("current_timestamp", StringComparison.OrdinalIgnoreCase)))
+            return new DatabaseDefault(value);
+        return type switch
+        {
+            DbType.Boolean => value != "0",
+            DbType.Byte => byte.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Int16 => short.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Int32 => int.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Int64 => long.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Decimal => decimal.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Double => double.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Single => float.Parse(value, CultureInfo.InvariantCulture),
+            DbType.Date or DbType.DateTime => DateTime.SpecifyKind(DateTime.Parse(value, CultureInfo.InvariantCulture), DateTimeKind.Utc),
+            _ => value
+        };
     }
 
     public override string[] GetTables()
@@ -319,65 +288,9 @@ public class MySqlTransformationProvider : TransformationProvider
 
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
     {
-        if (ColumnExists(tableName, newColumnName))
-        {
-            throw new MigrationException(string.Format("Table '{0}' has column named '{1}' already", tableName, newColumnName));
-        }
-
-        if (!ColumnExists(tableName, oldColumnName))
-        {
-            throw new MigrationException(string.Format("The table '{0}' does not have a column named '{1}'", tableName, oldColumnName));
-        }
-
-        string definition = null;
-
-        var dropPrimary = false;
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format("SHOW COLUMNS FROM {0} WHERE Field='{1}'", tableName, oldColumnName)))
-        {
-            if (reader.Read())
-            {
-                // TODO: Could use something similar to construct the columns in GetColumns
-                definition = reader["Type"].ToString();
-                if ("NO" == reader["Null"].ToString())
-                {
-                    definition += " " + "NOT NULL";
-                }
-
-                if (!reader.IsDBNull(reader.GetOrdinal("Key")))
-                {
-                    var key = reader["Key"].ToString();
-                    if ("PRI" == key)
-                    {
-                        //definition += " " + "PRIMARY KEY";
-                        dropPrimary = true;
-                    }
-                    else if ("UNI" == key)
-                    {
-                        definition += " " + "UNIQUE";
-                    }
-                }
-
-                if (!reader.IsDBNull(reader.GetOrdinal("Extra")))
-                {
-                    definition += " " + reader["Extra"];
-                }
-            }
-        }
-
-        if (!string.IsNullOrEmpty(definition))
-        {
-            if (dropPrimary)
-            {
-                ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP PRIMARY KEY", tableName));
-            }
-
-            ExecuteNonQuery(string.Format("ALTER TABLE {0} CHANGE {1} {2} {3}", tableName, QuoteColumnNameIfRequired(oldColumnName), QuoteColumnNameIfRequired(newColumnName), definition));
-            if (dropPrimary)
-            {
-                ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD PRIMARY KEY({1});", tableName, QuoteColumnNameIfRequired(newColumnName)));
-            }
-        }
+        if (!ColumnExists(tableName, oldColumnName) || ColumnExists(tableName, newColumnName))
+            throw new MigrationException("Source column must exist and destination column must not exist.");
+        ExecuteNonQuery($"ALTER TABLE {_dialect.Quote(tableName)} RENAME COLUMN {_dialect.Quote(oldColumnName)} TO {_dialect.Quote(newColumnName)}");
     }
 
     public string GetDatabase()
@@ -400,11 +313,30 @@ public class MySqlTransformationProvider : TransformationProvider
 
     public override bool IndexExists(string table, string name)
     {
-        return ConstraintExists(table, name);
+        return GetIndexes(table).Any(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 
     public override string Concatenate(params string[] strings)
     {
         return "CONCAT(" + string.Join(", ", strings) + ")";
     }
+    public override bool TableExists(string table) =>
+        Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME='{table.Replace("'", "''")}'")) > 0;
+
+    public override bool ViewExists(string view) =>
+        Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.VIEWS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{view.Replace("'", "''")}'")) > 0;
+
+    public override string AddIndex(string table, Index index)
+    {
+        if (index.KeyColumns.Length == 0) throw new ArgumentException("An index needs key columns.", nameof(index));
+        if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
+            throw new NotSupportedException("MySQL and MariaDB do not support included columns, filtered indexes or explicit clustered indexes.");
+        var name = index.Name ?? $"IX_{table}_{string.Join("_", index.KeyColumns)}";
+        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {_dialect.Quote(name)} ON {_dialect.Quote(table)} ({string.Join(", ", index.KeyColumns.Select(_dialect.Quote))})");
+        return name;
+    }
+
+    protected override string GetPrimaryKeyConstraintName(string table) =>
+        ConstraintExists(table, "PRIMARY") ? "PRIMARY" : null;
+
 }

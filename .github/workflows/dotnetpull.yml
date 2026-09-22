@@ -1,108 +1,84 @@
 name: .NET Pull Request
-
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: live-databases-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  build:
+  test:
+    name: Test (${{ matrix.database }})
     runs-on: ubuntu-22.04
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2019-latest
-        ports:
-          - 1433:1433
-        env:
-          SA_PASSWORD: YourStrong@Passw0rd
-          ACCEPT_EULA: Y
-        options: >-
-          --health-cmd "bash -c '</dev/tcp/localhost/1433' && exit 0 || exit 1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-      postgres:
-        image: postgres:13
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpass
-          # As of v16 we can use:
-          # POSTGRES_INITDB_ARGS: "-c max_connections=300"
-        options: >-
-          --health-cmd="pg_isready -U testuser"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      oracle:
-        image: gvenzl/oracle-free:latest
-        ports:
-          - 1521:1521
-        env:
-          ORACLE_PASSWORD: adfkweflajdfglkj
-        options: >-
-          --health-cmd healthcheck.sh
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-      mysql:
-        image: mysql:8.0
-        ports:
-          - 3306:3306
-        env:
-          MYSQL_ROOT_PASSWORD: rootpass
-          MYSQL_DATABASE: testdb
-          MYSQL_USER: testuser
-          MYSQL_PASSWORD: testpass
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -u root -prootpass"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [Unit, SQLite, SQLServer, PostgreSQL, Oracle, MySQL, MariaDB, Firebird, Db2, Informix, Sybase]
     steps:
       - uses: actions/checkout@v4
-      - uses: gvenzl/setup-oracle-sqlcl@v1
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            9.0.x
-      - name: Install Microsoft GPG apt-key
+          dotnet-version: 9.0.x
+      - name: Start database
+        shell: bash
         run: |
-          wget https://packages.microsoft.com/keys/microsoft.asc -O microsoft.asc
-          gpg --dearmor microsoft.asc 
-          chmod 644 microsoft.asc.gpg
-          sudo mv microsoft.asc.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
-      - name: Add Microsoft SQL Server repo
-        run: |
-          echo "deb [arch=amd64] https://packages.microsoft.com/config/ubuntu/22.04/prod jammy main"
-          sudo apt-get update
-      - name: Install SQLCMD tools
-        run: |
-          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools unixodbc-dev
-          echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> ~/.bashrc
-          source ~/.bashrc
-      - name: Create SQLServer database
-        run: |
-          /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -Q "CREATE DATABASE [Whatever];"
-      - name: Create Oracle user
-        run: |
-          sql sys/adfkweflajdfglkj@localhost/FREEPDB1 as sysdba   <<EOF 
-          WHENEVER SQLERROR EXIT SQL.SQLCODE
-          SET ECHO ON
-          SET FEEDBACK ON
-          SET SERVEROUTPUT ON
-          @.github/workflows/sql/oracle.sql
-          EXIT;
-          EOF
-
-      - name: Restore dependencies
-        run: |
-          dotnet restore Migrator.slnx
+          mkdir -p TestResults
+          bash .github/scripts/start-database.sh "${{ matrix.database }}" 2>&1 | tee TestResults/startup.log
+        timeout-minutes: 15
       - name: Build
+        run: dotnet build Migrator.slnx -p:LiveDatabase=${{ matrix.database }}
+      - name: Configure native IBM drivers
+        if: matrix.database == 'Db2' || matrix.database == 'Informix'
+        shell: bash
         run: |
-          dotnet build Migrator.slnx
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libxml2 unixodbc libncurses5
+          output="$GITHUB_WORKSPACE/src/Migrator.Tests/bin/Debug/net9.0"
+          if [ "${{ matrix.database }}" = Db2 ]; then
+            echo "DB2_CLI_DRIVER_INSTALL_PATH=$output/clidriver" >> "$GITHUB_ENV"
+            echo "LD_LIBRARY_PATH=$output/clidriver/lib" >> "$GITHUB_ENV"
+          else
+            echo "DELIMIDENT=y" >> "$GITHUB_ENV"
+            echo "INFORMIXDIR=$output/native" >> "$GITHUB_ENV"
+            echo "LD_LIBRARY_PATH=$output/native/lib:$output/native/lib/cli:$output/native/lib/esql" >> "$GITHUB_ENV"
+          fi
       - name: Test
+        shell: pwsh
+        run: ./.github/scripts/test.ps1 -Database ${{ matrix.database }}
+      - name: Collect database logs
+        if: always()
         run: |
-          dotnet test Migrator.slnx
+          mkdir -p TestResults
+          if docker inspect migrator-db >/dev/null 2>&1; then
+            docker logs migrator-db > TestResults/database.log 2>&1
+            docker inspect migrator-db > TestResults/container.json
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.database }}
+          path: TestResults/
+          if-no-files-found: error
+      - name: Remove test container
+        if: always()
+        run: |
+          if docker inspect migrator-db >/dev/null 2>&1; then
+            docker rm -fv migrator-db
+          fi
+  coverage:
+    name: Verify complete test coverage
+    needs: test
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: TestResults
+      - run: python3 .github/scripts/verify-test-coverage.py TestResults

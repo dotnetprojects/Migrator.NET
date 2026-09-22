@@ -8,7 +8,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
-[Category("SqlServer")]
+[Category("SQLServer")]
 public class SqlServerTransformationProviderGenericTests : TransformationProviderGenericMiscConstraintBase
 {
     [SetUp]

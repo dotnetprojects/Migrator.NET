@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Dialects;
 
 [TestFixture]
-[Category("Postgre")]
+[Category("PostgreSQL")]
 public class PostgreDialectTests
 {
     private PostgreSQLDialect _postgreSQLDialect;

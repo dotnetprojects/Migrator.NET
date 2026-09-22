@@ -9,7 +9,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.PostgreSQL;
 
 [TestFixture]
-[Category("Postgre")]
+[Category("PostgreSQL")]
 public class PostgreSQLTransformationProvider_GetColumns_DefaultValuesTests : TransformationProviderBase
 {
     [SetUp]

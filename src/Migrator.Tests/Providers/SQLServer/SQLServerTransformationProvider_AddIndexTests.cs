@@ -14,7 +14,7 @@ using Index = DotNetProjects.Migrator.Framework.Index;
 namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
-[Category("SqlServer")]
+[Category("SQLServer")]
 public class SQLServerTransformationProvider_AddIndexTests : Generic_AddIndexTestsBase
 {
     [SetUp]

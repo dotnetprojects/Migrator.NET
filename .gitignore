@@ -16,3 +16,4 @@ packages/
 *.gpState
 
 **/appsettings.Development.json
+TestResults/

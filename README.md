@@ -76,3 +76,7 @@ In this fork the main changes are:
 
   [1]: http://code.google.com/p/migratordotnet/
   [2]: https://github.com/migratordotnet/Migrator.NET
+
+## Live database testing
+
+See [live database testing](docs/live-database-tests.md) for the CI matrix, pinned versions, local commands, coverage, engine limitations and excluded candidates.

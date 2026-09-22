@@ -5,60 +5,71 @@ namespace DotNetProjects.Migrator.Providers.Impl.Informix;
 
 public class InformixDialect : Dialect
 {
+    // This flag controls MySQL-style inline INDEX syntax, not CREATE INDEX support.
+    public override bool SupportsIndex => false;
+
     public InformixDialect()
     {
-        this.RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
-        this.RegisterColumnType(DbType.AnsiStringFixedLength, 255, "CHAR($l)");
-        this.RegisterColumnType(DbType.AnsiStringFixedLength, 65535, "TEXT");
-        this.RegisterColumnType(DbType.AnsiStringFixedLength, 16777215, "MEDIUMTEXT");
-        this.RegisterColumnType(DbType.AnsiString, "VARCHAR(255)");
-        this.RegisterColumnType(DbType.AnsiString, 255, "VARCHAR($l)");
-        this.RegisterColumnType(DbType.AnsiString, 256, "VARCHAR(255)");
-        this.RegisterColumnType(DbType.AnsiString, 65535, "TEXT");
-        this.RegisterColumnType(DbType.AnsiString, 16777215, "MEDIUMTEXT");
-        this.RegisterColumnType(DbType.Binary, "LONGBLOB");
-        this.RegisterColumnType(DbType.Binary, 127, "TINYBLOB");
-        this.RegisterColumnType(DbType.Binary, 65535, "BLOB");
-        this.RegisterColumnType(DbType.Binary, 16777215, "MEDIUMBLOB");
-        this.RegisterColumnType(DbType.Boolean, "TINYINT(1)");
-        this.RegisterColumnType(DbType.Byte, "TINYINT UNSIGNED");
-        this.RegisterColumnType(DbType.Currency, "MONEY");
-        this.RegisterColumnType(DbType.Date, "DATE");
-        this.RegisterColumnType(DbType.DateTime, "DATETIME");
-        this.RegisterColumnType(DbType.DateTimeOffset, "DATETIME");
-        this.RegisterColumnType(DbType.Decimal, "NUMERIC(19,5)");
-        this.RegisterColumnType(DbType.Decimal, 19, "NUMERIC(19, $l)");
-        this.RegisterColumnType(DbType.Double, "DOUBLE");
-        this.RegisterColumnType(DbType.Guid, "VARCHAR(40)");
-        this.RegisterColumnType(DbType.Int16, "SMALLINT");
-        this.RegisterColumnType(DbType.Int32, "INTEGER");
-        this.RegisterColumnType(DbType.Int64, "BIGINT");
-        this.RegisterColumnType(DbType.Single, "FLOAT");
-        this.RegisterColumnType(DbType.StringFixedLength, "CHAR(255)");
-        this.RegisterColumnType(DbType.StringFixedLength, 255, "CHAR($l)");
-        this.RegisterColumnType(DbType.StringFixedLength, 65535, "TEXT");
-        this.RegisterColumnType(DbType.StringFixedLength, 16777215, "MEDIUMTEXT");
-        this.RegisterColumnType(DbType.String, "VARCHAR(255)");
-        this.RegisterColumnType(DbType.String, 255, "VARCHAR($l)");
-        this.RegisterColumnType(DbType.String, 256, "VARCHAR(255)");
-        this.RegisterColumnType(DbType.String, 65535, "TEXT");
-        this.RegisterColumnType(DbType.String, 16777215, "MEDIUMTEXT");
-        this.RegisterColumnType(DbType.String, 1073741823, "LONGTEXT");
-        this.RegisterColumnType(DbType.Time, "TIME");
-
-        this.RegisterProperty(ColumnProperty.Unsigned, "UNSIGNED");
-        this.RegisterProperty(ColumnProperty.Identity, "AUTO_INCREMENT");
-
-        this.RegisterUnsignedCompatible(DbType.Int16);
-        this.RegisterUnsignedCompatible(DbType.Int32);
-        this.RegisterUnsignedCompatible(DbType.Int64);
-        this.RegisterUnsignedCompatible(DbType.Decimal);
-        this.RegisterUnsignedCompatible(DbType.Double);
-        this.RegisterUnsignedCompatible(DbType.Single);
-
-        this.AddReservedWords("KEY");
+        RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
+        RegisterColumnType(DbType.AnsiString, "VARCHAR(255)");
+        RegisterColumnType(DbType.StringFixedLength, "CHAR(255)");
+        RegisterColumnType(DbType.String, "VARCHAR(255)");
+        RegisterColumnType(DbType.Binary, "BYTE");
+        RegisterColumnType(DbType.Boolean, "BOOLEAN");
+        RegisterColumnType(DbType.Byte, "SMALLINT");
+        RegisterColumnType(DbType.Currency, "DECIMAL(18,4)");
+        RegisterColumnType(DbType.Date, "DATE");
+        RegisterColumnType(DbType.DateTime, "DATETIME YEAR TO FRACTION(5)");
+        RegisterColumnType(DbType.DateTime2, "DATETIME YEAR TO FRACTION(5)");
+        RegisterColumnType(DbType.DateTimeOffset, "DATETIME YEAR TO FRACTION(5)");
+        RegisterColumnType(DbType.Decimal, "DECIMAL(18,5)");
+        RegisterColumnTypeWithParameters(DbType.Decimal, "DECIMAL({precision},{scale})");
+        RegisterColumnType(DbType.Double, "DOUBLE PRECISION");
+        RegisterColumnType(DbType.Guid, "CHAR(36)");
+        RegisterColumnType(DbType.Int16, "SMALLINT");
+        RegisterColumnType(DbType.Int32, "INTEGER");
+        RegisterColumnType(DbType.Int64, "BIGINT");
+        RegisterColumnType(DbType.Single, "SMALLFLOAT");
+        RegisterColumnType(DbType.Time, "INTERVAL HOUR TO SECOND");
+        RegisterColumnType(DbType.String, 255, "VARCHAR($l)");
+        RegisterColumnType(DbType.String, 32739, "LVARCHAR($l)");
+        RegisterColumnType(DbType.AnsiString, 255, "VARCHAR($l)");
+        RegisterColumnType(DbType.AnsiString, 32739, "LVARCHAR($l)");
+        RegisterColumnType(DbType.StringFixedLength, 32767, "CHAR($l)");
+        RegisterColumnType(DbType.AnsiStringFixedLength, 32767, "CHAR($l)");
+        RegisterColumnType(DbType.String, int.MaxValue, "TEXT");
+        RegisterColumnType(DbType.AnsiString, int.MaxValue, "TEXT");
+        RegisterProperty(ColumnProperty.Identity, "");
     }
 
+    public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 't'" : "DEFAULT 'f'") : base.Default(value);
+
+    public override ColumnPropertiesMapper GetColumnMapper(Column column)
+    {
+        var type = column.Size > 0 ? GetTypeName(column.Type, column.Size) : GetTypeName(column.Type);
+        if (column.IsIdentity) type = column.Type == DbType.Int64 ? "BIGSERIAL" : "SERIAL";
+        if (column.Precision.HasValue || column.Scale.HasValue)
+            type = GetTypeNameParametrized(column.Type, column.Size, column.Precision ?? 18, column.Scale ?? 0);
+        return new NativeColumnMapper(this, type);
+    }
+
+    private sealed class NativeColumnMapper(Dialect dialect, string type) : ColumnPropertiesMapper(dialect, type)
+    {
+        public override void MapColumnProperties(Column column)
+        {
+            Name = column.Name;
+            _Indexed = PropertySelected(column.ColumnProperty, ColumnProperty.Indexed);
+            var parts = new System.Collections.Generic.List<string>();
+            AddName(parts);
+            AddType(parts);
+            AddIdentityAgain(column, parts);
+            AddDefaultValue(column, parts);
+            AddNotNull(column, parts);
+            AddPrimaryKey(column, parts);
+            AddUnique(column, parts);
+            _ColumnSql = string.Join(" ", parts);
+        }
+    }
 
     public override ITransformationProvider GetTransformationProvider(Dialect dialect, string connectionString,
         string defaultSchema, string scope, string providerName)

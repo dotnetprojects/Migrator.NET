@@ -34,7 +34,7 @@ public class ProviderFactoryTest
     }
 
     [Test]
-    [Category("MySql")]
+    [Category("MySQL")]
     public void CanLoad_MySqlProvider()
     {
         var configReader = new ConfigurationReader();
@@ -56,7 +56,7 @@ public class ProviderFactoryTest
     }
 
     [Test]
-    [Category("Postgre")]
+    [Category("PostgreSQL")]
     public void CanLoad_PostgreSQLProvider()
     {
         var configReader = new ConfigurationReader();
@@ -78,7 +78,7 @@ public class ProviderFactoryTest
     }
 
     [Test]
-    [Category("SqlServer")]
+    [Category("SQLServer")]
     public void CanLoad_SqlServerProvider()
     {
         var configReader = new ConfigurationReader();

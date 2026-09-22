@@ -1668,7 +1668,7 @@ public abstract class TransformationProvider : ITransformationProvider
     public virtual void MigrationUnApplied(long version, string scope)
     {
         CreateSchemaInfoTable();
-        Delete(_schemaInfotable, ["Scope", "Version"], [scope ?? _scope, version.ToString()]);
+        Delete(_schemaInfotable, ["Scope", "Version"], [scope ?? _scope, version]);
         _appliedMigrations.Remove(version);
     }
 
@@ -1985,6 +1985,16 @@ public abstract class TransformationProvider : ITransformationProvider
         {
             parameter.DbType = DbType.Guid;
             parameter.Value = (Guid)value;
+        }
+        else if (value is byte[] bytes)
+        {
+            parameter.DbType = DbType.Binary;
+            parameter.Value = bytes;
+        }
+        else if (value is byte)
+        {
+            parameter.DbType = DbType.Byte;
+            parameter.Value = value;
         }
         else if (value is short)
         {

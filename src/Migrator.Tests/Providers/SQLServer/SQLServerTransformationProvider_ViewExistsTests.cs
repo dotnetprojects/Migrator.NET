@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace Migrator.Tests.Providers.SQLServer;
 
 [TestFixture]
-[Category("SqlServer")]
+[Category("SQLServer")]
 public class SQLServerTransformationProvider_ViewExistsTests : SQLServerTransformationProviderTestBase
 {
     [Test]
