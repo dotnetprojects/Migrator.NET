@@ -41,7 +41,14 @@ public class FirebirdTransformationProvider : TransformationProvider
     {
         if (!string.Equals(databaseName, _connection.Database, StringComparison.Ordinal))
             throw new ArgumentException("Firebird can only drop the currently attached database.", nameof(databaseName));
-        ExecuteNonQuery("DROP DATABASE");
+        // DROP DATABASE is an attachment API operation, not a DSQL statement.
+        // Resolve the registered driver's API without adding a driver dependency.
+        var method = _connection.GetType().GetMethod("DropDatabase", [typeof(string)])
+            ?? throw new NotSupportedException("The registered Firebird driver does not expose DropDatabase(string).");
+        var drop = method.CreateDelegate<Action<string>>();
+        var connectionString = _connection.ConnectionString;
+        _connection.Close();
+        drop(connectionString);
     }
 
     public override string[] GetConstraints(string table) => ExecuteStringQuery(

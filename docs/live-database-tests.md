@@ -23,7 +23,7 @@ The IBM Linux packages and ASE client are conditional test-project dependencies 
 
 `LiveDatabaseTests` adds ten scenarios each for MySQL, MariaDB, Firebird, Db2, Informix and Sybase: database/view catalogs; table/column metadata; persisted CRUD and defaults; column add/rename/type/nullability/default changes and removal; identity generation; primary-key enforcement/removal; foreign-key enforcement/removal; unique/check enforcement/removal; ordered composite index metadata/removal; and two complete migration up/down cycles with persisted version tracking.
 
-Every test creates a uniquely named database (a schema for Db2, an independent server-side file for Firebird). Connections disable pooling. Teardown disposes the provider and drops that database/schema; Db2 removes tables in dependency order first. Migration cycles reuse the same isolated store to exercise repeatability even on engines whose DDL commits automatically. ASE test databases allow DDL in transactions and allocate 32 MB to accommodate the image's model database.
+Every test creates a uniquely named database (a schema for Db2, an independent server-side file for Firebird). Connections disable pooling. Teardown disposes the provider and drops that database/schema; Db2 removes tables in dependency order first. Migration cycles reuse the same isolated store to exercise repeatability even on engines whose DDL commits automatically. ASE test databases enable full logging for ALTER TABLE and allow DDL in transactions and allocate 32 MB to accommodate the image's model database.
 
 Existing SQL Server, PostgreSQL, Oracle and SQLite suites continue to run in full. The Unit job uses the complement of all database categories. An audit compares NUnit's discovery count against the union of all job results and rejects missing or duplicate test assignments. Each job rejects zero executed tests; new suites also reject skips. Existing ignored tests retain their documented reasons: generic default removal (issue #139) and a SQL Server column-change regression (issue #132). TRX and NUnit XML expose each reason for review.
 
@@ -60,6 +60,7 @@ output="$PWD/src/Migrator.Tests/bin/Debug/net9.0"
 export DB2_CLI_DRIVER_INSTALL_PATH="$output/clidriver"
 export LD_LIBRARY_PATH="$output/clidriver/lib"
 # Informix, instead:
+export DELIMIDENT=y
 export INFORMIXDIR="$output/native"
 export LD_LIBRARY_PATH="$output/native/lib:$output/native/lib/cli:$output/native/lib/esql"
 ```

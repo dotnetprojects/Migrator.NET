@@ -130,7 +130,11 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
             admin.Close();
             admin.Open();
         }
-        if (database == "Sybase") ExecuteAdmin("EXEC sp_dboption " + isolatedName + ", 'ddl in tran', true");
+        if (database == "Sybase")
+        {
+            ExecuteAdmin("EXEC sp_dboption " + isolatedName + ", 'ddl in tran', true");
+            ExecuteAdmin("EXEC sp_dboption " + isolatedName + ", 'full logging for alter table', true");
+        }
         provider = ProviderFactory.Create(providerType, connectionString, null);
         if (database == "Db2") provider.ExecuteNonQuery("SET CURRENT SCHEMA " + isolatedName);
     }
