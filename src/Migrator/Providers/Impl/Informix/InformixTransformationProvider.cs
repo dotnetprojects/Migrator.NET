@@ -30,11 +30,22 @@ public class InformixTransformationProvider : TransformationProvider
         // driver's faulty TEXT conversion before the typed read can run.
         using var reader = command.ExecuteReader(CommandBehavior.SingleRow | CommandBehavior.SequentialAccess);
         if (!reader.Read()) return null;
+        if (!reader.GetDataTypeName(0).Equals("TEXT", StringComparison.OrdinalIgnoreCase))
+            return reader.GetValue(0);
         if (reader.IsDBNull(0)) return DBNull.Value;
-        // The Informix driver has separate GetValue/GetString paths for TEXT.
-        // Its GetValue path includes a chunk terminator in long strings; the
-        // typed reader accounts for that terminator and retains the last character.
-        return reader.GetFieldType(0) == typeof(string) ? reader.GetString(0) : reader.GetValue(0);
+        // Read TEXT incrementally so the driver's whole-value conversion cannot
+        // confuse a native buffer terminator with the final character.
+        var result = new System.Text.StringBuilder();
+        var buffer = new char[1024];
+        long offset = 0;
+        while (true)
+        {
+            var count = (int)reader.GetChars(0, offset, buffer, 0, buffer.Length);
+            result.Append(buffer, 0, count);
+            offset += count;
+            if (count < buffer.Length) break;
+        }
+        return result.ToString();
     }
 
     private static string Name(string name) => (name.StartsWith('"') ? name[1..^1].Replace("\"\"", "\"") : name.ToLowerInvariant()).Replace("'", "''");
