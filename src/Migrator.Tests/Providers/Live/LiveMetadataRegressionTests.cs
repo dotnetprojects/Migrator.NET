@@ -10,6 +10,32 @@ namespace Migrator.Tests.Providers.Live;
 [NonParallelizable]
 public class LiveMetadataRegressionTests
 {
+    [Test, Category("Informix")]
+    public void InformixCharacterLengthsSurviveMetadataCopy() => new LiveDatabaseTests("Informix", ProviderTypes.IBM_Informix).RunRegression(f =>
+    {
+        f.Provider.ExecuteNonQuery("CREATE TABLE source_values (long_text LVARCHAR(3000), short_text VARCHAR(40,10), fixed_text CHAR(300))");
+        var columns = f.Provider.GetColumns("source_values");
+        Assert.That(columns.Select(c => c.Size), Is.EqualTo(new[] { 3000, 40, 300 }));
+        f.Provider.AddTable("copied_values", columns);
+        Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Size), Is.EqualTo(new[] { 3000, 40, 300 }));
+        var content = new string('x', 2500);
+        f.Provider.Insert("copied_values", ["long_text", "short_text", "fixed_text"], [content, "short", new string('y', 300)]);
+        Assert.That(f.Provider.ExecuteScalar("SELECT long_text FROM copied_values"), Is.EqualTo(content));
+        Assert.That(f.Provider.ExecuteScalar("SELECT fixed_text FROM copied_values"), Is.EqualTo(new string('y', 300)));
+    });
+
+    [Test, Category("Firebird")]
+    public void FirebirdNativeDateTimeAndBooleanSurviveMetadataCopy() => new LiveDatabaseTests("Firebird", ProviderTypes.Firebird).RunRegression(f =>
+    {
+        f.Provider.ExecuteNonQuery("CREATE TABLE source_values (date_value DATE, time_value TIME, enabled BOOLEAN)");
+        var columns = f.Provider.GetColumns("source_values");
+        Assert.That(columns.Select(c => c.Type), Is.EqualTo(new[] { DbType.Date, DbType.Time, DbType.Boolean }));
+        f.Provider.AddTable("copied_values", columns);
+        Assert.That(f.Provider.GetColumns("copied_values").Select(c => c.Type), Is.EqualTo(new[] { DbType.Date, DbType.Time, DbType.Boolean }));
+        f.Provider.ExecuteNonQuery("INSERT INTO copied_values VALUES (DATE '2026-09-22', TIME '12:34:56', TRUE)");
+        Assert.That(Convert.ToInt32(f.Provider.ExecuteScalar("SELECT COUNT(*) FROM copied_values WHERE date_value = DATE '2026-09-22' AND time_value = TIME '12:34:56' AND enabled IS TRUE")), Is.EqualTo(1));
+    });
+
     [TestCase("Firebird", ProviderTypes.Firebird, Category = "Firebird")]
     [TestCase("Db2", ProviderTypes.IBM_DB2, Category = "Db2")]
     [TestCase("Informix", ProviderTypes.IBM_Informix, Category = "Informix")]

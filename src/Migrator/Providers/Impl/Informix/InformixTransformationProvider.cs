@@ -71,7 +71,12 @@ public class InformixTransformationProvider : TransformationProvider
             {
                 ColumnProperty = (code & 256) != 0 ? ColumnProperty.NotNull : ColumnProperty.Null
             };
-            if (type == DbType.String) column.Size = Convert.ToInt32(reader.GetValue(2)) & 255;
+            if (type == DbType.String)
+            {
+                var length = Convert.ToInt32(reader.GetValue(2));
+                // VARCHAR/NVARCHAR pack reserved space into the high byte; CHAR/LVARCHAR store the full length.
+                column.Size = (code & 255) is 13 or 16 ? length & 255 : length;
+            }
             if (type == DbType.Decimal)
             {
                 var length = Convert.ToInt32(reader.GetValue(2));
