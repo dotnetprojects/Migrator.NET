@@ -150,6 +150,20 @@ public class RunnerFeatureTests
         Assert.That(started, Is.Empty); Assert.That(finished, Is.Empty);
         Assert.That(p.AppliedMigrations, Is.EqualTo(new long[] { 1 }));
     }
+    [Test] public void LockReleaseFailureDoesNotMaskMigrationFailure()
+    {
+        using var p = Provider();
+        var runner = new DotNetProjects.Migrator.Migrator(p, false, typeof(Failure));
+        runner.Options.Lock = new FailingReleaseLock();
+        var error = Assert.Throws<InvalidOperationException>(() => runner.MigrateToLastVersion());
+        Assert.That(error.Message, Is.EqualTo("migration failed"));
+        Assert.That(error.Data["LockReleaseException"], Is.TypeOf<ApplicationException>());
+    }
+    private sealed class FailingReleaseLock : IMigrationLock, IDisposable
+    {
+        public IDisposable Acquire(ITransformationProvider p, string scope, TimeSpan timeout) => this;
+        public void Dispose() => throw new ApplicationException("release failed");
+    }
     private sealed class ProbeLock : IMigrationLock, IDisposable
     {
         public bool Disposed { get; private set; }

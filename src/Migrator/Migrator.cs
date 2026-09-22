@@ -267,49 +267,63 @@ public class Migrator
             try { return Options.Lock?.Acquire(_provider, (_provider as IMigrationHistory)?.Scope, Options.LockTimeout); }
             catch (TimeoutException ex) { throw new MigrationLockTimeoutException(ex); }
         }
-        using var lease = AcquireLock();
-        (_provider as IMigrationHistory)?.InvalidateHistory();
-        var history = new List<long>(_provider.AppliedMigrations);
-        var initialHistory = new List<long>(history);
-        var plan = CreatePlan(history, version);
-        var profiles = _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<ProfileAttribute>() is { } p && Options.Profiles.Contains(p.Name) && _migrationLoader.InScope(p.Scope))
-            .OrderBy(t => t.GetCustomAttribute<ProfileAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal).ToArray();
-        foreach (var name in Options.Profiles)
-            if (!profiles.Any(t => t.GetCustomAttribute<ProfileAttribute>().Name == name)) throw new MigrationException("Unknown profile: " + name);
-        var afterCommit = new List<Action>();
-        var firstRun = true;
-        void Execute(IMigration migration, MigrationStep step, bool record)
+        var lease = AcquireLock();
+        Exception failure = null;
+        try
         {
-            migration.Database = _provider;
-            if (firstRun) { migration.InitializeOnce(_args); firstRun = false; }
-            MigrationExecution.Execute(_provider, migration, step, Logger,
-                Options.TransactionMode == MigrationTransactionMode.PerMigration, session, record, !session);
-            if (session) afterCommit.Add(() => MigrationExecution.After(migration, step.IsUp));
-        }
-        void Maintenance(MaintenanceStage stage)
-        {
-            foreach (var type in _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<MaintenanceAttribute>() is { } a && a.Stage == stage && _migrationLoader.InScope(a.Scope))
-                .OrderBy(t => t.GetCustomAttribute<MaintenanceAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal))
-                Execute(_migrationLoader.CreateInstance(type), new MigrationStep(0, true), false);
-        }
-        void Run()
-        {
-            Maintenance(MaintenanceStage.BeforeRun);
-            foreach (var step in plan)
+            (_provider as IMigrationHistory)?.InvalidateHistory();
+            var history = new List<long>(_provider.AppliedMigrations);
+            var initialHistory = new List<long>(history);
+            var plan = CreatePlan(history, version);
+            var profiles = _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<ProfileAttribute>() is { } p && Options.Profiles.Contains(p.Name) && _migrationLoader.InScope(p.Scope))
+                .OrderBy(t => t.GetCustomAttribute<ProfileAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal).ToArray();
+            foreach (var name in Options.Profiles)
+                if (!profiles.Any(t => t.GetCustomAttribute<ProfileAttribute>().Name == name)) throw new MigrationException("Unknown profile: " + name);
+            var afterCommit = new List<Action>();
+            var firstRun = true;
+            void Execute(IMigration migration, MigrationStep step, bool record)
             {
-                Maintenance(MaintenanceStage.BeforeMigration);
-                Execute(_migrationLoader.GetMigration(step.Version), step, true);
-                if (step.IsUp) history.Add(step.Version); else history.Remove(step.Version);
-                Maintenance(MaintenanceStage.AfterMigration);
+                migration.Database = _provider;
+                if (firstRun) { migration.InitializeOnce(_args); firstRun = false; }
+                MigrationExecution.Execute(_provider, migration, step, Logger,
+                    Options.TransactionMode == MigrationTransactionMode.PerMigration, session, record, !session);
+                if (session) afterCommit.Add(() => MigrationExecution.After(migration, step.IsUp));
             }
-            foreach (var type in profiles) Execute(_migrationLoader.CreateInstance(type), new MigrationStep(0, true), false);
-            Maintenance(MaintenanceStage.AfterRun);
+            void Maintenance(MaintenanceStage stage)
+            {
+                foreach (var type in _migrationLoader.AuxiliaryTypes.Where(t => t.GetCustomAttribute<MaintenanceAttribute>() is { } a && a.Stage == stage && _migrationLoader.InScope(a.Scope))
+                    .OrderBy(t => t.GetCustomAttribute<MaintenanceAttribute>().Order).ThenBy(t => t.FullName, StringComparer.Ordinal))
+                    Execute(_migrationLoader.CreateInstance(type), new MigrationStep(0, true), false);
+            }
+            void Run()
+            {
+                Maintenance(MaintenanceStage.BeforeRun);
+                foreach (var step in plan)
+                {
+                    Maintenance(MaintenanceStage.BeforeMigration);
+                    Execute(_migrationLoader.GetMigration(step.Version), step, true);
+                    if (step.IsUp) history.Add(step.Version); else history.Remove(step.Version);
+                    Maintenance(MaintenanceStage.AfterMigration);
+                }
+                foreach (var type in profiles) Execute(_migrationLoader.CreateInstance(type), new MigrationStep(0, true), false);
+                Maintenance(MaintenanceStage.AfterRun);
+            }
+            Logger.Started(new List<long>(initialHistory), version);
+            if (session) MigrationExecution.InTransaction(_provider, true, Run); else Run();
+            foreach (var callback in afterCommit) callback();
+            history.Sort();
+            Logger.Finished(new List<long>(initialHistory), version);
         }
-        Logger.Started(new List<long>(initialHistory), version);
-        if (session) MigrationExecution.InTransaction(_provider, true, Run); else Run();
-        foreach (var callback in afterCommit) callback();
-        history.Sort();
-        Logger.Finished(new List<long>(initialHistory), version);
+        catch (Exception ex) { failure = ex; throw; }
+        finally
+        {
+            try { lease?.Dispose(); }
+            catch (Exception release)
+            {
+                if (failure == null) throw;
+                failure.Data["LockReleaseException"] = release;
+            }
+        }
     }
 }
 
