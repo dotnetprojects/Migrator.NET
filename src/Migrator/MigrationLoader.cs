@@ -26,7 +26,7 @@ public class MigrationLoader
             provider.Logger.Trace("Loaded migrations:");
             foreach (var t in _migrationsTypes)
             {
-                provider.Logger.Trace("{0} {1}", GetMigrationVersion(t).ToString().PadLeft(5), StringUtils.ToHumanName(t.Name));
+                provider.Logger.Trace("{0} {1}", (t.GetCustomAttribute<MigrationAttribute>()?.Version.ToString() ?? "aux").PadLeft(5), StringUtils.ToHumanName(t.Name));
             }
         }
     }
@@ -41,7 +41,7 @@ public class MigrationLoader
             provider.Logger.Trace("Loaded migrations:");
             foreach (var t in _migrationsTypes)
             {
-                provider.Logger.Trace("{0} {1}", GetMigrationVersion(t).ToString().PadLeft(5), StringUtils.ToHumanName(t.Name));
+                provider.Logger.Trace("{0} {1}", (t.GetCustomAttribute<MigrationAttribute>()?.Version.ToString() ?? "aux").PadLeft(5), StringUtils.ToHumanName(t.Name));
             }
         }
     }
@@ -70,9 +70,14 @@ public class MigrationLoader
         }
     }
 
+    public Func<Type, IMigration> Activator { get; set; }
+
     public IEnumerable<Type> SelectedTypes => _migrationsTypes.Where(t =>
-        _provider is not IMigrationHistory history ||
-        t.GetCustomAttribute<MigrationAttribute>()?.Scope is not string scope || scope == history.Scope);
+        t.GetCustomAttribute<MigrationAttribute>() != null && InScope(t.GetCustomAttribute<MigrationAttribute>().Scope));
+
+    internal bool InScope(string scope) => scope == null || _provider is not IMigrationHistory history || scope == history.Scope;
+    internal IEnumerable<Type> AuxiliaryTypes => _migrationsTypes.Where(t => t.GetCustomAttribute<MigrationAttribute>() == null);
+
 
     public virtual void AddMigrations(Assembly migrationAssembly)
     {
@@ -112,26 +117,13 @@ public class MigrationLoader
         var migrations = new List<Type>();
         foreach (var t in asm.GetExportedTypes())
         {
-
-
-#if NETSTANDARD
-            var attrib = t.GetTypeInfo().GetCustomAttribute<MigrationAttribute>();
-            if (attrib != null && typeof(IMigration).GetTypeInfo().IsAssignableFrom(t) && !attrib.Ignore)
-            {
+            if (t.IsAbstract || !typeof(IMigration).IsAssignableFrom(t)) continue;
+            var versioned = t.GetCustomAttribute<MigrationAttribute>();
+            if (versioned != null ? !versioned.Ignore :
+                t.GetCustomAttribute<ProfileAttribute>() != null || t.GetCustomAttribute<MaintenanceAttribute>() != null)
                 migrations.Add(t);
-            }
-#else
-            var attrib = (MigrationAttribute)Attribute.GetCustomAttribute(t, typeof(MigrationAttribute));
-            if (attrib != null && typeof(IMigration).IsAssignableFrom(t) && !attrib.Ignore)
-            {
-                migrations.Add(t);
-            }
-#endif
-
-
         }
-
-        migrations.Sort(new MigrationTypeComparer(true));
+        migrations = migrations.OrderBy(t => t.GetCustomAttribute<MigrationAttribute>()?.Version ?? 0).ThenBy(t => t.FullName, StringComparer.Ordinal).ToList();
         return migrations;
     }
 
@@ -149,8 +141,7 @@ public class MigrationLoader
 
     public List<long> GetAvailableMigrations()
     {
-        _migrationsTypes.Sort(new MigrationTypeComparer(true));
-        return SelectedTypes.Select(GetMigrationVersion).ToList();
+        return SelectedTypes.Select(GetMigrationVersion).OrderBy(v => v).ToList();
     }
 
     public virtual IMigration GetMigration(long version)
@@ -170,6 +161,6 @@ public class MigrationLoader
 
     public virtual IMigration CreateInstance(Type migrationType)
     {
-        return (IMigration)Activator.CreateInstance(migrationType);
+        return Activator != null ? Activator(migrationType) ?? throw new MigrationException("Migration activator returned null.") : (IMigration)System.Activator.CreateInstance(migrationType);
     }
 }

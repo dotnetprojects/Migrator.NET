@@ -62,6 +62,7 @@ jobs:
         if: always()
         with:
           name: test-results-${{ matrix.database }}
+          overwrite: true
           path: TestResults/
           if-no-files-found: error
       - name: Remove test container

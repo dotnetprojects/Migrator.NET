@@ -45,11 +45,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Migrator\DotNetProjects.Migrator.csproj" />
+    <ProjectReference Include="../Migrator.Tool/DotNetProjects.Migrator.Tool.csproj" />
+    <ProjectReference Include="../Migrator.Extensions.DependencyInjection/DotNetProjects.Migrator.Extensions.DependencyInjection.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="ScriptResource.sql" LogicalName="Migrator.Tests.ScriptResource.sql" />
     <None Include="../../docs/fluent-operation-coverage.json" Link="fluent-operation-coverage.json" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="ScriptResource.sql" LogicalName="Migrator.Tests.ScriptResource.sql" />
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
