@@ -12,6 +12,34 @@ namespace Migrator.Tests.Providers.OracleProvider;
 public class OracleTransformationProvider_TableExistsTests : OracleTransformationProviderTestBase
 {
     [Test]
+    public void QualifiedQuotedNamesRoundTripThroughColumnsIndexesAndConstraints()
+    {
+        var schema = Convert.ToString(Provider.ExecuteScalar("SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA') FROM dual"));
+        var table = "\"" + schema.Replace("\"", "\"\"") + "\".\"O'Brien\"";
+        Provider.AddTable(table, new Column("Id", DbType.Int32),
+            new DotNetProjects.Migrator.Framework.UniqueConstraint("UQ ' name", "Id"));
+        Assert.That(Provider.TableExists(table), Is.True);
+        Assert.That(Provider.ColumnExists(table, "Id"), Is.True);
+        Assert.That(Provider.GetColumns(table).Length, Is.EqualTo(1));
+        Assert.That(Provider.GetIndexes(table).Length, Is.EqualTo(1));
+        Assert.That(Provider.GetTableConstraints(table).Length, Is.EqualTo(1));
+        Provider.RemoveConstraint(table, "UQ ' name");
+        Provider.RemoveTable(table);
+        Assert.That(Provider.TableExists(table), Is.False);
+    }
+
+    [Test]
+    public void TimeOfDayUsesTheDocumentedDateRepresentationForDefaultsAndParameters()
+    {
+        var time = new TimeSpan(12, 34, 56);
+        Provider.AddTable("ClockValues", new Column("Id", DbType.Int32), new Column("Value", DbType.Time) { DefaultValue = time });
+        Provider.Insert("ClockValues", ["Id"], [1]);
+        Provider.Insert("ClockValues", ["Id", "Value"], [2, time]);
+        Assert.That(Convert.ToDateTime(Provider.ExecuteScalar("SELECT Value FROM ClockValues WHERE Id=1")).TimeOfDay, Is.EqualTo(time));
+        Assert.That(Convert.ToDateTime(Provider.ExecuteScalar("SELECT Value FROM ClockValues WHERE Id=2")).TimeOfDay, Is.EqualTo(time));
+    }
+
+    [Test]
     public void LegacyForeignKeyOverloadHonorsCascadeDelete()
     {
         Provider.AddTable("CascadeParent", new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "CascadeParent", "Id"));

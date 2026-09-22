@@ -95,6 +95,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteTableInfo);
     }
 
+    public override void AddForeignKey(string table, ForeignKeyConstraint fk)
+    {
+        if (fk == null) throw new ArgumentNullException(nameof(fk));
+        SQLiteTableSql.ValidateMatch(fk.Match);
+        base.AddForeignKey(table, fk);
+    }
+
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
         ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
     {
@@ -181,6 +188,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 (candidate.ParentColumns.Length == 0 || candidate.ParentColumns.SequenceEqual(foreignKey.ParentColumns, StringComparer.OrdinalIgnoreCase)));
             if (definition == null) throw new MigrationException("Cannot match a SQLite foreign key to its declaration.");
             foreignKey.Name = definition.Name;
+            // PRAGMA reports NONE even for an explicitly declared MATCH FULL.
+            // Retain the declaration so a rebuild cannot silently discard it.
+            foreignKey.Match = definition.Match ?? foreignKey.Match;
             declared.Remove(definition);
         }
 
@@ -813,6 +823,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public void RecreateTable(SQLiteTableInfo sqliteTableInfo)
     {
+        foreach (var foreignKey in sqliteTableInfo.ForeignKeys) SQLiteTableSql.ValidateMatch(foreignKey.Match);
         var oldName = sqliteTableInfo.TableNameMapping.OldName;
         var script = GetSqlCreateTableScript(oldName);
         if (Regex.IsMatch(script, @"\b(STRICT|GENERATED|DEFERRABLE|COLLATE)\b|WITHOUT\s+ROWID|CREATE\s+VIRTUAL|ON\s+CONFLICT", RegexOptions.IgnoreCase))
@@ -1072,39 +1083,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override string[] GetConstraints(string table)
     {
-        if (!TableExists(table))
-        {
-            throw new Exception($"Table '{table}' does not exist.");
-        }
-
-        var sqliteInfo = GetSQLiteTableInfo(table);
-
-        var foreignKeyNames = sqliteInfo.ForeignKeys
-            .Select(x => x.Name)
-            .ToList();
-
-        var uniqueConstraints = sqliteInfo.Uniques
-            .Select(x => x.Name)
-            .ToList();
-
-        var checkConstraints = sqliteInfo.CheckConstraints
-            .Select(x => x.Name)
-            .ToList();
-
-        var names = foreignKeyNames.Concat(uniqueConstraints)
-            .Concat(checkConstraints)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToArray();
-
-        var distinctNames = names.Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        if (names.Length != distinctNames.Length)
-        {
-            throw new Exception($"There are duplicate constraint names in table {table}'");
-        }
-
-        return distinctNames;
+        var names = GetTableConstraints(table).Select(c => c.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToArray();
+        if (names.Distinct(StringComparer.OrdinalIgnoreCase).Count() != names.Length)
+            throw new MigrationException("Duplicate constraint names in table: " + table);
+        return names;
     }
 
     public override string[] GetTables()
@@ -1558,7 +1540,13 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is ushort)
+        if (value is TimeSpan time)
+        {
+            // SQLite stores times as text; System.Data.SQLite cannot bind TimeSpan as DbType.Time.
+            parameter.DbType = DbType.String;
+            parameter.Value = time.ToString("c", CultureInfo.InvariantCulture);
+        }
+        else if (value is ushort)
         {
             parameter.DbType = DbType.Int32;
             parameter.Value = Convert.ToInt32(value);
@@ -1579,4 +1567,3 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
     }
 }
-

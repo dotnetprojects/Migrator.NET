@@ -27,6 +27,37 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     private ITransformationProvider provider;
     internal ITransformationProvider Provider => provider;
 
+    [Test]
+    public void TimeOfDayDefaultsAndParametersPersist()
+    {
+        var time = new TimeSpan(12, 34, 56);
+        provider.AddTable("clock_values", new Column("id", DbType.Int32), new Column("value", DbType.Time) { DefaultValue = time });
+        provider.Insert("clock_values", ["id"], [1]);
+        provider.Insert("clock_values", ["id", "value"], [2, time]);
+        foreach (var id in new[] { 1, 2 })
+        {
+            var stored = provider.ExecuteScalar("SELECT value FROM clock_values WHERE id=" + id);
+            var actual = stored is DateTime date ? date.TimeOfDay : stored is TimeSpan span ? span : TimeSpan.Parse(Convert.ToString(stored), System.Globalization.CultureInfo.InvariantCulture);
+            Assert.That(actual, Is.EqualTo(time));
+        }
+        Assert.That(provider.GetColumns("clock_values").Single(c => c.Name.Equals("value", StringComparison.OrdinalIgnoreCase)).Type, Is.EqualTo(DbType.Time));
+    }
+
+    [Test]
+    public void QuotedConstraintNamesCanBeInspectedAndRemoved()
+    {
+        const string name = "UQ ' dotted.name";
+        provider.AddTable("named_constraints", new Column("id", DbType.Int32),
+            new DotNetProjects.Migrator.Framework.UniqueConstraint(name, "id"));
+        provider.AddTable("other_constraints", new Column("id", DbType.Int32));
+        Assert.That(provider.ConstraintExists("named_constraints", name), Is.True);
+        Assert.That(provider.ConstraintExists("other_constraints", name), Is.False);
+        provider.RemoveConstraint("named_constraints", name);
+        Assert.That(provider.ConstraintExists("named_constraints", name), Is.False);
+        provider.Insert("named_constraints", ["id"], [1]);
+        provider.Insert("named_constraints", ["id"], [1]);
+    }
+
     internal void RunRegression(Action<LiveDatabaseTests> action)
     {
         try { SetUp(); action(this); }

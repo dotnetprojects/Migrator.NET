@@ -77,6 +77,7 @@ internal static class SQLiteTableSql
 
         foreach (var fk in foreignKeys)
         {
+            var match = ValidateMatch(fk.Match);
             var sourceColumnNamesQuotedString = string.Join(", ", fk.ChildColumns.Select(dialect.QuoteColumnNameIfRequired));
             var parentColumnNamesQuotedString = string.Join(", ", fk.ParentColumns.Select(dialect.QuoteColumnNameIfRequired));
             var parentTableNameQuoted = dialect.QuoteTableNameIfRequired(fk.ParentTable);
@@ -84,6 +85,7 @@ internal static class SQLiteTableSql
             var foreignKeySql = (fk.Name == null ? "" : $"CONSTRAINT {dialect.QuoteIdentifier(fk.Name)} ") +
                 $"FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}" +
                 (fk.ParentColumns.Length == 0 ? "" : $"({parentColumnNamesQuotedString})");
+            if (match == "SIMPLE") foreignKeySql += " MATCH SIMPLE";
             if (!string.IsNullOrWhiteSpace(fk.OnDelete) && !string.Equals(fk.OnDelete, "NO ACTION", StringComparison.OrdinalIgnoreCase))
             {
                 foreignKeySql += $" ON DELETE {ValidateAction(fk.OnDelete)}";
@@ -116,6 +118,15 @@ internal static class SQLiteTableSql
         stringBuilder.Append(')');
 
         return stringBuilder.ToString();
+    }
+
+    internal static string ValidateMatch(string match)
+    {
+        var value = match?.Trim().ToUpperInvariant();
+        // SQLite accepts MATCH syntax but enforces only SIMPLE. NONE is the
+        // value returned by PRAGMA foreign_key_list when no match is declared.
+        if (string.IsNullOrEmpty(value) || value is "NONE" or "SIMPLE") return value;
+        throw new NotSupportedException("SQLite only enforces MATCH SIMPLE; unsupported foreign-key match: " + match);
     }
 
     private static string ValidateAction(string action)

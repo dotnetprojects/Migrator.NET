@@ -20,6 +20,7 @@ namespace DotNetProjects.Migrator.Providers.Impl.Oracle;
 public class OracleTransformationProvider : TransformationProvider, IOracleTransformationProvider
 {
     private IOracleSystemDataLoader _oracleSystemDataLoader;
+
     public const string TemporaryColumnName = "TEMPCOL";
 
     public OracleTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
@@ -242,7 +243,6 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         }
 
         table = QuoteTableNameIfRequired(table);
-        sqlColumn = QuoteColumnNameIfRequired(sqlColumn);
 
         ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
     }
@@ -251,104 +251,28 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     {
         GuardAgainstMaximumIdentifierLengthForOracle(table);
         table = QuoteTableNameIfRequired(table);
-        sqlColumn = QuoteColumnNameIfRequired(sqlColumn);
 
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
     }
 
-    public override string[] GetConstraints(string table)
-    {
-        var constraints = new List<string>();
-        using (var cmd = CreateCommand())
-        using (
-            var reader =
-                ExecuteQuery(cmd,
-                    string.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}'", table.ToLower())))
-        {
-            while (reader.Read())
-            {
-                constraints.Add(reader.GetString(0));
-            }
-        }
+    public override string[] GetConstraints(string table) => ExecuteStringQuery(
+        "SELECT CONSTRAINT_NAME FROM ALL_CONSTRAINTS WHERE " + OracleCatalog.Predicate(this, table)).ToArray();
 
-        return constraints.ToArray();
-    }
+    protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
+        "SELECT CONSTRAINT_NAME FROM ALL_CONSTRAINTS WHERE CONSTRAINT_TYPE='P' AND " + OracleCatalog.Predicate(this, table)).FirstOrDefault();
 
-    protected override string GetPrimaryKeyConstraintName(string table)
-    {
-        var constraints = new List<string>();
+    public override bool ConstraintExists(string table, string name) =>
+        GetConstraints(table).Any(actual => actual == name || actual == name.ToUpperInvariant());
 
-        using (var cmd = CreateCommand())
-        using (
-            var reader =
-                ExecuteQuery(cmd,
-                    string.Format("SELECT constraint_name FROM user_constraints WHERE lower(table_name) = '{0}' and constraint_type = 'P'", table.ToLower())))
-        {
-            while (reader.Read())
-            {
-                constraints.Add(reader.GetString(0));
-            }
-        }
+    public override bool ColumnExists(string table, string column) => Convert.ToInt32(ExecuteScalar(
+        "SELECT COUNT(*) FROM ALL_TAB_COLUMNS WHERE " + OracleCatalog.Predicate(this, table) +
+        " AND COLUMN_NAME=" + OracleCatalog.Literal(SqlIdentifier.Catalog(QuoteColumnNameIfRequired(column), true).Name))) > 0;
 
-        return constraints.FirstOrDefault();
-    }
+    public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
+        "SELECT COUNT(*) FROM ALL_TABLES WHERE " + OracleCatalog.Predicate(this, table))) > 0;
 
-    public override bool ConstraintExists(string table, string name)
-    {
-        var sql =
-            string.Format(
-                "SELECT COUNT(constraint_name) FROM user_constraints WHERE lower(constraint_name) = '{0}' AND lower(table_name) = '{1}'",
-                name.ToLower(), table.ToLower());
-
-        Logger.Log(sql);
-        var scalar = ExecuteScalar(sql);
-
-        return Convert.ToInt32(scalar) == 1;
-    }
-
-    public override bool ColumnExists(string table, string column)
-    {
-        if (!TableExists(table))
-        {
-            return false;
-        }
-
-        var sql =
-            string.Format(
-                "SELECT COUNT(column_name) FROM user_tab_columns WHERE lower(table_name) = '{0}' AND lower(column_name) = '{1}'",
-                table.ToLower(), column.ToLower());
-        Logger.Log(sql);
-        var scalar = ExecuteScalar(sql);
-        return Convert.ToInt32(scalar) == 1;
-    }
-
-    public override bool TableExists(string table)
-    {
-        var sql = string.Format("SELECT COUNT(table_name) FROM user_tables WHERE lower(table_name) = '{0}'", table.ToLower());
-
-        if (_defaultSchema != null)
-        {
-            sql = string.Format("SELECT COUNT(table_name) FROM user_tables WHERE lower(owner) = '{0}' and lower(table_name) = '{1}'", _defaultSchema.ToLower(), table.ToLower());
-        }
-
-        Logger.Log(sql);
-        var count = ExecuteScalar(sql);
-        return Convert.ToInt32(count) == 1;
-    }
-
-    public override bool ViewExists(string view)
-    {
-        var sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(view_name) = '{0}'", view.ToLower());
-
-        if (_defaultSchema != null)
-        {
-            sql = string.Format("SELECT COUNT(view_name) FROM user_views WHERE lower(owner) = '{0}' and lower(view_name) = '{1}'", _defaultSchema.ToLower(), view.ToLower());
-        }
-
-        Logger.Log(sql);
-        var count = ExecuteScalar(sql);
-        return Convert.ToInt32(count) == 1;
-    }
+    public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(
+        "SELECT COUNT(*) FROM ALL_VIEWS WHERE " + OracleCatalog.Predicate(this, view, "VIEW_NAME"))) > 0;
 
     public override List<string> GetDatabases()
     {
@@ -388,14 +312,15 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         stringBuilder.AppendLine("  DATA_PRECISION,");
         stringBuilder.AppendLine("  DATA_SCALE,");
         stringBuilder.AppendLine("  CHAR_COL_DECL_LENGTH");
-        stringBuilder.AppendLine($"FROM USER_TAB_COLUMNS WHERE LOWER(TABLE_NAME) = LOWER('{table}')");
+        stringBuilder.AppendLine("FROM ALL_TAB_COLUMNS WHERE " + OracleCatalog.Predicate(this, table) + " ORDER BY COLUMN_ID");
 
         var stringBuilder2 = new StringBuilder();
         stringBuilder2.AppendLine("SELECT x.column_name, x.data_default");
         stringBuilder2.AppendLine("FROM XMLTABLE(");
         stringBuilder2.AppendLine("   '/ROWSET/ROW'");
         stringBuilder2.AppendLine("   PASSING DBMS_XMLGEN.GETXMLTYPE(");
-        stringBuilder2.AppendLine($"      'SELECT column_name, data_default FROM user_tab_columns WHERE table_name = ''{table.ToUpperInvariant()}'''");
+        var defaultQuery = "SELECT column_name, data_default FROM all_tab_columns WHERE " + OracleCatalog.Predicate(this, table);
+        stringBuilder2.AppendLine("      " + OracleCatalog.Literal(defaultQuery));
         stringBuilder2.AppendLine("   )");
         stringBuilder2.AppendLine("   COLUMNS");
         stringBuilder2.AppendLine("      column_name VARCHAR2(4000) PATH 'COLUMN_NAME',");
@@ -404,7 +329,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
         var userTabIdentityCols = _oracleSystemDataLoader.GetUserTabIdentityCols(tableName: table);
         var primaryKeyItems = _oracleSystemDataLoader.GetPrimaryKeyItems(tableName: table);
-        var uniqueColumns = ExecuteStringQuery("SELECT MIN(cc.COLUMN_NAME) FROM USER_CONSTRAINTS c JOIN USER_CONS_COLUMNS cc ON c.CONSTRAINT_NAME=cc.CONSTRAINT_NAME WHERE c.CONSTRAINT_TYPE='U' AND LOWER(c.TABLE_NAME)=LOWER('{0}') GROUP BY c.CONSTRAINT_NAME HAVING COUNT(*)=1", table.Replace("'", "''"));
+
 
         List<UserTabColumns> userTabColumns = [];
 
@@ -713,7 +638,12 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is Guid || value is Guid?)
+        if (value is TimeSpan time)
+        {
+            parameter.DbType = DbType.Date;
+            parameter.Value = OracleDialect.TimeValue(time);
+        }
+        else if (value is Guid || value is Guid?)
         {
             parameter.DbType = DbType.Binary;
 
@@ -818,7 +748,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void AddTable(string name, params IDbField[] fields)
     {
-        GuardAgainstMaximumIdentifierLengthForOracle(name);
+        foreach (var part in SqlIdentifier.Parse(name)) GuardAgainstMaximumIdentifierLengthForOracle(part.Value);
         var columns = fields.OfType<Column>().ToArray();
         GuardAgainstMaximumColumnNameLengthForOracle(name, columns);
         foreach (var identity in columns.Where(c => c.IsIdentity))

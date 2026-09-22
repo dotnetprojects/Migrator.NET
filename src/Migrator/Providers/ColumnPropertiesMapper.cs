@@ -69,5 +69,5 @@ public class ColumnPropertiesMapper
         values.Add(sql);
     }
     protected virtual void AddType(List<string> values) => values.Add(Type);
-    protected virtual void AddName(List<string> values) => values.Add(_Dialect.ColumnNameNeedsQuote || _Dialect.IsReservedWord(Name) ? QuotedName : Name);
+    protected virtual void AddName(List<string> values) => values.Add(_Dialect.QuoteColumnNameIfRequired(Name));
 }

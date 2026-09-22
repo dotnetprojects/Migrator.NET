@@ -116,14 +116,7 @@ public class SqlServerDialect : Dialect
 
     public override string Quote(string value)
     {
-        var firstDotIndex = value.IndexOf('.');
-        if (firstDotIndex >= 0)
-        {
-            var owner = value.Substring(0, firstDotIndex);
-            var table = value.Substring(firstDotIndex + 1);
-            return (string.Format(QuoteTemplate, owner) + "." + string.Format(QuoteTemplate, table));
-        }
-        return string.Format(QuoteTemplate, value);
+        return base.Quote(value);
     }
 
     public override string Default(object defaultValue)

@@ -41,7 +41,7 @@ public class InformixTransformationProvider : TransformationProvider
     public override List<string> GetDatabases() => ExecuteStringQuery("SELECT name FROM sysmaster:sysdatabases");
     public override string[] GetConstraints(string table) => ExecuteStringQuery(
         $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}'").Select(n => n.Trim()).ToArray();
-    public override bool ConstraintExists(string table, string name) => GetConstraints(table).Contains(Name(name));
+    public override bool ConstraintExists(string table, string name) => GetConstraints(table).Any(n => n == name || n == Name(name).Replace("''", "'"));
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
         $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype='P'").FirstOrDefault()?.Trim();
 

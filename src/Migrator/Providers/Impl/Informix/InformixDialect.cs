@@ -54,9 +54,8 @@ public class InformixDialect : Dialect
         };
         var body = base.GetTableConstraintSql(copy);
         if (constraint.Name == null) return body;
-        if (!System.Text.RegularExpressions.Regex.IsMatch(constraint.Name, @"^[A-Za-z_][A-Za-z0-9_$]*$"))
-            throw new NotSupportedException("Informix constraint names require simple identifiers unless DELIMIDENT is configured.");
-        return body + " CONSTRAINT " + constraint.Name;
+        // DELIMIDENT must be enabled on the connection for delimited identifiers.
+        return body + " CONSTRAINT " + QuoteIdentifier(constraint.Name);
     }
 
     public override string Default(object value) => value is bool boolean ? (boolean ? "DEFAULT 't'" : "DEFAULT 'f'") : base.Default(value);

@@ -10,6 +10,7 @@ public class OracleDialect : Dialect
 
     public OracleDialect()
     {
+        AddReservedWords("SELECT", "FROM", "WHERE", "ORDER", "GROUP", "TABLE", "USER");
         RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
         RegisterColumnType(DbType.AnsiStringFixedLength, 2000, "CHAR($l)");
         RegisterColumnType(DbType.AnsiString, "VARCHAR2(255)");
@@ -110,6 +111,11 @@ public class OracleDialect : Dialect
         {
             return string.Format("DEFAULT {0}", booleanValue ? "1" : "0");
         }
+        else if (defaultValue is TimeSpan time)
+        {
+            var date = TimeValue(time);
+            return "DEFAULT TO_DATE('" + date.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture) + "', 'YYYY-MM-DD HH24:MI:SS')";
+        }
         else if (defaultValue is Guid guid)
         {
             var bytes = guid.ToByteArray();
@@ -155,5 +161,14 @@ public class OracleDialect : Dialect
         }
 
         return base.Default(defaultValue);
+    }
+
+    internal static DateTime TimeValue(TimeSpan value)
+    {
+        if (value < TimeSpan.Zero || value >= TimeSpan.FromDays(1))
+            throw new ArgumentOutOfRangeException(nameof(value), "A time of day must be within one day.");
+        if (value.Ticks % TimeSpan.TicksPerSecond != 0)
+            throw new NotSupportedException("Oracle DbType.Time uses DATE, which has whole-second precision. Use an explicit TIMESTAMP or interval for fractional seconds.");
+        return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Unspecified).Add(value);
     }
 }

@@ -35,7 +35,9 @@ public class ForeignKeyConstraint : TableConstraint
     public string OnUpdate { get; set; }
 
     /// <summary>
-    /// /// Gets or sets the match text. Currently only used for SQLite.
+    /// Gets or sets the declared match text. Currently only used for SQLite.
+    /// SQLite enforces only SIMPLE. Null, empty and the PRAGMA value NONE use
+    /// that default; other modes are rejected when creating or rebuilding tables.
     /// </summary>
     public string Match { get; set; }
 }

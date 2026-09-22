@@ -227,7 +227,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             throw new MigrationException($"Constraint '{name}' does not exist");
         }
 
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), QuoteConstraintNameIfRequired(name)));
+        var names = GetConstraints(table);
+        var actual = names.FirstOrDefault(n => n == name)
+            ?? names.SingleOrDefault(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase))
+            ?? throw new MigrationException("Constraint was not found in the requested table: " + name);
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP CONSTRAINT {1}", QuoteTableNameIfRequired(table), _dialect.QuoteIdentifier(actual)));
     }
 
     public virtual void RemoveAllConstraints(string table)
@@ -1524,22 +1528,14 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual string QuoteColumnNameIfRequired(string name)
     {
-        if (Dialect.ColumnNameNeedsQuote || Dialect.IsReservedWord(name))
-        {
-            return Dialect.Quote(name);
-        }
-
-        return name;
+        return _dialect.QuoteColumnNameIfRequired(name);
     }
 
     public virtual string QuoteTableNameIfRequired(string name)
     {
-        if (Dialect.TableNameNeedsQuote || Dialect.IsReservedWord(name))
-        {
-            return Dialect.Quote(name);
-        }
-
-        return name;
+        if (!string.IsNullOrWhiteSpace(_defaultSchema) && SqlIdentifier.Parse(name).Length == 1)
+            name = _defaultSchema + "." + name;
+        return _dialect.QuoteTableNameIfRequired(name);
     }
 
     public virtual string Encode(Guid guid)
@@ -1570,7 +1566,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual void AddTable(string table, string engine, string columns)
     {
-        table = _dialect.TableNameNeedsQuote ? _dialect.Quote(table) : table;
+        table = QuoteTableNameIfRequired(table);
         var sqlCreate = string.Format("CREATE TABLE {0} ({1})", table, columns);
 
         ExecuteNonQuery(sqlCreate);

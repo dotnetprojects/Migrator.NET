@@ -328,6 +328,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         return command;
     }
 
+    public override string[] GetConstraints(string table) => GetTableConstraints(table).Select(c => c.Name).Where(n => n != null).ToArray();
+
     public override bool ConstraintExists(string table, string name)
     {
         using var command = MetadataCommand(table, name);
@@ -895,28 +897,6 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         }
 
         return columns.ToArray();
-    }
-
-    public override string[] GetConstraints(string table)
-    {
-        var constraints = new List<string>();
-
-        using (var cmd = CreateCommand())
-        using (
-            var reader =
-                ExecuteQuery(
-                    cmd, string.Format(@"select c.conname as constraint_name
-from pg_constraint c
-join pg_class t on c.conrelid = t.oid
-where LOWER(t.relname) = LOWER('{0}')", table)))
-        {
-            while (reader.Read())
-            {
-                constraints.Add(reader.GetString(0));
-            }
-        }
-
-        return constraints.ToArray();
     }
 
     public override Column GetColumnByName(string table, string columnName)

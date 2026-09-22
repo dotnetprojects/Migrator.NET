@@ -17,11 +17,11 @@ internal static class ForeignKeyMetadataReader
 {
     public static ForeignKeyConstraint[] Read(TransformationProvider provider, string table)
     {
-        var parameterTable = table;
+        var parameterTable = provider.QuoteTableNameIfRequired(table);
         string schema = null;
         string sql;
         if (provider.Dialect is SqlServerDialect)
-            sql = @"SELECT f.name,OBJECT_NAME(f.referenced_object_id),cc.name,pc.name,k.constraint_column_id,
+            sql = @"SELECT f.name,CASE WHEN OBJECT_SCHEMA_NAME(f.referenced_object_id)=OBJECT_SCHEMA_NAME(f.parent_object_id) THEN OBJECT_NAME(f.referenced_object_id) ELSE QUOTENAME(OBJECT_SCHEMA_NAME(f.referenced_object_id))+'.'+QUOTENAME(OBJECT_NAME(f.referenced_object_id)) END,cc.name,pc.name,k.constraint_column_id,
                     REPLACE(f.delete_referential_action_desc,'_',' '),REPLACE(f.update_referential_action_desc,'_',' ')
                 FROM sys.foreign_keys f JOIN sys.foreign_key_columns k ON k.constraint_object_id=f.object_id
                 JOIN sys.columns cc ON cc.object_id=k.parent_object_id AND cc.column_id=k.parent_column_id
@@ -30,7 +30,7 @@ internal static class ForeignKeyMetadataReader
         else if (provider.Dialect is PostgreSQLDialect)
         {
             parameterTable = provider.QuoteTableNameIfRequired(table);
-            sql = @"SELECT c.conname,p.relname,cc.attname,pc.attname,k.ordinality,c.confdeltype::text,c.confupdtype::text
+            sql = @"SELECT c.conname,CASE WHEN p.relnamespace=(SELECT relnamespace FROM pg_class WHERE oid=c.conrelid) THEN p.relname ELSE quote_ident((SELECT nspname FROM pg_namespace WHERE oid=p.relnamespace))||'.'||quote_ident(p.relname) END,cc.attname,pc.attname,k.ordinality,c.confdeltype::text,c.confupdtype::text
                 FROM pg_constraint c JOIN pg_class p ON p.oid=c.confrelid
                 CROSS JOIN LATERAL unnest(c.conkey,c.confkey) WITH ORDINALITY k(childnum,parentnum,ordinality)
                 JOIN pg_attribute cc ON cc.attrelid=c.conrelid AND cc.attnum=k.childnum
@@ -39,9 +39,8 @@ internal static class ForeignKeyMetadataReader
         }
         else if (provider.Dialect is MysqlDialect)
         {
-            var parts = table.Split('.');
-            if (parts.Length > 2 || parts.Any(p => p.Contains((char)96))) throw new NotSupportedException("Use unquoted names for MySQL foreign-key catalog lookup.");
-            parameterTable = parts[^1]; schema = parts.Length == 2 ? parts[0] : null;
+            var relation = SqlIdentifier.Catalog(provider.QuoteTableNameIfRequired(table));
+            parameterTable = relation.Name; schema = relation.Schema;
             sql = @"SELECT k.CONSTRAINT_NAME,k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.ORDINAL_POSITION,r.DELETE_RULE,r.UPDATE_RULE
                 FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r
                   ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.TABLE_NAME=k.TABLE_NAME AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
@@ -50,10 +49,8 @@ internal static class ForeignKeyMetadataReader
         }
         else if (provider.Dialect is OracleDialect)
         {
-            var parts = table.Split('.');
-            if (parts.Length > 2 || parts.Any(p => p.Contains('"')))
-                throw new NotSupportedException("Use unquoted schema/table names for Oracle foreign-key catalog lookup.");
-            parameterTable = parts[^1].ToUpperInvariant(); schema = parts.Length == 2 ? parts[0].ToUpperInvariant() : null;
+            var relation = SqlIdentifier.Catalog(provider.QuoteTableNameIfRequired(table), true);
+            parameterTable = relation.Name; schema = relation.Schema;
             sql = @"SELECT c.CONSTRAINT_NAME,
                     CASE WHEN p.OWNER=c.OWNER THEN p.TABLE_NAME ELSE p.OWNER||'.'||p.TABLE_NAME END,
                     cc.COLUMN_NAME,pc.COLUMN_NAME,cc.POSITION,c.DELETE_RULE,'NO ACTION'

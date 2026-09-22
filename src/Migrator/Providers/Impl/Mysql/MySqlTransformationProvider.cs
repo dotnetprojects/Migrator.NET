@@ -37,7 +37,7 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         if (ForeignKeyExists(table, name))
         {
-            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP FOREIGN KEY {1}", table, _dialect.Quote(name)));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP FOREIGN KEY {1}", table, _dialect.QuoteIdentifier(name)));
         }
     }
 
@@ -122,9 +122,9 @@ public class MySqlTransformationProvider : TransformationProvider
         var action = type switch
         {
             "PRIMARY KEY" => "DROP PRIMARY KEY",
-            "FOREIGN KEY" => "DROP FOREIGN KEY " + _dialect.Quote(name),
-            "UNIQUE" => "DROP INDEX " + _dialect.Quote(name),
-            "CHECK" => (_dialect is MariaDBDialect ? "DROP CONSTRAINT " : "DROP CHECK ") + _dialect.Quote(name),
+            "FOREIGN KEY" => "DROP FOREIGN KEY " + _dialect.QuoteIdentifier(name),
+            "UNIQUE" => "DROP INDEX " + _dialect.QuoteIdentifier(name),
+            "CHECK" => (_dialect is MariaDBDialect ? "DROP CONSTRAINT " : "DROP CHECK ") + _dialect.QuoteIdentifier(name),
             _ => throw new MigrationException($"Constraint '{name}' does not exist")
         };
         ExecuteNonQuery($"ALTER TABLE {_dialect.Quote(table)} {action}");
@@ -241,6 +241,7 @@ public class MySqlTransformationProvider : TransformationProvider
             return new DatabaseDefault(value);
         return type switch
         {
+            DbType.Time => TimeSpan.Parse(value, CultureInfo.InvariantCulture),
             DbType.Boolean => value != "0",
             DbType.Byte => byte.Parse(value, CultureInfo.InvariantCulture),
             DbType.Int16 => short.Parse(value, CultureInfo.InvariantCulture),
@@ -301,7 +302,7 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         if (IndexExists(table, name))
         {
-            ExecuteNonQuery(string.Format("DROP INDEX {1} ON {0}", table, _dialect.Quote(name)));
+            ExecuteNonQuery(string.Format("DROP INDEX {1} ON {0}", table, _dialect.QuoteIdentifier(name)));
         }
     }
 
@@ -331,7 +332,7 @@ public class MySqlTransformationProvider : TransformationProvider
         if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
             throw new NotSupportedException("MySQL and MariaDB do not support included columns, filtered indexes or explicit clustered indexes.");
         var name = index.Name ?? $"IX_{table}_{string.Join("_", index.KeyColumns)}";
-        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {_dialect.Quote(name)} ON {_dialect.Quote(table)} ({string.Join(", ", index.KeyColumns.Select(_dialect.Quote))})");
+        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {_dialect.QuoteIdentifier(name)} ON {_dialect.Quote(table)} ({string.Join(", ", index.KeyColumns.Select(_dialect.Quote))})");
         return name;
     }
 
