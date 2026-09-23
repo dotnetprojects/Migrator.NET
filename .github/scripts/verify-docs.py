@@ -38,6 +38,19 @@ class Page(HTMLParser):
             self.panels.append(attrs["data-code-style"])
 
 
+def exact_path_exists(root, relative):
+    """Check URL spelling even on case-insensitive filesystems such as Windows."""
+    target = root
+    for part in Path(relative).parts:
+        if part == "..":
+            target = target.parent
+            continue
+        if not target.is_dir() or part not in {entry.name for entry in target.iterdir()}:
+            return False
+        target /= part
+    return target.exists()
+
+
 def check_site():
     pages = {path.resolve(): Page(path) for path in [DOCS / "index.html", *sorted((DOCS / "guide").glob("*.html"))]}
     for path, page in pages.items():
@@ -48,15 +61,17 @@ def check_site():
             parsed = urlsplit(link)
             if parsed.scheme or parsed.netloc:
                 continue
-            target = (path.parent / unquote(parsed.path)).resolve() if parsed.path else path
-            assert target.exists(), f"Broken link: {path}: {link}"
+            relative = unquote(parsed.path) if parsed.path else path.name
+            assert exact_path_exists(path.parent, relative), f"Missing or incorrectly cased link: {path}: {link}"
+            target = (path.parent / relative).resolve()
             if parsed.fragment and target in pages:
                 assert unquote(parsed.fragment) in pages[target].ids, f"Broken anchor: {path}: {link}"
     for page in content.PAGES:
-        assert (ROOT / page["source"]).exists(), f"Missing implementation reference: {page['source']}"
+        assert exact_path_exists(ROOT, page["source"]), f"Missing or incorrectly cased implementation reference: {page['source']}"
     entries = json.loads((DOCS / "assets/search-index.json").read_text(encoding="utf-8"))
     assert len(entries) == len(content.PAGES)
     for entry in entries:
+        assert exact_path_exists(DOCS, entry["url"]), f"Missing or incorrectly cased search link: {entry['url']}"
         assert (DOCS / entry["url"]).resolve() in pages
     print(f"Checked {len(pages)} HTML pages: local links, anchors, control references, search entries and paired samples.")
 

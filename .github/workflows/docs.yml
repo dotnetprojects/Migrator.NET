@@ -26,6 +26,8 @@ jobs:
       - name: Check generated pages
         run: python -B .github/scripts/build-docs.py --check
       - name: Validate links and compile all C# examples
-        run: python -B .github/scripts/verify-docs.py --compile
+        run: |
+          python -B .github/scripts/test-docs.py
+          python -B .github/scripts/verify-docs.py --compile
       - name: Verify CI-count rendering
         run: python -B .github/scripts/test-homepage-tests.py

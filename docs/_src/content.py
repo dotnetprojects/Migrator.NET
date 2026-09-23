@@ -630,7 +630,7 @@ migration.Create.Table("Labels").WithColumn("Name").AsString(100)
     .WithCollation(Collation.CaseInsensitive);
 ''')),
     section("Constraint metadata", '<p>MySQL reports primary keys as PRIMARY even if the migration supplied a symbolic name. MySQL/MariaDB catalogs expose unique indexes as unique constraints, so metadata cannot recover every original CREATE UNIQUE INDEX versus UNIQUE-clause choice. Do not derive ownership from that distinction.</p>'),
-    section("Locking and values", '<p>DatabaseMigrationLock uses named session locks. These coordinate one server, not a distributed cluster. Interval values use signed .NET ticks. String overflow behavior depends on SQL mode; boundary CI uses STRICT_ALL_TABLES. Check server settings when evaluating length and decimal errors.</p>'), source="src/Migrator/Providers/Impl/Mysql/MysqlTransformationProvider.cs")
+    section("Locking and values", '<p>DatabaseMigrationLock uses named session locks. These coordinate one server, not a distributed cluster. Interval values use signed .NET ticks. String overflow behavior depends on SQL mode; boundary CI uses STRICT_ALL_TABLES. Check server settings when evaluating length and decimal errors.</p>'), source="src/Migrator/Providers/Impl/Mysql/MySqlTransformationProvider.cs")
 
 page("Database providers", "oracle", "Oracle", "Preserve explicit constraints and be deliberate about identity, sequences and implicit DDL commits.",
     section("Connection and schema", '<p>Use ProviderTypes.Oracle with the Oracle managed ADO.NET driver and the intended schema. MsOracle is a historical variant. Oracle DDL is not generally atomic across a migration; WholeSession is rejected. Some quoted qualified metadata lookups are explicitly rejected.</p>'),
