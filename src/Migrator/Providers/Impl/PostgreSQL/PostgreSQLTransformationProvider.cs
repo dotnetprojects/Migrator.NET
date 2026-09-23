@@ -588,7 +588,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             }
             else if (columnInfo.DataType == "character" || columnInfo.DataType.StartsWith("character("))
             {
-                throw new NotSupportedException("Data type 'character' detected. 'character' is not supported. Use 'text' or 'character varying' instead.");
+                dbType = MigratorDbType.StringFixedLength;
+                size = columnInfo.CharacterMaximumLength;
             }
             else
             {
@@ -741,7 +742,14 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is TimeSpan interval)
+        if (value is DateTime date && date.Kind != DateTimeKind.Utc)
+        {
+            // Npgsql 6+ maps DbType.DateTime to timestamptz. Wall-clock values
+            // need timestamp without time zone; do not invent a UTC conversion.
+            parameter.DbType = DbType.DateTime2;
+            parameter.Value = date;
+        }
+        else if (value is TimeSpan interval)
         {
             // Npgsql infers interval from TimeSpan; setting DbType.Time would change its meaning.
             parameter.Value = interval;
@@ -755,6 +763,12 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         {
             parameter.DbType = DbType.Int64;
             parameter.Value = Convert.ToInt64(value);
+        }
+        else if (value is ulong unsigned)
+        {
+            // PostgreSQL has no unsigned bigint; the dialect uses numeric(20,0).
+            parameter.DbType = DbType.Decimal;
+            parameter.Value = (decimal)unsigned;
         }
         else
         {

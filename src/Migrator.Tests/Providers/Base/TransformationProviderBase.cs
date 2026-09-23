@@ -30,11 +30,21 @@ public abstract class TransformationProviderBase
     [TearDown]
     public virtual void TearDown()
     {
-        DropTestTables();
-
-        Provider?.Rollback();
-
-        _dbConnection?.Dispose();
+        try
+        {
+            DropTestTables();
+            Provider?.Rollback();
+        }
+        finally
+        {
+            try { Provider?.Dispose(); }
+            finally
+            {
+                _dbConnection?.Dispose();
+                _dbConnection = null;
+                Provider = null;
+            }
+        }
     }
 
     protected void DropTestTables()

@@ -1009,7 +1009,9 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
             builder.Append(QuoteColumnNameIfRequired(columns[i]));
             builder.Append(" = ");
-            builder.Append(GenerateParameterName(i));
+            // A literal NULL has no driver-dependent inferred type (notably for
+            // nullable LOBs). Non-null values remain fully parameterized.
+            builder.Append(values[i] == null || values[i] == DBNull.Value ? "NULL" : GenerateParameterName(i));
         }
 
         using var command = CreateCommand();
@@ -1032,6 +1034,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         foreach (var value in values)
         {
+            if (value == null || value == DBNull.Value)
+            {
+                paramCount++;
+                continue;
+            }
             var parameter = command.CreateParameter();
 
             ConfigureParameterWithValue(parameter, paramCount, value);
@@ -1087,7 +1094,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
             builder.Append(QuoteColumnNameIfRequired(columns[i]));
             builder.Append(" = ");
-            builder.Append(GenerateParameterName(i));
+            builder.Append(values[i] == null || values[i] == DBNull.Value ? "NULL" : GenerateParameterName(i));
         }
 
         using var command = CreateCommand();
@@ -1107,6 +1114,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         foreach (var value in values)
         {
+            if (value == null || value == DBNull.Value)
+            {
+                paramCount++;
+                continue;
+            }
             var parameter = command.CreateParameter();
 
             ConfigureParameterWithValue(parameter, paramCount, value);
@@ -1181,7 +1193,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
                 builder.Append(", ");
             }
 
-            builder.Append(GenerateParameterName(i));
+            builder.Append(values[i] == null || values[i] == DBNull.Value ? "NULL" : GenerateParameterName(i));
         }
 
         var parameterNames = builder.ToString();
@@ -1201,6 +1213,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         foreach (var value in values)
         {
+            if (value == null || value == DBNull.Value)
+            {
+                paramCount++;
+                continue;
+            }
             var parameter = command.CreateParameter();
 
             ConfigureParameterWithValue(parameter, paramCount, value);
@@ -1752,6 +1769,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             parameter.DbType = DbType.Byte;
             parameter.Value = value;
         }
+        else if (value is sbyte signedByte)
+        {
+            parameter.DbType = DbType.Int16;
+            parameter.Value = (short)signedByte;
+        }
         else if (value is short)
         {
             parameter.DbType = DbType.Int16;
@@ -1780,6 +1802,11 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         else if (value is ulong)
         {
             parameter.DbType = DbType.UInt64;
+            parameter.Value = value;
+        }
+        else if (value is float)
+        {
+            parameter.DbType = DbType.Single;
             parameter.Value = value;
         }
         else if (value is double)

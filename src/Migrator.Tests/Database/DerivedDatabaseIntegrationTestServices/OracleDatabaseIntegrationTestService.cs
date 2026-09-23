@@ -133,6 +133,9 @@ public class OracleDatabaseIntegrationTestService(
 
         connectionStringBuilder.Add(UserStringKey, ReplaceString);
         connectionStringBuilder.Add(PasswordStringKey, ReplaceString);
+        // Every test gets a unique user; its pool would retain dedicated server
+        // processes with no opportunity for reuse by another test.
+        connectionStringBuilder.Pooling = false;
 
         tempDatabaseConnectionConfig.ConnectionString = connectionStringBuilder.ConnectionString;
         tempDatabaseConnectionConfig.ConnectionString = tempDatabaseConnectionConfig.ConnectionString.Replace(ReplaceString, $"\"{tempUserName}\"");

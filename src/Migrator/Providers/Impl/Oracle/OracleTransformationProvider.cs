@@ -467,6 +467,18 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                 {
                     column.MigratorDbType = MigratorDbType.String;
                 }
+                else if (dataTypeString == "VARCHAR2" || dataTypeString == "CLOB")
+                {
+                    column.MigratorDbType = MigratorDbType.AnsiString;
+                }
+                else if (dataTypeString == "CHAR")
+                {
+                    column.MigratorDbType = MigratorDbType.AnsiStringFixedLength;
+                }
+                else if (dataTypeString == "NCHAR")
+                {
+                    column.MigratorDbType = MigratorDbType.StringFixedLength;
+                }
                 else if (dataTypeString == "BINARY_FLOAT")
                 {
                     column.MigratorDbType = MigratorDbType.Single;
@@ -492,6 +504,11 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                     throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
                 }
 
+                if (dataTypeString is "CLOB" or "NCLOB" or "BLOB") column.Size = int.MaxValue;
+                else if (dataTypeString is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR")
+                    column.Size = charColDeclLength ?? dataLength ?? 0;
+                else if (dataTypeString == "RAW") column.Size = dataLength ?? 0;
+
                 OracleColumnDefault.Apply(column, dataDefaultString);
 
                 columns.Add(column);
@@ -513,7 +530,23 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
     {
-        if (value is TimeOnly time)
+        if (value is float single)
+        {
+            base.ConfigureParameterWithValue(parameter, index, value);
+            // ODP.NET maps DbType.Single to decimal FLOAT, rounding to seven
+            // decimal digits. Select its native IEEE type without coupling the
+            // provider assembly to either managed or unmanaged ODP.NET.
+            var oracleType = parameter.GetType().GetProperty("OracleDbType");
+            if (oracleType?.CanWrite == true && oracleType.PropertyType.IsEnum &&
+                Enum.IsDefined(oracleType.PropertyType, "BinaryFloat"))
+                oracleType.SetValue(parameter, Enum.Parse(oracleType.PropertyType, "BinaryFloat"));
+            else
+            {
+                parameter.DbType = DbType.Double;
+                parameter.Value = (double)single;
+            }
+        }
+        else if (value is TimeOnly time)
         {
             parameter.DbType = DbType.Date;
             parameter.Value = OracleDialect.TimeValue(time);

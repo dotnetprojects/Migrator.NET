@@ -21,6 +21,17 @@ public class DB2TransformationProvider : TransformationProvider
     public DB2TransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
         : base(dialect, connection, null, scope) { }
 
+    protected override void ConfigureParameterWithValue(IDbDataParameter parameter, int index, object value)
+    {
+        if (value is byte number)
+        {
+            // Db2 stores Byte as SMALLINT; DbType.Byte selects binary in its driver.
+            parameter.DbType = DbType.Int16;
+            parameter.Value = (short)number;
+        }
+        else base.ConfigureParameterWithValue(parameter, index, value);
+    }
+
     private static string Name(string name) => (name.StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
     private static string Identifier(string name) => name.StartsWith('"') ? name : "\"" + name.ToUpperInvariant().Replace("\"", "\"\"") + "\"";
 

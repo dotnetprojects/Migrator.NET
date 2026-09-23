@@ -12,10 +12,13 @@ public class FirebirdDialect : Dialect
 
     public FirebirdDialect()
     {
+        RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
         RegisterColumnType(DbType.AnsiStringFixedLength, 8000, "CHAR($l)");
-        RegisterColumnType(DbType.AnsiString, 8000, "CHAR($l)");
+        RegisterColumnType(DbType.AnsiString, "VARCHAR(255)");
+        RegisterColumnType(DbType.AnsiString, 8000, "VARCHAR($l)");
+        RegisterColumnType(DbType.AnsiString, int.MaxValue, "BLOB SUB_TYPE TEXT");
         RegisterColumnType(DbType.Binary, "BLOB");
-        RegisterColumnType(DbType.Binary, 8000, "CHAR");
+        RegisterColumnType(DbType.Binary, 8000, "VARCHAR($l) CHARACTER SET OCTETS");
         RegisterColumnType(DbType.Boolean, "BOOLEAN");
         RegisterColumnType(DbType.Byte, "SMALLINT");
         RegisterColumnType(DbType.Currency, "DECIMAL(18,4)");
@@ -30,7 +33,8 @@ public class FirebirdDialect : Dialect
         RegisterColumnType(DbType.Int32, "INT");
         RegisterColumnType(DbType.Int64, "BIGINT");
         RegisterColumnType(DbType.Single, "REAL"); //synonym for FLOAT(24) 
-        RegisterColumnType(DbType.StringFixedLength, "NCHAR(255)");
+        RegisterColumnType(DbType.StringFixedLength, "CHAR(255) CHARACTER SET UTF8");
+        RegisterColumnType(DbType.StringFixedLength, 4000, "CHAR($l) CHARACTER SET UTF8");
         RegisterColumnType(DbType.String, "VARCHAR(255) CHARACTER SET UNICODE_FSS");
         RegisterColumnType(DbType.String, 4000, "VARCHAR($l) CHARACTER SET UNICODE_FSS");
         RegisterColumnType(DbType.String, int.MaxValue, "BLOB SUB_TYPE TEXT");

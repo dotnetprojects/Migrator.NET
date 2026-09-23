@@ -23,7 +23,7 @@ public class OracleDialect : Dialect
         // 23ai now has a native boolean data type but for backwards compatibility we keep using NUMBER(1,0)
         RegisterColumnType(DbType.Boolean, "NUMBER(1,0)");
         RegisterColumnType(DbType.Byte, "NUMBER(3,0)");
-        RegisterColumnType(DbType.Currency, "NUMBER(19,1)");
+        RegisterColumnType(DbType.Currency, "NUMBER(19,4)");
         RegisterColumnType(DbType.Date, "DATE");
         RegisterColumnType(DbType.DateTime, "TIMESTAMP(4)");
         RegisterColumnType(DbType.DateTime2, "TIMESTAMP(7)");
@@ -41,7 +41,7 @@ public class OracleDialect : Dialect
         RegisterColumnType(DbType.UInt16, "NUMBER(5,0)");
         RegisterColumnType(DbType.UInt32, "NUMBER(10,0)");
         RegisterColumnType(DbType.UInt64, "NUMBER(20,0)");
-        RegisterColumnType(DbType.Single, "FLOAT(24)");
+        RegisterColumnType(DbType.Single, "BINARY_FLOAT");
         RegisterColumnType(DbType.Double, "BINARY_DOUBLE");
         RegisterColumnType(DbType.StringFixedLength, "NCHAR(255)");
         RegisterColumnType(DbType.StringFixedLength, 2000, "NCHAR($l)");

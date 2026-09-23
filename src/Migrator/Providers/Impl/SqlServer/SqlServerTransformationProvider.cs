@@ -569,15 +569,22 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                 {
                     column.MigratorDbType = MigratorDbType.Double;
                 }
+                else if (dataTypeString == "char")
+                {
+                    column.MigratorDbType = MigratorDbType.AnsiStringFixedLength;
+                    column.Size = characterMaximumLength ?? 0;
+                }
                 else if (new[] { "text", "nchar", "ntext", "varchar", "nvarchar" }.Contains(dataTypeString))
                 {
                     // We use string for all string-like data types.
                     column.MigratorDbType = MigratorDbType.String;
                     column.Size = characterMaximumLength.Value;
                 }
-                else if (dataTypeString == "decimal")
+                else if (dataTypeString == "decimal" || dataTypeString == "numeric")
                 {
                     column.MigratorDbType = MigratorDbType.Decimal;
+                    column.Precision = reader.IsDBNull(3) ? null : Convert.ToInt32(reader.GetValue(3));
+                    column.Scale = reader.IsDBNull(5) ? null : Convert.ToInt32(reader.GetValue(5));
                 }
                 else if (dataTypeString == "time")
                 {
