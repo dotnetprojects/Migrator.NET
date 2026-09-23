@@ -9,7 +9,7 @@
 [![Source target: .NET 9](https://img.shields.io/badge/source_target-.NET_9-512BD4)](src/Migrator/DotNetProjects.Migrator.csproj)
 [![License: MPL-1.1](https://img.shields.io/badge/license-MPL--1.1-blue.svg)](https://www.mozilla.org/en-US/MPL/1.1/)
 
-[Homepage](https://dotnetprojects.github.io/Migrator.NET/) · [Documentation](https://dotnetprojects.github.io/Migrator.NET/guide/) · [NuGet](https://www.nuget.org/packages/DotNetProjects.Migrator/) · [Releases](https://github.com/dotnetprojects/Migrator.NET/releases) · [Issues](https://github.com/dotnetprojects/Migrator.NET/issues) · [Feature comparison](https://dotnetprojects.github.io/Migrator.NET/#compare) · [CI test counts](https://dotnetprojects.github.io/Migrator.NET/#test-results)
+[Homepage](https://dotnetprojects.github.io/Migrator.NET/) · [Documentation](https://dotnetprojects.github.io/Migrator.NET/guide/) · [NuGet](https://www.nuget.org/packages/DotNetProjects.Migrator/) · [Releases](https://github.com/dotnetprojects/Migrator.NET/releases) · [Issues](https://github.com/dotnetprojects/Migrator.NET/issues) · [Feature comparison](https://dotnetprojects.github.io/Migrator.NET/#compare) · [CI test results & coverage](https://dotnetprojects.github.io/Migrator.NET/#test-results)
 
 DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratordotnet/Migrator.NET). Write each schema change as a numbered C# class, commit it alongside your application, and use the runner to bring a database to the required version. The database records which migrations have already been applied.
 

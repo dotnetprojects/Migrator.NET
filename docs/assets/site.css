@@ -553,6 +553,12 @@ img {
   font-size:14px;
   color:var(--muted);
 }
+.coverage-counts small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .test-counts {
   display:flex;
   list-style:none;
