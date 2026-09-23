@@ -393,6 +393,49 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteTableInfo);
     }
 
+    public override void RemoveAllForeignKeys(string tableName, string columnName)
+    {
+        bool Matches(string name) => string.Equals(name, tableName, StringComparison.OrdinalIgnoreCase);
+        bool Includes(string[] columns) => string.IsNullOrEmpty(columnName) || columns.Contains(columnName, StringComparer.OrdinalIgnoreCase);
+        var tables = new List<SQLiteTableInfo>();
+        foreach (var table in GetTables())
+        {
+            var info = GetSQLiteTableInfo(table);
+            var removed = info.ForeignKeys.RemoveAll(f => (Matches(table) && Includes(f.ChildColumns))
+                || (Matches(f.ParentTable) && Includes(f.ParentColumns)));
+            if (removed > 0) tables.Add(info);
+        }
+        if (tables.Count == 0) return;
+
+        var foreignKeys = IsPragmaForeignKeysOn();
+        if (HasActiveTransaction && foreignKeys)
+            throw new MigrationException("SQLite rebuild requires foreign keys to be disabled before beginning the transaction. Use the migration runner.");
+        var ownsTransaction = !HasActiveTransaction;
+        Exception failure = null;
+        try
+        {
+            if (ownsTransaction)
+            {
+                if (foreignKeys) SetPragmaForeignKeys(false);
+                BeginTransaction();
+            }
+            foreach (var info in tables) RecreateTable(info);
+            if (ownsTransaction) Commit();
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+            if (ownsTransaction)
+                try { Rollback(); } catch (Exception rollback) { ex.Data["RollbackException"] = rollback; }
+            throw;
+        }
+        finally
+        {
+            try { if (ownsTransaction && foreignKeys) SetPragmaForeignKeys(true); }
+            catch (Exception restore) { if (failure == null) throw; failure.Data["ConnectionRestoreException"] = restore; }
+        }
+    }
+
     public string[] GetCreateIndexSqlStrings(string table)
     {
         var sqlStrings = new List<string>();
@@ -636,6 +679,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             foreach (var foreignKey in sqliteTableInfo.ForeignKeys)
             {
                 foreignKey.ChildColumns = [.. foreignKey.ChildColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
+                if (string.Equals(foreignKey.ParentTable, tableName, StringComparison.OrdinalIgnoreCase))
+                    foreignKey.ParentColumns = foreignKey.ParentColumns.Select(x =>
+                        string.Equals(x, oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x).ToArray();
             }
 
             foreach (var index in sqliteTableInfo.Indexes)
@@ -648,31 +694,37 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 unique.KeyColumns = [.. unique.KeyColumns.Select(x => x.Equals(oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x)];
             }
 
-            RecreateTable(sqliteTableInfo);
-
-            var allTables = GetTables();
-
-            // Rename in foreign keys of depending tables
-            foreach (var allTablesItem in allTables)
+            // Rebuild the parent and every dependent table atomically. Checking integrity
+            // between those rebuilds would see references to the parent's old column name.
+            var ownsTransaction = !HasActiveTransaction;
+            if (ownsTransaction) BeginTransaction();
+            try
             {
-                if (allTablesItem == tableName)
+                RecreateTable(sqliteTableInfo);
+                foreach (var otherTable in GetTables())
                 {
-                    continue;
+                    if (string.Equals(otherTable, tableName, StringComparison.OrdinalIgnoreCase)) continue;
+                    var otherInfo = GetSQLiteTableInfo(otherTable);
+                    var references = otherInfo.ForeignKeys.Where(f =>
+                        string.Equals(f.ParentTable, tableName, StringComparison.OrdinalIgnoreCase)
+                        && f.ParentColumns.Contains(oldColumnName, StringComparer.OrdinalIgnoreCase)).ToArray();
+                    if (references.Length == 0) continue;
+                    foreach (var foreignKey in references)
+                        foreignKey.ParentColumns = foreignKey.ParentColumns.Select(x =>
+                            string.Equals(x, oldColumnName, StringComparison.OrdinalIgnoreCase) ? newColumnName : x).ToArray();
+                    RecreateTable(otherInfo);
                 }
-
-                var sqliteTableInfoOther = GetSQLiteTableInfo(allTablesItem);
-
-                foreach (var foreignKey in sqliteTableInfoOther.ForeignKeys)
+                if (ownsTransaction)
                 {
-                    if (foreignKey.ParentTable != tableName)
-                    {
-                        continue;
-                    }
-
-                    foreignKey.ParentColumns = foreignKey.ParentColumns.Select(x => x == oldColumnName ? newColumnName : x).ToArray();
-
-                    RecreateTable(sqliteTableInfoOther);
+                    if (!CheckForeignKeyIntegrity()) throw new MigrationException("SQLite rename would leave invalid foreign keys.");
+                    Commit();
                 }
+            }
+            catch (Exception ex)
+            {
+                if (ownsTransaction)
+                    try { Rollback(); } catch (Exception rollback) { ex.Data["RollbackException"] = rollback; }
+                throw;
             }
         }
         else
