@@ -41,7 +41,7 @@ public class FluentOperationsTests
             Assert.Throws<MigrationException>(() => builder.Apply(provider));
             Assert.That(provider.TableExists("ShouldNotExist"), Is.False);
             var conditional = new MigrationBuilder();
-            conditional.IfDatabase("PostgreSQL", nested => nested.Administration.CreateDatabase("Other"));
+            conditional.IfProvider("PostgreSQL", nested => nested.Administration.CreateDatabase("Other"));
             Assert.DoesNotThrow(() => conditional.Apply(provider));
         }
         finally { provider.Rollback(); }
@@ -60,12 +60,13 @@ public class FluentOperationsTests
     }
     [Test] public void InvalidDataModifiersFailBeforeExecution()
     {
-        var b = new MigrationBuilder();
-        Assert.Throws<InvalidOperationException>(() => b.Update.Table("Example").IfNotExists(new[] { "Id" }, new object[] { 1 }));
-        Assert.Throws<InvalidOperationException>(() => b.Delete.FromTable("Example").IfNotExists(new[] { "Id" }, new object[] { 1 }));
-        Assert.Throws<NotSupportedException>(() => b.Delete.FromTable("Example").WhereSql("Id = 1"));
-        Assert.Throws<InvalidOperationException>(() => b.Delete.FromTable("Example").Row(new[] { "Id" }, new object[] { 1 }));
-        Assert.Throws<InvalidOperationException>(() => b.Delete.FromTable("Example").Set(new[] { "Id" }, new object[] { 1 }));
+        // Unsupported combinations are no longer offered by the fluent types.
+        Assert.That(typeof(UpdateDataBuilder).GetMethod("IfNotExists"), Is.Null);
+        Assert.That(typeof(DeleteDataBuilder).GetMethod("IfNotExists"), Is.Null);
+        Assert.That(typeof(DeleteDataBuilder).GetMethod("WhereSql"), Is.Null);
+        Assert.That(typeof(DeleteDataBuilder).GetMethod("Row"), Is.Null);
+        Assert.That(typeof(DeleteDataBuilder).GetMethod("Set"), Is.Null);
+        Assert.That(typeof(InsertRowBuilder).GetMethod("Row"), Is.Null);
         var p = Substitute.For<ITransformationProvider>();
         Assert.Throws<InvalidOperationException>(() => new DataOperation(DataKind.Delete, "Example", new[] { "Id" }, new object[] { 1 }).Apply(p));
         Assert.Throws<NotSupportedException>(() => new DataOperation(DataKind.Delete, "Example", null, null, WhereSql: "Id=1").Apply(p));
@@ -108,7 +109,7 @@ public class FluentOperationsTests
     [Test] public void CopyOperationsSnapshotMutableDefinitions()
     {
         var pairs = new[] { new DotNetProjects.Migrator.Framework.Models.ColumnPair { ColumnNameSource = "Old", ColumnNameTarget = "New" } };
-        var builder = new MigrationBuilder(); builder.Execute.UpdateFrom("Source", "Target", pairs, pairs);
+        var builder = new MigrationBuilder(); builder.Execute.UpdateTable("Target").FromTable("Source").Set(pairs).Match(pairs);
         pairs[0].ColumnNameSource = "Mutated";
         var operation = (UpdateFromOperation)builder.Build().Single();
         Assert.That(operation.Copy[0].ColumnNameSource, Is.EqualTo("Old"));
@@ -128,7 +129,7 @@ public class FluentOperationsTests
         builder.Apply(provider);
         var schema = new SchemaInspector(provider);
         Assert.That(schema.Table("ValuesTable").ColumnExists("Name"), Is.True);
-        schema.Select("ValuesTable", new[] { "Name" }, reader =>
+        schema.Table("ValuesTable").Select(new[] { "Name" }, reader =>
         {
             Assert.That(reader.Read(), Is.True); Assert.That(reader.GetString(0), Is.EqualTo("updated")); Assert.That(reader.Read(), Is.False);
         });
@@ -137,12 +138,12 @@ public class FluentOperationsTests
     {
         var builder = new MigrationBuilder();
         builder.Create.Table("First").WithColumn("Id").AsInt32();
-        builder.Rename.Table("First", "Second");
-        builder.Create.Column("Name", "Second").AsString();
+        builder.Rename.Table("First").To("Second");
+        builder.Create.Column("Name").OnTable("Second").AsString();
         var sql = builder.Preview(new SqlGenerationContext(ProviderTypes.SQLite));
         Assert.That(sql.Count, Is.EqualTo(3));
         Assert.That(sql[2], Does.Contain("Second"));
-        var unknown = new MigrationBuilder(); unknown.Create.Column("Id", "Missing");
+        var unknown = new MigrationBuilder(); unknown.Create.Column("Id").OnTable("Missing").AsInt32();
         Assert.Throws<MigrationException>(() => unknown.Preview(new SqlGenerationContext(ProviderTypes.SQLite)));
     }
     [Test] public void CallbacksCannotBePreviewedOrAutomaticallyReversed()
@@ -173,7 +174,8 @@ public class FluentOperationsTests
         provider.AddTable("Parent", new Column("Id",DbType.Int32){IsNullable = false},new PrimaryKeyConstraint("PK_" + "Parent", "Id"));
         var builder = new MigrationBuilder();
         builder.Create.Table("Child").WithColumn("ParentId").AsInt32();
-        builder.Create.ForeignKey("FK_Child", "Child", new[] { "ParentId" }, "Parent", new[] { "Id" }, ForeignKeyConstraintType.Cascade);
+        builder.Create.ForeignKey("FK_Child").FromTable("Child").WithColumns("ParentId")
+            .ToTable("Parent").WithColumns("Id").OnDelete(ForeignKeyConstraintType.Cascade);
         builder.Apply(provider);
         provider.ExecuteNonQuery("INSERT INTO Parent VALUES (1); INSERT INTO Child VALUES (1); DELETE FROM Parent WHERE Id=1");
         Assert.That(Convert.ToInt64(provider.ExecuteScalar("SELECT COUNT(*) FROM Child")), Is.Zero);

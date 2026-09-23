@@ -28,8 +28,9 @@ public class SchemaBuilderTests
     {
         var builder = new MigrationBuilder();
         builder.Create.Table("Child").WithColumn("ParentId").AsInt32();
-        builder.Create.ForeignKey("FK_Child", "Child", new[] { "ParentId" }, "Parent", new[] { "Id" },
-            ForeignKeyConstraintType.Cascade, ForeignKeyConstraintType.Restrict);
+        builder.Create.ForeignKey("FK_Child").FromTable("Child").WithColumns("ParentId")
+            .ToTable("Parent").WithColumns("Id")
+            .OnDelete(ForeignKeyConstraintType.Cascade).OnUpdate(ForeignKeyConstraintType.Restrict);
         var provider = Substitute.For<ITransformationProvider, IForeignKeyActions>();
         builder.Apply(provider);
         Received.InOrder(() => {
@@ -42,7 +43,7 @@ public class SchemaBuilderTests
     public void ExistingTableColumnRetainsAuthoredOptions()
     {
         var builder = new MigrationBuilder();
-        builder.Create.Column("Name", "Existing").AsString(80).NotNullable().WithDefaultValue("guest");
+        builder.Create.Column("Name").OnTable("Existing").AsString(80).NotNullable().WithDefaultValue("guest");
         var provider = Substitute.For<ITransformationProvider, IForeignKeyActions>();
         builder.Apply(provider);
         provider.Received(1).AddColumn("Existing", Arg.Is<Column>(c => c.Name == "Name" && c.Size == 80

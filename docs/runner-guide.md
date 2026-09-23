@@ -29,6 +29,26 @@ Use `DotNetProjects.Migrator`, `.Framework` and `.Framework.Fluent`. A table def
 
 The builder has `Create`, `Alter`, `Delete`, `Rename`, `Insert`, `Update`, `Execute` and `Administration`. Schema inspection is exposed through `FluentMigration.Schema`, and the provider through `Context`. History and transaction methods remain explicit context operations. Administrative operations, views, data copying and updates from another table have typed operations; their SQL preview is currently unsupported. See the [operation coverage inventory](fluent-operation-coverage.md) for the normal API mappings and test limits.
 
+Select an existing table explicitly when authoring an object:
+
+```csharp
+migration.Create.Column("Email").OnTable("Users").AsString(320).Nullable();
+migration.Alter.Column("Name").OnTable("Users").AsString(200).NotNullable();
+migration.Rename.Column("Name").OnTable("Users").To("DisplayName");
+migration.Create.Index("IX_Users_Email").OnTable("Users").WithColumns("Email");
+migration.Delete.Index("IX_Users_Email").FromTable("Users");
+migration.Delete.Column("Email").FromTable("Users");
+```
+
+Table definitions, column additions and column alterations share the same type
+and option methods. Each named column must specify its type. `AsDateTime()` maps
+to `DbType.DateTime`, while `AsDateTime2()` maps to `DbType.DateTime2`.
+Complete update/delete expressions with `Where(...)` or `AllRows()`; updates
+also support `WhereSql(...)`. An unfinished chain causes `Build`, `Apply` and
+`Preview` to throw before any queued operation executes. Each insert expression
+describes one row. Use `IfProvider(name, configure)` for provider conditions and
+`Schema.Table(table).Select(...)` / `.SelectScalar(...)` for table reads.
+
 ## Scripts and provider-specific cleanup
 
 `Execute.Script(path)` and `Execute.EmbeddedScript(assembly, resourceName)` capture script text as dedicated operations. Imperative callers can use `ExecuteScript(path)`, `ExecuteResourceScript(assembly, name)` and `ExecuteSqlScript(text)`. SQL Server splits standalone `GO` lines, including an optional `--` comment, while respecting strings, quoted identifiers and nested comments. GO repetition and SQLCMD directives fail explicitly before executing batches. Ordinary `ExecuteNonQuery` and fluent `Execute.Sql` never split client separators. Other providers receive the script as one command unless they implement `IScriptBatchProvider`; this is not a complete SQL*Plus, mysql-client or isql interpreter.

@@ -70,7 +70,7 @@
     Collation = Collation.AsciiIgnoreCase
 });</code></pre></section><section class="code-panel" id="sqlite-example-50-fluent" data-code-style="fluent">
 <div class="code-label"><h3>Fluent</h3><button type="button" data-copy="sqlite-example-50-fluent-code" hidden aria-label="Copy fluent example">Copy</button></div>
-<pre tabindex="0" aria-label="Change a column on an existing SQLite table, fluent"><code id="sqlite-example-50-fluent-code">migration.Alter.Column(<span class="syntax-string">&quot;Name&quot;</span>, <span class="syntax-string">&quot;Users&quot;</span>)
+<pre tabindex="0" aria-label="Change a column on an existing SQLite table, fluent"><code id="sqlite-example-50-fluent-code">migration.Alter.Column(<span class="syntax-string">&quot;Name&quot;</span>).OnTable(<span class="syntax-string">&quot;Users&quot;</span>)
     .AsString(<span class="syntax-number">500</span>).NotNullable().WithDefaultValue(<span class="syntax-string">&quot;Unknown&quot;</span>)
     .WithCollation(Collation.AsciiIgnoreCase);</code></pre></section><p class="code-caption">Inside Up() / BuildUp(MigrationBuilder migration)</p></div></div>
   </div></section>
