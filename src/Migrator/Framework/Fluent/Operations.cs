@@ -148,11 +148,12 @@ public sealed record DataOperation(DataKind Kind, string Table, string[] Columns
             case DataKind.InsertIfMissing: p.InsertIfNotExists(Table, Columns, Values, WhereColumns, WhereValues); break;
             case DataKind.Update:
                 if (WhereSql != null) p.Update(Table, Columns, Values, WhereSql);
-                else p.Update(Table, Columns, Values, WhereColumns ?? Array.Empty<string>(), WhereValues ?? Array.Empty<object>()); break;
+                else if (WhereColumns == null || WhereColumns.Length == 0) p.Update(Table, Columns, Values);
+                else p.Update(Table, Columns, Values, WhereColumns, WhereValues); break;
             case DataKind.Delete:
                 if ((Columns?.Length ?? 0) != 0 || (Values?.Length ?? 0) != 0) throw new InvalidOperationException("Delete does not accept row values; use WhereColumns and WhereValues.");
                 if (WhereSql != null) throw new NotSupportedException("Delete requires structured Where columns/values.");
-                p.Delete(Table, WhereColumns, WhereValues); break;
+                p.Delete(WhereColumns == null ? p.QuoteTableNameIfRequired(Table) : Table, WhereColumns, WhereValues); break;
         }
     }
     public override string ToSql(SqlGenerationContext c)

@@ -66,6 +66,46 @@ Replace `WithProperty`, unnamed `PrimaryKey()` and `Unique()` with
 `WithPrimaryKey(name, columns)` and `WithUniqueConstraint(name, columns)`.
 Use `Create.ForeignKey` with separate delete/update actions.
 
+Fluent expressions select their table in a separate step:
+
+```csharp
+migration.Create.Column("Email").OnTable("Users").AsString(320).Nullable();
+migration.Alter.Column("Name").OnTable("Users").AsString(200).NotNullable();
+migration.Rename.Column("Name").OnTable("Users").To("DisplayName");
+migration.Delete.Column("Email").FromTable("Users");
+migration.Create.Index("IX_Users_Name").OnTable("Users").WithColumns("DisplayName");
+migration.Create.ForeignKey("FK_Orders_Users")
+    .FromTable("Orders").WithColumns("UserId")
+    .ToTable("Users").WithColumns("Id")
+    .OnDelete(ForeignKeyConstraintType.Cascade);
+```
+
+The unreleased positional fluent overloads are removed. Use
+`Create.UniqueConstraint(name).OnTable(table).WithColumns(...)` and
+`Create.CheckConstraint(name).OnTable(table).WithExpression(sql)` for named
+constraints. Renames end with `.To(newName)`. All object removal expressions
+except `Delete.Table(table)` end with `.FromTable(table)`; for example,
+`Delete.PrimaryKey().FromTable(table)` and
+`Delete.DefaultValue(column).FromTable(table)`.
+
+Every named fluent column must specify a type. Table creation, column creation
+and alteration share the same type/options methods. `AsDateTime()` now means
+`DbType.DateTime`; use `AsDateTime2()` to preserve the earlier helper's mapping.
+Table-level methods return the table builder: configure column attributes before
+adding a constraint, or retain the specific column builder in a variable.
+
+Insert exposes only `IntoTable(...).Row(...)[.IfNotExists(...)]`; issue another
+insert expression for each row. Update exposes `Table(...).Set(...)` followed by
+`Where(...)`, `WhereSql(...)` or `AllRows()`. Delete exposes `FromTable(...)`
+followed by `Where(...)` or `AllRows()`. Incomplete expressions throw during
+`Build`, `Apply` and `Preview`, before any operation executes.
+
+Provider conditions use `IfProvider(name, configure)`. Table reads use
+`Schema.Table(table).Select(...)` and `.SelectScalar(columns, where)`.
+Data transfer uses `Execute.CopyDataFromTable(source).ToTable(target)
+.WithColumns(sourceColumns, targetColumns)[.OrderBy(...)]`; joined updates use
+`Execute.UpdateTable(target).FromTable(source).Set(copyPairs).Match(keyPairs)`.
+
 ### Column changes do not own constraints
 
 `ChangeColumn` changes attributes without inferring creation or removal of

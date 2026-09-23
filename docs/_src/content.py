@@ -126,7 +126,7 @@ page("Introduction", "faq", "Frequently asked questions", "Decisions to make bef
     section("Why does SQL preview reject my migration?", '<p>Preview renders a structured subset. A provider callback, unsupported constraint alteration or schema dependency after raw SQL cannot be represented reliably and raises an error. Read <a href="preview.html">planning and SQL preview</a> rather than treating preview as a full execution simulation.</p>'))
 
 page("Operations", "creating-tables", "Creating tables", "Describe a complete table: columns first, with explicit named keys and constraints.",
-    section("Create a table with a key", '<p>The table definition groups related schema objects into one operation. Primary-key columns are emitted as non-nullable. In the fluent API a complete table is collected before execution, so keys can refer to columns declared in the same chain.</p>', CREATE_USERS),
+    section("Create a table with a key", '<p>The table definition groups related schema objects into one operation. Primary-key columns are emitted as non-nullable. In the fluent API a complete table is collected before execution, so keys can refer to columns declared in the same chain. WithColumn returns a builder bound to that specific column. Table-level methods such as WithPrimaryKey return the table builder; call WithColumn again before supplying more column options.</p>', CREATE_USERS),
     section("Composite keys and uniqueness", '<p>Use the declared key order consistently in both primary and foreign keys. A composite unique constraint applies to the tuple; it does not make each column unique separately. The fully qualified constraint type below avoids the name collision with System.Data.UniqueConstraint.</p>', pair("A table with an ordered composite key", '''
 Database.AddTable("Subscriptions",
     new Column("TenantId", DbType.Int32),
@@ -150,8 +150,8 @@ page("Operations", "altering-tables", "Altering tables", "Rename objects and evo
 Database.RenameTable("Users", "Members");
 Database.RenameColumn("Members", "Name", "DisplayName");
 ''', '''
-migration.Rename.Table("Users", "Members");
-migration.Rename.Column("Members", "Name", "DisplayName");
+migration.Rename.Table("Users").To("Members");
+migration.Rename.Column("Name").OnTable("Members").To("DisplayName");
 ''')),
     section("Change a complete column definition", '<p>Supply the type, length, nullability, default and collation you intend to retain. ChangeColumn replaces the column definition; it does not infer that table constraints should be created or removed. Existing rows must remain valid for the new definition.</p>', pair("Widen a required display name", '''
 Database.ChangeColumn("Users", new Column("Name", DbType.String, 500)
@@ -159,20 +159,21 @@ Database.ChangeColumn("Users", new Column("Name", DbType.String, 500)
     IsNullable = false
 });
 ''', '''
-migration.Alter.Column("Name", "Users")
+migration.Alter.Column("Name").OnTable("Users")
     .AsString(500).NotNullable();
 ''')),
     section("A deployment sequence for populated data", '<p>Add a nullable column, deploy code that can read both forms, backfill values, then enforce the final requirement in a later migration. Large data copies and index creation can hold locks for substantial time; test them against a representative dataset.</p><p>On SQLite, a supported alteration may recreate the table and copy rows. On Oracle and some other engines, DDL may commit implicitly. Review the <a href="transactions.html">transaction guide</a> and your provider page before choosing the deployment boundary.</p>'))
 
 page("Operations", "columns", "Columns and data types", "Type, size, precision, nullability, defaults, identity and collation are explicit column attributes.",
+    section("Explicit table and column steps", '<p>Create.Column(name).OnTable(table) and Alter.Column(name).OnTable(table) select the table before exposing type and column options. Delete.Column(name).FromTable(table) completes a removal. For a complete Column model use Create.Column(definition).OnTable(table) or Alter.Column(definition).OnTable(table); the definition is copied. Every named fluent column requires As... or OfType(...) before execution.</p><p>Table columns, added columns and altered columns share the same options, including AsGuid, AsBoolean, AsDecimal(precision, scale), AsDate, AsDateTime and AsDateTime2. AsDateTime maps to DbType.DateTime; AsDateTime2 maps to DbType.DateTime2. OfType(DbType) and OfType(MigratorDbType) remain available for other types. Nullability defaults to nullable.</p>'),
     section("Add and remove a column", '<p>Column builders take column name followed by table name. Classic AddColumn takes table name first. New nullable columns accept existing rows without a backfill. A required column usually needs a compatible default or a staged data migration.</p>', pair("Add an optional email address", '''
 Database.AddColumn("Users", new Column("Email", DbType.String, 320));
 ''', '''
-migration.Create.Column("Email", "Users").AsString(320).Nullable();
+migration.Create.Column("Email").OnTable("Users").AsString(320).Nullable();
 '''), pair("Remove the email column", '''
 Database.RemoveColumn("Users", "Email");
 ''', '''
-migration.Delete.Column("Email", "Users");
+migration.Delete.Column("Email").FromTable("Users");
 ''')),
     section("Precision and defaults", '<p>For decimal values specify precision and scale. In a Column constructor an integer after the type is the size, not a numeric default. Set DefaultValue explicitly to avoid overload ambiguity. Plain strings are values; trusted SQL expressions use RawSql.Insert.</p>', pair("An amount with four decimal places", '''
 Database.AddColumn("Orders", new Column("Amount", DbType.Decimal)
@@ -180,7 +181,7 @@ Database.AddColumn("Orders", new Column("Amount", DbType.Decimal)
     Precision = 12, Scale = 4, IsNullable = false, DefaultValue = 0m
 });
 ''', '''
-migration.Create.Column("Amount", "Orders").OfType(DbType.Decimal)
+migration.Create.Column("Amount").OnTable("Orders").OfType(DbType.Decimal)
     .WithPrecision(12, 4).NotNullable().WithDefaultValue(0m);
 ''')),
     section("Time of day and durations", '<p>Use TimeOnly for time-of-day values and TimeSpan for intervals. A TimeSpan is a duration, including negative and multi-day values, so a TimeSpan default on a Time column is rejected. PostgreSQL and Oracle have native intervals; SQLite, SQL Server and MySQL/MariaDB store intervals as signed .NET ticks.</p>', pair("Clock time and elapsed time", '''
@@ -195,13 +196,13 @@ migration.Create.Table("Jobs")
     section("Database storage differs", '<p>SQLite does not enforce declared string lengths or decimal precision. UInt64 values above Int64.MaxValue are rejected there. Oracle character empty strings become NULL; Informix and Sybase have their own trimming and range behavior. Consult the <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/data-type-boundary-tests.md">type support and boundary matrix</a> for supported mappings and live-test scope. A shared DbType does not imply identical native storage.</p>'))
 
 page("Operations", "data", "Data operations", "Insert, update and delete using explicit column/value arrays. Keep predicates separate from changed values.",
-    section("Insert rows", '<p>Column and value arrays must have the same length. The provider binds values using its driver-specific parameter mappings. For multiple rows issue multiple operations; the fluent Row method describes one row, not an accumulated collection of rows.</p>', pair("Insert a user", '''
+    section("Insert rows", '<p>Column and value arrays must have the same length. The provider binds values using its driver-specific parameter mappings. For multiple rows issue multiple Insert.IntoTable(...).Row(...) expressions. Each Row completes one insert; its returned builder offers only IfNotExists, so a second Row cannot silently replace the first. Insert, update and delete each expose only their supported steps.</p>', pair("Insert a user", '''
 Database.Insert("Users", new[] { "Id", "Name" }, new object[] { 1, "Ada" });
 ''', '''
 migration.Insert.IntoTable("Users")
     .Row(new[] { "Id", "Name" }, new object[] { 1, "Ada" });
 ''')),
-    section("Update and delete with predicates", '<p>Without a predicate, update/delete affects every row. Supply predicate columns and values deliberately. Fluent WhereSql is available for updates only; its text is trusted SQL, not an escaped user input.</p>', pair("Update one user", '''
+    section("Update and delete with predicates", '<p>Classic update/delete without a predicate affects every row. Fluent update/delete requires Where(...) or an explicit AllRows() to complete the operation. Empty predicate arrays are rejected; an unfinished chain fails during Build, Apply or Preview before any queued operation executes. Fluent WhereSql is available for updates only; its text is trusted SQL, not an escaped user input.</p>', pair("Update one user", '''
 Database.Update("Users", new[] { "Name" }, new object[] { "Ada Lovelace" },
     new[] { "Id" }, new object[] { 1 });
 ''', '''
@@ -221,13 +222,13 @@ migration.Insert.IntoTable("Users")
     .Row(new[] { "Id", "Name" }, new object[] { 1, "Ada" })
     .IfNotExists(new[] { "Id" }, new object[] { 1 });
 ''')),
-    section("Copying and reversal", '<p>Use the provider CopyDataFromTableToTable helper or fluent Execute.CopyData for named-column copies. Both tables must already exist and target columns must accept the source values. Execute.UpdateFrom maps source/target pairs. These operations retain provider limits and are outside the SQL-preview subset. A reverse data migration needs authored recovery logic; auto-reversal cannot recreate deleted or overwritten values.</p>', pair("Copy users into an archive table", '''
+    section("Copying and reversal", '<p>Use the provider CopyDataFromTableToTable helper or fluent Execute.CopyDataFromTable(...).ToTable(...).WithColumns(...) for named-column copies. Both tables must already exist and target columns must accept the source values. Execute.UpdateTable(target).FromTable(source).Set(copyPairs).Match(keyPairs) maps source/target pairs. CopyDataFromTable also supports OrderBy after WithColumns. These operations retain provider limits and are outside the SQL-preview subset. A reverse data migration needs authored recovery logic; auto-reversal cannot recreate deleted or overwritten values.</p>', pair("Copy users into an archive table", '''
 Database.CopyDataFromTableToTable("Users",
     new System.Collections.Generic.List<string> { "Id", "Name" }, "ArchivedUsers",
     new System.Collections.Generic.List<string> { "UserId", "DisplayName" });
 ''', '''
-migration.Execute.CopyData("Users", new[] { "Id", "Name" },
-    "ArchivedUsers", new[] { "UserId", "DisplayName" });
+migration.Execute.CopyDataFromTable("Users").ToTable("ArchivedUsers")
+    .WithColumns(new[] { "Id", "Name" }, new[] { "UserId", "DisplayName" });
 ''')))
 
 page("Operations", "schema", "Schema inspection", "Read the connected database before deciding what to change. Metadata is different from a model snapshot.",
@@ -236,7 +237,7 @@ if (!Database.ColumnExists("Users", "Email"))
     Database.AddColumn("Users", new Column("Email", DbType.String, 320));
 ''', '''
 if (!Schema.Table("Users").ColumnExists("Email"))
-    migration.Create.Column("Email", "Users").AsString(320);
+    migration.Create.Column("Email").OnTable("Users").AsString(320);
 ''')),
     section("Read ordered constraints", '<p>GetColumns returns inferred column attributes, not primary/unique membership flags. It is obsolete because native types and defaults cannot be mapped back to exact .NET definitions; use migration history for the original definition. Read typed table constraints to retain ordered composite keys. Unique indexes remain index metadata. MySQL/MariaDB catalogs cannot distinguish every original unique-index versus UNIQUE-clause authoring choice.</p>', pair("Read table constraint definitions", '''
 var constraints = Database.GetTableConstraints("Users");
@@ -250,9 +251,10 @@ foreach (var constraint in constraints)
     section("Create a view", '<p>ViewField selects columns from a base table. The alternative IViewElement overload represents explicit columns and joins. View definitions are provider-dependent and outside SQL preview and automatic reversal. Write a provider-appropriate DROP VIEW statement in the reverse method, and manage dependent views when changing their underlying tables.</p>', pair("A projection over Users", '''
 Database.AddView("UserNames", "Users", new ViewField("Id"), new ViewField("Name"));
 ''', '''
-migration.Create.View("UserNames", "Users", new ViewField("Id"), new ViewField("Name"));
+migration.Create.View("UserNames").FromTable("Users")
+    .WithFields(new ViewField("Id"), new ViewField("Name"));
 ''')),
-    section("Reads and portability", '<p>Dispose readers and commands obtained from the provider. Fluent Schema.Query and Select accept a reader callback and handle disposal. Use provider quoting helpers for table and column identifiers separately: quoting a table may introduce schema qualification, which is not valid for a column expression.</p><p>Metadata fidelity depends on the provider. Unsupported readers throw instead of pretending that an empty schema was found. A successful existence check is not a full schema-drift report.</p>'), source="src/Migrator/Framework/Fluent/FluentMigration.cs")
+    section("Reads and portability", '<p>Dispose readers and commands obtained from the provider. Fluent Schema.Query and Schema.Table(name).Select accept a reader callback and handle disposal. Use Schema.Table(name).SelectScalar(columns, where) for a scalar selection. Use provider quoting helpers for table and column identifiers separately: quoting a table may introduce schema qualification, which is not valid for a column expression.</p><p>Metadata fidelity depends on the provider. Unsupported readers throw instead of pretending that an empty schema was found. A successful existence check is not a full schema-drift report.</p>'), source="src/Migrator/Framework/Fluent/FluentMigration.cs")
 
 page("Operations", "sql", "Execute SQL and scripts", "Use schema operations where they fit, and keep database-specific SQL explicit.",
     section("Execute a statement", '<p>Raw SQL passes through to the selected database. It does not translate between dialects. Values from application input should be bound through a command; migration SQL is trusted application code.</p>', pair("A SQL data change", '''
@@ -303,20 +305,17 @@ migration.Administration.CreateDatabase("Reporting");
     section("Preview and reversal", '<p>Callbacks can perform arbitrary C# work and cannot be translated into SQL preview. They require explicit reverse behavior. Keeping external network calls out of migration bodies makes failures easier to reason about: a database rollback cannot undo an email or an HTTP request.</p>'))
 
 page("Schema basics", "indexes", "Indexes", "An index is a separate schema object, even when it enforces uniqueness.",
-    section("Create and remove an index", '<p>Use an explicit name so the index can be inspected or removed later. Both APIs accept the same Index definition. Fully qualify this type if System.Index is also in scope. Columns retain the order in KeyColumns.</p>', pair("Index a user name", '''
+    section("Create and remove an index", '<p>Use an explicit name so the index can be inspected or removed later. Fluent Create.Index(name).OnTable(table).WithColumns(...) names each part explicitly and preserves column order. Append Unique(), Clustered(), IncludeColumns(...) or WithFilter(...). For an existing Index definition, use Create.Index(definition).OnTable(table); fully qualify the model type if System.Index is also in scope.</p>', pair("Index a user name", '''
 Database.AddIndex("Users", new DotNetProjects.Migrator.Framework.Index
 {
     Name = "IX_Users_Name", KeyColumns = new[] { "Name" }, Unique = false
 });
 ''', '''
-migration.Create.Index("Users", new DotNetProjects.Migrator.Framework.Index
-{
-    Name = "IX_Users_Name", KeyColumns = new[] { "Name" }, Unique = false
-});
+migration.Create.Index("IX_Users_Name").OnTable("Users").WithColumns("Name");
 '''), pair("Drop an index", '''
 Database.RemoveIndex("Users", "IX_Users_Name");
 ''', '''
-migration.Delete.Index("IX_Users_Name", "Users");
+migration.Delete.Index("IX_Users_Name").FromTable("Users");
 ''')),
     section("Provider options", '<p>Index definitions also expose IncludeColumns, FilterItems and Clustered. These options are provider-specific. Oracle rejects included and clustered index requests; SQLite reconstruction rejects existing index SQL with explicit COLLATE clauses. Preview handles simple indexes and rejects unsupported options.</p>'),
     section("Unique index or unique constraint?", '<p>Use UniqueConstraint for a table-level invariant and an Index with Unique for an index definition. Do not infer ownership from a generated name. SQLite RemoveAllIndexes preserves declared table UNIQUE constraints; remove those through the constraint APIs. Check query plans and data cardinality when choosing index keys.</p>'), source="src/Migrator/Framework/Index.cs")
@@ -326,13 +325,13 @@ page("Schema basics", "constraints", "Keys and constraints", "Declare table inva
 Database.AddUniqueConstraint("UQ_Users_Name", "Users", "Name");
 Database.AddCheckConstraint("CK_Users_Id", "Users", "Id > 0");
 ''', '''
-migration.Create.Unique("UQ_Users_Name", "Users", "Name");
-migration.Create.Check("CK_Users_Id", "Users", "Id > 0");
+migration.Create.UniqueConstraint("UQ_Users_Name").OnTable("Users").WithColumns("Name");
+migration.Create.CheckConstraint("CK_Users_Id").OnTable("Users").WithExpression("Id > 0");
 ''')),
     section("Remove the intended object", '<p>Use dedicated primary-key and foreign-key removal methods; generic RemoveConstraint is for unique/check constraints in the SQLite provider. Avoid RemoveAllConstraints unless the migration deliberately replaces every invariant.</p>', pair("Remove a check constraint", '''
 Database.RemoveConstraint("Users", "CK_Users_Id");
 ''', '''
-migration.Delete.Constraint("CK_Users_Id", "Users");
+migration.Delete.Constraint("CK_Users_Id").FromTable("Users");
 ''')),
     section("Constraint identity", '<p>GetTableConstraints returns ordered typed definitions. SQLite can return a null name for an unnamed legacy constraint; an autoindex name is not a substitute constraint name. PrimaryKeyExists checks the actual key name. MySQL reports the primary key name as PRIMARY.</p><p>Altering a column does not give that column ownership of a unique constraint. SQL Server implicit ownership markers are no longer used for deletion. Explicitly remove only the object your migration intends to change.</p>'))
 
@@ -343,15 +342,16 @@ page("Schema basics", "foreign-keys", "Foreign keys", "Define ordered child/pare
     "Users", new[] { "Id" }, ForeignKeyConstraintType.Cascade,
     ForeignKeyConstraintType.NoAction);
 ''', '''
-migration.Create.ForeignKey("FK_Orders_Users",
-    "Orders", new[] { "UserId" }, "Users", new[] { "Id" },
-    onDelete: ForeignKeyConstraintType.Cascade,
-    onUpdate: ForeignKeyConstraintType.NoAction);
+migration.Create.ForeignKey("FK_Orders_Users")
+    .FromTable("Orders").WithColumns("UserId")
+    .ToTable("Users").WithColumns("Id")
+    .OnDelete(ForeignKeyConstraintType.Cascade)
+    .OnUpdate(ForeignKeyConstraintType.NoAction);
 ''')),
     section("Remove a relationship", '<p>Remove dependent keys before incompatible table or key changes. Restore them only after the existing data satisfies the replacement relationship.</p>', pair("Remove the foreign key", '''
 Database.RemoveForeignKey("Orders", "FK_Orders_Users");
 ''', '''
-migration.Delete.ForeignKey("FK_Orders_Users", "Orders");
+migration.Delete.ForeignKey("FK_Orders_Users").FromTable("Orders");
 ''')),
     section("Database semantics", '<p>Supported actions depend on the database; do not assume every engine implements CASCADE, RESTRICT, SET NULL and SET DEFAULT identically. SQLite rebuilds preserve separate update/delete actions and validate integrity before an owned transaction commits. MATCH FULL and MATCH PARTIAL requests are rejected because SQLite does not enforce those semantics.</p><p>SetNull needs nullable child columns. Test action behavior using actual data, especially composite keys and partially NULL values. Oracle supports its own subset of foreign-key actions.</p>'))
 
@@ -461,9 +461,9 @@ public class AddUserEmail : Migration
 public class AddUserEmail : FluentMigration
 {
     public override void BuildUp(MigrationBuilder migration)
-        => migration.Create.Column("Email", "Users").AsString(320);
+        => migration.Create.Column("Email").OnTable("Users").AsString(320);
     public override void BuildDown(MigrationBuilder migration)
-        => migration.Delete.Column("Email", "Users");
+        => migration.Delete.Column("Email").FromTable("Users");
 }
 ''', kind="class")),
     section("Scope selection", '<p>An explicit MigrationAttribute.Scope selects that migration only for the matching provider scope. Unscoped migrations inherit the runner scope. Discovery, duplicate validation and history reads use the effective scope. Duplicate numeric versions in distinct explicit scopes are independent; physical tables are not isolated.</p><p>Set SchemaInfoTableName before any history access if you need a different table. AppliedMigrations lists recorded versions; LastAppliedMigrationVersion is nullable when history is empty. AssemblyLastMigrationVersion describes the loaded set.</p>'),
@@ -582,7 +582,7 @@ Database.ChangeColumn("Users", new Column("Name", DbType.String, 500)
     Collation = Collation.AsciiIgnoreCase
 });
 ''', '''
-migration.Alter.Column("Name", "Users")
+migration.Alter.Column("Name").OnTable("Users")
     .AsString(500).NotNullable().WithDefaultValue("Unknown")
     .WithCollation(Collation.AsciiIgnoreCase);
 ''')
@@ -599,7 +599,7 @@ page("Database providers", "sql-server", "SQL Server", "Explicit keys, provider-
     section("Name constraints explicitly", '<p>Column changes preserve explicit constraints and indexes. Add/remove uniqueness independently. For a nonclustered primary key on an existing compatible table use the dedicated API shown below. Review existing clustered indexes before changing key layout.</p>', pair("Add a nonclustered primary key", '''
 Database.AddPrimaryKeyNonClustered("PK_Users", "Users", "Id");
 ''', '''
-migration.Create.NonClusteredPrimaryKey("PK_Users", "Users", "Id");
+migration.Create.NonClusteredPrimaryKey("PK_Users").OnTable("Users").WithColumns("Id");
 ''')),
     section("Indexes and SQL batches", '<p>Index definitions can express included/filter/cluster options where supported. The script APIs split standalone GO lines; raw ExecuteNonQuery/Execute.Sql does not. SQLCMD directives and GO repetition are rejected before executing script batches. Prefer scripts for client batch syntax and commands for parameterized statements.</p>'),
     section("Types and object names", '<p>Use TimeOnly for time values and TimeSpan for interval ticks. SqlServer2005 uses its older DATETIME precision behavior. Use separate quoting helpers for table and column names. A table rename leaves named constraints/indexes attached with their old names; assign distinct names when creating a replacement table.</p>'), source="src/Migrator/Providers/Impl/SqlServer/SqlServerTransformationProvider.cs")
@@ -612,7 +612,7 @@ Database.AddColumn("Jobs", new Column("Elapsed", MigratorDbType.Interval)
     DefaultValue = TimeSpan.FromDays(2)
 });
 ''', '''
-migration.Create.Column("Elapsed", "Jobs").OfType(MigratorDbType.Interval)
+migration.Create.Column("Elapsed").OnTable("Jobs").OfType(MigratorDbType.Interval)
     .WithDefaultValue(TimeSpan.FromDays(2));
 ''')),
     section("Collations and schemas", '<p>Create any ICU nondeterministic collation explicitly, then select it with Collation.Named. Column rendering does not silently create shared collation objects. Binary maps to C; language and case semantics should use a specific installed name.</p><p>Schema-aware metadata does not establish complete qualification for every operation. Test quoted names and search-path behavior with your migration. Renaming a table retains its named constraints; avoid colliding names when recreating the old table.</p>'),
@@ -655,10 +655,10 @@ page("Database providers", "other-providers", "HANA and additional providers", "
     section("Source inventory and evidence", '<p>Ingres remains a source dialect outside the eleven-engine matrix. Redshift, Snowflake and Db2 for IBM i require separate provider/infrastructure qualification; PostgreSQL tests do not qualify Redshift, and Db2 LUW tests do not qualify IBM i.</p><p>See <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/additional-database-qualification.md">qualification requirements</a> and <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/live-database-tests.md">live test setup</a> for exact coverage and reproduction commands.</p>'), source="src/Migrator/ProviderFactory.cs")
 
 page("Advanced topics", "conditional", "Conditional logic", "Choose between inspecting the live schema and declaring a provider-specific operation.",
-    section("Provider-specific operations", '<p>The Classic provider indexer selects a named provider or a no-op provider. Fluent IfDatabase wraps structured operations in a provider condition. Use the provider names understood by the dialect; this SQLite example leaves other providers unchanged.</p>', pair("Run a SQLite-specific statement", '''
+    section("Provider-specific operations", '<p>The Classic provider indexer selects a named provider or a no-op provider. Fluent IfProvider wraps structured operations in a provider condition. Use the provider names understood by the dialect; this SQLite example leaves other providers unchanged.</p>', pair("Run a SQLite-specific statement", '''
 Database["SQLite"].ExecuteNonQuery("UPDATE Users SET Name = upper(Name)");
 ''', '''
-migration.IfDatabase("SQLite", sqlite =>
+migration.IfProvider("SQLite", sqlite =>
     sqlite.Execute.Sql("UPDATE Users SET Name = upper(Name)"));
 ''')),
     section("Schema-dependent decisions", '<p>Use Database.TableExists/ColumnExists or FluentMigration.Schema for connected checks. These inspect the current database. A fluent BuildUp method collects operations before they execute, so queued creation is not visible to a live metadata read in the same method.</p><p>For execution-time decisions after earlier operations, use an explicit provider callback. That callback cannot be previewed and requires an authored reverse. Avoid making a migration silently succeed with the wrong schema: an existence check alone does not validate a column’s type or constraint definition.</p>'), source="src/Migrator/Framework/Fluent/MigrationBuilder.cs")
@@ -677,7 +677,7 @@ public static class AuditColumns
 public static class AuditColumns
 {
     public static void Add(MigrationBuilder migration, string table)
-        => migration.Create.Column("CreatedAt", table).OfType(DbType.DateTime)
+        => migration.Create.Column("CreatedAt").OnTable(table).OfType(DbType.DateTime)
             .NotNullable().WithDefaultValue(RawSql.Insert("CURRENT_TIMESTAMP"));
 }
 ''', kind="class")),
@@ -702,8 +702,8 @@ page("Advanced topics", "upgrading", "Upgrading existing migrations", "Update so
     section("Behavior changes to review", '<p>Column changes preserve explicit uniqueness; old SQL Server ownership markers no longer control deletion. TimeSpan inputs mean intervals, so convert clock-time inputs to TimeOnly. SQLite GUID defaults use the same blob representation as inserted parameters; unrelated rebuilds preserve existing text defaults.</p><p>Read the complete <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-guide-12.1-to-13.md">compatibility migration guide</a> for constructor replacements, custom-provider contracts, identity, constraint metadata and collation mappings. Version-specific details live there; these chapters describe the current API.</p>'), source="docs/migration-guide-12.1-to-13.md")
 
 page("Reference", "api-map", "Classic / Fluent API map", "A practical index of the two authoring surfaces and their shared provider contracts.",
-    section("Schema operations", table(["Classic", "Fluent"], [["AddTable", "Create.Table"], ["AddColumn(table, column)", "Create.Column(name, table)"], ["ChangeColumn(table, column)", "Alter.Column(name, table) / Alter.Column(table, column)"], ["RemoveTable / RemoveColumn", "Delete.Table / Delete.Column"], ["RenameTable / RenameColumn", "Rename.Table / Rename.Column"], ["AddPrimaryKey / AddUniqueConstraint / AddCheckConstraint", "Create.PrimaryKey / Create.Unique / Create.Check"], ["AddForeignKey / RemoveForeignKey", "Create.ForeignKey / Delete.ForeignKey"], ["AddIndex / RemoveIndex", "Create.Index / Delete.Index"], ["GetTableConstraints / GetColumns", "Schema.Table(name).ConstraintDefinitions() / Columns()"]])),
-    section("Data and execution", table(["Classic", "Fluent"], [["Insert / InsertIfNotExists", "Insert.IntoTable(...).Row(...) / IfNotExists(...)"], ["Update / Delete", "Update.Table(...).Set(...).Where(...) / Delete.FromTable(...).Where(...)"], ["ExecuteNonQuery / ExecuteScript / ExecuteResourceScript", "Execute.Sql / Execute.Script / Execute.EmbeddedScript"], ["CopyDataFromTableToTable / UpdateTargetFromSource", "Execute.CopyData / Execute.UpdateFrom"], ["TruncateTable", "Execute.Truncate"], ["CreateCommand / Connection", "Execute.WithCommand / Execute.WithConnection"], ["Database provider access", "Context or Execute.WithProvider"], ["History / transactions", "Shared runner and explicit provider context"]])),
+    section("Schema operations", table(["Classic", "Fluent"], [["AddTable", "Create.Table"], ["AddColumn(table, column)", "Create.Column(name).OnTable(table)"], ["ChangeColumn(table, column)", "Alter.Column(name).OnTable(table) / Alter.Column(definition).OnTable(table)"], ["RemoveTable / RemoveColumn", "Delete.Table(table) / Delete.Column(name).FromTable(table)"], ["RenameTable / RenameColumn", "Rename.Table(old).To(new) / Rename.Column(old).OnTable(table).To(new)"], ["AddPrimaryKey / AddUniqueConstraint / AddCheckConstraint", "Create.PrimaryKey(name).OnTable(table).WithColumns(...) / Create.UniqueConstraint / Create.CheckConstraint"], ["AddForeignKey / RemoveForeignKey", "Create.ForeignKey(name).FromTable(child).WithColumns(...).ToTable(parent).WithColumns(...) / Delete.ForeignKey(name).FromTable(table)"], ["AddIndex / RemoveIndex", "Create.Index(name).OnTable(table).WithColumns(...) / Delete.Index(name).FromTable(table)"], ["GetTableConstraints / GetColumns", "Schema.Table(name).ConstraintDefinitions() / Columns()"]])),
+    section("Data and execution", table(["Classic", "Fluent"], [["Insert / InsertIfNotExists", "Insert.IntoTable(...).Row(...) / IfNotExists(...)"], ["Update / Delete", "Update.Table(...).Set(...).Where(...) / Delete.FromTable(...).Where(...)"], ["ExecuteNonQuery / ExecuteScript / ExecuteResourceScript", "Execute.Sql / Execute.Script / Execute.EmbeddedScript"], ["CopyDataFromTableToTable / UpdateTargetFromSource", "Execute.CopyDataFromTable(source).ToTable(target).WithColumns(...) / Execute.UpdateTable(target).FromTable(source).Set(...).Match(...)"], ["TruncateTable", "Execute.Truncate"], ["CreateCommand / Connection", "Execute.WithCommand / Execute.WithConnection"], ["Database provider access", "Context or Execute.WithProvider"], ["History / transactions", "Shared runner and explicit provider context"]])),
     section("Execution is not preview or reversal", '<p>Both APIs reach the same provider layer, but not every operation has SQL-preview or automatic-reversal support. Provider capabilities still govern execution. Read <a href="preview.html">preview</a>, <a href="auto-reversing.html">reversal</a> and the <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/fluent-operation-coverage.md">machine-checked method-family inventory</a> for the distinction.</p>'), source="src/Migrator/Framework/Fluent/MigrationBuilder.cs")
 
 page("Reference", "contributing", "Contributing", "Make a provider change reproducible, then verify its observable behavior.",

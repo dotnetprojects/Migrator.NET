@@ -262,14 +262,33 @@ public override void Down()
 ```csharp
 public override void BuildUp(MigrationBuilder migration)
 {
-    migration.Create.Column("Email", "Users").AsString(320);
+    migration.Create.Column("Email").OnTable("Users").AsString(320);
 }
 
 public override void BuildDown(MigrationBuilder migration)
 {
-    migration.Delete.Column("Email", "Users");
+    migration.Delete.Column("Email").FromTable("Users");
 }
 ```
+
+Fluent expressions name the table separately: `Create.Column(name).OnTable(table)`,
+`Alter.Column(name).OnTable(table)` and `Delete.Column(name).FromTable(table)`.
+Renames read `Rename.Column(oldName).OnTable(table).To(newName)`. Indexes and
+constraints follow the same pattern:
+
+```csharp
+migration.Create.Index("IX_Users_Email").OnTable("Users").WithColumns("Email").Unique();
+migration.Create.ForeignKey("FK_Orders_Users")
+    .FromTable("Orders").WithColumns("UserId")
+    .ToTable("Users").WithColumns("Id")
+    .OnDelete(ForeignKeyConstraintType.Cascade);
+```
+
+Table, create-column and alter-column builders share type and option methods;
+each column requires `As...` or `OfType(...)`. Update and delete require a
+predicate or explicit `AllRows()`. Unfinished expressions fail before execution.
+See the [API map](https://dotnetprojects.github.io/Migrator.NET/guide/api-map.html)
+for the complete syntax.
 
 Provider implementations determine which operations are available and how they map to SQL. Use `Database.ExecuteNonQuery(...)` or `migration.Execute.Sql(...)` for custom SQL and keep dialect-specific statements explicit. The [Classic/Fluent API map](https://dotnetprojects.github.io/Migrator.NET/guide/api-map.html) lists the corresponding operations.
 
