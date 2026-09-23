@@ -474,48 +474,57 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override void RemoveColumn(string tableName, string column)
     {
         if (Version.Parse(Convert.ToString(ExecuteScalar("SELECT sqlite_version()"))) >= new Version(3, 35, 0)
-            && TableExists(tableName))
+            && TableExists(tableName) && CanDropColumnNatively(tableName, column))
         {
-            var info = GetSQLiteTableInfo(tableName);
-            var definition = info.Columns.SingleOrDefault(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
-            bool Matches(string name) => string.Equals(name, column, StringComparison.OrdinalIgnoreCase);
-            var dependent = definition == null || info.PrimaryKey?.KeyColumns.Contains(column, StringComparer.OrdinalIgnoreCase) == true || info.Uniques.Any(u => u.KeyColumns.Contains(column, StringComparer.OrdinalIgnoreCase))
-                || info.CheckConstraints.Count != 0
-                || info.Uniques.Any(u => u.KeyColumns.Any(Matches))
-                || info.Indexes.Any(i => i.KeyColumns.Any(Matches) || i.FilterItems.Count != 0)
-                || info.ForeignKeys.Any(f => f.ChildColumns.Any(Matches))
-                || GetTables().Any(t => GetForeignKeyConstraints(t).Any(f => f.ParentTable.Equals(tableName, StringComparison.OrdinalIgnoreCase) && f.ParentColumns.Any(Matches)));
-            if (!dependent)
-            {
-                // SQLite itself validates trigger/view dependencies atomically. A rejection is
-                // surfaced rather than retrying with a potentially lossy reconstruction.
-                ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} DROP COLUMN {Dialect.QuoteIdentifier(definition.Name)}");
-                return;
-            }
+            // Native SQLite validates trigger and view dependencies atomically.
+            ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} DROP COLUMN {Dialect.QuoteIdentifier(column)}");
+            return;
         }
-        // In SQLite we need to recreate the table even if we only want to add, alter or drop a foreign key. So we not only recreate the table given 
-        // as parameter but also the tables with FKs pointing to the column you want to remove.
-        // In order to perform it smoothly, the PRAGMA foreign keys should be set off.
-
-        var isPragmaForeignKeysOn = IsPragmaForeignKeysOn();
-
-        if (isPragmaForeignKeysOn)
-        {
-            throw new Exception($"{nameof(RemoveColumn)} requires foreign keys off.");
-        }
-
-        if (!TableExists(tableName))
-        {
-            throw new MigrationException($"The table '{tableName}' does not exist");
-        }
-
-        if (!ColumnExists(tableName, column))
-        {
-            throw new MigrationException($"The table '{tableName}' does not have a column named '{column}'");
-        }
+        if (IsPragmaForeignKeysOn()) throw new Exception($"{nameof(RemoveColumn)} requires foreign keys off.");
+        if (!TableExists(tableName)) throw new MigrationException($"The table '{tableName}' does not exist");
+        if (!ColumnExists(tableName, column)) throw new MigrationException($"The table '{tableName}' does not have a column named '{column}'");
 
         var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
+        ValidateColumnRemoval(sqliteInfoMainTable, column);
+        var affected = new List<SQLiteTableInfo>();
+        foreach (var name in GetTables())
+        {
+            var info = string.Equals(name, tableName, StringComparison.OrdinalIgnoreCase)
+                ? sqliteInfoMainTable : GetSQLiteTableInfo(name);
+            var references = info.ForeignKeys.Where(f =>
+                string.Equals(f.ParentTable, tableName, StringComparison.OrdinalIgnoreCase)
+                && f.ParentColumns.Contains(column, StringComparer.OrdinalIgnoreCase)).ToArray();
+            if (references.Any(f => f.ParentColumns.Length > 1))
+                throw new MigrationException($"You need to delete/adjust the FK in table {name} pointing to {tableName}.");
+            foreach (var reference in references) info.ForeignKeys.Remove(reference);
+            if (references.Length != 0 && info != sqliteInfoMainTable) affected.Add(info);
+        }
+        sqliteInfoMainTable.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
+        sqliteInfoMainTable.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.OrdinalIgnoreCase));
+        sqliteInfoMainTable.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
+        sqliteInfoMainTable.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
+        sqliteInfoMainTable.ForeignKeys.RemoveAll(x => x.ChildColumns.Length == 1 && x.ChildColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
 
+        affected.Add(sqliteInfoMainTable);
+        RecreateTablesAtomically(affected);
+    }
+
+    private bool CanDropColumnNatively(string tableName, string column)
+    {
+        var info = GetSQLiteTableInfo(tableName);
+        var definition = info.Columns.SingleOrDefault(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
+        bool Matches(string name) => string.Equals(name, column, StringComparison.OrdinalIgnoreCase);
+        var dependent = definition == null || info.PrimaryKey?.KeyColumns.Contains(column, StringComparer.OrdinalIgnoreCase) == true
+            || info.CheckConstraints.Count != 0
+            || info.Uniques.Any(u => u.KeyColumns.Any(Matches))
+            || info.Indexes.Any(i => i.KeyColumns.Any(Matches) || i.FilterItems.Count != 0)
+            || info.ForeignKeys.Any(f => f.ChildColumns.Any(Matches))
+            || GetTables().Any(t => GetForeignKeyConstraints(t).Any(f => f.ParentTable.Equals(tableName, StringComparison.OrdinalIgnoreCase) && f.ParentColumns.Any(Matches)));
+        return !dependent;
+    }
+
+    private static void ValidateColumnRemoval(SQLiteTableInfo sqliteInfoMainTable, string column)
+    {
         if (sqliteInfoMainTable.PrimaryKey?.KeyColumns.Any(x => x.Equals(column, StringComparison.OrdinalIgnoreCase)) == true)
             throw new MigrationException("Remove the named primary-key constraint before removing one of its columns.");
 
@@ -526,7 +535,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             throw new MigrationException("A check constraint contains the column you want to remove. Remove the check constraint first");
         }
 
-        if (!sqliteInfoMainTable.ColumnMappings.Any(x => x.OldName == column))
+        if (!sqliteInfoMainTable.ColumnMappings.Any(x => x.OldName.Equals(column, StringComparison.OrdinalIgnoreCase)))
         {
             throw new MigrationException("Column not found");
         }
@@ -580,55 +589,27 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             throw new Exception(stringBuilder.ToString());
         }
 
-        var allTableNames = GetTables();
+    }
 
-        // Remove foreign keys with single parent column pointing to the column to be removed.
-        foreach (var allTableName in allTableNames)
+    private void RecreateTablesAtomically(IEnumerable<SQLiteTableInfo> tables)
+    {
+        var ownsTransaction = !HasActiveTransaction;
+        if (ownsTransaction) BeginTransaction();
+        try
         {
-            if (allTableName == tableName)
+            foreach (var info in tables) RecreateTable(info);
+            if (ownsTransaction)
             {
-                continue;
-            }
-
-            var sqliteTableInfoOther = GetSQLiteTableInfo(allTableName);
-            var recreateOtherTable = false;
-
-            for (var i = sqliteTableInfoOther.ForeignKeys.Count - 1; i >= 0; i--)
-            {
-                if (!sqliteTableInfoOther.ForeignKeys[i].ParentTable.Equals(tableName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Contains(column) && sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Length > 1)
-                {
-                    StringBuilder stringBuilder = new();
-                    stringBuilder.Append($"You need to delete/adjust the FK in table {allTableName} pointing to {tableName}.");
-                    stringBuilder.Append("Other foreign key if exists with just one parent column we adjust silently.");
-
-                    throw new Exception(stringBuilder.ToString());
-                }
-
-                if (sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Contains(column) && sqliteTableInfoOther.ForeignKeys[i].ParentColumns.Length == 1)
-                {
-                    recreateOtherTable = true;
-                    sqliteTableInfoOther.ForeignKeys.RemoveAt(i);
-                }
-            }
-
-            if (recreateOtherTable)
-            {
-                RecreateTable(sqliteTableInfoOther);
+                if (!CheckForeignKeyIntegrity()) throw new MigrationException("SQLite column removal would leave invalid foreign keys.");
+                Commit();
             }
         }
-
-        sqliteInfoMainTable.Uniques.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
-        sqliteInfoMainTable.ColumnMappings.RemoveAll(x => x.OldName.Equals(column, StringComparison.OrdinalIgnoreCase));
-        sqliteInfoMainTable.Columns.RemoveAll(x => x.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
-        sqliteInfoMainTable.Indexes.RemoveAll(x => x.KeyColumns.Length == 1 && x.KeyColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
-        sqliteInfoMainTable.ForeignKeys.RemoveAll(x => x.ChildColumns.Length == 1 && x.ChildColumns[0].Equals(column, StringComparison.OrdinalIgnoreCase));
-
-        RecreateTable(sqliteInfoMainTable);
+        catch (Exception ex)
+        {
+            if (ownsTransaction)
+                try { Rollback(); } catch (Exception rollback) { ex.Data["RollbackException"] = rollback; }
+            throw;
+        }
     }
 
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)

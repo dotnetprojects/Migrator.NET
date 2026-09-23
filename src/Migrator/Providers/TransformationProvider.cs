@@ -2002,7 +2002,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         var c = _connection as DbConnection;
         var tables = c.GetSchema("Columns", tableRestrictions);
-        return from DataRow row in tables.Rows select (row["TABLE_NAME"] as string);
+        return from DataRow row in tables.Rows select (row["COLUMN_NAME"] as string);
     }
 
     protected void ValidateIndex(string tableName, Index index)

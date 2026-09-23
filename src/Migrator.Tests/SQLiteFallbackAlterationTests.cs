@@ -15,7 +15,14 @@ public class SQLiteFallbackAlterationTests
     private sealed class LegacyProvider(IDbConnection connection)
         : SQLiteTransformationProvider(new SQLiteDialect(), connection, "default", null)
     {
+        public bool FailParentRebuild { get; set; }
         public override object ExecuteScalar(string sql) => sql == "SELECT sqlite_version()" ? "3.25.0" : base.ExecuteScalar(sql);
+        public override int ExecuteNonQuery(string sql)
+        {
+            if (FailParentRebuild && sql.StartsWith("CREATE TABLE", StringComparison.OrdinalIgnoreCase) && sql.Contains("OriginalTemp"))
+                throw new InvalidOperationException("Injected rebuild failure.");
+            return base.ExecuteNonQuery(sql);
+        }
     }
 
     private SqliteConnection connection;
@@ -164,5 +171,58 @@ public class SQLiteFallbackAlterationTests
         Assert.That(provider.GetForeignKeyConstraints("Nodes").Single().ParentColumns, Is.EqualTo(new[] { "Id" }));
         Assert.That(provider.ExecuteScalar("SELECT ParentId FROM Nodes WHERE Id=2"), Is.EqualTo(1L));
         Assert.That(provider.CheckForeignKeyIntegrity(), Is.True);
+    }
+
+    [TestCase("Obsolete")]
+    [TestCase("obsolete")]
+    public void RemoveColumnUpdatesIncomingKeysCaseInsensitively(string name)
+    {
+        provider.ExecuteNonQuery("CREATE TABLE Original (Id INTEGER PRIMARY KEY, Obsolete INTEGER UNIQUE); CREATE TABLE Child (Value INTEGER REFERENCES Original(Obsolete)); INSERT INTO Original VALUES (1, 7); INSERT INTO Child VALUES (7)");
+        provider.RemoveColumn("Original", name);
+        Assert.That(provider.ColumnExists("Original", "Obsolete"), Is.False);
+        Assert.That(provider.GetForeignKeyConstraints("Child"), Is.Empty);
+        Assert.That(provider.ExecuteScalar("SELECT Value FROM Child"), Is.EqualTo(7L));
+        Assert.That(provider.ExecuteScalar("SELECT Id FROM Original"), Is.EqualTo(1L));
+        Assert.That(provider.CheckForeignKeyIntegrity(), Is.True);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void FailureRemovingColumnPreservesEarlierDependentTables(bool callerTransaction)
+    {
+        provider.ExecuteNonQuery("CREATE TABLE Original (Id INTEGER PRIMARY KEY, Obsolete INTEGER UNIQUE); CREATE TABLE Child (Value INTEGER REFERENCES Original(Obsolete)); INSERT INTO Original VALUES (1, 7); INSERT INTO Child VALUES (7)");
+        if (callerTransaction) provider.BeginTransaction();
+        provider.FailParentRebuild = true;
+        Assert.That(Assert.Throws<InvalidOperationException>(() => provider.RemoveColumn("Original", "Obsolete")).Message, Is.EqualTo("Injected rebuild failure."));
+        Assert.That(provider.HasActiveTransaction, Is.EqualTo(callerTransaction));
+        if (callerTransaction) provider.Rollback();
+        Assert.That(provider.GetForeignKeyConstraints("Child"), Has.Length.EqualTo(1));
+        Assert.That(provider.ExecuteScalar("SELECT Obsolete FROM Original"), Is.EqualTo(7L));
+        Assert.That(provider.ExecuteScalar("SELECT Value FROM Child"), Is.EqualTo(7L));
+        Assert.That(provider.GetTables(), Is.EquivalentTo(new[] { "Original", "Child" }));
+        Assert.That(provider.CheckForeignKeyIntegrity(), Is.True);
+    }
+
+    [Test]
+    public void RemovingSelfReferencedColumnPreservesOtherValues()
+    {
+        provider.ExecuteNonQuery("CREATE TABLE Nodes (Id INTEGER PRIMARY KEY, Obsolete INTEGER UNIQUE, ParentValue INTEGER REFERENCES Nodes(Obsolete)); INSERT INTO Nodes VALUES (1, 7, NULL), (2, 8, 7)");
+        provider.RemoveColumn("Nodes", "obsolete");
+        Assert.That(provider.GetForeignKeyConstraints("Nodes"), Is.Empty);
+        Assert.That(provider.ExecuteScalar("SELECT ParentValue FROM Nodes WHERE Id=2"), Is.EqualTo(7L));
+        Assert.That(provider.CheckForeignKeyIntegrity(), Is.True);
+    }
+
+    [Test]
+    public void SuccessfulRemovalRemainsInTheCallerTransaction()
+    {
+        provider.ExecuteNonQuery("CREATE TABLE Original (Id INTEGER PRIMARY KEY, Obsolete INTEGER UNIQUE); CREATE TABLE Child (Value INTEGER REFERENCES Original(Obsolete)); INSERT INTO Original VALUES (1, 7); INSERT INTO Child VALUES (7)");
+        provider.BeginTransaction();
+        provider.RemoveColumn("Original", "Obsolete");
+        Assert.That(provider.HasActiveTransaction, Is.True);
+        Assert.That(provider.GetForeignKeyConstraints("Child"), Is.Empty);
+        provider.Rollback();
+        Assert.That(provider.GetForeignKeyConstraints("Child"), Has.Length.EqualTo(1));
+        Assert.That(provider.ExecuteScalar("SELECT Obsolete FROM Original"), Is.EqualTo(7L));
     }
 }
