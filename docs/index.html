@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="DotNetProjects.Migrator: versioned database migrations in C#, independent of your ORM. Use imperative or fluent migrations and compare FluentMigrator, EF Core, DbUp and Evolve."
+      content="DotNetProjects.Migrator: versioned database migrations in C#, independent of your ORM. Imperative and fluent APIs, automatic SQLite schema reconstruction, and a comparison with FluentMigrator, EF Core, DbUp and Evolve."
     />
     <meta name="theme-color" content="#101a2d" />
     <title>Migrator.NET — Database changes, in your code.</title>
@@ -38,7 +38,7 @@
             <h1>Database changes.<br /><span>Part of your code.</span></h1>
             <p class="intro">
               Write schema changes in C# with imperative or fluent APIs. Version them with your application.
-              Run them with the database provider and ORM you choose.
+              Run them with the database provider and ORM you choose. Rebuild SQLite tables automatically from their live schema, without an ORM model.
             </p>
             <div class="actions">
               <a class="button primary" href="#quick-start"
@@ -134,11 +134,39 @@
           </article>
         </div>
       </section>
-      <section class="quick-section" id="version-13" aria-labelledby="v13-title">
+      <section class="section container" id="sqlite" aria-labelledby="sqlite-title">
+        <p class="eyebrow">SQLITE SCHEMA MIGRATIONS</p>
+        <h2 id="sqlite-title">Change existing tables. Keep your data.</h2>
+        <p>Migrator reads the live SQLite schema and automatically rebuilds tables for
+          supported column type, nullability and default changes, plus primary, foreign,
+          unique and check constraint changes. No ORM model is required.</p>
+        <div class="features-grid">
+          <article>
+            <h3>Automatic reconstruction</h3>
+            <p>FluentMigrator leaves general column alterations and later foreign-key changes
+              to manual reconstruction. DbUp and Evolve execute your scripts. EF Core also
+              rebuilds tables, using artifacts represented in its model.</p>
+          </article>
+          <article>
+            <h3>Preserve supported schema details</h3>
+            <p>Rebuilds retain mapped rows, named and composite keys, column collations,
+              supported indexes and triggers, and AUTOINCREMENT high-water state.
+              Foreign keys retain independent update and delete actions.</p>
+          </article>
+          <article>
+            <h3>Explicit preservation limits</h3>
+            <p>Reconstruction rejects generated columns, STRICT and WITHOUT ROWID tables,
+              and indexes with explicit collations. Hidden rowid values can change;
+              arbitrary dependent SQL requires a migration plan.</p>
+          </article>
+        </div>
+        <p><a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md#sqlite-emulation-comparison">Compare SQLite operations, sources and preservation limits →</a></p>
+      </section>
+      <section class="quick-section" id="schema-api" aria-labelledby="schema-title">
         <div class="container">
           <div class="section-heading">
-            <div><p class="eyebrow">VERSION 13 · SOURCE PREVIEW</p><h2 id="v13-title">Explicit definitions, shared authoring.</h2></div>
-            <p>Breaking source changes. These features are not yet a released NuGet version.</p>
+            <div><p class="eyebrow">SCHEMA DEFINITIONS</p><h2 id="schema-title">Explicit definitions, shared authoring.</h2></div>
+            <p>Named constraints, explicit defaults and provider-aware collations.</p>
           </div>
           <p>Define primary, unique, foreign-key and check constraints as table objects.
             The imperative and fluent APIs share column definitions, trusted SQL defaults and typed collation requests.</p>
@@ -149,10 +177,15 @@ builder.Create.Table("Events")
     .WithColumn("Id").AsString(27)
     .WithDefaultValue(RawSql.Insert("ksuid_new()"))
     .WithColumn("Name").AsString(100)
-    .WithCollation(Collation.CaseInsensitive);</code></pre></div>
+    .WithCollation(Collation.AsciiIgnoreCase);</code></pre></div>
           <p>The target database must supply the SQL function. Collation mappings have explicit provider limits:
-            SQLite ASCII folding does not satisfy a Unicode case-insensitive request.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-guide-12.1-to-13.md">Read the 12.1-to-13 migration guide ↗</a>.</p>
+            The SQLite example uses ASCII-only NOCASE; it does not satisfy a Unicode case-insensitive request.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-guide-12.1-to-13.md">Read the migration guide ↗</a>.</p>
+          <p>Use <code>TimeOnly</code> for time-of-day values and <code>TimeSpan</code> for intervals.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/data-type-boundary-tests.md">Review type support, precision and data limits by provider</a>.</p>
+          <p>Runner options support tags, named profiles, ordered maintenance and consolidated history.
+            Integrate migration constructors and lifecycle logging with the optional Microsoft DI package.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Explore runner and deployment options</a>.</p>
           <p>Additional databases require passing real-engine CI.
             <a href="https://github.com/dotnetprojects/Migrator.NET/pull/182">SAP HANA provider qualification ↗</a>;
             Redshift, Snowflake and Db2 for IBM i remain unsupported.</p>
@@ -170,14 +203,14 @@ builder.Create.Table("Events")
               <h2 id="start-title">From code to schema.</h2>
             </div>
             <p>
-              A minimal SQLite example for <strong>unreleased v13 source</strong>.<br />
+              A minimal SQLite example using the current repository API.<br />
               Use .NET 9 and a checkout of this repository.
             </p>
           </div>
           <div class="step">
             <div class="step-description">
               <span class="step-index">1</span>
-              <h3>Reference the v13 source</h3>
+              <h3>Reference the library</h3>
               <p>
                 Run these commands from your Migrator.NET checkout. This example references
                 the source project and passes an open SQLite connection to the provider.
@@ -298,7 +331,7 @@ migrator.MigrateToLastVersion();</code></pre>
       <section class="section container" id="fluent-api" aria-labelledby="fluent-title">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">FLUENT API · V13 SOURCE PREVIEW</p>
+            <p class="eyebrow">FLUENT API</p>
             <h2 id="fluent-title">Chain operations. Keep control.</h2>
           </div>
           <p>Use fluent and imperative migrations in the same assembly and runner.</p>
@@ -384,7 +417,7 @@ public class CreateUsers : FluentMigration
               <li>Firebird</li>
               <li>Ingres</li>
               <li>Sybase</li>
-              <li>SAP HANA (v13 source)</li>
+              <li>SAP HANA</li>
             </ul>
           </div>
         </div>
@@ -393,12 +426,12 @@ public class CreateUsers : FluentMigration
           server or driver version. Schema operations and transactional DDL vary
           by provider. Check the
           <a
-            href="https://github.com/dotnetprojects/Migrator.NET/blob/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator/ProviderFactory.cs"
+            href="https://github.com/dotnetprojects/Migrator.NET/blob/482b4d1b2a0a3672c3199c533a69cc4da330b8d6/src/Migrator/ProviderFactory.cs"
             >provider factory</a
           >
           and
           <a
-            href="https://github.com/dotnetprojects/Migrator.NET/tree/eabec5561c2c9c77847b9adbb7b67474e3c70a50/src/Migrator.Tests/Providers"
+            href="https://github.com/dotnetprojects/Migrator.NET/tree/482b4d1b2a0a3672c3199c533a69cc4da330b8d6/src/Migrator.Tests/Providers"
             >provider tests</a
           >
           for your database.
@@ -427,16 +460,16 @@ public class CreateUsers : FluentMigration
               <h2 id="compare-title">Choose by how you work.</h2>
             </div>
             <p>
-              Feature comparison · Reviewed 22 September 2026<br /><a
+              Feature comparison · Reviewed 23 September 2026<br /><a
                 href="#sources"
                 >Read the sources and qualifications ↓</a
               >
             </p>
           </div>
-          <p class="comparison-intro"><strong>Version 13 source preview, not a NuGet release:</strong>
-            fluent operations, SQL-preview subset, runner options, native locks and source CLI.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Read the runner guide and limitations</a>.
-            <a href="https://github.com/dotnetprojects/Migrator.NET/pull/177">Read the merged runner changes</a>.
+          <p class="comparison-intro">
+            Use fluent operations, version planning, a SQL-preview subset, runner options,
+            native locks and the CLI.
+            <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/runner-guide.md">Read the runner guide and provider limits</a>.
           </p>
           <p class="comparison-intro">
             Migrator fits applications that want explicit C# migrations and
@@ -560,7 +593,7 @@ public class CreateUsers : FluentMigration
                 </tr>
                 <tr>
                   <th scope="row">Execution / deployment</th>
-                  <td class="ours">Library + source CLI (unreleased)</td>
+                  <td class="ours">Library + CLI</td>
                   <td>In-process runner + CLI</td>
                   <td>CLI, SQL scripts, bundles, runtime API</td>
                   <td>Library; host in a console app or application</td>
@@ -583,6 +616,30 @@ public class CreateUsers : FluentMigration
                   <td>Seeding APIs (EF 9+); custom code</td>
                   <td><code>RunAlways</code> scripts</td>
                   <td>Repeatable SQL reruns on checksum change</td>
+                </tr>
+                <tr>
+                  <th scope="row">Automatic SQLite reconstruction</th>
+                  <td class="ours">Live-schema rebuilds; no ORM model</td>
+                  <td>Manual for general column and foreign-key alterations</td>
+                  <td>Rebuilds for model-represented artifacts</td>
+                  <td>Author scripts</td>
+                  <td>Author scripts</td>
+                </tr>
+                <tr>
+                  <th scope="row">Planning and SQL preview</th>
+                  <td class="ours">Read-only version plan; connected/offline SQL subset</td>
+                  <td>Preview/output</td>
+                  <td>Generated SQL scripts</td>
+                  <td>Authored SQL / pending scripts</td>
+                  <td>Authored SQL</td>
+                </tr>
+                <tr>
+                  <th scope="row">Deployment coordination</th>
+                  <td class="ours">Opt-in native locks: SQL Server, PostgreSQL, MySQL/MariaDB</td>
+                  <td>Application-lock pattern / deployment orchestration</td>
+                  <td>Migration locking; execution-path dependent</td>
+                  <td>Host/provider concern</td>
+                  <td>Cluster setting; provider-dependent</td>
                 </tr>
               </tbody>
             </table>
@@ -609,7 +666,7 @@ public class CreateUsers : FluentMigration
               <h3>Keep migrations in C#</h3>
               <p>
                 <strong>Migrator:</strong> imperative and fluent schema operations, scoped
-                history, tags/profiles, and a source CLI or your own host.
+                history, tags/profiles, and the CLI or your own host.
                 <strong>FluentMigrator:</strong> a fluent DSL with packaged
                 runners, tags and profiles.
               </p>
@@ -636,7 +693,7 @@ public class CreateUsers : FluentMigration
             <p>
               Our column is based on the current repository source, which
               targets <code>net9.0</code>. Other columns summarize official
-              documentation reviewed on 22 September 2026, rather than claiming
+              documentation reviewed on 22 September 2026, with SQLite comparisons rechecked on 23 September, rather than claiming
               parity across every released package. Check your chosen release,
               provider and database version. Suitability notes are our
               interpretation of these documented capabilities.
@@ -687,6 +744,7 @@ public class CreateUsers : FluentMigration
                   href="https://fluentmigrator.github.io/migration-types/profiles.html"
                   >profiles</a
                 >,
+                <a href="https://github.com/fluentmigrator/fluentmigrator/blob/2e0acdb7c375b03e50e65f34ddf50e44ee45df30/src/FluentMigrator.Runner.SQLite/Generators/SQLite/SQLiteGenerator.cs">SQLite generator</a>,
                 <a href="https://fluentmigrator.github.io/"
                   >authoring and providers</a
                 >.
@@ -716,7 +774,8 @@ public class CreateUsers : FluentMigration
                 <a
                   href="https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding"
                   >seeding</a
-                >.
+                >,
+                <a href="https://learn.microsoft.com/en-us/ef/core/providers/sqlite/limitations">SQLite rebuilds and locking</a>.
               </li>
               <li id="source-dbup">
                 <strong>DbUp:</strong>

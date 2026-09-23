@@ -1,6 +1,6 @@
-# Runner and fluent API upgrade
+# Runner and fluent API
 
-These APIs describe the source upgrade merged through PRs #173, #174, #175 and #177. They are not a statement about the currently released NuGet packages. Build the repository to try them; no package publication is part of this change.
+Use imperative or fluent migrations with scope and tag filtering, profiles, ordered maintenance, transaction modes, planning, SQL preview and deployment locks. This guide describes the current repository API; check package compatibility when using an older release.
 
 ## Fluent quick start
 
@@ -31,7 +31,7 @@ The builder has `Create`, `Alter`, `Delete`, `Rename`, `Insert`, `Update`, `Exec
 
 `Execute.Script(path)` and `Execute.EmbeddedScript(assembly, resourceName)` capture script text as dedicated operations. Imperative callers can use `ExecuteScript(path)`, `ExecuteResourceScript(assembly, name)` and `ExecuteSqlScript(text)`. SQL Server splits standalone `GO` lines, including an optional `--` comment, while respecting strings, quoted identifiers and nested comments. GO repetition and SQLCMD directives fail explicitly before executing batches. Ordinary `ExecuteNonQuery` and fluent `Execute.Sql` never split client separators. Other providers receive the script as one command unless they implement `IScriptBatchProvider`; this is not a complete SQL*Plus, mysql-client or isql interpreter.
 
-Oracle `RemoveTable` leaves unrelated sequences intact and relies on Oracle to remove table-owned triggers and native identity objects. For legacy sequences you explicitly own, use `OracleTransformationProvider.RemoveTableWithOwnedSequences(table, sequenceNames)` through an explicit provider context/callback. It accepts simple unquoted sequence names, validates existence before dropping the table, and propagates cleanup failures. Oracle DDL is not atomic. SQL Server removes only column-unique constraints carrying its ownership marker; historical unmarked objects can be adopted explicitly with `SqlServerTransformationProvider.AdoptColumnUniqueConstraint(table, column, constraint)`. Adoption verifies a single-column UNIQUE constraint before marking it and rejects composite constraints. Names alone never establish ownership.
+Oracle `RemoveTable` leaves unrelated sequences intact and relies on Oracle to remove table-owned triggers and native identity objects. For legacy sequences you explicitly own, use `OracleTransformationProvider.RemoveTableWithOwnedSequences(table, sequenceNames)` through an explicit provider context/callback. It accepts simple unquoted sequence names, validates existence before dropping the table, and propagates cleanup failures. Oracle DDL is not atomic. Column changes preserve explicit unique constraints and indexes. Use `AddUniqueConstraint`, `RemoveConstraint` or `RemoveIndex` to manage them independently. SQL Server no longer uses implicit ownership markers or exposes `AdoptColumnUniqueConstraint`; old markers do not cause constraints to be deleted.
 
 ## Runner options
 
@@ -48,6 +48,10 @@ Oracle `RemoveTable` leaves unrelated sequences intact and relies on Oracle to r
 Unscoped migrations inherit the provider scope; explicitly scoped migrations run only in that scope. Discovery, duplicate validation and history reads use the effective scope. Scopes separate history, not tables. Legacy custom providers can adopt the additive `IMigrationHistory` interface for read-only planning and effective-scope selection.
 
 Maintenance classes use `[Maintenance(MaintenanceStage.BeforeRun)]`, `BeforeMigration`, `AfterMigration` or `AfterRun`. Profiles and maintenance accept `Order` and `Scope`. Ordering uses `Order` then ordinal full type name. Hooks stop on failure; later hooks are not cleanup guarantees. Connection/transaction restoration and lock release do not depend on hooks running. Profiles and maintenance use `Up`; they do not acquire version records.
+
+## Consolidated history
+
+A baseline migration can call `Database.MigrationApplied(version, scope)` for older versions whose schema it includes. Before each planned step, the runner rechecks the active scope's history. It skips versions already covered by the baseline, including their `AfterUp` callbacks, and does not record the baseline's own version twice. Downward runs similarly skip versions already removed by an earlier `Down`. Other scopes do not affect these decisions. History and schema changes follow the selected transaction mode.
 
 ## Transactions and locks
 
@@ -93,7 +97,7 @@ Exit codes: `0` success, `1` execution/load failure, `2` invalid arguments, `3` 
 
 ## Optional DI and logging
 
-The source package `DotNetProjects.Migrator.Extensions.DependencyInjection` provides `services.AddMigrator(providerFactory, migrationAssembly, configureOptions)`. Resolve `Migrator` inside a service scope; migration constructors use that scope's services. Options are scoped snapshots. Provider disposal follows the DI scope. Microsoft logging records lifecycle events while omitting SQL text and raw exception messages; the core retains its lightweight logger API.
+The optional package `DotNetProjects.Migrator.Extensions.DependencyInjection` provides `services.AddMigrator(providerFactory, migrationAssembly, configureOptions)`. Resolve `Migrator` inside a service scope; migration constructors use that scope's services. Options are scoped snapshots. Provider disposal follows the DI scope. Microsoft logging records lifecycle events while omitting SQL text and raw exception messages; the core retains its lightweight logger API.
 
 ## Validation
 
@@ -105,7 +109,7 @@ pwsh .github/scripts/test.ps1 -Database Unit
 pwsh .github/scripts/test.ps1 -Database SQLite
 ```
 
-See [live database tests](live-database-tests.md) for the full matrix. Provider-specific changes need live provider evidence. Check PR CI and review threads after every push; reply with implementation/test evidence and resolve fixed findings. Keep commits descriptive and merge the PR stack in dependency order only after review.
+See [live database tests](live-database-tests.md) for the full matrix and [data-type boundary tests](data-type-boundary-tests.md) for supported mappings and precision, range and size limits. Provider-specific changes need live provider evidence.
 
 An auxiliary-only `MigrateToLastVersion()` run preserves existing version history while executing selected profiles and maintenance. A completely empty run does not create a history table. Post-commit callbacks receive their migration context in both per-migration and whole-session modes; callback failure cannot undo a committed migration.
 
@@ -128,3 +132,13 @@ Oracle's Time representation remains DATE with a fixed 1970-01-01 date and whole
 This changes the old shared parameter inference: TimeSpan now means Interval. Migrate time-of-day inputs with `TimeOnly.FromTimeSpan(value)`; it rejects negative or multi-day durations. Do not convert genuine intervals this way.
 
 ASE 16.0 key constraints with dots or apostrophes in their names are rejected before DDL. The tested server can create a punctuated name but cannot reliably resolve its backing index when removing the constraint. Use a key name without those characters; this restriction applies to primary and unique keys.
+
+## SQLite schema and value behavior
+
+SQLite alterations use native rename/drop-column paths when eligible and live-schema reconstruction for supported changes that need a replacement table. Rebuilds retain column collations, named/composite keys, independent foreign-key update/delete actions, supported indexes/triggers and AUTOINCREMENT high-water state. They validate foreign-key integrity before committing owned transactions and restore the prior enforcement setting. Configure foreign-key settings before starting a caller-owned transaction.
+
+`MATCH FULL` and `MATCH PARTIAL` are rejected because SQLite does not enforce their semantics. Generated columns, `STRICT`, `WITHOUT ROWID`, and indexes with explicit collations are unsupported for reconstruction. Hidden rowid values are not preserved. See the [operation and preservation matrices](migration-framework-comparison.md#sqlite-emulation-comparison).
+
+`Collation.AsciiIgnoreCase` maps to SQLite's ASCII-only `NOCASE`; semantic Unicode case-insensitivity is not substituted with ASCII folding. Use `Collation.Named` for a registered custom collation. Changing a column collation rebuilds the table and rolls back on a uniqueness violation.
+
+CLR `Guid` defaults and inserted GUID parameters both use blobs from `Guid.ToByteArray()`. Existing text GUID defaults remain SQL expressions during unrelated rebuilds. Converting existing mixed text/blob identifiers requires an explicit migration of related keys. See the [GUID and identity guidance](migration-guide-12.1-to-13.md#sqlite-defaults-and-identity).
