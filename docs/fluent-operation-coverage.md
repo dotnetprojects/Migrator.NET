@@ -11,7 +11,7 @@ The machine-readable [inventory](fluent-operation-coverage.json) maps every name
 | Drop/rename operations | `Delete` / `Rename` | SQLite schema tests, reversal tests; destructive changes need explicit reverse definitions |
 | Inserts, conditional insert, update, delete | `Insert`, `Update`, `Delete.FromTable` | FluentDataChangesAndSchemaReadsPersistExpectedRows |
 | Truncate, data copy, update from another table | `Execute.Truncate/CopyData/UpdateFrom` | Normal provider tests; mutable pair snapshot regression |
-| SQL, files, resources | `Execute.Sql/Script/EmbeddedScript` | SQL execution/preview tests; provider-specific batch splitting is separate work |
+| SQL, files, resources | `Execute.Sql/Script/EmbeddedScript` | SQL execution/preview tests; SQL Server GO batch splitting through the script APIs, with explicit rejection of unsupported client directives |
 | Scalars/readers/existence/metadata | `Schema`, `Schema.Table`, `Select`, `SelectScalar` | Reader disposal and persisted-data assertions; nullable helpers are additive |
 | Database administration | `Administration` | Typed operations flag transaction incompatibility; backend capabilities still apply |
 | Provider conditions, commands/connections | `IfDatabase`, `Execute.WithCommand/WithConnection/WithProvider` | Inactive reversal, explicit preview rejection; callbacks execute trusted code |

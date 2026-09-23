@@ -31,15 +31,17 @@ DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratord
 
 ## Why use it?
 
-- **Imperative or fluent C# migrations.** Use `Migration.Up/Down` or v13’s `FluentMigration.BuildUp/BuildDown`; review both like application code.
+- **Imperative or fluent C# migrations.** Use `Migration.Up/Down` or `FluentMigration.BuildUp/BuildDown`; review both like application code.
 - **No ORM dependency.** Use it alongside EF, Dapper, another data layer, or plain ADO.NET.
 - **Database transformation API.** Work with tables, columns, keys, indexes and data, with raw SQL available for provider-specific operations.
 - **Version tracking.** Apply pending migrations or target a specific version using database-backed history.
 - **Scoped histories.** Track multiple modules in one database when each runner is given the appropriate migration set.
 - **Bring your database driver.** The library does not directly reference database-driver packages; supply an ADO.NET connection or configure the driver factory.
-- **SQLite schema handling.** This fork includes schema inspection and table-recreation logic for operations SQLite cannot perform directly.
+- **SQLite schema changes without an ORM model.** Automatically rebuild existing tables to change column types, defaults and nullability or add/remove primary, foreign, unique and check constraints. Migrator reads the live schema and copies existing rows for supported changes.
 
-The source upgrade adds a structured fluent API, runner filtering/lifecycle options, SQL-preview subset, native locking, a CLI project and optional Microsoft DI/logging integration. These changes are merged in source and **are not a released NuGet feature claim**. See the [runner and fluent guide](docs/runner-guide.md) and [detailed framework comparison](docs/migration-framework-comparison.md). EF-style model scaffolding and migration-content checksums remain outside the implementation.
+Runner options include tags, profiles, ordered maintenance, transaction modes, planning, a SQL-preview subset and native locking. Use the CLI or optional Microsoft DI/logging integration in your own host. See the [runner and fluent guide](docs/runner-guide.md) and [detailed framework comparison](docs/migration-framework-comparison.md). EF-style model scaffolding and migration-content checksums remain outside the implementation.
+
+**SQLite is a particular strength:** FluentMigrator requires manual reconstruction for general column alterations and adding/removing foreign keys on existing tables; DbUp and Evolve leave reconstruction to your scripts. EF Core also rebuilds SQLite tables, using model metadata. Migrator supplies this automation from the live database without an ORM model. See the sourced [SQLite operation comparison and preservation limits](docs/migration-framework-comparison.md#sqlite-emulation-comparison).
 
 ## Installation and requirements
 
@@ -59,7 +61,7 @@ Building the `.slnx` solution requires an SDK that understands that format, such
 
 ## Quick start
 
-This example targets **unreleased v13 source**. Clone/check out this repository before running these commands from the repository root. For published 12.1, follow its version-specific API; see the [migration guide](docs/migration-guide-12.1-to-13.md).
+This example uses the current repository API. Clone/check out this repository before running these commands from the repository root. When updating older migrations, see the [migration guide](docs/migration-guide-12.1-to-13.md).
 
 ### 1. Create a migration host
 
@@ -153,7 +155,7 @@ Keep applied migration classes in source control. Change the schema with a new m
 
 With the runner above, `migrator.MigrateTo(0)` reverses all applied migrations in its set. In this example that drops `Users`, including its data. A `Down()` implementation is a reverse schema operation, not a backup restore.
 
-By default, migration execution starts a transaction for each migration and attempts rollback on failure. V13 also offers `None` and `WholeSession` transaction modes; whole-session support is limited to SQLite, PostgreSQL and SQL Server. Actual atomicity depends on the database, driver and operation; some databases implicitly commit DDL. `AfterUp()` and `AfterDown()` run **after commit**, so a failure in those hooks cannot undo the committed migration.
+By default, migration execution starts a transaction for each migration and attempts rollback on failure. `None` and `WholeSession` transaction modes are also available; whole-session support is limited to SQLite, PostgreSQL and SQL Server. Actual atomicity depends on the database, driver and operation; some databases implicitly commit DDL. `AfterUp()` and `AfterDown()` run **after commit** (after the session commit in whole-session mode), so a failure in those hooks cannot undo the committed migration.
 
 For deployment, run a dedicated migration host before the application needs the new schema. Coordinate it so competing instances do not migrate the same database concurrently. Review and test both directions against your actual database engine.
 
@@ -183,16 +185,18 @@ billingMigrator.MigrateToLastVersion();
 
 Important details:
 
-- In the upgrade source, explicit scopes filter discovery; unscoped migrations inherit the runner scope. A scope partitions history, not database objects.
+- Explicit scopes filter discovery; unscoped migrations inherit the runner scope. A scope partitions history, not database objects.
 - Leave `MigrationAttribute.Scope` unset to inherit the provider scope; set it to select a migration for one specific scope.
 - Duplicate versions are checked within the effective scope. Duplicate versions in distinct explicit scopes are independent.
 - Scopes do not isolate tables or data. Module migrations still need compatible table names and coordinated schema ownership.
+
+Consolidated baseline migrations can record included versions with `Database.MigrationApplied(version, scope)`. The runner rechecks scope history before each step, skipping versions already covered by that baseline. See [consolidated history](docs/runner-guide.md#consolidated-history).
 
 See [ProviderFactory](src/Migrator/ProviderFactory.cs), [MigrationLoader](src/Migrator/MigrationLoader.cs) and [history implementation](src/Migrator/Providers/TransformationProvider.cs).
 
 ## Fluent API and deployment tooling
 
-For v13 source, replace the quick start’s `CreateUsers.cs` with this fluent equivalent; keep the same runner. Use one version-1 class, not both examples together.
+Replace the quick start’s `CreateUsers.cs` with this fluent equivalent; keep the same runner. Use one version-1 class, not both examples together.
 
 ```csharp
 using DotNetProjects.Migrator.Framework;
@@ -224,7 +228,7 @@ Run the [compiled fluent example](examples/FluentQuickStart/Program.cs):
 dotnet run --project examples/FluentQuickStart
 ```
 
-The example creates a complete table definition, previews it without changing history, runs a whole-session migration, then verifies automatic reversal. The [runner guide](docs/runner-guide.md) covers CLI commands, tags/profiles, maintenance, transactions, optional DI/logging, locks and preview limitations. Build the source packages locally to try the new tooling; no NuGet publication accompanies these PRs.
+The example creates a complete table definition, previews it without changing history, runs a whole-session migration, then verifies automatic reversal. The [runner guide](docs/runner-guide.md) covers CLI commands, tags/profiles, maintenance, transactions, optional DI/logging, locks and preview limitations, including local tool installation.
 
 ## Schema and data operations
 
@@ -253,6 +257,34 @@ public override void Down()
 
 Provider implementations determine which operations are available and how they map to SQL. Use `Database.ExecuteNonQuery(...)` for custom SQL and keep dialect-specific statements explicit. The source also includes the [MigrationBuilder fluent API](src/Migrator/Framework/Fluent/MigrationBuilder.cs).
 
+### Explicit constraints, SQL defaults and collations
+
+Columns describe type, size, precision, nullability and identity. Define primary, unique, foreign-key and check constraints as named table objects; inspect them with `GetTableConstraints`. Changing a column preserves explicit constraints. `RawSql.Insert` marks a trusted SQL default expression, while `Collation` provides semantic presets and installed provider names.
+
+```csharp
+new Column("Id", DbType.String, 27) { DefaultValue = RawSql.Insert("ksuid_new()") };
+builder.Create.Table("Events").WithColumn("Id").AsString(27)
+    .WithDefaultValue(RawSql.Insert("ksuid_new()"));
+
+new Column("Name", DbType.String, 100) { Collation = Collation.AsciiIgnoreCase };
+builder.Create.Table("Names").WithColumn("Name").AsString(100)
+    .WithCollation(Collation.AsciiIgnoreCase);
+```
+
+SQL expressions are trusted migration code and must exist on the target database.
+Ordinary string defaults remain quoted literals. Semantic collations have explicit
+provider limits; SQLite's `AsciiIgnoreCase` never substitutes for Unicode folding.
+Use `Collation.Named("provider_name")` for a specific language or installed collation.
+See the [mapping and migration guide](docs/migration-guide-12.1-to-13.md#explicit-sql-defaults-and-semantic-collations).
+
+### SQLite reconstruction and data types
+
+Supported rebuilds retain mapped data, named/composite keys, declared column collations, supported indexes and triggers, and the AUTOINCREMENT high-water mark. Generated columns, `STRICT`, `WITHOUT ROWID` and indexes with explicit collations are rejected for reconstruction; hidden rowid values are not preserved. Foreign keys retain separate update/delete actions; unsupported `MATCH FULL`/`PARTIAL` requests fail explicitly. See the [SQLite preservation matrix](docs/migration-framework-comparison.md#what-survives-reconstructionand-what-is-not-guaranteed).
+
+CLR `Guid` defaults use the same blob representation as inserted GUID parameters. Existing text GUID defaults remain unchanged during unrelated rebuilds; converting mixed storage requires an explicit data migration. SQLite's `AsciiIgnoreCase` preset selects ASCII-only `NOCASE`; Unicode case-insensitive requests need a suitable custom collation, registered on the connection and selected by name.
+
+Use `TimeOnly` for time-of-day values and `TimeSpan` for intervals. Storage and precision depend on the provider. The [runner guide](docs/runner-guide.md#time-of-day-and-intervals) and [data-type support and boundary tests](docs/data-type-boundary-tests.md) describe unsigned ranges, large text/binary, decimal precision and engine-specific limits.
+
 ## Database providers
 
 The [provider factory](src/Migrator/ProviderFactory.cs) contains these database families:
@@ -269,14 +301,14 @@ The [provider factory](src/Migrator/ProviderFactory.cs) contains these database 
 | IBM Informix | `IBM_Informix`               |
 | Firebird     | `Firebird`                   |
 | Ingres       | `Ingres`                     |
-| SAP HANA (v13 source) | `Hana` |
+| SAP HANA | `Hana` |
 | Sybase       | `Sybase`                     |
 
 This is an inventory of dialects present in source, **not a guarantee that every server version, driver or operation is supported**. Some entries are legacy variants. Verify the combination you deploy against the [provider implementations](src/Migrator/Providers/Impl) and [provider tests](src/Migrator.Tests/Providers).
 
 ## Comparison with other .NET frameworks
 
-Reviewed **22 September 2026**. Migrator's column describes this repository; the alternatives summarize their official documentation. These are workflow differences, not performance benchmarks or a ranking.
+Reviewed **23 September 2026**. Migrator's column describes this repository; the alternatives summarize their official documentation. These are workflow differences, not performance benchmarks or a ranking.
 
 | Capability                   | Migrator.NET (this fork)          | FluentMigrator                               | EF Core                              | DbUp                       | Evolve                            |
 | ---------------------------- | --------------------------------- | -------------------------------------------- | ------------------------------------ | -------------------------- | --------------------------------- |
@@ -285,13 +317,14 @@ Reviewed **22 September 2026**. Migrator's column describes this repository; the
 | Model-difference scaffolding | No built-in generator             | Hand-authored                                | Yes, with model snapshots            | Hand-authored              | Hand-authored                     |
 | Downgrade applied migrations | Authored `Down()` / `BuildDown()`; supported automatic reversal | `Down()`; supported auto-reverse expressions | Generated/editable `Down()`          | Custom undo or forward fix | Forward fix; no Down command      |
 | Separate histories           | Scope + selected assembly/types   | Custom version table + filtering             | Contexts + custom history table      | Journals + script filters  | Metadata table/schema + locations |
-| Execution                    | Library / source CLI (unreleased) | Library + CLI                                | CLI, scripts, bundles, runtime       | Library / custom host      | Library, .NET tool, CLI           |
+| Execution                    | Library / CLI | Library + CLI                                | CLI, scripts, bundles, runtime       | Library / custom host      | Library, .NET tool, CLI           |
 | Recurring work               | Ordered maintenance / named profiles                       | Maintenance migrations / profiles            | Seeding APIs (EF 9+)                 | `RunAlways` scripts        | Checksum-based repeatable SQL     |
+| Automatic SQLite reconstruction | Live-schema rebuilds; no ORM model | Manual for general column/FK alterations | Rebuilds for model-represented artifacts | Author scripts | Author scripts |
 
 All five can execute raw SQL. Transaction support depends on database capabilities: Migrator defaults to per-migration transactions, with none or whole-session options (SQLite, PostgreSQL and SQL Server); DbUp makes transactions opt-in; the others have configurable transaction behavior. Reversing a completed migration is different from rolling back a failed transaction. Evolve's checksum-based repeatables also differ from always-run scripts or lifecycle hooks.
 
-- Choose **Migrator** for imperative or fluent C# schema operations, scoped history, tags/profiles and a source CLI or your own host.
-- **FluentMigrator** also offers fluent C# authoring, tags and profiles. Compare its published runner packages and provider behavior with Migrator’s v13 source tooling; fluent syntax alone is not a reason to switch.
+- Choose **Migrator** for imperative or fluent C# schema operations, scoped history, tags/profiles and the CLI or your own host.
+- **FluentMigrator** also offers fluent C# authoring, tags and profiles. Compare provider operations, especially automatic SQLite reconstruction, and deployment requirements.
 - Consider **EF Core migrations** when your EF model drives the schema and you want scaffolding and deployment artifacts.
 - Consider **DbUp** for a SQL-oriented runner composed in .NET, or **Evolve** for convention-based SQL with checksum validation and repeatables.
 
@@ -345,30 +378,3 @@ This project continues the original [Migrator.NET](https://github.com/migratordo
 ## License
 
 The package declares **Mozilla Public License 1.1 (MPL-1.1)** in its [project metadata](src/Migrator/DotNetProjects.Migrator.csproj). See the [license text](https://www.mozilla.org/en-US/MPL/1.1/) and source-file notices.
-
-### Version 13 source changes
-
-The v13 source preview separates columns from named table constraints and removes the old column flags and duplicate fluent builder. See the [12.1-to-13 migration guide](docs/migration-guide-12.1-to-13.md) before recompiling migrations. These source features are not claims about the published 12.1 NuGet package.
-
-
-### SQL expressions and collations in v13
-
-```csharp
-new Column("Id", DbType.String, 27) { DefaultValue = RawSql.Insert("ksuid_new()") };
-builder.Create.Table("Events").WithColumn("Id").AsString(27)
-    .WithDefaultValue(RawSql.Insert("ksuid_new()"));
-
-new Column("Name", DbType.String, 100) { Collation = Collation.CaseInsensitive };
-builder.Create.Table("Names").WithColumn("Name").AsString(100)
-    .WithCollation(Collation.CaseInsensitive);
-```
-
-SQL expressions are trusted migration code and must exist on the target database.
-Ordinary string defaults remain quoted literals. Semantic collations have explicit
-provider limits; SQLite's `AsciiIgnoreCase` never substitutes for Unicode folding.
-Use `Collation.Named("provider_name")` for a specific language or installed collation.
-See the [mapping and migration guide](docs/migration-guide-12.1-to-13.md#explicit-sql-defaults-and-semantic-collations).
-
-Additional engines are admitted only with passing real-database CI.
-[SAP HANA provider scope, CI evidence and deferred engine requirements](docs/additional-database-qualification.md)
-cover the current FluentMigrator gaps without claiming untested support.

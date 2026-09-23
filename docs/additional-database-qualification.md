@@ -7,7 +7,7 @@ This is an implementation gate, not a claim of released provider support.
 
 | Additional engine | Real-engine GitHub Actions route | Current disposition |
 | --- | --- | --- |
-| SAP HANA | Official HANA Express Linux container and SAP's .NET driver, disposable schema | Implemented in the v13 source stack with a mandatory actual-engine matrix job; require green PR checks before merge |
+| SAP HANA | Official HANA Express Linux container and SAP's .NET driver, disposable schema | Implemented with a mandatory actual-engine matrix job; require green PR checks before merge |
 | Amazon Redshift | AWS test warehouse/serverless endpoint with CI credentials, network access and resource cleanup | No configured test infrastructure; defer provider |
 | Snowflake | Snowflake test account, warehouse, credentials and disposable database/schema | No configured test infrastructure; defer provider |
 | Db2 for IBM i | IBM i endpoint on Power infrastructure and compatible .NET/ODBC driver | No configured test infrastructure; defer provider |
