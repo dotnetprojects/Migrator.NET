@@ -248,7 +248,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
         table = QuoteTableNameIfRequired(table);
 
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY ({1})", table, sqlColumn));
     }
 
     public override void AddColumn(string table, string sqlColumn)
@@ -655,7 +655,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void RemoveColumnDefaultValue(string table, string column)
     {
-        var sql = string.Format("ALTER TABLE {0} MODIFY {1} DEFAULT NULL", QuoteTableNameIfRequired(table), QuoteColumnNameIfRequired(column));
+        var sql = string.Format("ALTER TABLE {0} MODIFY ({1} DEFAULT NULL)", QuoteTableNameIfRequired(table), QuoteColumnNameIfRequired(column));
         ExecuteNonQuery(sql);
     }
 

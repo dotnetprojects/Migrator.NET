@@ -307,6 +307,10 @@ DDL. Version 12.1 silently ignored them. Remove these options for an ordinary Or
 index or author an explicit Oracle-specific design; a SQL Server clustered-index
 request is not translated to an Oracle index-organized table.
 
+Oracle column changes and default removal use `MODIFY (...)`. This disambiguates
+valid column names such as `Element`, which Oracle can interpret as syntax in the
+unparenthesized form, rejecting the statement with ORA-00903 or ORA-01735.
+
 Structured metadata preserves SQL Server nonclustered primary keys and Oracle
 ordered foreign-key pairs/delete actions. Foreign-key constructor arrays are copied,
 matching primary/unique definitions, so later caller-array edits cannot change the key.
