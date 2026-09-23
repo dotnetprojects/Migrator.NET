@@ -1,5 +1,7 @@
 # Runner and fluent API
 
+For step-by-step chapters and paired Classic/Fluent examples, use the [migration manual](https://dotnetprojects.github.io/Migrator.NET/guide/). This page is the compact runner reference.
+
 Use imperative or fluent migrations with scope and tag filtering, profiles, ordered maintenance, transaction modes, planning, SQL preview and deployment locks. This guide describes the current repository API; check package compatibility when using an older release.
 
 ## Fluent quick start

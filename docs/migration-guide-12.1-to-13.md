@@ -1,6 +1,6 @@
 # Migrating from 12.1 to 13
 
-Version 13 is a breaking release. This guide is maintained alongside the implementation; items explicitly marked planned are not available yet. Do not run a changed migration history against production without validating the upgrade on a restored database.
+Version 13 is a breaking release. This guide covers compatibility changes when updating existing migrations. Validate the upgrade on a restored database before running a changed migration history against production. For current API usage, see the [migration manual](https://dotnetprojects.github.io/Migrator.NET/guide/).
 
 ## Schema model
 
@@ -128,9 +128,9 @@ constraint name and the sequence high-water mark.
 
 ## Provider authors and dialects (design)
 
-Keep SQL generation independent of a live connection. A dialect defines identifier quoting, type/literal rendering and SQL capabilities. Metadata readers inspect existing schema; execution manages commands, transactions and history. Neither preview nor a SQL generator may query or mutate the database.
+Keep SQL rendering independent of a live connection. A dialect defines identifier quoting, type/literal rendering and SQL capabilities. Metadata readers inspect existing schema; execution manages commands, transactions and history. Connected preview may read history and schema before rendering, but it must not mutate the database. Offline rendering uses an explicitly supplied schema context.
 
-The current provider surface mixes these concerns. The v13 implementation is staged to preserve testable provider behavior while replacing authoring APIs. Unsupported combinations must fail explicitly before DDL, not disappear from generated SQL.
+The provider surface combines these concerns through execution and metadata contracts. SQL rendering uses a separate context. Unsupported combinations must fail explicitly before DDL, not disappear from generated SQL.
 
 ## Design references
 
@@ -140,9 +140,9 @@ Reviewed 2026-09-22:
 - [FluentMigrator ColumnDefinition](https://github.com/fluentmigrator/fluentmigrator/blob/main/src/FluentMigrator.Abstractions/Model/ColumnDefinition.cs) still carries constraint flags; its expression/generator separation is useful, but its column model is not the target here.
 - [Alembic operations](https://alembic.sqlalchemy.org/en/latest/ops.html) distinguish named table constraints from column alteration and use explicit batch reconstruction for SQLite.
 
-## Additional v13 candidates
+## Schema API changes
 
-Typed constraints with ordered metadata, the SQLite constraint tokenizer, explicit SQL defaults, semantic collations and removal of the duplicate authoring API are implemented in this source stack. Typed schema-qualified identifiers, deterministic naming conventions and a broader provider-capability model remain candidates; they are not implemented features.
+Typed constraints with ordered metadata, the SQLite constraint tokenizer, explicit SQL defaults, semantic collations and the consolidated authoring API work together. Use explicit object names and check provider-specific operation behavior when upgrading a custom dialect.
 
 ## Explicit SQL defaults and semantic collations
 
@@ -273,4 +273,4 @@ matching primary/unique definitions, so later caller-array edits cannot change t
 
 ## Build and package identity
 
-Source builds now identify the core, optional DI package and CLI as 13.0.0-preview.1. The core assembly and file versions are 13.0.0.0; generated assembly metadata is enabled while preserving its existing title and description. Recompile consumers of the breaking API and update assembly/version binding assumptions. These metadata changes do not publish a package.
+The core assembly and file versions are 13.0.0.0; generated assembly metadata preserves the existing title and description. Recompile consumers of the breaking API and update assembly/version binding assumptions. Keep the core, optional DI integration and CLI on compatible package versions.
