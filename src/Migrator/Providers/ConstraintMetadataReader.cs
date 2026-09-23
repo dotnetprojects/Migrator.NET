@@ -17,6 +17,22 @@ internal static class ConstraintMetadataReader
 {
     public static TableConstraint[] Read(TransformationProvider provider, string table)
     {
+        var query = CatalogQuery(provider, table);
+        List<TableConstraint> constraints;
+        using (var command = provider.CreateCommand())
+        {
+            AddParameter(command, "lookup_table", query.Table);
+            if (query.IncludeSchema) AddParameter(command, "lookup_schema", query.Schema);
+            using var reader = provider.ExecuteQuery(command, query.Sql);
+            constraints = ReadConstraints(reader);
+        }
+        // Some drivers allow only one active reader on a connection.
+        constraints.AddRange(provider.GetForeignKeyConstraints(table));
+        return constraints.ToArray();
+    }
+
+    private static (string Sql, string Table, string Schema, bool IncludeSchema) CatalogQuery(TransformationProvider provider, string table)
+    {
         string sql;
         var parameterTable = provider.QuoteTableNameIfRequired(table);
         string schema = null;
@@ -73,42 +89,55 @@ internal static class ConstraintMetadataReader
         }
         else throw new NotSupportedException("Structured constraint inspection is not implemented for " + provider.Dialect.GetType().Name + ".");
 
-        var constraints = new List<TableConstraint>();
-        using (var command = provider.CreateCommand())
+        return (sql, parameterTable, schema, oracle || provider.Dialect is MysqlDialect);
+    }
+
+    private enum ConstraintKind { Primary, NonClusteredPrimary, Unique, Check }
+    private static readonly Dictionary<string, ConstraintKind> CatalogKinds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["P"] = ConstraintKind.Primary, ["PK"] = ConstraintKind.Primary, ["PRIMARY KEY"] = ConstraintKind.Primary,
+        ["PN"] = ConstraintKind.NonClusteredPrimary,
+        ["U"] = ConstraintKind.Unique, ["UQ"] = ConstraintKind.Unique, ["UNIQUE"] = ConstraintKind.Unique,
+        ["C"] = ConstraintKind.Check, ["K"] = ConstraintKind.Check, ["CHECK"] = ConstraintKind.Check
+    };
+
+    private static TableConstraint CreateConstraint(IDataRecord row, string name)
+    {
+        if (!CatalogKinds.TryGetValue(row.GetString(1).Trim(), out var kind))
+            throw new MigrationException("Unknown catalog constraint type.");
+        return kind switch
         {
-            AddParameter(command, "lookup_table", parameterTable);
-            if (oracle || provider.Dialect is MysqlDialect) AddParameter(command, "lookup_schema", schema);
-            using var reader = provider.ExecuteQuery(command, sql);
-            string lastName = null;
-            TableConstraint current = null;
-            var keys = new List<string>();
-            void Complete()
-            {
-                if (current is PrimaryKeyConstraint pk) pk.KeyColumns = keys.ToArray();
-                if (current is UniqueConstraint unique) unique.KeyColumns = keys.ToArray();
-                if (current != null) constraints.Add(current);
-            }
-            while (reader.Read())
-            {
-                var name = reader.GetString(0);
-                if (name != lastName)
-                {
-                    Complete(); keys.Clear(); lastName = name;
-                    current = reader.GetString(1).Trim().ToUpperInvariant() switch
-                    {
-                        "P" or "PK" or "PRIMARY KEY" => new PrimaryKeyConstraint { Name = name },
-                        "PN" => new PrimaryKeyConstraint { Name = name, NonClustered = true },
-                        "U" or "UQ" or "UNIQUE" => new UniqueConstraint { Name = name },
-                        "C" or "K" or "CHECK" => new CheckConstraint(name, reader.IsDBNull(4) ? null : CheckExpression(reader.GetString(4))),
-                        _ => throw new MigrationException("Unknown catalog constraint type.")
-                    };
-                }
-                if (!reader.IsDBNull(2)) keys.Add(reader.GetString(2));
-            }
-            Complete();
+            ConstraintKind.Primary => new PrimaryKeyConstraint { Name = name },
+            ConstraintKind.NonClusteredPrimary => new PrimaryKeyConstraint { Name = name, NonClustered = true },
+            ConstraintKind.Unique => new UniqueConstraint { Name = name },
+            _ => new CheckConstraint(name, row.IsDBNull(4) ? null : CheckExpression(row.GetString(4)))
+        };
+    }
+
+    private static List<TableConstraint> ReadConstraints(IDataReader reader)
+    {
+        var constraints = new List<TableConstraint>();
+        TableConstraint current = null;
+        var keys = new List<string>();
+        void Complete()
+        {
+            if (current is PrimaryKeyConstraint pk) pk.KeyColumns = keys.ToArray();
+            if (current is UniqueConstraint unique) unique.KeyColumns = keys.ToArray();
+            if (current != null) constraints.Add(current);
         }
-        constraints.AddRange(provider.GetForeignKeyConstraints(table));
-        return constraints.ToArray();
+        while (reader.Read())
+        {
+            var name = reader.GetString(0);
+            if (current?.Name != name)
+            {
+                Complete();
+                keys.Clear();
+                current = CreateConstraint(reader, name);
+            }
+            if (!reader.IsDBNull(2)) keys.Add(reader.GetString(2));
+        }
+        Complete();
+        return constraints;
     }
 
     internal static string CheckExpression(string source)
