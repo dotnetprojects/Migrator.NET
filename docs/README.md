@@ -45,13 +45,18 @@ The comparison distinguishes source capabilities from guarantees about released 
 
 The quick start targets .NET 9 and installs the core library and SQLite driver through NuGet. Sample validation uses local project references to catch API drift. The SQLite driver version matches the repository test dependency.
 
-## Status badges and test counts
+## Status badges, test counts and code coverage
 
 The homepage links to master CI results and NuGet, and identifies the MPL-1.1 license.
 Pages also redeploys when master CI completes. During deployment it selects the latest
 completed master push run (including failures), downloads its TRX artifacts, and renders
 executed/passed/failed/skipped/other counts with the run URL, commit and timestamp.
-Counts are a deployment snapshot, not code coverage or a guarantee about every provider.
+The same run supplies the merged `code-coverage` artifact. Pages displays line and branch
+coverage percentages and covered/total counts for production assemblies, with a link to
+the downloadable HTML report (open `index.html`). Shared code is counted once in the
+merged report; suite percentages are never added or averaged. A missing or expired
+coverage artifact is shown as unavailable, never as 0% or replaced by another run.
+Counts and coverage are a deployment snapshot, not a guarantee about every provider.
 Missing suites produce an incomplete-results message, never a partial success total.
 The committed/local page shows a fallback link until deployment supplies results.
 The renderer only changes the uploaded Pages artifact; it does not commit generated counts. Preserve `TEST_RESULTS_START` and `TEST_RESULTS_END` in `_src/home.html`.

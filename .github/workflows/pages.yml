@@ -44,7 +44,7 @@ jobs:
         run: |
           python3 -B .github/scripts/build-docs.py --check
           python3 -B .github/scripts/verify-docs.py
-      - name: Verify test-count renderer
+      - name: Verify test-count and coverage renderer
         run: python3 .github/scripts/test-homepage-tests.py
       - name: Select latest completed master test run
         id: tests
@@ -58,6 +58,14 @@ jobs:
             });
             const run = data.workflow_runs[0];
             if (run) {
+              const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+                ...context.repo, run_id: run.id, per_page: 100
+              });
+              const coverage = artifacts.find(a => a.name === 'code-coverage' && !a.expired);
+              if (coverage) {
+                run.coverage_url = `${run.html_url}/artifacts/${coverage.id}`;
+                core.setOutput('has-coverage', 'true');
+              }
               fs.writeFileSync('ci-run.json', JSON.stringify(run));
               core.setOutput('run-id', String(run.id));
             }
@@ -69,9 +77,17 @@ jobs:
           run-id: ${{ steps.tests.outputs.run-id }}
           pattern: test-results-*
           path: ci-results
-      - name: Render test counts and provenance
+      - name: Download merged coverage from the same run
+        if: steps.tests.outputs.has-coverage == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.tests.outputs.run-id }}
+          name: code-coverage
+          path: ci-coverage
+      - name: Render test counts, coverage and provenance
         if: steps.tests.outputs.run-id != ''
-        run: python3 .github/scripts/render-homepage-tests.py ci-results ci-run.json docs/index.html
+        run: python3 .github/scripts/render-homepage-tests.py ci-results ci-run.json docs/index.html ci-coverage/Cobertura.xml
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
