@@ -1,0 +1,33 @@
+name: Documentation
+
+on:
+  push:
+    branches: [master]
+    paths: ["docs/**", "README.md", "src/Migrator/**", "src/Migrator.Extensions.DependencyInjection/**", ".github/scripts/*docs.py", ".github/scripts/*homepage-tests.py", ".github/workflows/docs.yml"]
+  pull_request:
+    paths: ["docs/**", "README.md", "src/Migrator/**", "src/Migrator.Extensions.DependencyInjection/**", ".github/scripts/*docs.py", ".github/scripts/*homepage-tests.py", ".github/workflows/docs.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Check generated pages
+        run: python -B .github/scripts/build-docs.py --check
+      - name: Validate links and compile all C# examples
+        run: |
+          python -B .github/scripts/test-docs.py
+          python -B .github/scripts/verify-docs.py --compile
+      - name: Verify CI-count rendering
+        run: python -B .github/scripts/test-homepage-tests.py

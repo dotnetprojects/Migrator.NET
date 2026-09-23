@@ -1,0 +1,369 @@
+      <section
+        class="comparison-section"
+        id="compare"
+        aria-labelledby="compare-title"
+      >
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">THE .NET MIGRATION LANDSCAPE</p>
+              <h2 id="compare-title">Choose by how you work.</h2>
+            </div>
+            <p>
+              Feature comparison · Reviewed 23 September 2026<br /><a
+                href="#sources"
+                >Read the sources and qualifications ↓</a
+              >
+            </p>
+          </div>
+          <p class="comparison-intro">
+            Use fluent operations, version planning, a SQL-preview subset, runner options,
+            native locks and the CLI.
+            <a href="guide/runners.html">Read the runner guide and provider limits</a>.
+          </p>
+          <p class="comparison-intro">
+            Migrator fits applications that want explicit C# migrations and
+            scoped history without coupling schema changes to an ORM. Other
+            tools offer different authoring and deployment workflows.
+          </p>
+          <p>
+            <a
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md"
+              >Read the detailed feature comparison (Markdown) →</a
+            ><br />
+            <a
+              href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/migration-framework-comparison.md#sqlite-emulation-comparison"
+              >Explore SQLite emulation, preservation limits and framework
+              differences →</a
+            >
+          </p>
+          <p class="table-hint" id="table-help">
+            Scroll horizontally to compare all five frameworks on smaller
+            screens.
+          </p>
+          <div
+            class="table-scroll"
+            role="region"
+            aria-label="Framework feature comparison"
+            aria-describedby="table-help"
+            tabindex="0"
+          >
+            <table>
+              <caption>
+                Built-in capabilities and documented workflows. “Custom” means
+                application code or configuration is needed.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Capability</th>
+                  <th scope="col" class="ours">
+                    Migrator.NET <span>DotNetProjects fork</span
+                    ><a href="#source-migrator">Source [1]</a>
+                  </th>
+                  <th scope="col">
+                    FluentMigrator <a href="#source-fluent">Sources [2]</a>
+                  </th>
+                  <th scope="col">
+                    EF Core <a href="#source-ef">Sources [3]</a>
+                  </th>
+                  <th scope="col">
+                    DbUp <a href="#source-dbup">Sources [4]</a>
+                  </th>
+                  <th scope="col">
+                    Evolve <a href="#source-evolve">Sources [5]</a>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Authoring style</th>
+                  <td class="ours">Imperative C# + structured fluent API</td>
+                  <td>Handwritten C#<br />Fluent DSL</td>
+                  <td>C# generated from model changes; editable</td>
+                  <td>SQL scripts; C# scripts also supported</td>
+                  <td>Versioned SQL files</td>
+                </tr>
+                <tr>
+                  <th scope="row">ORM-independent workflow</th>
+                  <td class="ours">Yes</td>
+                  <td>Yes</td>
+                  <td>Uses EF model and DbContext</td>
+                  <td>Yes</td>
+                  <td>Yes</td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Generate migrations from model differences
+                  </th>
+                  <td class="ours">No built-in generator</td>
+                  <td>Hand-authored</td>
+                  <td>Yes — model snapshots</td>
+                  <td>Hand-authored</td>
+                  <td>Hand-authored</td>
+                </tr>
+                <tr>
+                  <th scope="row">Raw SQL</th>
+                  <td class="ours"><code>ExecuteNonQuery</code> / fluent <code>Execute.Sql</code> / scripts</td>
+                  <td><code>Execute.Sql</code> / scripts</td>
+                  <td><code>migrationBuilder.Sql</code></td>
+                  <td>Primary workflow</td>
+                  <td>Primary workflow</td>
+                </tr>
+                <tr>
+                  <th scope="row">Downgrade an applied version</th>
+                  <td class="ours">
+                    Authored <code>Down()</code> or supported automatic reversal
+                  </td>
+                  <td>
+                    <code>Down()</code>; auto-reverse for supported expressions
+                  </td>
+                  <td><code>Down()</code>; target an earlier migration</td>
+                  <td>Forward fixes; custom undo workflow</td>
+                  <td>Forward fixes; no Down command</td>
+                </tr>
+                <tr>
+                  <th scope="row">History / module separation</th>
+                  <td class="ours">
+                    Scope-filtered discovery + history
+                  </td>
+                  <td>Custom version tables + migration filtering</td>
+                  <td>
+                    Separate contexts / migrations + custom history tables
+                  </td>
+                  <td>Separate journals + script filtering</td>
+                  <td>Metadata table/schema + script locations</td>
+                </tr>
+                <tr>
+                  <th scope="row">Transactions</th>
+                  <td class="ours">Per migration by default; none or whole session (SQLite, PostgreSQL, SQL Server)</td>
+                  <td>Per migration by default; configurable</td>
+                  <td>Most migrations wrapped automatically</td>
+                  <td>Opt-in per script or whole run; none by default</td>
+                  <td>Per migration by default; whole-run option</td>
+                </tr>
+                <tr>
+                  <th scope="row">Execution / deployment</th>
+                  <td class="ours">Library + CLI</td>
+                  <td>In-process runner + CLI</td>
+                  <td>CLI, SQL scripts, bundles, runtime API</td>
+                  <td>Library; host in a console app or application</td>
+                  <td>.NET library, .NET tool, CLI</td>
+                </tr>
+                <tr>
+                  <th scope="row">Database abstraction</th>
+                  <td class="ours">Provider dialects for schema operations</td>
+                  <td>Provider-specific SQL generators</td>
+                  <td>
+                    Relational providers; migrations may differ by provider
+                  </td>
+                  <td>Database integrations; you write dialect-specific SQL</td>
+                  <td>Database integrations; you write dialect-specific SQL</td>
+                </tr>
+                <tr>
+                  <th scope="row">Repeatable / recurring work</th>
+                  <td class="ours">Ordered maintenance + named profiles; no checksum repeatables</td>
+                  <td>Maintenance migrations / profiles</td>
+                  <td>Seeding APIs (EF 9+); custom code</td>
+                  <td><code>RunAlways</code> scripts</td>
+                  <td>Repeatable SQL reruns on checksum change</td>
+                </tr>
+                <tr>
+                  <th scope="row">Automatic SQLite reconstruction</th>
+                  <td class="ours">Live-schema rebuilds; no ORM model</td>
+                  <td>Manual for general column and foreign-key alterations</td>
+                  <td>Rebuilds for model-represented artifacts</td>
+                  <td>Author scripts</td>
+                  <td>Author scripts</td>
+                </tr>
+                <tr>
+                  <th scope="row">Planning and SQL preview</th>
+                  <td class="ours">Read-only version plan; connected/offline SQL subset</td>
+                  <td>Preview/output</td>
+                  <td>Generated SQL scripts</td>
+                  <td>Authored SQL / pending scripts</td>
+                  <td>Authored SQL</td>
+                </tr>
+                <tr>
+                  <th scope="row">Deployment coordination</th>
+                  <td class="ours">Opt-in native locks: SQL Server, PostgreSQL, MySQL/MariaDB</td>
+                  <td>Application-lock pattern / deployment orchestration</td>
+                  <td>Migration locking; execution-path dependent</td>
+                  <td>Host/provider concern</td>
+                  <td>Cluster setting; provider-dependent</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="comparison-notes">
+            <p>
+              <strong>Rollback has two meanings.</strong> Reversing an already
+              applied migration uses authored reverse operations. Rolling back a
+              failed transaction depends on the database’s DDL support. Neither
+              restores data removed by a successful destructive migration.
+            </p>
+            <p>
+              <strong
+                >Recurring work is not the same as change detection.</strong
+              >
+              Evolve stores script checksums and validates changes; Migrator
+              records versions and scopes without built-in content checksum
+              validation. Maintenance hooks, seeding and RunAlways have
+              different execution rules.
+            </p>
+          </div>
+          <div class="fit-grid">
+            <article>
+              <h3>Keep migrations in C#</h3>
+              <p>
+                <strong>Migrator:</strong> imperative and fluent schema operations, scoped
+                history, tags/profiles, and the CLI or your own host.
+                <strong>FluentMigrator:</strong> a fluent DSL with packaged
+                runners, tags and profiles.
+              </p>
+            </article>
+            <article>
+              <h3>Let the model drive changes</h3>
+              <p>
+                <strong>EF Core:</strong> a natural fit when an EF model defines
+                your schema and you want migration scaffolding, SQL generation
+                and deployment bundles.
+              </p>
+            </article>
+            <article>
+              <h3>Keep SQL as the source</h3>
+              <p>
+                <strong>DbUp:</strong> compose a script runner in .NET.
+                <strong>Evolve:</strong> convention-based versioned SQL,
+                checksum validation and repeatable scripts.
+              </p>
+            </article>
+          </div>
+          <details class="sources" id="sources">
+            <summary>Sources &amp; comparison methodology</summary>
+            <p>
+              Our column is based on the current repository source, which
+              targets <code>net9.0</code>. Other columns summarize official
+              documentation reviewed on 22 September 2026, with SQLite comparisons rechecked on 23 September, rather than claiming
+              parity across every released package. Check your chosen release,
+              provider and database version. Suitability notes are our
+              interpretation of these documented capabilities.
+            </p>
+            <ol>
+              <li id="source-migrator">
+                <strong>DotNetProjects.Migrator:</strong>
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/DotNetProjects.Migrator.csproj"
+                  >target framework</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/Migrator.cs"
+                  >runner</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/MigrationExecution.cs"
+                  >execution and transactions</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/Providers/TransformationProvider.cs"
+                  >history and schema operations</a
+                >,
+                <a
+                  href="https://github.com/dotnetprojects/Migrator.NET/blob/master/src/Migrator/MigrationLoader.cs"
+                  >migration discovery</a
+                >.
+              </li>
+              <li id="source-fluent">
+                <strong>FluentMigrator:</strong>
+                <a
+                  href="https://fluentmigrator.github.io/intro/quick-start.html"
+                  >quick start and runners</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/intro/configuration.html"
+                  >configuration and version tables</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/migration-types/auto-reversing.html"
+                  >auto-reversing migrations</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/migration-types/maintenance.html"
+                  >maintenance migrations</a
+                >,
+                <a
+                  href="https://fluentmigrator.github.io/migration-types/profiles.html"
+                  >profiles</a
+                >,
+                <a href="https://github.com/fluentmigrator/fluentmigrator/blob/2e0acdb7c375b03e50e65f34ddf50e44ee45df30/src/FluentMigrator.Runner.SQLite/Generators/SQLite/SQLiteGenerator.cs">SQLite generator</a>,
+                <a href="https://fluentmigrator.github.io/"
+                  >authoring and providers</a
+                >.
+              </li>
+              <li id="source-ef">
+                <strong>EF Core:</strong>
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/"
+                  >model snapshots</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing"
+                  >authoring and transactions</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying"
+                  >scripts, bundles and downgrade</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/history-table"
+                  >custom history tables</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/providers"
+                  >multiple providers</a
+                >,
+                <a
+                  href="https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding"
+                  >seeding</a
+                >,
+                <a href="https://learn.microsoft.com/en-us/ef/core/providers/sqlite/limitations">SQLite rebuilds and locking</a>.
+              </li>
+              <li id="source-dbup">
+                <strong>DbUp:</strong>
+                <a href="https://dbup.readthedocs.io/en/latest/">execution</a>,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/transactions/"
+                  >transactions</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/journaling/"
+                  >journaling</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/script-types/"
+                  >script types</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/philosophy-behind-dbup/"
+                  >forward-change philosophy</a
+                >,
+                <a
+                  href="https://dbup.readthedocs.io/en/latest/more-info/script-providers/"
+                  >SQL and C# script providers</a
+                >.
+              </li>
+              <li id="source-evolve">
+                <strong>Evolve:</strong>
+                <a href="https://evolve-db.netlify.app/concepts/"
+                  >commands, checksums, repeatables and transactions</a
+                >,
+                <a href="https://evolve-db.netlify.app/configuration/options/"
+                  >configuration</a
+                >,
+                <a href="https://evolve-db.netlify.app/getting-started/"
+                  >execution options</a
+                >.
+              </li>
+            </ol>
+          </details>
+        </div>
+      </section>

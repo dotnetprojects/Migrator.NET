@@ -1,1 +1,4 @@
 *.sh text eol=lf
+docs/index.html linguist-generated=true
+docs/guide/*.html linguist-generated=true
+docs/assets/search-index.json linguist-generated=true

@@ -9,7 +9,7 @@
 [![Source target: .NET 9](https://img.shields.io/badge/source_target-.NET_9-512BD4)](src/Migrator/DotNetProjects.Migrator.csproj)
 [![License: MPL-1.1](https://img.shields.io/badge/license-MPL--1.1-blue.svg)](https://www.mozilla.org/en-US/MPL/1.1/)
 
-[Homepage & documentation](https://dotnetprojects.github.io/Migrator.NET/) · [NuGet](https://www.nuget.org/packages/DotNetProjects.Migrator/) · [Releases](https://github.com/dotnetprojects/Migrator.NET/releases) · [Issues](https://github.com/dotnetprojects/Migrator.NET/issues) · [Feature comparison](https://dotnetprojects.github.io/Migrator.NET/#compare) · [CI test counts](https://dotnetprojects.github.io/Migrator.NET/#test-results)
+[Homepage](https://dotnetprojects.github.io/Migrator.NET/) · [Documentation](https://dotnetprojects.github.io/Migrator.NET/guide/) · [NuGet](https://www.nuget.org/packages/DotNetProjects.Migrator/) · [Releases](https://github.com/dotnetprojects/Migrator.NET/releases) · [Issues](https://github.com/dotnetprojects/Migrator.NET/issues) · [Feature comparison](https://dotnetprojects.github.io/Migrator.NET/#compare) · [CI test counts](https://dotnetprojects.github.io/Migrator.NET/#test-results)
 
 DotNetProjects.Migrator is a fork of [Migrator.NET](https://github.com/migratordotnet/Migrator.NET). Write each schema change as a numbered C# class, commit it alongside your application, and use the runner to bring a database to the required version. The database records which migrations have already been applied.
 
@@ -55,26 +55,28 @@ Install the ADO.NET driver for your database separately. For the SQLite example 
 dotnet add package Microsoft.Data.Sqlite --version 9.0.7
 ```
 
-The **current source targets `net9.0`**. Check the [NuGet package's framework list](https://www.nuget.org/packages/DotNetProjects.Migrator/#supportedframeworks-body-tab) for the particular release you install; older package releases may target different frameworks. The SQLite driver version above matches the repository's test dependency.
+The library targets **.NET 9**. The SQLite driver version above matches the repository's test dependency. See the [installation guide](https://dotnetprojects.github.io/Migrator.NET/guide/installation.html) for driver choices and optional packages.
 
-Building the `.slnx` solution requires an SDK that understands that format, such as .NET SDK 9.0.200 or later. The runtime required by the current source is .NET 9.
+Building the `.slnx` solution requires an SDK that understands that format, such as .NET SDK 9.0.200 or later, and the .NET 9 runtime.
 
 ## Quick start
 
-This example uses the current repository API. Clone/check out this repository before running these commands from the repository root. When updating older migrations, see the [migration guide](docs/migration-guide-12.1-to-13.md).
+Create a host with the .NET 9 SDK. Choose one of the two migration styles below; both use the same runner. The [interactive quick start](https://dotnetprojects.github.io/Migrator.NET/guide/quick-start.html) has Classic/Fluent tabs, and the [manual](https://dotnetprojects.github.io/Migrator.NET/guide/) covers each operation in both styles. When updating older migrations, see the [migration guide](docs/migration-guide-12.1-to-13.md).
 
 ### 1. Create a migration host
 
 ```sh
 dotnet new console -n MigrationDemo -f net9.0
 cd MigrationDemo
-dotnet add reference ../src/Migrator/DotNetProjects.Migrator.csproj
+dotnet add package DotNetProjects.Migrator
 dotnet add package Microsoft.Data.Sqlite --version 9.0.7
 ```
 
 ### 2. Add `CreateUsers.cs`
 
-Migrations must be public classes implementing the migration contract, decorated with `[Migration(version)]`. Each version must be unique within the set loaded by one runner.
+Migrations must be public classes implementing the migration contract, decorated with `[Migration(version)]`. Each version must be unique within the set loaded by one runner. Copy either the Classic or Fluent class, not both.
+
+**Classic**
 
 ```csharp
 using System.Data;
@@ -98,7 +100,29 @@ public class CreateUsers : Migration
 }
 ```
 
-### 3. Replace `Program.cs`
+**Fluent — the equivalent `CreateUsers.cs`**
+
+```csharp
+using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Framework.Fluent;
+
+[Migration(1)]
+public class CreateUsers : FluentMigration
+{
+    public override void BuildUp(MigrationBuilder migration)
+    {
+        migration.Create.Table("Users")
+            .WithColumn("Id").AsInt32().NotNullable()
+            .WithColumn("Name").AsString(255)
+            .WithPrimaryKey("PK_Users", "Id");
+    }
+
+    public override void BuildDown(MigrationBuilder migration)
+        => migration.Delete.Table("Users");
+}
+```
+
+### 3. Replace `Program.cs` (shared host for both styles)
 
 ```csharp
 using DotNetProjects.Migrator;
@@ -136,7 +160,7 @@ The example supplies an **open** `IDbConnection`. The caller owns that connectio
 
 ## Migration versions and rollback
 
-Use increasing numeric versions, or the attribute's date-based constructor:
+Both Classic and Fluent classes use increasing numeric versions, or the attribute's date-based constructor:
 
 ```csharp
 [Migration(2026, 9, 22, 12, 0, 0)]
@@ -163,7 +187,7 @@ For deployment, run a dedicated migration host before the application needs the 
 
 The default history table is `SchemaInfo`, with version, scope and timestamp information. The default scope is `"default"`. You can use separate scopes for modules sharing a database.
 
-Within a host with an open `connection`, select the module's migration types explicitly:
+In the shared Classic/Fluent host with an open `connection`, select the module's migration types explicitly:
 
 ```csharp
 using var billingProvider = ProviderFactory.Create(
@@ -196,30 +220,6 @@ See [ProviderFactory](src/Migrator/ProviderFactory.cs), [MigrationLoader](src/Mi
 
 ## Fluent API and deployment tooling
 
-Replace the quick start’s `CreateUsers.cs` with this fluent equivalent; keep the same runner. Use one version-1 class, not both examples together.
-
-```csharp
-using DotNetProjects.Migrator.Framework;
-using DotNetProjects.Migrator.Framework.Fluent;
-
-[Migration(1)]
-public class CreateUsers : FluentMigration
-{
-    public override void BuildUp(MigrationBuilder migration)
-    {
-        migration.Create.Table("Users")
-            .WithColumn("Id").AsInt32().NotNullable()
-            .WithPrimaryKey("PK_Users", "Id")
-            .WithColumn("Name").AsString(255);
-    }
-
-    public override void BuildDown(MigrationBuilder migration)
-    {
-        migration.Delete.Table("Users");
-    }
-}
-```
-
 `FluentMigration` collects operations in `BuildUp` and uses your explicit `BuildDown`. `AutoReversingMigration` derives reverse operations for supported create/rename changes; it cannot recover deleted data.
 
 Run the [compiled fluent example](examples/FluentQuickStart/Program.cs):
@@ -241,7 +241,9 @@ Inside a migration, `Database` implements [`ITransformationProvider`](src/Migrat
 | Schema inspection  | `TableExists`, `ColumnExists`, `GetTables`, `GetColumns`                              |
 | Data and SQL       | `Insert`, `Update`, `Delete`, `ExecuteNonQuery`, `ExecuteQuery`, `ExecuteScalar`      |
 
-For example, a new migration can add a column:
+For example, a new migration can add a column.
+
+**Classic**
 
 ```csharp
 public override void Up()
@@ -255,19 +257,41 @@ public override void Down()
 }
 ```
 
-Provider implementations determine which operations are available and how they map to SQL. Use `Database.ExecuteNonQuery(...)` for custom SQL and keep dialect-specific statements explicit. The source also includes the [MigrationBuilder fluent API](src/Migrator/Framework/Fluent/MigrationBuilder.cs).
+**Fluent**
+
+```csharp
+public override void BuildUp(MigrationBuilder migration)
+{
+    migration.Create.Column("Email", "Users").AsString(320);
+}
+
+public override void BuildDown(MigrationBuilder migration)
+{
+    migration.Delete.Column("Email", "Users");
+}
+```
+
+Provider implementations determine which operations are available and how they map to SQL. Use `Database.ExecuteNonQuery(...)` or `migration.Execute.Sql(...)` for custom SQL and keep dialect-specific statements explicit. The [Classic/Fluent API map](https://dotnetprojects.github.io/Migrator.NET/guide/api-map.html) lists the corresponding operations.
 
 ### Explicit constraints, SQL defaults and collations
 
 Columns describe type, size, precision, nullability and identity. Define primary, unique, foreign-key and check constraints as named table objects; inspect them with `GetTableConstraints`. Changing a column preserves explicit constraints. `RawSql.Insert` marks a trusted SQL default expression, while `Collation` provides semantic presets and installed provider names.
 
-```csharp
-new Column("Id", DbType.String, 27) { DefaultValue = RawSql.Insert("ksuid_new()") };
-builder.Create.Table("Events").WithColumn("Id").AsString(27)
-    .WithDefaultValue(RawSql.Insert("ksuid_new()"));
+**Classic — inside `Up()`**
 
-new Column("Name", DbType.String, 100) { Collation = Collation.AsciiIgnoreCase };
-builder.Create.Table("Names").WithColumn("Name").AsString(100)
+```csharp
+Database.AddTable("Events", new Column("Id", DbType.String, 27)
+    { DefaultValue = RawSql.Insert("ksuid_new()") });
+Database.AddTable("Names", new Column("Name", DbType.String, 100)
+    { Collation = Collation.AsciiIgnoreCase });
+```
+
+**Fluent — inside `BuildUp(MigrationBuilder migration)`**
+
+```csharp
+migration.Create.Table("Events").WithColumn("Id").AsString(27)
+    .WithDefaultValue(RawSql.Insert("ksuid_new()"));
+migration.Create.Table("Names").WithColumn("Name").AsString(100)
     .WithCollation(Collation.AsciiIgnoreCase);
 ```
 
@@ -359,7 +383,9 @@ See [live database testing](docs/live-database-tests.md) for the CI matrix, pinn
 
 ## Documentation and GitHub Pages
 
-The homepage in [`docs/`](docs/README.md) includes installation, a runnable quick start, provider information and a sourced feature comparison. It uses plain HTML, CSS and JavaScript with no build dependencies.
+The [migration manual](https://dotnetprojects.github.io/Migrator.NET/guide/) includes 38 chapters with paired Classic/Fluent examples, chapter search, provider details and deployment guidance. Start with [tables](https://dotnetprojects.github.io/Migrator.NET/guide/creating-tables.html), [runner configuration](https://dotnetprojects.github.io/Migrator.NET/guide/configuration.html), or [SQLite](https://dotnetprojects.github.io/Migrator.NET/guide/sqlite.html). The homepage includes a sourced feature comparison.
+
+The site uses static HTML, CSS and JavaScript. A Python standard-library generator builds it from `docs/_src/`; generated pages are committed. See the [site maintenance guide](docs/README.md) for regeneration and sample validation.
 
 Preview locally from the repository root:
 
