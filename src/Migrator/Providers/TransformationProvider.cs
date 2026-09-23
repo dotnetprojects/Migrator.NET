@@ -246,18 +246,20 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     {
         var lst =
             fields.Where(x => string.IsNullOrEmpty(x.TableName) || x.TableName == tableName)
-                .Select(x => x.ColumnName)
+                .Select(x => tableName + "." + x.ColumnName)
                 .ToList();
 
         var nr = 0;
         var joins = "";
-        foreach (var joinTable in fields.Where(x => !string.IsNullOrEmpty(x.TableName) && x.TableName != tableName).GroupBy(x => x.TableName))
+        foreach (var joinTable in fields.Where(x => !string.IsNullOrEmpty(x.TableName) && x.TableName != tableName)
+            .GroupBy(x => new { x.TableName, x.KeyColumnName, x.ParentTableName, x.ParentKeyColumnName }))
         {
+            var relationship = joinTable.Key;
+            var alias = "T" + nr++;
+            joins += $"JOIN {relationship.TableName} {alias} ON {alias}.{relationship.KeyColumnName} = {relationship.ParentTableName}.{relationship.ParentKeyColumnName} ";
             foreach (var viewField in joinTable)
             {
-                joins += string.Format("JOIN {0} {1} ON {1}.{2} = {3}.{4} ", viewField.TableName, " T" + nr,
-                    viewField.KeyColumnName, viewField.ParentTableName, viewField.ParentKeyColumnName);
-                lst.Add(" T" + nr + "." + viewField.ColumnName);
+                lst.Add(alias + "." + viewField.ColumnName);
             }
         }
 
@@ -295,9 +297,10 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             }
 
             var tableAlias = string.IsNullOrEmpty(viewJoin.TableAlias) ? viewJoin.TableName : viewJoin.TableAlias;
+            var parentAlias = string.IsNullOrEmpty(viewJoin.ParentTableAlias) ? viewJoin.ParentTableName : viewJoin.ParentTableAlias;
 
             joins += string.Format("{0} {1} {2} ON {2}.{3} = {4}.{5} ", joinType, viewJoin.TableName, tableAlias,
-                viewJoin.ColumnName, viewJoin.ParentTableName, viewJoin.ParentColumnName);
+                viewJoin.ColumnName, parentAlias, viewJoin.ParentColumnName);
         }
 
         var select = string.Format("SELECT {0} FROM {1} {1} {2}", string.Join(",", selectedColumns), tableName, joins);
@@ -1336,12 +1339,16 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             throw new ArgumentNullException("table");
         }
 
-        if (null == whereColumns || null == whereValues)
+        if (whereColumns == null && whereValues == null)
         {
             return ExecuteNonQuery(string.Format("DELETE FROM {0}", table));
         }
         else
         {
+            ArgumentNullException.ThrowIfNull(whereColumns);
+            ArgumentNullException.ThrowIfNull(whereValues);
+            if (whereColumns.Length == 0 || whereColumns.Length != whereValues.Length)
+                throw new ArgumentException("Delete predicates need matching, non-empty column and value arrays.");
             table = QuoteTableNameIfRequired(table);
 
             using var command = CreateCommand();
@@ -1353,7 +1360,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             command.Transaction = _transaction;
 
             var query = string.Format("DELETE FROM {0} WHERE ({1})", table,
-                GetWhereString(whereColumns, whereValues));
+                GetWhereStringWithNullCheck(whereColumns, whereValues));
 
             command.CommandText = query;
             command.CommandType = CommandType.Text;
@@ -1362,6 +1369,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
             foreach (var value in whereValues)
             {
+                if (value == null || value == DBNull.Value) continue;
                 var parameter = command.CreateParameter();
 
                 ConfigureParameterWithValue(parameter, paramCount, value);
