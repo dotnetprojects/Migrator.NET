@@ -1,6 +1,7 @@
 {
   "AddTable": "Create.Table(...).WithFields(...) / WithEngine(...)",
-  "AddColumn": "Create.Column(name).OnTable(table).OfType(...) / Create.Column(definition).OnTable(table)",
+  "AddColumn": "Create.Column(name).OnTable(table).OfType(...) / Create.Column(definition).OnTable(table); Database.AddColumn(table, column, primaryKey) for the combined operation",
+  "RemoveUniqueConstraint": "Database.RemoveUniqueConstraint(table, definition) for exact metadata-based selection, including unnamed SQLite constraints",
   "ChangeColumn": "Alter.Column(name).OnTable(table).OfType(...) / Alter.Column(definition).OnTable(table)",
   "AddPrimaryKey": "Create.PrimaryKey(name).OnTable(table).WithColumns(...)",
   "AddPrimaryKeyNonClustered": "Create.NonClusteredPrimaryKey(name).OnTable(table).WithColumns(...)",
