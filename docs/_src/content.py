@@ -214,6 +214,13 @@ Database.Delete("Users", new[] { "Id" }, new object[] { 1 });
 ''', '''
 migration.Delete.FromTable("Users").Where(new[] { "Id" }, new object[] { 1 });
 ''')),
+    section("Delete duplicate rows", '<p>DeleteDuplicateRows keeps one arbitrary row per composite key using database equality and collation. It supports SQLite ordinary rowid tables, PostgreSQL, Oracle ROWID tables and SQL Server. NULL keys compare equal by default; pass DuplicateNullHandling.ExcludeNullKeys to leave rows with any NULL key untouched. The direct API returns the database-reported affected-row count. Non-key values do not influence the survivor. Keys must be non-empty, distinct existing columns.</p><p>The operation executes one DELETE in the existing transaction without changing the schema. Normal DELETE triggers and foreign-key rules apply. It does not prevent concurrent or future duplicates: coordinate writers and add an appropriate unique constraint separately. Deleted data cannot be automatically reversed. SQL preview is unsupported because safe physical row identity selection requires live metadata. Unsupported providers and SQLite tables without an accessible rowid are rejected.</p>', pair("Keep one assignment per role/group pair", '''
+int removed = Database.DeleteDuplicateRows("Assignments",
+    new[] { "RoleId", "GroupId" }, DuplicateRowRetention.Any);
+''', '''
+migration.Delete.DuplicateRows().FromTable("Assignments")
+    .ByColumns("RoleId", "GroupId").KeepAny();
+''')),
     section("Conditional seed data", '<p>Use an explicit identifying predicate when a seed should exist only once. This is distinct from a migration version: a named profile can run repeatedly without a history entry. Coordinate competing writers; a check-then-insert helper is not a substitute for a database unique key.</p>', pair("Insert a missing seed", '''
 Database.InsertIfNotExists("Users", new[] { "Id", "Name" },
     new object[] { 1, "Ada" }, new[] { "Id" }, new object[] { 1 });

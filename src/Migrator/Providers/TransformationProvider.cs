@@ -1525,6 +1525,9 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         AddColumn(table, _dialect.GetAndMapColumnProperties(column.CopyDefinition()).ColumnSql);
     }
 
+    public virtual int DeleteDuplicateRows(string table, string[] keyColumns, DuplicateRowRetention keep, DuplicateNullHandling nulls = DuplicateNullHandling.Equal)
+        => DuplicateRowDeletion.Execute(this, table, keyColumns, keep, nulls);
+
     public virtual void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey)
     {
         var definition = PrepareColumnWithPrimaryKey(table, column, primaryKey);

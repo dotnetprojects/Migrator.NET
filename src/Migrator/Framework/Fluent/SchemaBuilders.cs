@@ -148,6 +148,11 @@ public sealed class ViewDefinitionBuilder
 
 public sealed class DeleteRoot(MigrationBuilder builder)
 {
+    public FromTableBuilder<DuplicateRowsBuilder> DuplicateRows()
+    {
+        var pending = new PendingOperation(builder, "Duplicate-row deletion requires FromTable(...).ByColumns(...).KeepAny()");
+        return new FromTableBuilder<DuplicateRowsBuilder>(table => new DuplicateRowsBuilder(pending, table));
+    }
     public void Table(string table) => builder.Add(new RemoveOperation(RemoveKind.Table, BuilderArguments.Name(table)));
     public RemoveFromTableBuilder Column(string name) => Remove(RemoveKind.Column, BuilderArguments.Name(name));
     public RemoveFromTableBuilder ForeignKey(string name) => Remove(RemoveKind.ForeignKey, BuilderArguments.Name(name));
