@@ -1525,6 +1525,44 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         AddColumn(table, _dialect.GetAndMapColumnProperties(column.CopyDefinition()).ColumnSql);
     }
 
+    public virtual void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey)
+    {
+        var definition = PrepareColumnWithPrimaryKey(table, column, primaryKey);
+        AddColumn(table, definition);
+        if (primaryKey.NonClustered) AddPrimaryKeyNonClustered(primaryKey.Name, table, primaryKey.KeyColumns);
+        else AddPrimaryKey(primaryKey.Name, table, primaryKey.KeyColumns);
+    }
+
+    protected Column PrepareColumnWithPrimaryKey(string table, Column column, PrimaryKeyConstraint primaryKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(table);
+        ArgumentNullException.ThrowIfNull(column);
+        ArgumentNullException.ThrowIfNull(primaryKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(primaryKey.Name);
+        if (!TableExists(table)) throw new MigrationException("Table does not exist.");
+        var columns = GetColumns(table);
+        if (columns.Any(existing => existing.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase))) throw new MigrationException("Column already exists.");
+        if (GetTableConstraints(table).OfType<PrimaryKeyConstraint>().Any()) throw new MigrationException("The table already has a primary key.");
+        ValidateKeyColumns(primaryKey.Name, primaryKey.KeyColumns, columns.Append(column).ToArray());
+        // Validate provider-specific key options before any DDL.
+        _dialect.GetTableConstraintSql(primaryKey);
+        var definition = column.CopyDefinition();
+        if (primaryKey.KeyColumns.Contains(column.Name, StringComparer.OrdinalIgnoreCase)) definition.IsNullable = false;
+        return definition;
+    }
+
+    public virtual void RemoveUniqueConstraint(string table, UniqueConstraint constraint)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(table);
+        ArgumentNullException.ThrowIfNull(constraint);
+        var matches = GetTableConstraints(table).OfType<UniqueConstraint>().Where(candidate =>
+            string.Equals(candidate.Name, constraint.Name, StringComparison.OrdinalIgnoreCase) &&
+            candidate.KeyColumns.SequenceEqual(constraint.KeyColumns, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (matches.Length != 1) throw new MigrationException("Unique constraint selection must match exactly one definition.");
+        if (string.IsNullOrWhiteSpace(matches[0].Name)) throw new NotSupportedException("This provider cannot remove an unnamed unique constraint.");
+        RemoveConstraint(table, matches[0].Name);
+    }
+
     public virtual void GenerateForeignKey(string primaryTable, string refTable)
     {
         GenerateForeignKey(primaryTable, refTable, ForeignKeyConstraintType.NoAction);

@@ -6,6 +6,7 @@ using DotNetProjects.Migrator.Framework.Models;
 
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = DotNetProjects.Migrator.Framework.Index;
+using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 
 namespace DotNetProjects.Migrator.Providers;
 
@@ -15,6 +16,8 @@ namespace DotNetProjects.Migrator.Providers;
 public class NoOpTransformationProvider : ITransformationProvider
 {
     public TableConstraint[] GetTableConstraints(string table) => [];
+    public void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey) { }
+    public void RemoveUniqueConstraint(string table, UniqueConstraint constraint) { }
 
     public static readonly NoOpTransformationProvider Instance = new NoOpTransformationProvider();
 

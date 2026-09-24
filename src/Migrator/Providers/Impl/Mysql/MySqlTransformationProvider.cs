@@ -13,6 +13,13 @@ namespace DotNetProjects.Migrator.Providers.Impl.Mysql;
 /// </summary>    
 public class MySqlTransformationProvider : TransformationProvider
 {
+    public override void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey)
+    {
+        var definition = PrepareColumnWithPrimaryKey(table, column, primaryKey);
+        // AUTO_INCREMENT must be indexed in the same ALTER statement, including on MariaDB.
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD COLUMN {_dialect.GetAndMapColumnProperties(definition).ColumnSql}, ADD {_dialect.GetTableConstraintSql(primaryKey)}");
+    }
+
     public MySqlTransformationProvider(Dialect dialect, string connectionString, string scope, string providerName)
         : base(dialect, connectionString, null, scope) // we ignore schemas for MySql (schema == database for MySql)
     {

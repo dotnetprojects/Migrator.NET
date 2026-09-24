@@ -100,6 +100,12 @@ public interface ITransformationProvider : IDisposable
     /// <param name="column">An instance of a <see cref="Column">Column</see> with the specified properties</param>
     void AddColumn(string table, Column column);
 
+    /// <summary>Add a column and an explicit primary key as one schema operation. SQLite rebuilds once; other providers use their normal DDL transaction semantics.</summary>
+    void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey);
+
+    /// <summary>Remove the exact unique constraint returned by metadata, including unnamed SQLite constraints.</summary>
+    void RemoveUniqueConstraint(string table, UniqueConstraint constraint);
+
     /// <summary>
     /// Add a foreign key constraint
     /// </summary>

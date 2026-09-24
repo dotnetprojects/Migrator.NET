@@ -1015,6 +1015,36 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         RecreateTable(sqliteInfo);
     }
 
+    public override void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(table);
+        ArgumentNullException.ThrowIfNull(column);
+        ArgumentNullException.ThrowIfNull(primaryKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(primaryKey.Name);
+        var definition = GetSQLiteTableInfo(table);
+        if (definition.Columns.Any(existing => existing.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)))
+            throw new MigrationException("Column already exists.");
+        if (definition.PrimaryKey != null) throw new MigrationException("The table already has a primary key.");
+        definition.Columns.Add(column.CopyDefinition());
+        ValidateKeyColumns(primaryKey.Name, primaryKey.KeyColumns, definition.Columns.ToArray());
+        definition.ColumnMappings.Add(new MappingInfo { NewName = column.Name });
+        definition.PrimaryKey = new PrimaryKeyConstraint(primaryKey.Name, primaryKey.KeyColumns) { NonClustered = primaryKey.NonClustered };
+        RecreateTable(definition);
+    }
+
+    public override void RemoveUniqueConstraint(string table, UniqueConstraint constraint)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(table);
+        ArgumentNullException.ThrowIfNull(constraint);
+        var definition = GetSQLiteTableInfo(table);
+        var matches = definition.Uniques.Where(candidate =>
+            string.Equals(candidate.Name, constraint.Name, StringComparison.OrdinalIgnoreCase) &&
+            candidate.KeyColumns.SequenceEqual(constraint.KeyColumns, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (matches.Length != 1) throw new MigrationException("Unique constraint selection must match exactly one definition.");
+        definition.Uniques.Remove(matches[0]);
+        RecreateTable(definition);
+    }
+
     public override void AddColumn(string table, string columnName, DbType type, int size)
     {
         var column = new Column(columnName, type, size);
