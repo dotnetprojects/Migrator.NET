@@ -261,24 +261,23 @@ default remains text; use a CLR `Guid` when authoring a GUID default.
 
 ### SQLite identity columns
 
-SQLite requires the identity column and its single-column primary key in the
-same table definition. Separate `AddColumn` and `AddPrimaryKey` calls create an
-invalid intermediate definition. Use the SQLite provider's atomic rebuild API:
+Use the provider-independent overload to add a column with an explicit primary key:
 
 ```csharp
-var sqlite = (SQLiteTransformationProvider)Database;
-var definition = sqlite.GetSQLiteTableInfo("Settings");
-definition.Columns.Add(new Column("Id", DbType.Int32) { IsIdentity = true });
-definition.ColumnMappings.Add(new MappingInfo { OldName = null, NewName = "Id" });
-definition.PrimaryKey = new PrimaryKeyConstraint("PK_Settings", "Id");
-sqlite.RecreateTable(definition);
+Database.AddColumn("Settings",
+    new Column("Id", DbType.Int32) { IsIdentity = true },
+    new PrimaryKeyConstraint("PK_Settings", "Id"));
 ```
 
-`SQLiteTransformationProvider` is in `DotNetProjects.Migrator.Providers.Impl.SQLite`;
-`MappingInfo` is in its `Models` namespace. Existing rows receive generated IDs.
-This example assumes the table has no existing primary key or dependent foreign
-keys requiring a separate migration plan.
+The key must have a nonempty name and valid, ordered column members. Existing primary keys are rejected rather than replaced, and caller-owned definitions are not mutated. SQLite adds both definitions in a single transactional table rebuild, preserving existing rows and generating IDs. MySQL/MariaDB add both in one ALTER statement because AUTO_INCREMENT must be indexed immediately. Other providers use their normal AddColumn/AddPrimaryKey operations and DDL transaction semantics; the overload does not promise cross-provider rollback if a later DDL statement fails. Existing columns in a composite key must already meet the provider's requirements.
 
+`IsIdentity` alone still does not imply a primary key. Separate AddColumn/AddPrimaryKey calls cannot introduce an SQLite identity column. SQLite downgrade can use RemovePrimaryKey followed by RemoveColumn; the migration runner manages SQLite's foreign-key state.
+
+### Removing legacy unnamed unique constraints
+
+Use `Database.RemoveUniqueConstraint(table, constraint)` with a `UniqueConstraint` returned by `GetTableConstraints`. The operation matches both the declared name and ordered columns, and requires exactly one match. SQLite rebuilds internally to remove unnamed legacy constraints without discarding other unique/check constraints. Other providers remove the verified named constraint using their existing DDL implementation. Unknown or ambiguous selections fail before mutation.
+
+Custom ITransformationProvider implementations must implement these two new methods; implementations derived from TransformationProvider inherit the portable defaults. NoOpTransformationProvider supports both as no-ops. These are direct provider APIs; fluent callers can use Database for these combined operations.
 ## Identifier quoting and renamed tables
 
 Use `QuoteColumnNameIfRequired` for columns in authored SQL and
