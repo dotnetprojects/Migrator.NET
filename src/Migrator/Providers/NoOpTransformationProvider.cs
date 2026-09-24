@@ -16,6 +16,7 @@ namespace DotNetProjects.Migrator.Providers;
 public class NoOpTransformationProvider : ITransformationProvider
 {
     public TableConstraint[] GetTableConstraints(string table) => [];
+    public int DeleteDuplicateRows(string table, string[] keyColumns, DuplicateRowRetention keep, DuplicateNullHandling nulls = DuplicateNullHandling.Equal) => 0;
     public void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey) { }
     public void RemoveUniqueConstraint(string table, UniqueConstraint constraint) { }
 

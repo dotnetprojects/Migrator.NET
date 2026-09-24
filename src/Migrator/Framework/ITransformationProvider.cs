@@ -100,6 +100,9 @@ public interface ITransformationProvider : IDisposable
     /// <param name="column">An instance of a <see cref="Column">Column</see> with the specified properties</param>
     void AddColumn(string table, Column column);
 
+    /// <summary>Delete duplicate key groups, keeping one arbitrary row. Returns affected rows; does not change the schema or prevent future duplicates.</summary>
+    int DeleteDuplicateRows(string table, string[] keyColumns, DuplicateRowRetention keep, DuplicateNullHandling nulls = DuplicateNullHandling.Equal);
+
     /// <summary>Add a column and an explicit primary key as one schema operation. SQLite rebuilds once; other providers use their normal DDL transaction semantics.</summary>
     void AddColumn(string table, Column column, PrimaryKeyConstraint primaryKey);
 
