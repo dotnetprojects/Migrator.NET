@@ -43,88 +43,39 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         if (ForeignKeyExists(table, name))
         {
-            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP FOREIGN KEY {1}", table, _dialect.QuoteIdentifier(name)));
+            ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP FOREIGN KEY {1}", QuoteTableNameIfRequired(table), _dialect.QuoteIdentifier(name)));
         }
     }
 
     public override void RemoveAllIndexes(string table)
     {
-        var qry = string.Format(@"SELECT k.TABLE_NAME, i.CONSTRAINT_NAME, i.CONSTRAINT_TYPE
-                                                    FROM information_schema.KEY_COLUMN_USAGE k 
-                                                    INNER JOIN information_schema.TABLE_CONSTRAINTS i 
-                                                    ON i.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND i.TABLE_NAME = k.TABLE_NAME 
-                                                    WHERE k.REFERENCED_TABLE_SCHEMA='{0}' AND
-                                                    (k.REFERENCED_TABLE_NAME='{1}') OR (k.TABLE_NAME='{1}')", GetDatabase(), table);
-
-        var l = new List<Tuple<string, string, string>>();
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, qry))
+        RemoveAllForeignKeys(table, null);
+        foreach (var index in GetIndexes(table))
         {
-            while (reader.Read())
-            {
-                l.Add(new Tuple<string, string, string>(reader.GetString(0), reader.GetString(1), reader.GetString(2)));
-            }
-        }
-
-        foreach (var tuple in l)
-        {
-            if (tuple.Item3 == "FOREIGN KEY")
-            {
-                RemoveForeignKey(tuple.Item1, tuple.Item2);
-            }
-            else if (tuple.Item3 == "PRIMARY KEY")
-            {
-                try
-                {
-                    ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP PRIMARY KEY", table));
-                }
-                catch (Exception)
-                { }
-            }
-            else if (tuple.Item3 == "UNIQUE")
-            {
-                RemoveIndex(tuple.Item1, tuple.Item2);
-            }
+            if (index.PrimaryKey) RemoveConstraint(table, "PRIMARY");
+            else RemoveIndex(table, index.Name);
         }
     }
 
     public override void RemoveAllForeignKeys(string tableName, string columnName)
     {
-        var qry = string.Format(@"SELECT k.TABLE_NAME, i.CONSTRAINT_NAME
-                                                    FROM information_schema.KEY_COLUMN_USAGE k 
-                                                    INNER JOIN information_schema.TABLE_CONSTRAINTS i 
-                                                    ON i.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND i.TABLE_NAME = k.TABLE_NAME 
-                                                    WHERE k.REFERENCED_TABLE_SCHEMA='{0}' AND  i.CONSTRAINT_TYPE = 'FOREIGN KEY' AND
-                                                    (k.REFERENCED_TABLE_NAME='{1}' AND REFERENCED_COLUMN_NAME='{2}') OR (k.TABLE_NAME='{1}' AND COLUMN_NAME='{2}')", GetDatabase(), tableName, columnName);
-
-        if (string.IsNullOrEmpty(columnName))
-        {
-            qry = string.Format(@"SELECT k.TABLE_NAME, i.CONSTRAINT_NAME
-                                                    FROM information_schema.KEY_COLUMN_USAGE k 
-                                                    INNER JOIN information_schema.TABLE_CONSTRAINTS i 
-                                                    ON i.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND i.TABLE_NAME = k.TABLE_NAME 
-                                                    WHERE k.REFERENCED_TABLE_SCHEMA='{0}' AND i.CONSTRAINT_TYPE = 'FOREIGN KEY' AND
-                                                    (k.REFERENCED_TABLE_NAME='{1}') OR (k.TABLE_NAME='{1}')", GetDatabase(), tableName);
-        }
-        var l = new List<Tuple<string, string>>();
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, qry))
-        {
-            while (reader.Read())
-            {
-                l.Add(new Tuple<string, string>(reader.GetString(0), reader.GetString(1)));
-            }
-        }
-
-        foreach (var tuple in l)
-        {
-            RemoveForeignKey(tuple.Item1, tuple.Item2);
-        }
+        var scope = NamespaceSql(tableName, "DATABASE()");
+        var name = ObjectSqlLiteral(tableName);
+        var column = string.IsNullOrEmpty(columnName) ? "" : " AND k.COLUMN_NAME=" + SqlLiteral(columnName);
+        var parentColumn = string.IsNullOrEmpty(columnName) ? "" : " AND k.REFERENCED_COLUMN_NAME=" + SqlLiteral(columnName);
+        var keys = new List<(string Table, string Name)>();
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, $@"SELECT DISTINCT k.TABLE_SCHEMA,k.TABLE_NAME,k.CONSTRAINT_NAME
+            FROM information_schema.KEY_COLUMN_USAGE k WHERE k.REFERENCED_TABLE_NAME IS NOT NULL AND
+            ((k.TABLE_SCHEMA={scope} AND k.TABLE_NAME={name}{column}) OR
+             (k.REFERENCED_TABLE_SCHEMA={scope} AND k.REFERENCED_TABLE_NAME={name}{parentColumn}))"))
+            while (reader.Read()) keys.Add((_dialect.QuoteIdentifier(reader.GetString(0)) + "." + _dialect.QuoteIdentifier(reader.GetString(1)), reader.GetString(2)));
+        foreach (var key in keys) RemoveForeignKey(key.Table, key.Name);
     }
 
     public override void RemoveConstraint(string table, string name)
     {
-        var type = Convert.ToString(ExecuteScalar($"SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' AND CONSTRAINT_NAME='{name.Replace("'", "''")}'"));
+        var type = Convert.ToString(ExecuteScalar($"SELECT CONSTRAINT_TYPE FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA={NamespaceSql(table, "DATABASE()")} AND TABLE_NAME={ObjectSqlLiteral(table)} AND CONSTRAINT_NAME='{name.Replace("'", "''")}'"));
         var action = type switch
         {
             "PRIMARY KEY" => "DROP PRIMARY KEY",
@@ -133,50 +84,24 @@ public class MySqlTransformationProvider : TransformationProvider
             "CHECK" => (_dialect is MariaDBDialect ? "DROP CONSTRAINT " : "DROP CHECK ") + _dialect.QuoteIdentifier(name),
             _ => throw new MigrationException($"Constraint '{name}' does not exist")
         };
-        ExecuteNonQuery($"ALTER TABLE {_dialect.Quote(table)} {action}");
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} {action}");
     }
 
     public override bool ConstraintExists(string table, string name)
     {
-        return Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' AND CONSTRAINT_NAME='{name.Replace("'", "''")}'")) > 0;
+        return Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA={NamespaceSql(table, "DATABASE()")} AND TABLE_NAME={ObjectSqlLiteral(table)} AND CONSTRAINT_NAME='{name.Replace("'", "''")}'")) > 0;
     }
 
-    public bool ForeignKeyExists(string table, string name)
-    {
-        if (!TableExists(table))
-        {
-            return false;
-        }
-
-        var sqlConstraint = string.Format(@"SELECT distinct i.CONSTRAINT_NAME
-                                                    FROM information_schema.TABLE_CONSTRAINTS i 
-                                                    INNER JOIN information_schema.KEY_COLUMN_USAGE k 
-                                                    ON i.CONSTRAINT_NAME = k.CONSTRAINT_NAME 
-                                                    WHERE i.CONSTRAINT_TYPE = 'FOREIGN KEY' 
-                                                    AND i.TABLE_SCHEMA = '{1}'
-                                                    AND i.TABLE_NAME = '{0}';", table, GetDatabase());
-
-        using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, sqlConstraint);
-
-        while (reader.Read())
-        {
-            if (reader["CONSTRAINT_NAME"].ToString().ToLower() == name.ToLower())
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    public bool ForeignKeyExists(string table, string name) =>
+        TableExists(table) && ExecuteStringQuery($"SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA={NamespaceSql(table, "DATABASE()")} AND TABLE_NAME={ObjectSqlLiteral(table)} AND CONSTRAINT_TYPE='FOREIGN KEY'").Any(key => key.Equals(name, StringComparison.OrdinalIgnoreCase));
 
     public override Index[] GetIndexes(string table)
     {
         if (!TableExists(table)) return [];
-        var constraints = ExecuteStringQuery($"SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' AND CONSTRAINT_TYPE='UNIQUE'").ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var constraints = ExecuteStringQuery($"SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA={NamespaceSql(table, "DATABASE()")} AND TABLE_NAME={ObjectSqlLiteral(table)} AND CONSTRAINT_TYPE='UNIQUE'").ToHashSet(StringComparer.OrdinalIgnoreCase);
         var indexes = new Dictionary<string, Index>();
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, $"SHOW INDEX FROM {_dialect.Quote(table)}");
+        using var reader = ExecuteQuery(cmd, $"SHOW INDEX FROM {QuoteTableNameIfRequired(table)}");
         var columns = new Dictionary<string, SortedDictionary<int, string>>();
         while (reader.Read())
         {
@@ -192,6 +117,9 @@ public class MySqlTransformationProvider : TransformationProvider
         return indexes.Values.ToArray();
     }
 
+    public override string[] GetConstraints(string table) =>
+        ExecuteStringQuery($"SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA={NamespaceSql(table, "DATABASE()")} AND TABLE_NAME={ObjectSqlLiteral(table)}").ToArray();
+
     public override bool PrimaryKeyExists(string table, string name)
     {
         return ConstraintExists(table, "PRIMARY");
@@ -201,7 +129,7 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         var columns = new List<Column>();
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, $"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_MAXIMUM_LENGTH, COLUMN_KEY, COLUMN_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{table.Replace("'", "''")}' ORDER BY ORDINAL_POSITION");
+        using var reader = ExecuteQuery(cmd, $"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA, CHARACTER_MAXIMUM_LENGTH, COLUMN_KEY, COLUMN_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA={NamespaceSql(table, "DATABASE()")} AND TABLE_NAME={ObjectSqlLiteral(table)} ORDER BY ORDINAL_POSITION");
         while (reader.Read())
         {
             var type = reader.GetString(1) switch
@@ -261,24 +189,11 @@ public class MySqlTransformationProvider : TransformationProvider
         };
     }
 
-    public override string[] GetTables()
-    {
-        var tables = new List<string>();
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, "SHOW TABLES"))
-        {
-            while (reader.Read())
-            {
-                tables.Add((string)reader[0]);
-            }
-        }
-
-        return tables.ToArray();
-    }
+    public override string[] GetTables() => base.GetTables();
 
     public override void ChangeColumn(string table, string sqlColumn)
     {
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY {1}", table, sqlColumn));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} MODIFY {1}", QuoteTableNameIfRequired(table), sqlColumn));
     }
 
     public override void AddTable(string name, params IDbField[] columns)
@@ -288,15 +203,23 @@ public class MySqlTransformationProvider : TransformationProvider
 
     public override void AddTable(string name, string engine, string columns)
     {
-        var sqlCreate = string.Format("CREATE TABLE {0} ({1}) ENGINE = {2}", name, columns, engine);
+        var sqlCreate = string.Format("CREATE TABLE {0} ({1}) ENGINE = {2}", QuoteTableNameIfRequired(name), columns, engine ?? "INNODB");
         ExecuteNonQuery(sqlCreate);
+    }
+
+    public override void RenameTable(string oldName, string newName)
+    {
+        var target = SqlIdentifier.Parse(newName).Length == 1
+            ? QualifyInSameNamespace(oldName, SqlIdentifier.Parse(newName)[0].Value)
+            : QuoteTableNameIfRequired(newName);
+        ExecuteNonQuery($"RENAME TABLE {QuoteTableNameIfRequired(oldName)} TO {target}");
     }
 
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
     {
         if (!ColumnExists(tableName, oldColumnName) || ColumnExists(tableName, newColumnName))
             throw new MigrationException("Source column must exist and destination column must not exist.");
-        ExecuteNonQuery($"ALTER TABLE {_dialect.Quote(tableName)} RENAME COLUMN {_dialect.Quote(oldColumnName)} TO {_dialect.Quote(newColumnName)}");
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(tableName)} RENAME COLUMN {_dialect.Quote(oldColumnName)} TO {_dialect.Quote(newColumnName)}");
     }
 
     public string GetDatabase()
@@ -308,7 +231,7 @@ public class MySqlTransformationProvider : TransformationProvider
     {
         if (IndexExists(table, name))
         {
-            ExecuteNonQuery(string.Format("DROP INDEX {1} ON {0}", table, _dialect.QuoteIdentifier(name)));
+            ExecuteNonQuery(string.Format("DROP INDEX {1} ON {0}", QuoteTableNameIfRequired(table), _dialect.QuoteIdentifier(name)));
         }
     }
 
@@ -327,10 +250,10 @@ public class MySqlTransformationProvider : TransformationProvider
         return "CONCAT(" + string.Join(", ", strings) + ")";
     }
     public override bool TableExists(string table) =>
-        Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME='{table.Replace("'", "''")}'")) > 0;
+        Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA={NamespaceSql(table, "DATABASE()")} AND TABLE_TYPE='BASE TABLE' AND TABLE_NAME={ObjectSqlLiteral(table)}")) > 0;
 
     public override bool ViewExists(string view) =>
-        Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.VIEWS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{view.Replace("'", "''")}'")) > 0;
+        Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM information_schema.VIEWS WHERE TABLE_SCHEMA={NamespaceSql(view, "DATABASE()")} AND TABLE_NAME={ObjectSqlLiteral(view)}")) > 0;
 
     public override string AddIndex(string table, Index index)
     {
@@ -338,7 +261,7 @@ public class MySqlTransformationProvider : TransformationProvider
         if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
             throw new NotSupportedException("MySQL and MariaDB do not support included columns, filtered indexes or explicit clustered indexes.");
         var name = index.Name ?? $"IX_{table}_{string.Join("_", index.KeyColumns)}";
-        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {_dialect.QuoteIdentifier(name)} ON {_dialect.Quote(table)} ({string.Join(", ", index.KeyColumns.Select(_dialect.Quote))})");
+        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {_dialect.QuoteIdentifier(name)} ON {QuoteTableNameIfRequired(table)} ({string.Join(", ", index.KeyColumns.Select(_dialect.Quote))})");
         return name;
     }
 

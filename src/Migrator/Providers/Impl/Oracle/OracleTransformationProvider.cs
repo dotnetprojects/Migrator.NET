@@ -81,7 +81,8 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
             throw new MigrationException($"You cannot use unique together with functional expressions in Oracle ({nameof(FilterItem)}).");
         }
 
-        var name = QuoteConstraintNameIfRequired(index.Name);
+        var relation = CatalogRelation(table, true);
+        var name = (relation.Schema == null ? "" : _dialect.QuoteIdentifier(relation.Schema) + ".") + QuoteConstraintNameIfRequired(index.Name);
         table = QuoteTableNameIfRequired(table);
 
         List<string> singleFilterStrings = [];
@@ -194,7 +195,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     public override void RenameTable(string oldName, string newName)
     {
         var oldRelation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(oldName), true);
-        var newRelation = SqlIdentifier.Catalog(newName, true);
+        var newRelation = SqlIdentifier.Catalog(_dialect.QuoteTableNameIfRequired(newName), true);
         if (newRelation.Schema != null && newRelation.Schema != oldRelation.Schema)
             throw new NotSupportedException("Oracle RENAME does not move a table between schemas.");
         GuardAgainstMaximumIdentifierLengthForOracle(newRelation.Name);
@@ -283,22 +284,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         throw new NotImplementedException();
     }
 
-    public override string[] GetTables()
-    {
-        var tables = new List<string>();
-
-        using (var cmd = CreateCommand())
-        using (var reader =
-            ExecuteQuery(cmd, "SELECT table_name FROM user_tables"))
-        {
-            while (reader.Read())
-            {
-                tables.Add(reader[0].ToString());
-            }
-        }
-
-        return tables.ToArray();
-    }
+    public override string[] GetTables() => base.GetTables();
 
     public override Column[] GetColumns(string table)
     {

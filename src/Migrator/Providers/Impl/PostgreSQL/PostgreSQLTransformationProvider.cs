@@ -135,8 +135,6 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
     {
         var columns = GetColumns(table);
 
-        // Since the migrator does not support schemas at this point in time we set the schema to "public"
-        var schemaName = "public";
 
         var indexes = new List<Index>();
 
@@ -173,11 +171,10 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             JOIN pg_namespace nsp ON nsp.oid = tbl.relnamespace
             LEFT JOIN pg_constraint con ON con.conindid = idx.indexrelid
             WHERE 
-                lower(tbl.relname) = '{table.ToLowerInvariant()}' AND
-                nsp.nspname = '{schemaName}'";
+                idx.indrelid = to_regclass(@relation)";
 
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
+        using (var cmd = MetadataCommand(table))
+        using (var reader = ExecuteQuery(cmd, sql))
         {
             var includeColumnsOrdinal = reader.GetOrdinal("include_columns");
             var indexColumnsOrdinal = reader.GetOrdinal("index_columns");
@@ -435,19 +432,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         ExecuteNonQuery(string.Format("DROP DATABASE {0}", _dialect.Quote(databaseName)));
     }
 
-    public override string[] GetTables()
-    {
-        var tables = new List<string>();
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
-        {
-            while (reader.Read())
-            {
-                tables.Add((string)reader[0]);
-            }
-        }
-        return [.. tables];
-    }
+    public override string[] GetTables() => base.GetTables();
 
     public override int GetColumnContentSize(string table, string columnName)
     {
@@ -627,10 +612,13 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     public override bool IndexExists(string table, string name)
     {
-        using var cmd = CreateCommand();
-        using var reader =
-            ExecuteQuery(cmd, string.Format("SELECT indexname FROM pg_catalog.pg_indexes WHERE indexname = lower('{0}')", name));
-
+        using var cmd = MetadataCommand(table);
+        var parameter = cmd.CreateParameter();
+        parameter.ParameterName = "index_name";
+        var identifier = SqlIdentifier.Parse(QuoteConstraintNameIfRequired(name)).Single();
+        parameter.Value = identifier.Quoted ? identifier.Value : identifier.Value.ToLowerInvariant();
+        cmd.Parameters.Add(parameter);
+        using var reader = ExecuteQuery(cmd, "SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE i.indrelid=to_regclass(@relation) AND c.relname=@index_name");
         return reader.Read();
     }
 

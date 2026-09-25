@@ -87,34 +87,36 @@ public class MySqlMetadataContractTests(bool mariaDb)
     [TestCase("ParentId")]
     public void BulkForeignKeyRemovalClosesEnumerationBeforeIssuingDrops(string column)
     {
-        var metadata = Data(new[] { "TABLE_NAME", "CONSTRAINT_NAME" }, new object[] { "Items", "FK_Parent" }, new object[] { "Children", "FK_Items" });
+        var metadata = Data(new[] { "TABLE_SCHEMA", "TABLE_NAME", "CONSTRAINT_NAME" }, new object[] { "Example", "Items", "FK_Parent" }, new object[] { "Other", "Children", "FK_Items" });
         var names = Data(new[] { "CONSTRAINT_NAME" }, new object[] { "FK_Parent" }, new object[] { "FK_Items" });
         using var enumeration = metadata.CreateDataReader();
         provider.Configure().ExecuteQuery(Arg.Any<IDbCommand>(), Arg.Any<string>()).Returns(c =>
-            ((string)c[1]).Contains("SELECT k.TABLE_NAME") ? enumeration : names.CreateDataReader());
+            ((string)c[1]).Contains("SELECT DISTINCT k.TABLE_SCHEMA") ? enumeration : names.CreateDataReader());
         provider.Configure().ExecuteNonQuery(Arg.Any<string>()).Returns(_ => { Assert.That(enumeration.IsClosed, Is.True); return 1; });
         provider.RemoveAllForeignKeys("Items", column);
-        provider.Received(1).ExecuteNonQuery("ALTER TABLE Items DROP FOREIGN KEY `FK_Parent`");
-        provider.Received(1).ExecuteNonQuery("ALTER TABLE Children DROP FOREIGN KEY `FK_Items`");
+        provider.Received(1).ExecuteNonQuery("ALTER TABLE `Example`.`Items` DROP FOREIGN KEY `FK_Parent`");
+        provider.Received(1).ExecuteNonQuery("ALTER TABLE `Other`.`Children` DROP FOREIGN KEY `FK_Items`");
     }
 
     [Test]
     public void IndexCleanupDistinguishesPrimaryUniqueAndForeignKeys()
     {
         provider.Configure().IndexExists("Items", "UQ_Code").Returns(true);
-        var metadata = Data(new[] { "TABLE_NAME", "CONSTRAINT_NAME", "CONSTRAINT_TYPE" },
-            new object[] { "Items", "PRIMARY", "PRIMARY KEY" },
-            new object[] { "Items", "UQ_Code", "UNIQUE" },
-            new object[] { "Children", "FK_Items", "FOREIGN KEY" });
+        provider.Configure().GetIndexes("Items").Returns(new[] {
+            new DotNetProjects.Migrator.Framework.Index { Name = "PRIMARY", PrimaryKey = true },
+            new DotNetProjects.Migrator.Framework.Index { Name = "UQ_Code", Unique = true } });
+        provider.Configure().ExecuteScalar(Arg.Any<string>()).Returns("PRIMARY KEY");
+        var metadata = Data(new[] { "TABLE_SCHEMA", "TABLE_NAME", "CONSTRAINT_NAME" },
+            new object[] { "Other", "Children", "FK_Items" });
         var names = Data(new[] { "CONSTRAINT_NAME" }, new object[] { "FK_Items" });
         using var enumeration = metadata.CreateDataReader();
         provider.Configure().ExecuteQuery(Arg.Any<IDbCommand>(), Arg.Any<string>()).Returns(c =>
-            ((string)c[1]).Contains("SELECT k.TABLE_NAME") ? enumeration : names.CreateDataReader());
+            ((string)c[1]).Contains("SELECT DISTINCT k.TABLE_SCHEMA") ? enumeration : names.CreateDataReader());
         provider.Configure().ExecuteNonQuery(Arg.Any<string>()).Returns(_ => { Assert.That(enumeration.IsClosed, Is.True); return 1; });
         provider.RemoveAllIndexes("Items");
         provider.Received(1).ExecuteNonQuery("ALTER TABLE Items DROP PRIMARY KEY");
         provider.Received(1).ExecuteNonQuery("DROP INDEX `UQ_Code` ON Items");
-        provider.Received(1).ExecuteNonQuery("ALTER TABLE Children DROP FOREIGN KEY `FK_Items`");
+        provider.Received(1).ExecuteNonQuery("ALTER TABLE `Other`.`Children` DROP FOREIGN KEY `FK_Items`");
     }
 
     [Test, SetCulture("de-DE")]

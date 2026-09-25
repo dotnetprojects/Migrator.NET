@@ -30,10 +30,8 @@ public class HanaTransformationProvider : TransformationProvider
     public override string GenerateParameterNameParameter(int index) => "p" + index;
     private (string Schema, string Table) Name(string table)
     {
-        var parts = table.Split('.');
-        if (parts.Length > 2 || parts.Any(string.IsNullOrWhiteSpace) || parts.Any(x => x.Contains('"')))
-            throw new NotSupportedException("HANA names must be unquoted table or schema.table names. Embedded dots/quotes require explicit SQL.");
-        return (parts.Length == 2 ? parts[0] : _defaultSchema, parts[^1]);
+        var relation = SqlIdentifier.Catalog(table);
+        return (relation.Schema ?? (_defaultSchema == null ? null : SqlIdentifier.Parse(_defaultSchema).Single().Value), relation.Name);
     }
     public override string QuoteTableNameIfRequired(string table)
     {
@@ -61,12 +59,7 @@ public class HanaTransformationProvider : TransformationProvider
     }
     public override bool TableExists(string table) => Exists("TABLES", table);
     public override bool ViewExists(string table) => Exists("VIEWS", table);
-    public override string[] GetTables()
-    {
-        using var command = Catalog("SELECT TABLE_NAME FROM SYS.TABLES WHERE SCHEMA_NAME=COALESCE(?,CURRENT_SCHEMA) ORDER BY TABLE_NAME", _defaultSchema);
-        using var reader = command.ExecuteReader();
-        var names = new List<string>(); while (reader.Read()) names.Add(reader.GetString(0)); return names.ToArray();
-    }
+    public override string[] GetTables() => base.GetTables();
     public override List<string> GetDatabases() => [Convert.ToString(ExecuteScalar("SELECT DATABASE_NAME FROM SYS.M_DATABASE"))];
     public override void SwitchDatabase(string databaseName) => throw new NotSupportedException("Connect to the target HANA tenant explicitly.");
     public override void CreateDatabases(string databaseName) => throw new NotSupportedException("HANA tenant administration requires an explicit SYSTEMDB connection and operation.");
@@ -87,7 +80,11 @@ public class HanaTransformationProvider : TransformationProvider
     }
     public override void RemoveColumn(string table, string column) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} DROP ({QuoteColumnNameIfRequired(column)})");
     public override void RemoveTable(string table) => ExecuteNonQuery("DROP TABLE " + QuoteTableNameIfRequired(table));
-    public override void RenameTable(string table, string name) => ExecuteNonQuery($"RENAME TABLE {QuoteTableNameIfRequired(table)} TO {QuoteTableNameIfRequired(name)}");
+    public override void RenameTable(string table, string name)
+    {
+        RenameTarget(table, name);
+        ExecuteNonQuery($"RENAME TABLE {QuoteTableNameIfRequired(table)} TO {QualifyInSameNamespace(table, SqlIdentifier.Parse(name).Last().Value)}");
+    }
     public override void RenameColumn(string table, string column, string name) => ExecuteNonQuery($"RENAME COLUMN {QuoteTableNameIfRequired(table)}.{QuoteColumnNameIfRequired(column)} TO {QuoteColumnNameIfRequired(name)}");
     public override void RemoveColumnDefaultValue(string table, string column) => AddColumnDefaultValue(table, column, RawSql.Insert("NULL"));
     public override void AddColumnDefaultValue(string table, string column, object value)
@@ -99,6 +96,8 @@ public class HanaTransformationProvider : TransformationProvider
         ChangeColumn(table, definition);
     }
     public override int TruncateTable(string table) => ExecuteNonQuery("TRUNCATE TABLE " + QuoteTableNameIfRequired(table));
+    public override void AddForeignKey(string name, string child, string[] columns, string parent, string[] parentColumns, ForeignKeyConstraintType action) =>
+        AddForeignKey(name, child, columns, parent, parentColumns, action, action);
     public override void AddForeignKey(string name, string child, string[] columns, string parent, string[] parentColumns, ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate) =>
         base.AddForeignKey(name, child, columns, parent, parentColumns,
             onDelete == ForeignKeyConstraintType.NoAction ? ForeignKeyConstraintType.Restrict : onDelete,
@@ -170,7 +169,7 @@ public class HanaTransformationProvider : TransformationProvider
             throw new NotSupportedException("HANA index INCLUDE, clustered and filtered options are not supported by this provider.");
         if (index.KeyColumns?.Length is not > 0) throw new ArgumentException("Index key columns are required.", nameof(index));
         var name = index.Name ?? "IX_" + Name(table).Table + "_" + string.Join("_", index.KeyColumns);
-        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {Dialect.QuoteIdentifier(name)} ON {QuoteTableNameIfRequired(table)} ({string.Join(", ", index.KeyColumns.Select(QuoteColumnNameIfRequired))})");
+        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {QualifyInSameNamespace(table, name)} ON {QuoteTableNameIfRequired(table)} ({string.Join(", ", index.KeyColumns.Select(QuoteColumnNameIfRequired))})");
         return name;
     }
     public override Index[] GetIndexes(string table)

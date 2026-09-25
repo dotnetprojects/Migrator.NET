@@ -158,7 +158,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
     public override void AddColumn(string table, string sqlColumn)
     {
-        table = _dialect.TableNameNeedsQuote ? _dialect.Quote(table) : table;
+        table = QuoteTableNameIfRequired(table);
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
     }
 
@@ -265,28 +265,9 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
     public override bool ColumnExists(string table, string column)
     {
-        string schema;
-
-        if (!TableExists(table))
-        {
-            return false;
-        }
-
-        var firstIndex = table.IndexOf(".");
-
-        if (firstIndex >= 0)
-        {
-            schema = table.Substring(0, firstIndex);
-            table = table.Substring(firstIndex + 1);
-        }
-        else
-        {
-            schema = _defaultSchema;
-        }
-
-        using var cmd = CreateCommand();
-        using var reader = base.ExecuteQuery(cmd, string.Format("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{0}' AND TABLE_NAME='{1}' AND COLUMN_NAME='{2}'", schema, table, column));
-        return reader.Read();
+        using var command = ObjectCommand(table, column);
+        command.CommandText = "SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(@table) AND name=@name";
+        return Convert.ToInt32(command.ExecuteScalar()) > 0;
     }
 
     public override void RemoveColumnDefaultValue(string table, string column)
@@ -303,7 +284,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
     public override Index[] GetIndexes(string table)
     {
         var relation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(table));
-        var schemaName = relation.Schema ?? "dbo";
+        var schemaName = relation.Schema ?? Convert.ToString(ExecuteScalar("SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(" + SqlLiteral(QuoteTableNameIfRequired(table)) + "))"));
         table = relation.Name;
 
         var indexes = new List<Index>();
@@ -496,7 +477,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
     public override Column[] GetColumns(string table)
     {
         var relation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(table));
-        var schema = relation.Schema ?? "dbo";
+        var schema = relation.Schema ?? Convert.ToString(ExecuteScalar("SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(" + SqlLiteral(QuoteTableNameIfRequired(table)) + "))"));
         table = relation.Name;
         var tableLiteral = table.Replace("'", "''");
         var schemaLiteral = schema.Replace("'", "''");
@@ -686,23 +667,14 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
         if (ColumnExists(tableName, oldColumnName))
         {
-            ExecuteNonQuery(string.Format("EXEC sp_rename '{0}.{1}', '{2}', 'COLUMN'", tableName, oldColumnName, newColumnName));
+            ExecuteNonQuery($"EXEC sp_rename {SqlLiteral(QuoteTableNameIfRequired(tableName) + "." + _dialect.QuoteIdentifier(oldColumnName))}, {SqlLiteral(newColumnName)}, 'COLUMN'");
         }
     }
 
     public override void RenameTable(string oldName, string newName)
     {
-        if (TableExists(newName))
-        {
-            throw new MigrationException(string.Format("Table with name '{0}' already exists", newName));
-        }
-
-        if (!TableExists(oldName))
-        {
-            throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", oldName));
-        }
-
-        ExecuteNonQuery(string.Format("EXEC sp_rename '{0}', '{1}'", oldName, newName));
+        var target = SqlIdentifier.Parse(RenameTarget(oldName, newName)).Single().Value;
+        ExecuteNonQuery($"EXEC sp_rename {SqlLiteral(QuoteTableNameIfRequired(oldName))}, {SqlLiteral(target)}");
     }
 
     public override void UpdateTargetFromSource(string tableSourceNotQuoted, string tableTargetNotQuoted, ColumnPair[] fromSourceToTargetColumnPairs, ColumnPair[] conditionColumnPairs)

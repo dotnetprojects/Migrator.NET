@@ -8,7 +8,7 @@ $databases = @('SQLite','SQLServer','PostgreSQL','Oracle','MySQL','MariaDB','Fir
 $filter = if ($Database -eq 'Unit') { ($databases | ForEach-Object { "TestCategory!=$_" }) -join '&' } else { "TestCategory=$Database" }
 $xmlDirectory = Join-Path (Get-Location) "TestResults/$Database"
 $coverageArguments = if ($Coverage) { @('--collect', 'XPlat Code Coverage', '--settings', "$PSScriptRoot/../coverage.runsettings") } else { @() }
-dotnet test Migrator.slnx --no-build --filter $filter --logger "trx;LogFileName=$Database.trx" --results-directory TestResults @coverageArguments -- NUnit.NumberOfTestWorkers=0 "NUnit.TestOutputXml=$xmlDirectory"
+dotnet test Migrator.slnx --no-build --filter $filter --logger "trx;LogFileName=$Database.trx" --logger "console;verbosity=normal" --results-directory TestResults @coverageArguments -- NUnit.NumberOfTestWorkers=0 "NUnit.TestOutputXml=$xmlDirectory"
 if ($LASTEXITCODE -ne 0) { throw "Tests failed for $Database" }
 [xml]$results = Get-Content "TestResults/$Database.trx"
 $counters = $results.TestRun.ResultSummary.Counters
