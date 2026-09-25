@@ -35,6 +35,19 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     {
     }
 
+    private string Namespace(string table) => CatalogRelation(table).Schema ?? "main";
+    private string Catalog(string table) => _dialect.QuoteIdentifier(Namespace(table)) + ".sqlite_master";
+    private string Pragma(string operation, string table) =>
+        $"PRAGMA {_dialect.QuoteIdentifier(Namespace(table))}.{operation}({SqlLiteral(CatalogRelation(table).Name)})";
+    private string QualifiedSibling(string table, string name) =>
+        _dialect.QuoteIdentifier(Namespace(table)) + "." + _dialect.QuoteIdentifier(name);
+
+    private IEnumerable<string> NamespaceTables(string table) =>
+        GetTables(_dialect.QuoteIdentifier(Namespace(table))).Select(n => QualifiedSibling(table, n));
+    private bool SameTable(string candidate, string table) =>
+        string.Equals(SqlIdentifier.Catalog(candidate).Name, CatalogRelation(table).Name, StringComparison.OrdinalIgnoreCase)
+        && (SqlIdentifier.Catalog(candidate).Schema == null || string.Equals(Namespace(candidate), Namespace(table), StringComparison.OrdinalIgnoreCase));
+
     protected virtual void CreateConnection(string providerName)
     {
         if (string.IsNullOrEmpty(providerName))
@@ -132,8 +145,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         string sqlCreateTableScript = null;
 
         using var cmd = CreateCommand();
-        var parameter = cmd.CreateParameter(); parameter.ParameterName = "@name"; parameter.Value = table; cmd.Parameters.Add(parameter);
-        using var reader = ExecuteQuery(cmd, "SELECT sql FROM sqlite_master WHERE type='table' AND name=@name COLLATE NOCASE");
+        var parameter = cmd.CreateParameter(); parameter.ParameterName = "@name"; parameter.Value = CatalogRelation(table).Name; cmd.Parameters.Add(parameter);
+        using var reader = ExecuteQuery(cmd, $"SELECT sql FROM {Catalog(table)} WHERE type='table' AND name=@name COLLATE NOCASE");
         if (reader.Read()) sqlCreateTableScript = reader.IsDBNull(0) ? null : reader.GetString(0);
 
         return sqlCreateTableScript;
@@ -248,7 +261,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         List<PragmaForeignKeyListItem> pragmaForeignKeyListItems = [];
 
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, $"PRAGMA foreign_key_list('{QuoteTableNameIfRequired(tableNameNotQuoted)}')"))
+        using (var reader = ExecuteQuery(cmd, Pragma("foreign_key_list", tableNameNotQuoted)))
         {
             while (reader.Read())
             {
@@ -395,10 +408,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override void RemoveAllForeignKeys(string tableName, string columnName)
     {
-        bool Matches(string name) => string.Equals(name, tableName, StringComparison.OrdinalIgnoreCase);
+        bool Matches(string name) => SameTable(name, tableName);
         bool Includes(string[] columns) => string.IsNullOrEmpty(columnName) || columns.Contains(columnName, StringComparer.OrdinalIgnoreCase);
         var tables = new List<SQLiteTableInfo>();
-        foreach (var table in GetTables())
+        foreach (var table in NamespaceTables(tableName))
         {
             var info = GetSQLiteTableInfo(table);
             var removed = info.ForeignKeys.RemoveAll(f => (Matches(table) && Includes(f.ChildColumns))
@@ -441,7 +454,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var sqlStrings = new List<string>();
 
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format("SELECT sql FROM sqlite_master WHERE type='index' AND sql NOT NULL AND lower(tbl_name)=lower('{0}')", table)))
+        using (var reader = ExecuteQuery(cmd, $"SELECT sql FROM {Catalog(table)} WHERE type='index' AND sql NOT NULL AND tbl_name={ObjectSqlLiteral(table)} COLLATE NOCASE"))
         {
             while (reader.Read())
             {
@@ -477,7 +490,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             && TableExists(tableName) && CanDropColumnNatively(tableName, column))
         {
             // Native SQLite validates trigger and view dependencies atomically.
-            ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} DROP COLUMN {Dialect.QuoteIdentifier(column)}");
+            ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(tableName)} DROP COLUMN {Dialect.QuoteIdentifier(column)}");
             return;
         }
         if (IsPragmaForeignKeysOn()) throw new Exception($"{nameof(RemoveColumn)} requires foreign keys off.");
@@ -487,12 +500,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var sqliteInfoMainTable = GetSQLiteTableInfo(tableName);
         ValidateColumnRemoval(sqliteInfoMainTable, column);
         var affected = new List<SQLiteTableInfo>();
-        foreach (var name in GetTables())
+        foreach (var name in NamespaceTables(tableName))
         {
-            var info = string.Equals(name, tableName, StringComparison.OrdinalIgnoreCase)
+            var info = SameTable(name, tableName)
                 ? sqliteInfoMainTable : GetSQLiteTableInfo(name);
             var references = info.ForeignKeys.Where(f =>
-                string.Equals(f.ParentTable, tableName, StringComparison.OrdinalIgnoreCase)
+                SameTable(f.ParentTable, tableName)
                 && f.ParentColumns.Contains(column, StringComparer.OrdinalIgnoreCase)).ToArray();
             if (references.Any(f => f.ParentColumns.Length > 1))
                 throw new MigrationException($"You need to delete/adjust the FK in table {name} pointing to {tableName}.");
@@ -519,7 +532,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             || info.Uniques.Any(u => u.KeyColumns.Any(Matches))
             || info.Indexes.Any(i => i.KeyColumns.Any(Matches) || i.FilterItems.Count != 0)
             || info.ForeignKeys.Any(f => f.ChildColumns.Any(Matches))
-            || GetTables().Any(t => GetForeignKeyConstraints(t).Any(f => f.ParentTable.Equals(tableName, StringComparison.OrdinalIgnoreCase) && f.ParentColumns.Any(Matches)));
+            || NamespaceTables(tableName).Any(t => GetForeignKeyConstraints(t).Any(f => SameTable(f.ParentTable, tableName) && f.ParentColumns.Any(Matches)));
         return !dependent;
     }
 
@@ -622,7 +635,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         if (Version.Parse(Convert.ToString(ExecuteScalar("SELECT sqlite_version()"))) >= new Version(3, 26, 0))
         {
             if (string.IsNullOrWhiteSpace(newColumnName)) throw new ArgumentException("A column name is required.");
-            ExecuteNonQuery($"ALTER TABLE {Dialect.Quote(tableName)} RENAME COLUMN {Dialect.QuoteIdentifier(oldColumnName)} TO {Dialect.QuoteIdentifier(newColumnName)}");
+            ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(tableName)} RENAME COLUMN {Dialect.QuoteIdentifier(oldColumnName)} TO {Dialect.QuoteIdentifier(newColumnName)}");
             return;
         }
 
@@ -682,12 +695,12 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             try
             {
                 RecreateTable(sqliteTableInfo);
-                foreach (var otherTable in GetTables())
+                foreach (var otherTable in NamespaceTables(tableName))
                 {
-                    if (string.Equals(otherTable, tableName, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (SameTable(otherTable, tableName)) continue;
                     var otherInfo = GetSQLiteTableInfo(otherTable);
                     var references = otherInfo.ForeignKeys.Where(f =>
-                        string.Equals(f.ParentTable, tableName, StringComparison.OrdinalIgnoreCase)
+                        SameTable(f.ParentTable, tableName)
                         && f.ParentColumns.Contains(oldColumnName, StringComparer.OrdinalIgnoreCase)).ToArray();
                     if (references.Length == 0) continue;
                     foreach (var foreignKey in references)
@@ -816,15 +829,16 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public bool CheckForeignKeyIntegrity()
     {
-
-        using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, "PRAGMA foreign_key_check");
-
-        if (reader.Read())
+        var schemas = new List<string>();
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, "PRAGMA database_list"))
+            while (reader.Read()) schemas.Add(reader.GetString(1));
+        foreach (var schema in schemas)
         {
-            return false;
+            using var command = CreateCommand();
+            using var reader = ExecuteQuery(command, $"PRAGMA {_dialect.QuoteIdentifier(schema)}.foreign_key_check");
+            if (reader.Read()) return false;
         }
-
         return true;
     }
 
@@ -863,14 +877,14 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             throw new NotSupportedException("This table contains SQLite features that cannot be reconstructed faithfully. Use native SQL.");
         if (GetCreateIndexSqlStrings(oldName).Any(sql => SQLiteConstraintParser.HasKeyword(sql, "COLLATE")))
             throw new NotSupportedException("Rebuilding indexes with explicit collations requires native SQL.");
-        var triggers = ExecuteStringQuery("SELECT sql FROM sqlite_master WHERE type='trigger' AND lower(tbl_name)=lower('{0}')", oldName.Replace("'", "''"));
+        var triggers = ExecuteStringQuery($"SELECT sql FROM {Catalog(oldName)} WHERE type='trigger' AND tbl_name={ObjectSqlLiteral(oldName)} COLLATE NOCASE");
         if (triggers.Count > 0 && (oldName != sqliteTableInfo.TableNameMapping.NewName || sqliteTableInfo.ColumnMappings.Any(m => m.OldName != null && m.OldName != m.NewName)))
             throw new NotSupportedException("Use native SQLite rename when triggers reference renamed objects.");
         var originalColumns = GetColumns(oldName);
         if (triggers.Count > 0 && originalColumns.Any(c => !sqliteTableInfo.Columns.Any(n => n.Name.Equals(c.Name, StringComparison.OrdinalIgnoreCase))))
             throw new NotSupportedException("Removing columns from a table with triggers requires native SQLite alteration or explicit trigger recreation.");
-        var sequence = TableExists("sqlite_sequence")
-            ? ExecuteScalar("SELECT seq FROM sqlite_sequence WHERE name='" + oldName.Replace("'", "''") + "'") : null;
+        var sequence = TableExists(QualifiedSibling(oldName, "sqlite_sequence"))
+            ? ExecuteScalar($"SELECT seq FROM {QualifiedSibling(oldName, "sqlite_sequence")} WHERE name={ObjectSqlLiteral(oldName)}") : null;
         var highWater = sequence == null || sequence == DBNull.Value ? (long?)null : Convert.ToInt64(sequence);
         var foreignKeys = IsPragmaForeignKeysOn();
         if (HasActiveTransaction && foreignKeys)
@@ -887,12 +901,17 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             RecreateTableCore(sqliteTableInfo);
             if (highWater.HasValue && sqliteTableInfo.Columns.Any(c => c.IsIdentity))
             {
-                var sequenceName = sqliteTableInfo.TableNameMapping.NewName.Replace("'", "''");
+                var sequenceName = CatalogRelation(sqliteTableInfo.TableNameMapping.NewName).Name.Replace("'", "''");
+                var sequenceTable = QualifiedSibling(oldName, "sqlite_sequence");
                 var sequenceValue = highWater.Value.ToString(CultureInfo.InvariantCulture);
-                ExecuteNonQuery($"UPDATE sqlite_sequence SET seq=MAX(seq, {sequenceValue}) WHERE name='{sequenceName}'");
-                ExecuteNonQuery($"INSERT INTO sqlite_sequence(name, seq) SELECT '{sequenceName}', {sequenceValue} WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name='{sequenceName}')");
+                ExecuteNonQuery($"UPDATE {sequenceTable} SET seq=MAX(seq, {sequenceValue}) WHERE name='{sequenceName}'");
+                ExecuteNonQuery($"INSERT INTO {sequenceTable}(name, seq) SELECT '{sequenceName}', {sequenceValue} WHERE NOT EXISTS (SELECT 1 FROM {sequenceTable} WHERE name='{sequenceName}')");
             }
-            foreach (var trigger in triggers) ExecuteNonQuery(trigger);
+            foreach (var trigger in triggers)
+            {
+                var qualifiedTrigger = Regex.Replace(trigger, @"^(CREATE\s+(?:TEMP(?:ORARY)?\s+)?TRIGGER\s+(?:IF\s+NOT\s+EXISTS\s+)?)", "$1" + _dialect.QuoteIdentifier(Namespace(oldName)) + ".", RegexOptions.IgnoreCase);
+                ExecuteNonQuery(qualifiedTrigger);
+            }
             if (ownsTransaction && !CheckForeignKeyIntegrity()) throw new MigrationException("SQLite rebuild would leave invalid foreign keys.");
             if (ownsTransaction) Commit();
         }
@@ -915,8 +934,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     private void RecreateTableCore(SQLiteTableInfo sqliteTableInfo)
     {
         var sourceTableQuoted = QuoteTableNameIfRequired(sqliteTableInfo.TableNameMapping.OldName);
-        var targetIntermediateTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}{IntermediateTableSuffix}");
-        var targetTableQuoted = QuoteTableNameIfRequired($"{sqliteTableInfo.TableNameMapping.NewName}");
+        var targetIntermediateTableQuoted = QualifiedSibling(sqliteTableInfo.TableNameMapping.NewName, CatalogRelation(sqliteTableInfo.TableNameMapping.NewName).Name + IntermediateTableSuffix);
+        var targetTableQuoted = RenameTarget(sqliteTableInfo.TableNameMapping.OldName, sqliteTableInfo.TableNameMapping.NewName);
 
         var columns = sqliteTableInfo.Columns.Select(c => c.CopyDefinition()).ToArray();
         var columnDbFields = columns.Cast<IDbField>();
@@ -1114,7 +1133,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override bool TableExists(string table)
     {
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='table' and lower(name)=lower('{0}')", table));
+        using var reader = ExecuteQuery(cmd, $"SELECT name FROM {Catalog(table)} WHERE type='table' AND name={ObjectSqlLiteral(table)} COLLATE NOCASE");
 
         return reader.Read();
     }
@@ -1122,7 +1141,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override bool ViewExists(string view)
     {
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='view' and lower(name)=lower('{0}')", view));
+        using var reader = ExecuteQuery(cmd, $"SELECT name FROM {Catalog(view)} WHERE type='view' AND name={ObjectSqlLiteral(view)} COLLATE NOCASE");
 
         return reader.Read();
     }
@@ -1154,21 +1173,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         return names;
     }
 
-    public override string[] GetTables()
-    {
-        var tables = new List<string>();
-
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"))
-        {
-            while (reader.Read())
-            {
-                tables.Add((string)reader[0]);
-            }
-        }
-
-        return [.. tables];
-    }
+    public override string[] GetTables() => base.GetTables();
 
     public override Column[] GetColumns(string tableName)
     {
@@ -1236,7 +1241,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override bool IndexExists(string table, string name)
     {
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, string.Format("SELECT name FROM sqlite_master WHERE type='index' and lower(name)=lower('{0}')", name));
+        using var reader = ExecuteQuery(cmd, $"SELECT name FROM {Catalog(table)} WHERE type='index' AND name={SqlLiteral(name)} COLLATE NOCASE AND tbl_name={ObjectSqlLiteral(table)} COLLATE NOCASE");
 
         return reader.Read();
     }
@@ -1254,7 +1259,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         foreach (var pragmaIndexListItem in pragmaIndexListItems)
         {
-            var indexInfos = GetPragmaIndexInfo(pragmaIndexListItem.Name);
+            var indexInfos = GetPragmaIndexInfo(QualifiedSibling(table, pragmaIndexListItem.Name));
 
             var columnNames = indexInfos.OrderBy(x => x.SeqNo)
                 .Select(x => x.Name)
@@ -1345,7 +1350,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     public override void AddTable(string name, string engine, params IDbField[] fields)
     {
         if (engine != null) throw new NotSupportedException("SQLite does not support table engines.");
-        var table = _dialect.TableNameNeedsQuote ? _dialect.Quote(name) : QuoteTableNameIfRequired(name);
+        var table = QuoteTableNameIfRequired(name);
         ExecuteNonQuery(SQLiteTableSql.Generate(_dialect, table, fields));
         foreach (var index in fields.OfType<Index>()) AddIndex(name, index);
     }
@@ -1367,8 +1372,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             throw new MigrationException($"For SQLite this migrator does not support clustered indexes at this point in time, sorry. File an issue if needed. Use 'if(Provider is {nameof(SQLiteTransformationProvider)}' if necessary.");
         }
 
-        var name = QuoteConstraintNameIfRequired(index.Name);
-        table = QuoteTableNameIfRequired(table);
+        var relation = CatalogRelation(table);
+        var name = relation.Schema == null ? QuoteConstraintNameIfRequired(index.Name) : QualifiedSibling(table, index.Name);
+        table = _dialect.QuoteTableNameIfRequired(SqlIdentifier.Parse(QuoteTableNameIfRequired(table)).Last().Quoted
+            ? _dialect.QuoteIdentifier(relation.Name) : relation.Name);
         var columns = QuoteColumnNamesIfRequired(index.KeyColumns);
 
         var uniqueString = index.Unique ? "UNIQUE" : null;
@@ -1466,7 +1473,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var quotedIndexName = QuoteTableNameIfRequired(indexNameNotQuoted);
 
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, $"PRAGMA index_info({quotedIndexName})"))
+        using (var reader = ExecuteQuery(cmd, Pragma("index_info", indexNameNotQuoted)))
         {
             while (reader.Read())
             {
@@ -1489,7 +1496,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         List<PragmaIndexListItem> pragmaIndexListItems = [];
 
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, $"PRAGMA index_list({QuoteTableNameIfRequired(tableNameNotQuoted)})"))
+        using (var reader = ExecuteQuery(cmd, Pragma("index_list", tableNameNotQuoted)))
         {
             while (reader.Read())
             {
@@ -1514,7 +1521,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         List<PragmaTableInfoItem> pragmaTableInfoItems = [];
 
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, $"PRAGMA table_info({QuoteTableNameIfRequired(tableNameNotQuoted)})"))
+        using (var reader = ExecuteQuery(cmd, Pragma("table_info", tableNameNotQuoted)))
         {
             while (reader.Read())
             {

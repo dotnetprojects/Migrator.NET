@@ -39,7 +39,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 {
     private string _scope;
     protected readonly string _connectionString;
-    protected readonly string _defaultSchema;
+    protected string _defaultSchema;
     private readonly ForeignKeyConstraintMapper constraintMapper = new();
     protected List<long> _appliedMigrations;
     protected IDbConnection _connection;
@@ -191,19 +191,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         return Convert.ToInt32(result);
     }
 
-    public virtual string[] GetTables()
-    {
-        var tables = new List<string>();
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, "SELECT table_name FROM INFORMATION_SCHEMA.TABLES"))
-        {
-            while (reader.Read())
-            {
-                tables.Add((string)reader[0]);
-            }
-        }
-        return tables.ToArray();
-    }
+    public virtual string[] GetTables() => GetTables(_defaultSchema).ToArray();
 
     public virtual void RemoveForeignKey(string table, string name)
     {
@@ -377,25 +365,16 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
             throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", name));
         }
 
-        ExecuteNonQuery(string.Format("DROP TABLE {0}", name));
+        ExecuteNonQuery(string.Format("DROP TABLE {0}", QuoteTableNameIfRequired(name)));
     }
 
     public virtual void RenameTable(string oldName, string newName)
     {
-        oldName = QuoteTableNameIfRequired(oldName);
-        newName = QuoteTableNameIfRequired(newName);
-
-        if (TableExists(newName))
-        {
-            throw new MigrationException(string.Format("Table with name '{0}' already exists", newName));
-        }
-
-        if (!TableExists(oldName))
-        {
-            throw new MigrationException(string.Format("Table with name '{0}' does not exist to rename", oldName));
-        }
-
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME TO {1}", oldName, newName));
+        var target = RenameTarget(oldName, newName);
+        if (!TableExists(oldName)) throw new MigrationException("Table does not exist: " + oldName);
+        if (TableExists(QualifyInSameNamespace(oldName, SqlIdentifier.Parse(newName).Last().Value)))
+            throw new MigrationException("Table already exists: " + newName);
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(oldName)} RENAME TO {target}");
     }
 
     public virtual void RenameColumn(string tableName, string oldColumnName, string newColumnName)
@@ -1597,6 +1576,49 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         return _dialect.QuoteColumnNameIfRequired(name);
     }
 
+    internal void SetDefaultSchema(string schema)
+    {
+        if (!string.IsNullOrWhiteSpace(schema) && SqlIdentifier.Parse(schema).Length != 1)
+            throw new ArgumentException("The default namespace must be one identifier.", nameof(schema));
+        _defaultSchema = string.IsNullOrWhiteSpace(schema) ? null : schema;
+    }
+
+    protected internal (string Schema, string Name) CatalogRelation(string table, bool upperCase = false)
+    {
+        var rendered = QuoteTableNameIfRequired(table);
+        var relation = SqlIdentifier.Catalog(rendered, upperCase);
+        if (_dialect is DotNetProjects.Migrator.Providers.Impl.Informix.InformixDialect or DotNetProjects.Migrator.Providers.Impl.Ingres.IngresDialect or DotNetProjects.Migrator.Providers.Impl.PostgreSQL.PostgreSQLDialect)
+        {
+            var parts = SqlIdentifier.Parse(rendered);
+            return (relation.Schema == null ? null : parts[0].Quoted ? relation.Schema : relation.Schema.ToLowerInvariant(),
+                parts[^1].Quoted ? relation.Name : relation.Name.ToLowerInvariant());
+        }
+        return relation;
+    }
+
+    protected static string SqlLiteral(string value) => value == null ? "NULL" : "'" + value.Replace("'", "''") + "'";
+
+    protected string NamespaceSql(string table, string fallback, bool upperCase = false) =>
+        CatalogRelation(table, upperCase).Schema is string schema ? SqlLiteral(schema) : fallback;
+
+    protected string ObjectSqlLiteral(string table, bool upperCase = false) => SqlLiteral(CatalogRelation(table, upperCase).Name);
+
+    protected string QualifyInSameNamespace(string table, string name)
+    {
+        var relation = CatalogRelation(table, _dialect is DotNetProjects.Migrator.Providers.Impl.DB2.DB2Dialect or DotNetProjects.Migrator.Providers.Impl.Oracle.OracleDialect);
+        return (relation.Schema == null ? "" : _dialect.QuoteIdentifier(relation.Schema) + ".") + _dialect.QuoteIdentifier(name);
+    }
+
+    protected string RenameTarget(string oldName, string newName)
+    {
+        var upper = _dialect is DotNetProjects.Migrator.Providers.Impl.DB2.DB2Dialect or DotNetProjects.Migrator.Providers.Impl.Oracle.OracleDialect;
+        var source = CatalogRelation(oldName, upper);
+        var target = SqlIdentifier.Catalog(newName, upper);
+        if (target.Schema != null && !string.Equals(source.Schema, target.Schema, StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException("RenameTable does not move tables between namespaces.");
+        return _dialect.QuoteTableNameIfRequired(SqlIdentifier.Parse(newName).Last().Quoted ? _dialect.QuoteIdentifier(target.Name) : target.Name);
+    }
+
     public virtual string QuoteTableNameIfRequired(string name)
     {
         if (!string.IsNullOrWhiteSpace(_defaultSchema) && SqlIdentifier.Parse(name).Length == 1)
@@ -1938,7 +1960,8 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     {
         if (TableExists(table) && IndexExists(table, name))
         {
-            name = QuoteConstraintNameIfRequired(name);
+            var actual = GetIndexes(table).Single(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)).Name;
+            name = QualifyInSameNamespace(table, actual);
             ExecuteNonQuery(string.Format("DROP INDEX {0}", name));
         }
     }
@@ -2025,25 +2048,14 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         get { return _connection; }
     }
 
-    public IEnumerable<string> GetTables(string schema)
-    {
-        var tableRestrictions = new string[4];
-        tableRestrictions[1] = schema;
-
-        var c = _connection as DbConnection;
-        var tables = c.GetSchema("Tables", tableRestrictions);
-        return from DataRow row in tables.Rows select (row["TABLE_NAME"] as string);
-    }
+    public IEnumerable<string> GetTables(string schema) => NamespaceCatalog.Tables(this, schema ?? _defaultSchema);
 
     public IEnumerable<string> GetColumns(string schema, string table)
     {
-        var tableRestrictions = new string[4];
-        tableRestrictions[1] = schema;
-        tableRestrictions[2] = table;
-
-        var c = _connection as DbConnection;
-        var tables = c.GetSchema("Columns", tableRestrictions);
-        return from DataRow row in tables.Rows select (row["COLUMN_NAME"] as string);
+        if (!string.IsNullOrWhiteSpace(schema) && (SqlIdentifier.Parse(schema).Length != 1 || SqlIdentifier.Parse(table).Length != 1))
+            throw new ArgumentException("Pass the namespace and table as separate identifier atoms.");
+        var name = string.IsNullOrWhiteSpace(schema) ? table : schema + "." + table;
+        return GetColumns(name).Select(column => column.Name).ToArray();
     }
 
     protected void ValidateIndex(string tableName, Index index)

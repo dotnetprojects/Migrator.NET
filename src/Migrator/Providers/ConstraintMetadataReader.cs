@@ -54,12 +54,13 @@ internal static class ConstraintMetadataReader
         }
         else if (provider.Dialect is DB2Dialect)
         {
-            parameterTable = table.StartsWith('"') ? table.Trim('"').Replace("\"\"", "\"") : table.ToUpperInvariant();
+            var relation = provider.CatalogRelation(table, true);
+            parameterTable = relation.Name; schema = relation.Schema;
             sql = @"SELECT c.CONSTNAME,c.TYPE,k.COLNAME,k.COLSEQ,ch.TEXT
                 FROM SYSCAT.TABCONST c LEFT JOIN SYSCAT.KEYCOLUSE k
                   ON k.TABSCHEMA=c.TABSCHEMA AND k.TABNAME=c.TABNAME AND k.CONSTNAME=c.CONSTNAME AND c.TYPE IN ('P','U')
                 LEFT JOIN SYSCAT.CHECKS ch ON ch.TABSCHEMA=c.TABSCHEMA AND ch.TABNAME=c.TABNAME AND ch.CONSTNAME=c.CONSTNAME
-                WHERE c.TABSCHEMA=CURRENT SCHEMA AND c.TABNAME=@lookup_table AND c.TYPE IN ('P','U','K')
+                WHERE c.TABSCHEMA=COALESCE(@lookup_schema,CURRENT SCHEMA) AND c.TABNAME=@lookup_table AND c.TYPE IN ('P','U','K')
                 ORDER BY c.CONSTNAME,k.COLSEQ";
         }
         else if (provider.Dialect is FirebirdDialect)
@@ -89,7 +90,7 @@ internal static class ConstraintMetadataReader
         }
         else throw new NotSupportedException("Structured constraint inspection is not implemented for " + provider.Dialect.GetType().Name + ".");
 
-        return (sql, parameterTable, schema, oracle || provider.Dialect is MysqlDialect);
+        return (sql, parameterTable, schema, oracle || provider.Dialect is MysqlDialect or DB2Dialect);
     }
 
     private enum ConstraintKind { Primary, NonClusteredPrimary, Unique, Check }

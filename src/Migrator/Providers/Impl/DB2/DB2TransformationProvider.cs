@@ -44,18 +44,17 @@ public class DB2TransformationProvider : TransformationProvider
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM SYSCAT.TABLES WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' AND TYPE='T'")) > 0;
+        $"SELECT COUNT(*) FROM SYSCAT.TABLES WHERE TABSCHEMA={NamespaceSql(table, "CURRENT SCHEMA", true)} AND TABNAME={ObjectSqlLiteral(table, true)} AND TYPE='T'")) > 0;
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM SYSCAT.VIEWS WHERE VIEWSCHEMA=CURRENT SCHEMA AND VIEWNAME='{Name(view)}'")) > 0;
-    public override string[] GetTables() => ExecuteStringQuery(
-        "SELECT TABNAME FROM SYSCAT.TABLES WHERE TABSCHEMA=CURRENT SCHEMA AND TYPE='T'").ToArray();
+        $"SELECT COUNT(*) FROM SYSCAT.VIEWS WHERE VIEWSCHEMA={NamespaceSql(view, "CURRENT SCHEMA", true)} AND VIEWNAME={ObjectSqlLiteral(view, true)}")) > 0;
+    public override string[] GetTables() => base.GetTables();
     // SQL exposes the current database, not the client's local database directory.
     public override List<string> GetDatabases() => [Convert.ToString(ExecuteScalar("VALUES CURRENT SERVER")).Trim()];
     public override string[] GetConstraints(string table) => ExecuteStringQuery(
-        $"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}'").ToArray();
+        $"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA={NamespaceSql(table, "CURRENT SCHEMA", true)} AND TABNAME={ObjectSqlLiteral(table, true)}").ToArray();
     public override bool ConstraintExists(string table, string name) => GetConstraints(table).Any(n => n == name || n == Name(name).Replace("''", "'"));
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
-        $"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' AND TYPE='P'").FirstOrDefault();
+        $"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA={NamespaceSql(table, "CURRENT SCHEMA", true)} AND TABNAME={ObjectSqlLiteral(table, true)} AND TYPE='P'").FirstOrDefault();
 
     public override Column[] GetColumns(string table)
     {
@@ -63,7 +62,7 @@ public class DB2TransformationProvider : TransformationProvider
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
             SELECT COLNAME, TYPENAME, NULLS, DEFAULT, LENGTH, IDENTITY, KEYSEQ, SCALE
-            FROM SYSCAT.COLUMNS WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' ORDER BY COLNO
+            FROM SYSCAT.COLUMNS WHERE TABSCHEMA={NamespaceSql(table, "CURRENT SCHEMA", true)} AND TABNAME={ObjectSqlLiteral(table, true)} ORDER BY COLNO
             """);
         while (reader.Read())
         {
@@ -100,7 +99,7 @@ public class DB2TransformationProvider : TransformationProvider
             SELECT i.INDNAME, i.UNIQUERULE, c.COLNAME, d.CONSTNAME FROM SYSCAT.INDEXES i
             JOIN SYSCAT.INDEXCOLUSE c ON c.INDSCHEMA=i.INDSCHEMA AND c.INDNAME=i.INDNAME
             LEFT JOIN SYSCAT.CONSTDEP d ON d.BSCHEMA=i.INDSCHEMA AND d.BNAME=i.INDNAME AND d.BTYPE='I' AND d.TABSCHEMA=i.TABSCHEMA AND d.TABNAME=i.TABNAME
-            WHERE i.TABSCHEMA=CURRENT SCHEMA AND i.TABNAME='{Name(table)}'
+            WHERE i.TABSCHEMA={NamespaceSql(table, "CURRENT SCHEMA", true)} AND i.TABNAME={ObjectSqlLiteral(table, true)}
             ORDER BY i.INDNAME, c.COLSEQ
             """);
         while (reader.Read())
@@ -119,7 +118,7 @@ public class DB2TransformationProvider : TransformationProvider
     public override void RemoveAllIndexes(string table)
     {
         // Constraint and backing-index names need not match in Db2.
-        var constraints = ExecuteStringQuery($"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA=CURRENT SCHEMA AND TABNAME='{Name(table)}' AND TYPE IN ('P','U')");
+        var constraints = ExecuteStringQuery($"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA={NamespaceSql(table, "CURRENT SCHEMA", true)} AND TABNAME={ObjectSqlLiteral(table, true)} AND TYPE IN ('P','U')");
         foreach (var name in constraints) RemoveConstraint(table, name);
         foreach (var index in GetIndexes(table)) RemoveIndex(table, index.Name);
     }
@@ -131,14 +130,14 @@ public class DB2TransformationProvider : TransformationProvider
         if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
             throw new NotSupportedException("This Db2 provider supports ordinary and unique indexes without INCLUDE, filters or clustering.");
         var name = index.Name ?? $"IX_{table}_{string.Join("_", index.KeyColumns)}";
-        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {Identifier(name)} ON {Identifier(table)} ({string.Join(", ", index.KeyColumns.Select(Identifier))})");
+        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {QualifyInSameNamespace(table, Name(name).Replace("''", "'"))} ON {QuoteTableNameIfRequired(table)} ({string.Join(", ", index.KeyColumns.Select(Identifier))})");
         return name;
     }
 
     public override void ChangeColumn(string table, Column column)
     {
 
-        var prefix = $"ALTER TABLE {Identifier(table)} ALTER COLUMN {Identifier(column.Name)}";
+        var prefix = $"ALTER TABLE {QuoteTableNameIfRequired(table)} ALTER COLUMN {Identifier(column.Name)}";
         var type = _dialect.GetColumnMapper(column).Type;
         ExecuteNonQuery($"{prefix} SET DATA TYPE {type}");
         if (column.DefaultValue != null || GetColumns(table).Single(c => c.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)).DefaultValue != null)
@@ -146,6 +145,9 @@ public class DB2TransformationProvider : TransformationProvider
         ExecuteNonQuery($"{prefix} {(!column.IsNullable ? "SET" : "DROP")} NOT NULL");
         Reorganize(table);
     }
+
+    public override void RenameTable(string oldName, string newName) =>
+        ExecuteNonQuery($"RENAME TABLE {QuoteTableNameIfRequired(oldName)} TO {RenameTarget(oldName, newName)}");
 
     public override void RemoveColumn(string tableName, string column)
     {
@@ -155,8 +157,10 @@ public class DB2TransformationProvider : TransformationProvider
 
     private void Reorganize(string table)
     {
-        var schema = Convert.ToString(ExecuteScalar("VALUES CURRENT SCHEMA")).Trim();
-        ExecuteNonQuery($"CALL SYSPROC.ADMIN_CMD('REORG TABLE {schema}.{Identifier(table).Replace("'", "''")}')");
+        var relation = CatalogRelation(table, true);
+        var schema = relation.Schema ?? Convert.ToString(ExecuteScalar("VALUES CURRENT SCHEMA")).Trim();
+        var qualified = _dialect.QuoteIdentifier(schema) + "." + _dialect.QuoteIdentifier(relation.Name);
+        ExecuteNonQuery($"CALL SYSPROC.ADMIN_CMD('REORG TABLE {qualified.Replace("'", "''")}')");
     }
 
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
@@ -178,6 +182,6 @@ public class DB2TransformationProvider : TransformationProvider
             ForeignKeyConstraintType.Restrict => "RESTRICT",
             _ => throw new NotSupportedException("This referential action is not supported by Db2.")
         };
-        ExecuteNonQuery($"ALTER TABLE {Identifier(childTable)} ADD CONSTRAINT {Identifier(name)} FOREIGN KEY ({string.Join(", ", childColumns.Select(Identifier))}) REFERENCES {Identifier(parentTable)} ({string.Join(", ", parentColumns.Select(Identifier))}) ON DELETE {delete} ON UPDATE NO ACTION");
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(childTable)} ADD CONSTRAINT {Identifier(name)} FOREIGN KEY ({string.Join(", ", childColumns.Select(Identifier))}) REFERENCES {QuoteTableNameIfRequired(parentTable)} ({string.Join(", ", parentColumns.Select(Identifier))}) ON DELETE {delete} ON UPDATE NO ACTION");
     }
 }

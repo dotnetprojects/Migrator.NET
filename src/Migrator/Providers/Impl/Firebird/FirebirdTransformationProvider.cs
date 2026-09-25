@@ -23,8 +23,8 @@ public class FirebirdTransformationProvider : TransformationProvider
     public FirebirdTransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
         : base(dialect, connection, null, scope) { }
 
-    private static string CatalogName(string name) =>
-        (name.StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
+    private string CatalogName(string name) =>
+        (QuoteTableNameIfRequired(name).StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
 
     public override void AddColumn(string table, Column column) =>
         AddColumn(table, _dialect.GetAndMapColumnProperties(column).ColumnSql);
@@ -34,14 +34,20 @@ public class FirebirdTransformationProvider : TransformationProvider
         base.AddTable(name, engine, fields);
     }
 
+    public override string QuoteTableNameIfRequired(string name)
+    {
+        if (_defaultSchema != null || SqlIdentifier.Parse(name).Length != 1)
+            throw new NotSupportedException("The Firebird provider targets Firebird 5 and does not support namespaces.");
+        return base.QuoteTableNameIfRequired(name);
+    }
+
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
         $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME='{CatalogName(table)}' AND RDB$VIEW_BLR IS NULL")) > 0;
 
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(
         $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME='{CatalogName(view)}' AND RDB$VIEW_BLR IS NOT NULL")) > 0;
 
-    public override string[] GetTables() => ExecuteStringQuery(
-        "SELECT TRIM(RDB$RELATION_NAME) FROM RDB$RELATIONS WHERE COALESCE(RDB$SYSTEM_FLAG,0)=0 AND RDB$VIEW_BLR IS NULL").ToArray();
+    public override string[] GetTables() => base.GetTables();
 
     // Firebird has no server-wide SQL database catalog; only the attached database is visible.
     public override List<string> GetDatabases() => [_connection.Database];

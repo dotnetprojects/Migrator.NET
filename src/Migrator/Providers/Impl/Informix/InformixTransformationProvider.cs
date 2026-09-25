@@ -77,17 +77,16 @@ public class InformixTransformationProvider : TransformationProvider
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM systables WHERE tabname='{Name(table)}' AND owner=USER AND tabtype='T'")) > 0;
+        $"SELECT COUNT(*) FROM systables WHERE tabname={ObjectSqlLiteral(table)} AND owner={NamespaceSql(table, "USER")} AND tabtype='T'")) > 0;
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM systables WHERE tabname='{Name(view)}' AND owner=USER AND tabtype='V'")) > 0;
-    public override string[] GetTables() => ExecuteStringQuery(
-        "SELECT tabname FROM systables WHERE owner=USER AND tabid>=100 AND tabtype='T'").Select(n => n.Trim()).ToArray();
+        $"SELECT COUNT(*) FROM systables WHERE tabname={ObjectSqlLiteral(view)} AND owner={NamespaceSql(view, "USER")} AND tabtype='V'")) > 0;
+    public override string[] GetTables() => base.GetTables();
     public override List<string> GetDatabases() => ExecuteStringQuery("SELECT name FROM sysmaster:sysdatabases");
     public override string[] GetConstraints(string table) => ExecuteStringQuery(
-        $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}'").Select(n => n.Trim()).ToArray();
+        $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)}").Select(n => n.Trim()).ToArray();
     public override bool ConstraintExists(string table, string name) => GetConstraints(table).Any(n => n == name || n == Name(name).Replace("''", "'"));
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
-        $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype='P'").FirstOrDefault()?.Trim();
+        $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)} AND c.constrtype='P'").FirstOrDefault()?.Trim();
 
     public override Column[] GetColumns(string table)
     {
@@ -99,7 +98,7 @@ public class InformixTransformationProvider : TransformationProvider
             FROM syscolumns c JOIN systables t ON c.tabid=t.tabid
             LEFT JOIN sysdefaults d ON d.tabid=c.tabid AND d.colno=c.colno AND d.class='T'
             LEFT JOIN sysxtdtypes x ON x.extended_id=c.extended_id
-            WHERE t.owner=USER AND t.tabname='{Name(table)}' ORDER BY c.colno
+            WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)} ORDER BY c.colno
             """);
         while (reader.Read())
         {
@@ -144,7 +143,7 @@ public class InformixTransformationProvider : TransformationProvider
     {
         var rows = new List<(string Name, string Parent, string ChildIndex, string ParentIndex, string Delete)>();
         using (var command = CreateCommand())
-        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,t2.tabname,c.idxname,p.idxname,r.delrule FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid JOIN sysreferences r ON r.constrid=c.constrid JOIN sysconstraints p ON p.constrid=r.primary JOIN systables t2 ON t2.tabid=r.ptabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND t2.owner=USER ORDER BY c.constrname"))
+        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,TRIM(t2.owner) || '.' || TRIM(t2.tabname),c.idxname,p.idxname,r.delrule FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid JOIN sysreferences r ON r.constrid=c.constrid JOIN sysconstraints p ON p.constrid=r.primary JOIN systables t2 ON t2.tabid=r.ptabid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)} ORDER BY c.constrname"))
             while (reader.Read())
                 rows.Add((reader.GetString(0).Trim(), reader.GetString(1).Trim(), reader.GetString(2).Trim(), reader.GetString(3).Trim(), reader.GetString(4).Trim()));
         var childIndexes = GetIndexes(table).ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
@@ -159,7 +158,7 @@ public class InformixTransformationProvider : TransformationProvider
         var indexes = GetIndexes(table).ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
         var constraints = new List<TableConstraint>();
         using (var command = CreateCommand())
-        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,c.constrtype,c.idxname FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype IN ('P','U') ORDER BY c.constrname"))
+        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,c.constrtype,c.idxname FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)} AND c.constrtype IN ('P','U') ORDER BY c.constrname"))
         {
             while (reader.Read())
             {
@@ -172,7 +171,7 @@ public class InformixTransformationProvider : TransformationProvider
         }
         var checks = new Dictionary<string, System.Text.StringBuilder>();
         using (var command = CreateCommand())
-        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,ch.checktext FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid JOIN syschecks ch ON ch.constrid=c.constrid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype='C' AND ch.type='T' ORDER BY c.constrname,ch.seqno"))
+        using (var reader = ExecuteQuery(command, $"SELECT c.constrname,ch.checktext FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid JOIN syschecks ch ON ch.constrid=c.constrid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)} AND c.constrtype='C' AND ch.type='T' ORDER BY c.constrname,ch.seqno"))
             while (reader.Read())
             {
                 var name = reader.GetString(0).Trim();
@@ -225,7 +224,7 @@ public class InformixTransformationProvider : TransformationProvider
         using var reader = ExecuteQuery(cmd, $"""
             SELECT i.*, c.constrtype FROM sysindexes i JOIN systables t ON t.tabid=i.tabid
             LEFT JOIN sysconstraints c ON c.tabid=i.tabid AND c.idxname=i.idxname AND c.constrtype IN ('P','U')
-            WHERE t.owner=USER AND t.tabname='{Name(table)}'
+            WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)}
             """);
         while (reader.Read())
         {
@@ -249,14 +248,14 @@ public class InformixTransformationProvider : TransformationProvider
     {
         var columns = new Dictionary<int, string>();
         using var cmd = CreateCommand();
-        using var reader = ExecuteQuery(cmd, $"SELECT c.colno,c.colname FROM syscolumns c JOIN systables t ON t.tabid=c.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}'");
+        using var reader = ExecuteQuery(cmd, $"SELECT c.colno,c.colname FROM syscolumns c JOIN systables t ON t.tabid=c.tabid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)}");
         while (reader.Read()) columns[Convert.ToInt32(reader.GetValue(0))] = reader.GetString(1).Trim();
         return columns;
     }
 
     public override void RemoveAllIndexes(string table)
     {
-        var constraints = ExecuteStringQuery($"SELECT c.constrname FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid WHERE t.owner=USER AND t.tabname='{Name(table)}' AND c.constrtype IN ('P','U')");
+        var constraints = ExecuteStringQuery($"SELECT c.constrname FROM sysconstraints c JOIN systables t ON t.tabid=c.tabid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)} AND c.constrtype IN ('P','U')");
         foreach (var name in constraints) RemoveConstraint(table, name.Trim());
         foreach (var index in GetIndexes(table)) RemoveIndex(table, index.Name);
     }
@@ -267,21 +266,21 @@ public class InformixTransformationProvider : TransformationProvider
         if (index.KeyColumns.Length == 0) throw new ArgumentException("An index needs key columns.", nameof(index));
         if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
             throw new NotSupportedException("This Informix provider supports ordinary and unique indexes without INCLUDE, filters or clustering.");
-        var name = index.Name ?? $"ix_{table}_{string.Join("_", index.KeyColumns)}";
-        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {name} ON {table} ({string.Join(", ", index.KeyColumns)})");
+        var name = index.Name ?? $"ix_{QuoteTableNameIfRequired(table)}_{string.Join("_", index.KeyColumns)}";
+        ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {QualifyInSameNamespace(table, name)} ON {QuoteTableNameIfRequired(table)} ({string.Join(", ", index.KeyColumns)})");
         return name;
     }
 
-    public override void AddColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {table} ADD ({sqlColumn})");
-    public override void ChangeColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {table} MODIFY ({sqlColumn})");
-    public override void RemoveColumn(string tableName, string column) => ExecuteNonQuery($"ALTER TABLE {tableName} DROP ({column})");
+    public override void AddColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD ({sqlColumn})");
+    public override void ChangeColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} MODIFY ({sqlColumn})");
+    public override void RemoveColumn(string tableName, string column) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(tableName)} DROP ({column})");
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName)
     {
         if (!ColumnExists(tableName, oldColumnName) || ColumnExists(tableName, newColumnName))
             throw new MigrationException("Source column must exist and destination column must not exist.");
-        ExecuteNonQuery($"RENAME COLUMN {tableName}.{oldColumnName} TO {newColumnName}");
+        ExecuteNonQuery($"RENAME COLUMN {QuoteTableNameIfRequired(tableName)}.{oldColumnName} TO {newColumnName}");
     }
-    public override void RenameTable(string oldName, string newName) => ExecuteNonQuery($"RENAME TABLE {oldName} TO {newName}");
+    public override void RenameTable(string oldName, string newName) => ExecuteNonQuery($"RENAME TABLE {QuoteTableNameIfRequired(oldName)} TO {RenameTarget(oldName, newName)}");
     public override void RemoveColumnDefaultValue(string table, string column)
     {
         var existing = GetColumns(table).Single(c => c.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
@@ -290,11 +289,11 @@ public class InformixTransformationProvider : TransformationProvider
     }
 
     public override void AddPrimaryKey(string name, string table, params string[] columns) =>
-        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT PRIMARY KEY ({string.Join(", ", QuoteColumnNamesIfRequired(columns))}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD CONSTRAINT PRIMARY KEY ({string.Join(", ", QuoteColumnNamesIfRequired(columns))}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
     public override void AddUniqueConstraint(string name, string table, params string[] columns) =>
-        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT UNIQUE ({string.Join(", ", QuoteColumnNamesIfRequired(columns))}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD CONSTRAINT UNIQUE ({string.Join(", ", QuoteColumnNamesIfRequired(columns))}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
     public override void AddCheckConstraint(string name, string table, string checkSql) =>
-        ExecuteNonQuery($"ALTER TABLE {table} ADD CONSTRAINT CHECK ({checkSql}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD CONSTRAINT CHECK ({checkSql}) CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
 
     public override void AddForeignKey(string name, string childTable, string[] childColumns, string parentTable, string[] parentColumns,
         ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate)
@@ -312,6 +311,6 @@ public class InformixTransformationProvider : TransformationProvider
             ForeignKeyConstraintType.NoAction or ForeignKeyConstraintType.Restrict => "",
             _ => throw new NotSupportedException("Informix supports cascading deletes or its default restrictive referential action.")
         };
-        ExecuteNonQuery($"ALTER TABLE {childTable} ADD CONSTRAINT FOREIGN KEY ({string.Join(", ", QuoteColumnNamesIfRequired(childColumns))}) REFERENCES {parentTable} ({string.Join(", ", QuoteColumnNamesIfRequired(parentColumns))}){action} CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
+        ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(childTable)} ADD CONSTRAINT FOREIGN KEY ({string.Join(", ", QuoteColumnNamesIfRequired(childColumns))}) REFERENCES {QuoteTableNameIfRequired(parentTable)} ({string.Join(", ", QuoteColumnNamesIfRequired(parentColumns))}){action} CONSTRAINT {QuoteConstraintNameIfRequired(name)}");
     }
 }

@@ -170,12 +170,18 @@ public abstract class Dialect : IDialect
 
     public ITransformationProvider NewProviderForDialect(string connectionString, string defaultSchema, string scope, string providerName)
     {
-        return GetTransformationProvider(this, connectionString, defaultSchema, scope, providerName);
+        return ConfigureNamespace(GetTransformationProvider(this, connectionString, defaultSchema, scope, providerName), defaultSchema);
     }
 
     public ITransformationProvider NewProviderForDialect(IDbConnection connection, string defaultSchema, string scope, string providerName)
     {
-        return GetTransformationProvider(this, connection, defaultSchema, scope, providerName);
+        return ConfigureNamespace(GetTransformationProvider(this, connection, defaultSchema, scope, providerName), defaultSchema);
+    }
+
+    private static ITransformationProvider ConfigureNamespace(ITransformationProvider provider, string schema)
+    {
+        if (provider is TransformationProvider transformation) transformation.SetDefaultSchema(schema);
+        return provider;
     }
 
     /// <summary>

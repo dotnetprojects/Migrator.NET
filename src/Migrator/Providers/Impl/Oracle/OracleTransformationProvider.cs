@@ -81,7 +81,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
             throw new MigrationException($"You cannot use unique together with functional expressions in Oracle ({nameof(FilterItem)}).");
         }
 
-        var name = QuoteConstraintNameIfRequired(index.Name);
+        var name = QualifyInSameNamespace(table, index.Name);
         table = QuoteTableNameIfRequired(table);
 
         List<string> singleFilterStrings = [];
@@ -283,22 +283,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         throw new NotImplementedException();
     }
 
-    public override string[] GetTables()
-    {
-        var tables = new List<string>();
-
-        using (var cmd = CreateCommand())
-        using (var reader =
-            ExecuteQuery(cmd, "SELECT table_name FROM user_tables"))
-        {
-            while (reader.Read())
-            {
-                tables.Add(reader[0].ToString());
-            }
-        }
-
-        return tables.ToArray();
-    }
+    public override string[] GetTables() => base.GetTables();
 
     public override Column[] GetColumns(string table)
     {

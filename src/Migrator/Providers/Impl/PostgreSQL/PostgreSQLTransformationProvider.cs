@@ -435,19 +435,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         ExecuteNonQuery(string.Format("DROP DATABASE {0}", _dialect.Quote(databaseName)));
     }
 
-    public override string[] GetTables()
-    {
-        var tables = new List<string>();
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
-        {
-            while (reader.Read())
-            {
-                tables.Add((string)reader[0]);
-            }
-        }
-        return [.. tables];
-    }
+    public override string[] GetTables() => base.GetTables();
 
     public override int GetColumnContentSize(string table, string columnName)
     {
