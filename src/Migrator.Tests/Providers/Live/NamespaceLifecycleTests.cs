@@ -82,16 +82,16 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
             Assert.That(Provider.GetTables(ns).Select(n => n.ToLowerInvariant()), Does.Contain("ns_child"));
             Assert.That(Provider.GetColumns(ns, database is "Db2" or "Oracle" ? "NS_CHILD" : "ns_child").Select(n => n.ToLowerInvariant()), Does.Contain("payload"));
             var view = Table("ns_view");
-            Provider.ExecuteNonQuery($"CREATE VIEW {Provider.QuoteTableNameIfRequired(view)} AS SELECT id FROM {Provider.QuoteTableNameIfRequired(child)}");
+            Provider.ExecuteNonQuery($"CREATE VIEW {Provider.QuoteTableNameIfRequired(view)} AS SELECT {Provider.QuoteColumnNameIfRequired("id")} FROM {Provider.QuoteTableNameIfRequired(child)}");
             Assert.That(Provider.ViewExists(view), Is.True);
             Provider.ExecuteNonQuery("DROP VIEW " + Provider.QuoteTableNameIfRequired(view));
             Assert.That(Provider.ViewExists(view), Is.False);
             Provider.AddColumn(child, new Column("extra", DbType.Int32) { DefaultValue = 7 });
             Provider.Insert(parent, new[] { "id" }, new object[] { 1 });
             Provider.Insert(child, new[] { "id", "parent_id", "payload" }, new object[] { 1, 1, "kept" });
-            Assert.That(Convert.ToInt32(Provider.ExecuteScalar("SELECT extra FROM " + Provider.QuoteTableNameIfRequired(child))), Is.EqualTo(7));
+            Assert.That(Convert.ToInt32(Provider.ExecuteScalar("SELECT " + Provider.QuoteColumnNameIfRequired("extra") + " FROM " + Provider.QuoteTableNameIfRequired(child))), Is.EqualTo(7));
             Provider.Update(child, new[] { "payload" }, new object[] { "changed" }, new[] { "id" }, new object[] { 1 });
-            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT payload FROM " + Provider.QuoteTableNameIfRequired(child))), Is.EqualTo("changed"));
+            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT " + Provider.QuoteColumnNameIfRequired("payload") + " FROM " + Provider.QuoteTableNameIfRequired(child))), Is.EqualTo("changed"));
             Provider.Update(child, new[] { "payload" }, new object[] { "kept" });
             Provider.ChangeColumn(child, new Column("payload", DbType.String, 40));
             Provider.RenameColumn(child, "payload", "message");
@@ -117,7 +117,7 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
             Provider.RenameTable(child, renamed);
             Assert.That(Provider.TableExists(child), Is.False);
             Assert.That(Provider.TableExists(renamed), Is.True);
-            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT message FROM " + Provider.QuoteTableNameIfRequired(renamed))), Is.EqualTo("kept"));
+            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT " + Provider.QuoteColumnNameIfRequired("message") + " FROM " + Provider.QuoteTableNameIfRequired(renamed))), Is.EqualTo("kept"));
             Provider.RemoveTable(renamed);
             Assert.That(Provider.TableExists(renamed), Is.False);
         }

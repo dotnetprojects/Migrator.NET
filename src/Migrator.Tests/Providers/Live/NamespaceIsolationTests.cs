@@ -57,7 +57,7 @@ public class NamespaceIsolationTests(string database, ProviderTypes providerType
             var target = Qualified(first, "ns_items");
             Assert.That(Provider.TableExists(target), Is.True);
             Assert.That(Provider.GetTables(Provider.Dialect.QuoteIdentifier(first)).Select(n => n.ToLowerInvariant()), Is.EqualTo(new[] { "ns_items" }));
-            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT payload FROM " + Provider.QuoteTableNameIfRequired("ns_items"))), Is.EqualTo(second));
+            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT " + Provider.QuoteColumnNameIfRequired("payload") + " FROM " + Provider.QuoteTableNameIfRequired("ns_items"))), Is.EqualTo(second));
             Provider.ChangeColumn(target, new Column("payload", DbType.String, 60));
             Provider.AddColumn(target, new Column("only_first", DbType.Int32));
             Assert.That(Provider.ColumnExists(target, "only_first"), Is.True);
@@ -70,7 +70,7 @@ public class NamespaceIsolationTests(string database, ProviderTypes providerType
             Assert.That(Provider.TableExists(Qualified(first, "ns_renamed")), Is.True);
             Provider.RemoveTable(Qualified(first, "ns_renamed"));
             Assert.That(Provider.TableExists("ns_items"), Is.True);
-            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT payload FROM " + Provider.QuoteTableNameIfRequired("ns_items"))), Is.EqualTo(second));
+            Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT " + Provider.QuoteColumnNameIfRequired("payload") + " FROM " + Provider.QuoteTableNameIfRequired("ns_items"))), Is.EqualTo(second));
         }
         finally
         {
