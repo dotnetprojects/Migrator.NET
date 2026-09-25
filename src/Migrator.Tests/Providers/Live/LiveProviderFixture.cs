@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Globalization;
 using System.Linq;
+using System.Reflection;
+using System.Globalization;
 using System.Threading.Tasks;
 using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
@@ -18,6 +19,7 @@ public abstract class LiveProviderFixture(string database, ProviderTypes provide
 {
     protected LiveDatabaseTests live;
     private HanaConnection hana;
+    private DbConnection ingres;
     private string schema;
 
     [SetUp]
@@ -29,6 +31,19 @@ public abstract class LiveProviderFixture(string database, ProviderTypes provide
             case "SQLServer": await BeginSQLServerTransactionAsync(); break;
             case "PostgreSQL": await BeginPostgreSQLTransactionAsync(); break;
             case "Oracle": await BeginOracleTransactionAsync(); break;
+            case "Ingres":
+                var driver = Environment.GetEnvironmentVariable("MIGRATOR_INGRES_DRIVER")
+                    ?? throw new InvalidOperationException("Set MIGRATOR_INGRES_DRIVER to a .NET-compatible Actian driver assembly path.");
+                var connectionString = Environment.GetEnvironmentVariable("MIGRATOR_INGRES")
+                    ?? throw new InvalidOperationException("Set MIGRATOR_INGRES to a disposable Ingres database connection string.");
+                var connectionType = Assembly.LoadFrom(driver).GetTypes().Single(t => t.IsPublic && !t.IsAbstract && typeof(DbConnection).IsAssignableFrom(t));
+                ingres = (DbConnection)Activator.CreateInstance(connectionType);
+                ingres.ConnectionString = connectionString;
+                ingres.Open();
+                Provider = ProviderFactory.Create(providerType, ingres, null, "namespace-tests");
+                if (Provider.GetTables().Length != 0) throw new InvalidOperationException("Ingres namespace tests require an empty, disposable owner namespace.");
+                Provider.BeginTransaction();
+                break;
             case "Hana":
                 hana = new HanaConnection(Environment.GetEnvironmentVariable("MIGRATOR_HANA")
                     ?? "Server=localhost:39041;UserID=SYSTEM;Password=MgT9ci7Q4xZ2");
@@ -65,6 +80,7 @@ public abstract class LiveProviderFixture(string database, ProviderTypes provide
         try
         {
             if (live != null) live.TearDown();
+            else if (ingres != null) Provider?.Rollback();
             else if (hana != null)
             {
                 Provider?.Dispose();
@@ -81,9 +97,11 @@ public abstract class LiveProviderFixture(string database, ProviderTypes provide
         {
             if (live == null) Provider?.Dispose();
             hana?.Dispose();
+            ingres?.Dispose();
             Provider = null;
             live = null;
             hana = null;
+            ingres = null;
             schema = null;
         }
     }

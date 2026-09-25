@@ -26,6 +26,9 @@ namespace Migrator.Tests.Providers.Live;
 [TestFixture("Informix", ProviderTypes.IBM_Informix, Category = "Informix")]
 [TestFixture("Sybase", ProviderTypes.Sybase, Category = "Sybase")]
 [TestFixture("Hana", ProviderTypes.Hana, Category = "Hana")]
+#if INGRES_LIVE
+[TestFixture("Ingres", ProviderTypes.Ingres, Category = "Ingres")]
+#endif
 [NonParallelizable]
 public class NamespaceLifecycleTests(string database, ProviderTypes providerType) : LiveProviderFixture(database, providerType)
 {
@@ -40,6 +43,7 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
         "Informix" => Convert.ToString(Provider.ExecuteScalar("SELECT USER FROM systables WHERE tabid=1")).Trim(),
         "Sybase" => Convert.ToString(Provider.ExecuteScalar("SELECT user_name()")),
         "Hana" => Convert.ToString(Provider.ExecuteScalar("SELECT CURRENT_SCHEMA FROM DUMMY")),
+        "Ingres" => Convert.ToString(Provider.ExecuteScalar("SELECT DBMSINFO('username')")).TrimEnd(),
         _ => null
     };
 
