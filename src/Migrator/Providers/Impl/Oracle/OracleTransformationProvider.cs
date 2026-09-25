@@ -195,7 +195,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     public override void RenameTable(string oldName, string newName)
     {
         var oldRelation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(oldName), true);
-        var newRelation = SqlIdentifier.Catalog(newName, true);
+        var newRelation = SqlIdentifier.Catalog(_dialect.QuoteTableNameIfRequired(newName), true);
         if (newRelation.Schema != null && newRelation.Schema != oldRelation.Schema)
             throw new NotSupportedException("Oracle RENAME does not move a table between schemas.");
         GuardAgainstMaximumIdentifierLengthForOracle(newRelation.Name);

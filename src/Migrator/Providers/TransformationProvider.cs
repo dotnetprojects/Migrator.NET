@@ -1613,7 +1613,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     {
         var upper = _dialect is DotNetProjects.Migrator.Providers.Impl.DB2.DB2Dialect or DotNetProjects.Migrator.Providers.Impl.Oracle.OracleDialect;
         var source = CatalogRelation(oldName, upper);
-        var target = SqlIdentifier.Catalog(newName, upper);
+        var target = SqlIdentifier.Catalog(_dialect.QuoteTableNameIfRequired(newName), upper);
         if (target.Schema != null && !string.Equals(source.Schema, target.Schema, StringComparison.OrdinalIgnoreCase))
             throw new NotSupportedException("RenameTable does not move tables between namespaces.");
         return _dialect.QuoteTableNameIfRequired(SqlIdentifier.Parse(newName).Last().Quoted ? _dialect.QuoteIdentifier(target.Name) : target.Name);

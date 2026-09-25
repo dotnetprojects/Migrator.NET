@@ -26,7 +26,7 @@ restriction layout. Table enumeration returns local names.
 | Ingres | Owner-qualified DDL and native table/view/column/constraint/index-existence catalogs; the legacy provider still lacks structured index/FK metadata and live qualification infrastructure |
 
 Renaming keeps the source namespace when the new name is unqualified. It is not
-a portable API for moving tables between namespaces. ASE's sp_rename requires
+a portable API for moving tables between namespaces. ASE index removal and sp_rename require
 a connection in the object's owner namespace; an explicitly different owner is
 rejected before renaming. SQLite foreign keys cannot
 reference another attached database; that request fails before table creation.

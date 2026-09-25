@@ -64,13 +64,14 @@ public class NamespaceIsolationTests(string database, ProviderTypes providerType
             Assert.That(Provider.ColumnExists("ns_items", "only_first"), Is.False);
             Provider.RemoveColumn(target, "only_first");
             Assert.That(Provider.ColumnExists(target, "only_first"), Is.False);
+            Provider.RemoveIndex(target, "ix_same");
+            Assert.That(Provider.IndexExists(target, "ix_same"), Is.False);
+            Assert.That(Provider.IndexExists("ns_items", "ix_same"), Is.True);
+            // Db2 forbids renaming a column while an index depends on it.
             Provider.RenameColumn(target, "payload", "message");
             Assert.That(Provider.ColumnExists(target, "message"), Is.True);
             Assert.That(Provider.ColumnExists("ns_items", "message"), Is.False);
             Provider.RenameColumn(target, "message", "payload");
-            Provider.RemoveIndex(target, "ix_same");
-            Assert.That(Provider.IndexExists(target, "ix_same"), Is.False);
-            Assert.That(Provider.IndexExists("ns_items", "ix_same"), Is.True);
             Provider.RenameTable(target, "ns_renamed");
             Assert.That(Provider.TableExists(target), Is.False);
             Assert.That(Provider.TableExists(Qualified(first, "ns_renamed")), Is.True);

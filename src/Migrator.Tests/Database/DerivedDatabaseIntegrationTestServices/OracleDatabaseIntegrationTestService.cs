@@ -99,7 +99,7 @@ public class OracleDatabaseIntegrationTestService(
 
         await Parallel.ForEachAsync(
             toBeDeletedUsers,
-            new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = cancellationToken },
+            new ParallelOptions { MaxDegreeOfParallelism = 1, CancellationToken = cancellationToken },
             async (x, cancellationTokenInner) =>
             {
                 var databaseInfoToBeDeleted = new DatabaseInfo
