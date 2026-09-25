@@ -166,7 +166,8 @@ public class HanaTransformationProvider : TransformationProvider
     }
     public override string AddIndex(string table, Index index)
     {
-        if (index.Clustered || index.IncludeColumns?.Length > 0 || index.FilterItems?.Count > 0)
+        ShouldApplyIndexFilters(index, supported: false);
+        if (index.Clustered || index.IncludeColumns?.Length > 0)
             throw new NotSupportedException("HANA index INCLUDE, clustered and filtered options are not supported by this provider.");
         if (index.KeyColumns?.Length is not > 0) throw new ArgumentException("Index key columns are required.", nameof(index));
         var name = index.Name ?? "IX_" + Name(table).Table + "_" + string.Join("_", index.KeyColumns);

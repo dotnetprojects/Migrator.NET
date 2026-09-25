@@ -66,7 +66,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     public override string AddIndex(string table, Index index)
     {
-        ValidateIndex(tableName: table, index: index);
+        var hasFilterItems = ShouldApplyIndexFilters(index, supported: true);
+        ValidateIndex(table, index, validateFilters: hasFilterItems);
 
         var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
         var name = QuoteConstraintNameIfRequired(index.Name);
@@ -85,33 +86,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             includeString = $"INCLUDE ({string.Join(", ", includeColumnsQuoted)})";
         }
 
-        if (index.FilterItems != null && index.FilterItems.Count > 0)
-        {
-            List<string> singleFilterStrings = [];
-
-            foreach (var filterItem in index.FilterItems)
-            {
-                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
-
-                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
-                string value = null;
-
-                value = filterItem.Value switch
-                {
-                    bool booleanValue => booleanValue ? "TRUE" : "FALSE",
-                    string stringValue => $"'{stringValue.Replace("'", "''")}'",
-                    byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
-                    sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
-                    _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),
-                };
-
-                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
-
-                singleFilterStrings.Add(singleFilterString);
-            }
-
-            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
-        }
+        if (hasFilterItems)
+            filterString = "WHERE " + string.Join(" AND ", index.FilterItems.Select(f => IndexFilterSql.Format(_dialect, f, numericBooleans: false)));
 
         List<string> list = [];
         list.Add("CREATE");
@@ -121,8 +97,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         list.Add("ON");
         list.Add(table);
         list.Add(columnsString);
-        list.Add(filterString);
         list.Add(includeString);
+        list.Add(filterString);
 
         var sql = string.Join(" ", list.Where(x => !string.IsNullOrWhiteSpace(x)));
 
@@ -134,9 +110,6 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
     public override Index[] GetIndexes(string table)
     {
         var columns = GetColumns(table);
-
-        // Since the migrator does not support schemas at this point in time we set the schema to "public"
-        var schemaName = "public";
 
         var indexes = new List<Index>();
 
@@ -151,7 +124,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                 con.contype = 'p' AS is_primary_constraint,
                 pg_get_indexdef(idx.indexrelid) AS index_definition,
                 (
-                    SELECT string_agg(att.attname, ', ')
+                    SELECT string_agg(att.attname, ', ' ORDER BY cols.ord)
                     FROM unnest(idx.indkey) WITH ORDINALITY AS cols(attnum, ord)
                     JOIN pg_attribute att
                     ON att.attrelid = idx.indrelid
@@ -159,7 +132,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                     WHERE cols.ord <= idx.indnkeyatts
                 ) AS index_columns,
                 (
-                    SELECT string_agg(att.attname, ', ')
+                    SELECT string_agg(att.attname, ', ' ORDER BY cols.ord)
                     FROM unnest(idx.indkey) WITH ORDINALITY AS cols(attnum, ord)
                     JOIN pg_attribute att
                     ON att.attrelid = idx.indrelid
@@ -171,13 +144,11 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
             JOIN pg_class cls ON cls.oid = idx.indexrelid
             JOIN pg_class tbl ON tbl.oid = idx.indrelid
             JOIN pg_namespace nsp ON nsp.oid = tbl.relnamespace
-            LEFT JOIN pg_constraint con ON con.conindid = idx.indexrelid
-            WHERE 
-                lower(tbl.relname) = '{table.ToLowerInvariant()}' AND
-                nsp.nspname = '{schemaName}'";
+            LEFT JOIN pg_constraint con ON con.conindid = idx.indexrelid AND con.conrelid = idx.indrelid
+            WHERE idx.indrelid = to_regclass(@relation)";
 
-        using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format(sql, table)))
+        using (var cmd = MetadataCommand(table))
+        using (var reader = ExecuteQuery(cmd, sql))
         {
             var includeColumnsOrdinal = reader.GetOrdinal("include_columns");
             var indexColumnsOrdinal = reader.GetOrdinal("index_columns");
@@ -199,86 +170,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
                     var indexColumns = !reader.IsDBNull(indexColumnsOrdinal) ? reader.GetString(indexColumnsOrdinal) : null;
                     var indexDefinition = reader.GetString(indexDefinitionOrdinal);
                     var partialColumns = !reader.IsDBNull(partialFilterOrdinal) ? reader.GetString(partialFilterOrdinal) : null;
-                    List<FilterItem> filterItems = [];
-
-                    if (!string.IsNullOrWhiteSpace(partialColumns))
-                    {
-                        partialColumns = partialColumns.Substring(1, partialColumns.Length - 2);
-                        var comparisonStrings = _dialect.GetComparisonStrings();
-                        var partialSplitted = Regex.Split(partialColumns, " AND ").Select(x => x.Trim()).ToList();
-
-                        if (partialSplitted.Count > 1)
-                        {
-                            partialSplitted = partialSplitted.Select(x => x.Substring(1, x.Length - 2)).ToList();
-                        }
-
-                        foreach (var partialItemString in partialSplitted)
-                        {
-                            string[] splits = [];
-                            var filterType = FilterType.None;
-
-                            foreach (var comparisonString in comparisonStrings.OrderByDescending(x => x))
-                            {
-                                splits = Regex.Split(partialItemString, $" {comparisonString} ");
-
-                                if (splits.Length == 2)
-                                {
-                                    filterType = _dialect.GetFilterTypeByComparisonString(comparisonString);
-                                    break;
-                                }
-                            }
-
-                            if (splits.Length != 2)
-                            {
-                                throw new NotImplementedException($"Comparison string not found in '{partialItemString}'");
-                            }
-
-                            var columnNameString = splits[0];
-                            var columnNameRegex = new Regex(@"(?<=^\().+(?=\)::(text|boolean|integer)$)");
-
-                            if (columnNameRegex.Match(columnNameString) is Match matchColumnName && matchColumnName.Success)
-                            {
-                                columnNameString = matchColumnName.Value;
-                            }
-
-                            var column = columns.First(x => columnNameString.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
-                            var valueAsString = splits[1];
-                            var stringValueNumericRegex = new Regex(@"(?<=^\()[^\)]+(?=\)::numeric$)");
-
-                            if (stringValueNumericRegex.Match(valueAsString) is Match valueNumericMatch && valueNumericMatch.Success)
-                            {
-                                valueAsString = valueNumericMatch.Value;
-                            }
-
-                            var stringValueRegex = new Regex("(?<=^').+(?='::(text|boolean|integer|bigint)$)");
-
-                            if (stringValueRegex.Match(valueAsString) is Match match && match.Success)
-                            {
-                                valueAsString = match.Value;
-                            }
-
-                            var filterItem = new FilterItem
-                            {
-                                ColumnName = column.Name,
-                                Filter = filterType,
-                                Value = column.MigratorDbType switch
-                                {
-                                    MigratorDbType.Int16 => short.Parse(valueAsString),
-                                    MigratorDbType.Int32 => int.Parse(valueAsString),
-                                    MigratorDbType.Int64 => long.Parse(valueAsString),
-                                    MigratorDbType.UInt16 => ushort.Parse(valueAsString),
-                                    MigratorDbType.UInt32 => uint.Parse(valueAsString),
-                                    MigratorDbType.UInt64 => ulong.Parse(valueAsString),
-                                    MigratorDbType.Decimal => decimal.Parse(valueAsString),
-                                    MigratorDbType.Boolean => valueAsString == "1" || valueAsString.Equals("true", StringComparison.OrdinalIgnoreCase),
-                                    MigratorDbType.String => valueAsString,
-                                    _ => throw new NotImplementedException($"Type '{column.MigratorDbType}' not yet supported - there are many variations. Please file an issue."),
-                                }
-                            };
-
-                            filterItems.Add(filterItem);
-                        }
-                    }
+                    var filterItems = IndexFilterSql.Parse(partialColumns, columns);
 
                     var index = new Index
                     {

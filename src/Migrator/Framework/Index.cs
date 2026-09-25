@@ -38,7 +38,15 @@ public class Index : IDbField
 
     /// <summary>
     /// Gets or sets items that represent filter expressions in filtered indexes. Currently string, integer and boolean values are supported.
-    /// Attention: In SQL Server the column used in the filter must be NOT NULL.
+    /// Filter columns need not be key columns on SQL Server, PostgreSQL and SQLite.
+    /// EqualTo/NotEqualTo with null or DBNull.Value generate IS NULL/IS NOT NULL.
     /// </summary>
     public List<FilterItem> FilterItems { get; set; } = [];
+
+    /// <summary>
+    /// Controls unsupported filters. The default is to throw. Ignore creates an unfiltered
+    /// index, so a unique index will enforce uniqueness across all rows.
+    /// This option does not suppress invalid definitions or database errors.
+    /// </summary>
+    public UnsupportedIndexFilterBehavior UnsupportedFilterBehavior { get; set; } = UnsupportedIndexFilterBehavior.Throw;
 }
