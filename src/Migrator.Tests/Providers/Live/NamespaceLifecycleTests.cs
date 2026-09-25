@@ -117,6 +117,9 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
             if (database == "Firebird")
             {
                 Assert.Throws<NotSupportedException>(() => Provider.RenameTable(child, renamed));
+                // Release Firebird compiled dependencies after the preceding view/FK changes.
+                Provider.Connection.Close();
+                Provider.Connection.Open();
                 Provider.RemoveTable(child);
                 Assert.That(Provider.TableExists(child), Is.False);
                 return;

@@ -393,7 +393,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         var quotedNewColumnName = QuoteColumnNameIfRequired(newColumnName);
 
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", tableName, Dialect.Quote(column.Name), quotedNewColumnName));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} RENAME COLUMN {1} TO {2}", QuoteTableNameIfRequired(tableName), Dialect.Quote(column.Name), quotedNewColumnName));
     }
 
     public virtual void RemoveColumn(string tableName, string column)
@@ -410,7 +410,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         var existingColumn = GetColumnByName(tableName, column);
 
-        ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP COLUMN {1} ", tableName, Dialect.Quote(existingColumn.Name)));
+        ExecuteNonQuery(string.Format("ALTER TABLE {0} DROP COLUMN {1} ", QuoteTableNameIfRequired(tableName), Dialect.Quote(existingColumn.Name)));
     }
 
     public virtual bool ColumnExists(string table, string column)

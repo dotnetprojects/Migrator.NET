@@ -62,6 +62,12 @@ public class NamespaceIsolationTests(string database, ProviderTypes providerType
             Provider.AddColumn(target, new Column("only_first", DbType.Int32));
             Assert.That(Provider.ColumnExists(target, "only_first"), Is.True);
             Assert.That(Provider.ColumnExists("ns_items", "only_first"), Is.False);
+            Provider.RemoveColumn(target, "only_first");
+            Assert.That(Provider.ColumnExists(target, "only_first"), Is.False);
+            Provider.RenameColumn(target, "payload", "message");
+            Assert.That(Provider.ColumnExists(target, "message"), Is.True);
+            Assert.That(Provider.ColumnExists("ns_items", "message"), Is.False);
+            Provider.RenameColumn(target, "message", "payload");
             Provider.RemoveIndex(target, "ix_same");
             Assert.That(Provider.IndexExists(target, "ix_same"), Is.False);
             Assert.That(Provider.IndexExists("ns_items", "ix_same"), Is.True);

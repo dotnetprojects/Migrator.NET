@@ -210,12 +210,20 @@ public class SybaseTransformationProvider : TransformationProvider
     public override void AddColumn(string table, string sqlColumn) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} ADD {sqlColumn}");
 
     public override void RemoveIndex(string table, string name) => ExecuteNonQuery($"DROP INDEX {QuoteTableNameIfRequired(table)}.{name}");
+    private string RenameObjectName(string table)
+    {
+        var relation = CatalogRelation(table);
+        if (relation.Schema != null && !string.Equals(relation.Schema, Convert.ToString(ExecuteScalar("SELECT user_name()")), StringComparison.Ordinal))
+            throw new NotSupportedException("ASE sp_rename requires a connection in the object's owner namespace.");
+        return System.Text.RegularExpressions.Regex.IsMatch(relation.Name, @"^[A-Za-z_][A-Za-z0-9_]*$") ? relation.Name : _dialect.QuoteIdentifier(relation.Name);
+    }
+
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName) =>
-        ExecuteNonQuery($"EXEC sp_rename '{Literal(CatalogObjectName(tableName))}.{Literal(oldColumnName)}', '{Literal(newColumnName)}', 'column'");
+        ExecuteNonQuery($"EXEC sp_rename '{Literal(RenameObjectName(tableName))}.{Literal(oldColumnName)}', '{Literal(newColumnName)}', 'column'");
     public override void RenameTable(string oldName, string newName)
     {
         var target = SqlIdentifier.Parse(RenameTarget(oldName, newName)).Single().Value;
-        ExecuteNonQuery($"EXEC sp_rename {SqlLiteral(CatalogObjectName(oldName))}, {SqlLiteral(target)}");
+        ExecuteNonQuery($"EXEC sp_rename {SqlLiteral(RenameObjectName(oldName))}, {SqlLiteral(target)}");
     }
     public override void RemoveColumn(string tableName, string column) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(tableName)} DROP {column}");
     public override void RemoveColumnDefaultValue(string table, string column) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} REPLACE {column} DEFAULT NULL");
