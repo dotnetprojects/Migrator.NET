@@ -22,6 +22,14 @@ public class SybaseTransformationProvider : TransformationProvider
         : base(dialect, connection, null, scope) { }
 
     private static string Literal(string name) => name.Replace("'", "''");
+    private string ObjectId(string table)
+    {
+        var relation = CatalogRelation(table);
+        if (relation.Schema == null) return "object_id(" + SqlLiteral(relation.Name) + ")";
+        return "(SELECT id FROM sysobjects WHERE name=" + SqlLiteral(relation.Name) + " AND uid=user_id(" + SqlLiteral(relation.Schema) + "))";
+    }
+    private string CatalogObjectName(string table) => string.Join(".", SqlIdentifier.Parse(QuoteTableNameIfRequired(table)).Select(p => p.Value));
+
     public override void AddPrimaryKey(string name, string table, params string[] columns)
     {
         SybaseDialect.ValidateKeyConstraintName(name);
@@ -41,16 +49,16 @@ public class SybaseTransformationProvider : TransformationProvider
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM sysobjects WHERE id=object_id('{Literal(QuoteTableNameIfRequired(table))}') AND type='U'")) > 0;
+        $"SELECT COUNT(*) FROM sysobjects WHERE id={ObjectId(table)} AND type='U'")) > 0;
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM sysobjects WHERE id=object_id('{Literal(QuoteTableNameIfRequired(view))}') AND type='V'")) > 0;
+        $"SELECT COUNT(*) FROM sysobjects WHERE id={ObjectId(view)} AND type='V'")) > 0;
     public override string[] GetTables() => base.GetTables();
     public override List<string> GetDatabases() => ExecuteStringQuery("SELECT name FROM master..sysdatabases");
     public override string[] GetConstraints(string table) => ExecuteStringQuery(
-        $"SELECT o.name FROM sysconstraints c JOIN sysobjects o ON o.id=c.constrid WHERE c.tableid=object_id('{Literal(QuoteTableNameIfRequired(table))}') UNION SELECT name FROM sysindexes WHERE id=object_id('{Literal(QuoteTableNameIfRequired(table))}') AND (status2 & 2)=2").ToArray();
+        $"SELECT o.name FROM sysconstraints c JOIN sysobjects o ON o.id=c.constrid WHERE c.tableid={ObjectId(table)} UNION SELECT name FROM sysindexes WHERE id={ObjectId(table)} AND (status2 & 2)=2").ToArray();
     public override bool ConstraintExists(string table, string name) => GetConstraints(table).Contains(name);
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
-        $"SELECT name FROM sysindexes WHERE id=object_id('{Literal(QuoteTableNameIfRequired(table))}') AND (status & 2048)=2048 AND (status & 2)=2").FirstOrDefault();
+        $"SELECT name FROM sysindexes WHERE id={ObjectId(table)} AND (status & 2048)=2048 AND (status & 2)=2").FirstOrDefault();
 
     public override Column[] GetColumns(string table)
     {
@@ -60,7 +68,7 @@ public class SybaseTransformationProvider : TransformationProvider
         using var cmd = CreateCommand();
         using var reader = ExecuteQuery(cmd, $"""
             SELECT c.name,t.name,c.status,c.length,c.prec,c.scale FROM syscolumns c JOIN systypes t ON t.usertype=c.usertype
-            WHERE c.id=object_id('{Literal(QuoteTableNameIfRequired(table))}') ORDER BY c.colid
+            WHERE c.id={ObjectId(table)} ORDER BY c.colid
             """);
         while (reader.Read())
         {
@@ -96,7 +104,7 @@ public class SybaseTransformationProvider : TransformationProvider
         var columns = string.Join(",", Enumerable.Range(1, 16).Select(n => $"col_name(r.tableid,r.fokey{n}),col_name(r.reftabid,r.refkey{n})"));
         var result = new List<ForeignKeyConstraint>();
         using var command = CreateCommand();
-        using var reader = ExecuteQuery(command, $"SELECT object_name(r.constrid),object_name(r.reftabid),r.keycnt,r.frgndbname,r.pmrydbname,{columns} FROM sysreferences r WHERE r.tableid=object_id('{Literal(QuoteTableNameIfRequired(table))}') ORDER BY r.constrid");
+        using var reader = ExecuteQuery(command, $"SELECT object_name(r.constrid),object_name(r.reftabid),r.keycnt,r.frgndbname,r.pmrydbname,{columns} FROM sysreferences r WHERE r.tableid={ObjectId(table)} ORDER BY r.constrid");
         while (reader.Read())
         {
             if (!reader.IsDBNull(3) || !reader.IsDBNull(4))
@@ -125,7 +133,7 @@ public class SybaseTransformationProvider : TransformationProvider
         }
         var checks = new Dictionary<string, System.Text.StringBuilder>();
         using (var command = CreateCommand())
-        using (var reader = ExecuteQuery(command, $"SELECT o.name,c.text FROM sysconstraints con JOIN sysobjects o ON o.id=con.constrid JOIN syscomments c ON c.id=o.id WHERE con.tableid=object_id('{Literal(QuoteTableNameIfRequired(table))}') AND o.type='C' ORDER BY o.name,c.colid2,c.colid"))
+        using (var reader = ExecuteQuery(command, $"SELECT o.name,c.text FROM sysconstraints con JOIN sysobjects o ON o.id=con.constrid JOIN syscomments c ON c.id=o.id WHERE con.tableid={ObjectId(table)} AND o.type='C' ORDER BY o.name,c.colid2,c.colid"))
             while (reader.Read())
             {
                 var name = reader.GetString(0);
@@ -141,7 +149,7 @@ public class SybaseTransformationProvider : TransformationProvider
     {
         var defaults = new Dictionary<string, string>();
         using var command = CreateCommand();
-        using var reader = ExecuteQuery(command, $"SELECT c.name,d.text FROM syscolumns c JOIN syscomments d ON d.id=c.cdefault WHERE c.id=object_id('{Literal(QuoteTableNameIfRequired(table))}') ORDER BY c.colid,d.colid2,d.colid");
+        using var reader = ExecuteQuery(command, $"SELECT c.name,d.text FROM syscolumns c JOIN syscomments d ON d.id=c.cdefault WHERE c.id={ObjectId(table)} ORDER BY c.colid,d.colid2,d.colid");
         while (reader.Read())
         {
             var name = reader.GetString(0);
@@ -163,7 +171,7 @@ public class SybaseTransformationProvider : TransformationProvider
     {
         var indexes = new List<Index>();
         using var cmd = CreateCommand();
-        using (var reader = ExecuteQuery(cmd, $"SELECT name,indid,status,status2 FROM sysindexes WHERE id=object_id('{Literal(QuoteTableNameIfRequired(table))}') AND indid BETWEEN 1 AND 254"))
+        using (var reader = ExecuteQuery(cmd, $"SELECT name,indid,status,status2 FROM sysindexes WHERE id={ObjectId(table)} AND indid BETWEEN 1 AND 254"))
         {
             while (reader.Read())
             {
@@ -175,11 +183,11 @@ public class SybaseTransformationProvider : TransformationProvider
         }
         foreach (var index in indexes)
         {
-            var id = Convert.ToInt32(ExecuteScalar($"SELECT indid FROM sysindexes WHERE id=object_id('{Literal(QuoteTableNameIfRequired(table))}') AND name='{Literal(index.Name)}'"));
+            var id = Convert.ToInt32(ExecuteScalar($"SELECT indid FROM sysindexes WHERE id={ObjectId(table)} AND name='{Literal(index.Name)}'"));
             var keys = new List<string>();
             for (var position = 1; position <= 31; position++)
             {
-                var key = Convert.ToString(ExecuteScalar($"SELECT index_col('{Literal(QuoteTableNameIfRequired(table))}', {id}, {position})"));
+                var key = Convert.ToString(ExecuteScalar($"SELECT index_col('{Literal(CatalogObjectName(table))}', {id}, {position})"));
                 if (string.IsNullOrEmpty(key)) break;
                 keys.Add(key);
             }
@@ -203,11 +211,11 @@ public class SybaseTransformationProvider : TransformationProvider
 
     public override void RemoveIndex(string table, string name) => ExecuteNonQuery($"DROP INDEX {QuoteTableNameIfRequired(table)}.{name}");
     public override void RenameColumn(string tableName, string oldColumnName, string newColumnName) =>
-        ExecuteNonQuery($"EXEC sp_rename '{Literal(QuoteTableNameIfRequired(tableName))}.{Literal(oldColumnName)}', '{Literal(newColumnName)}'");
+        ExecuteNonQuery($"EXEC sp_rename '{Literal(CatalogObjectName(tableName))}.{Literal(oldColumnName)}', '{Literal(newColumnName)}', 'column'");
     public override void RenameTable(string oldName, string newName)
     {
         var target = SqlIdentifier.Parse(RenameTarget(oldName, newName)).Single().Value;
-        ExecuteNonQuery($"EXEC sp_rename {SqlLiteral(QuoteTableNameIfRequired(oldName))}, {SqlLiteral(target)}");
+        ExecuteNonQuery($"EXEC sp_rename {SqlLiteral(CatalogObjectName(oldName))}, {SqlLiteral(target)}");
     }
     public override void RemoveColumn(string tableName, string column) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(tableName)} DROP {column}");
     public override void RemoveColumnDefaultValue(string table, string column) => ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} REPLACE {column} DEFAULT NULL");

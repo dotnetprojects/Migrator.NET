@@ -43,7 +43,7 @@ attached databases.
   cases covering table creation/removal, enumeration, columns/defaults, inserts,
   updates, views, column changes/renames/removal, PK/FK/unique/index metadata and
   removal, table rename and data preservation. Firebird tests explicit rejection
-  for the three namespace modes.
+  for the three namespace modes and table rename (unsupported by Firebird 5).
 - NamespaceIsolationTests creates two namespaces with identical table, key
   and index names on SQLite, SQL Server, PostgreSQL, MySQL, MariaDB, Db2 and HANA.
   The provider default points at the second while changes target the first.

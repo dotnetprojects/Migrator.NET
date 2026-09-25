@@ -76,7 +76,7 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
         {
             Provider.AddTable(parent, new Column("id", DbType.Int32) { IsNullable = false }, new PrimaryKeyConstraint("pk_ns_parent", "id"));
             Provider.AddTable(child, new Column("id", DbType.Int32) { IsNullable = false }, new Column("parent_id", DbType.Int32),
-                new Column("payload", DbType.String, 20), new PrimaryKeyConstraint("pk_ns_child", "id"));
+                new Column("payload", DbType.String, 20) { IsNullable = false }, new PrimaryKeyConstraint("pk_ns_child", "id"));
             Assert.That(Provider.TableExists(child), Is.True);
             Assert.That(Provider.ColumnExists(child, "payload"), Is.True);
             Assert.That(Provider.GetTables(ns).Select(n => n.ToLowerInvariant()), Does.Contain("ns_child"));
@@ -93,7 +93,7 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
             Provider.Update(child, new[] { "payload" }, new object[] { "changed" }, new[] { "id" }, new object[] { 1 });
             Assert.That(Convert.ToString(Provider.ExecuteScalar("SELECT " + Provider.QuoteColumnNameIfRequired("payload") + " FROM " + Provider.QuoteTableNameIfRequired(child))), Is.EqualTo("changed"));
             Provider.Update(child, new[] { "payload" }, new object[] { "kept" });
-            Provider.ChangeColumn(child, new Column("payload", DbType.String, 40));
+            Provider.ChangeColumn(child, new Column("payload", DbType.String, 40) { IsNullable = false });
             Provider.RenameColumn(child, "payload", "message");
             Assert.That(Provider.ColumnExists(child, "message"), Is.True);
             Assert.That(Provider.ColumnExists(child, "payload"), Is.False);
@@ -114,6 +114,13 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
             Assert.That(Provider.GetForeignKeyConstraints(child), Is.Empty);
             Provider.RemoveColumn(child, "extra");
             Assert.That(Provider.ColumnExists(child, "extra"), Is.False);
+            if (database == "Firebird")
+            {
+                Assert.Throws<NotSupportedException>(() => Provider.RenameTable(child, renamed));
+                Provider.RemoveTable(child);
+                Assert.That(Provider.TableExists(child), Is.False);
+                return;
+            }
             Provider.RenameTable(child, renamed);
             Assert.That(Provider.TableExists(child), Is.False);
             Assert.That(Provider.TableExists(renamed), Is.True);
@@ -123,7 +130,8 @@ public class NamespaceLifecycleTests(string database, ProviderTypes providerType
         }
         finally
         {
-            foreach (var table in new[] { renamed, child, parent })
+            // Firebird fixture drops its isolated database; cleanup must not mask a DDL error.
+            foreach (var table in database == "Firebird" ? Array.Empty<string>() : new[] { renamed, child, parent })
                 if (Provider.TableExists(table)) Provider.RemoveTable(table);
         }
     }

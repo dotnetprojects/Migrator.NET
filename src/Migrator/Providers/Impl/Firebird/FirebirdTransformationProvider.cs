@@ -23,8 +23,13 @@ public class FirebirdTransformationProvider : TransformationProvider
     public FirebirdTransformationProvider(Dialect dialect, IDbConnection connection, string scope, string providerName)
         : base(dialect, connection, null, scope) { }
 
-    private string CatalogName(string name) =>
-        (QuoteTableNameIfRequired(name).StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
+    private static string CatalogName(string name) =>
+        (name.StartsWith('"') ? name.Trim('"').Replace("\"\"", "\"") : name.ToUpperInvariant()).Replace("'", "''");
+
+    private string CatalogTable(string table) => CatalogName(QuoteTableNameIfRequired(table));
+
+    public override void RenameTable(string oldName, string newName) =>
+        throw new NotSupportedException("Firebird 5 does not support renaming tables.");
 
     public override void AddColumn(string table, Column column) =>
         AddColumn(table, _dialect.GetAndMapColumnProperties(column).ColumnSql);
@@ -42,10 +47,10 @@ public class FirebirdTransformationProvider : TransformationProvider
     }
 
     public override bool TableExists(string table) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME='{CatalogName(table)}' AND RDB$VIEW_BLR IS NULL")) > 0;
+        $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME='{CatalogTable(table)}' AND RDB$VIEW_BLR IS NULL")) > 0;
 
     public override bool ViewExists(string view) => Convert.ToInt32(ExecuteScalar(
-        $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME='{CatalogName(view)}' AND RDB$VIEW_BLR IS NOT NULL")) > 0;
+        $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME='{CatalogTable(view)}' AND RDB$VIEW_BLR IS NOT NULL")) > 0;
 
     public override string[] GetTables() => base.GetTables();
 
@@ -67,13 +72,13 @@ public class FirebirdTransformationProvider : TransformationProvider
     }
 
     public override string[] GetConstraints(string table) => ExecuteStringQuery(
-        $"SELECT TRIM(RDB$CONSTRAINT_NAME) FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME='{CatalogName(table)}'").ToArray();
+        $"SELECT TRIM(RDB$CONSTRAINT_NAME) FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME='{CatalogTable(table)}'").ToArray();
 
     public override bool ConstraintExists(string table, string name) =>
         GetConstraints(table).Any(n => n == name || n == CatalogName(name).Replace("''", "'"));
 
     protected override string GetPrimaryKeyConstraintName(string table) =>
-        ExecuteStringQuery($"SELECT TRIM(RDB$CONSTRAINT_NAME) FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME='{CatalogName(table)}' AND RDB$CONSTRAINT_TYPE='PRIMARY KEY'").FirstOrDefault();
+        ExecuteStringQuery($"SELECT TRIM(RDB$CONSTRAINT_NAME) FROM RDB$RELATION_CONSTRAINTS WHERE RDB$RELATION_NAME='{CatalogTable(table)}' AND RDB$CONSTRAINT_TYPE='PRIMARY KEY'").FirstOrDefault();
 
     public override bool PrimaryKeyExists(string table, string name) =>
         string.Equals(GetPrimaryKeyConstraintName(table), CatalogName(name), StringComparison.Ordinal);
@@ -89,7 +94,7 @@ public class FirebirdTransformationProvider : TransformationProvider
                    f.RDB$FIELD_SUB_TYPE, f.RDB$FIELD_PRECISION, f.RDB$FIELD_SCALE,
                    f.RDB$CHARACTER_SET_ID
             FROM RDB$RELATION_FIELDS r JOIN RDB$FIELDS f ON f.RDB$FIELD_NAME=r.RDB$FIELD_SOURCE
-            WHERE r.RDB$RELATION_NAME='{CatalogName(table)}' ORDER BY r.RDB$FIELD_POSITION
+            WHERE r.RDB$RELATION_NAME='{CatalogTable(table)}' ORDER BY r.RDB$FIELD_POSITION
             """);
         while (reader.Read())
         {
@@ -194,7 +199,7 @@ public class FirebirdTransformationProvider : TransformationProvider
                    TRIM(c.RDB$CONSTRAINT_TYPE)
             FROM RDB$INDICES i JOIN RDB$INDEX_SEGMENTS s ON s.RDB$INDEX_NAME=i.RDB$INDEX_NAME
             LEFT JOIN RDB$RELATION_CONSTRAINTS c ON c.RDB$INDEX_NAME=i.RDB$INDEX_NAME
-            WHERE i.RDB$RELATION_NAME='{CatalogName(table)}'
+            WHERE i.RDB$RELATION_NAME='{CatalogTable(table)}'
             ORDER BY i.RDB$INDEX_NAME, s.RDB$FIELD_POSITION
             """);
         while (reader.Read())

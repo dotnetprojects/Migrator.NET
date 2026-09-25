@@ -81,7 +81,8 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
             throw new MigrationException($"You cannot use unique together with functional expressions in Oracle ({nameof(FilterItem)}).");
         }
 
-        var name = QualifyInSameNamespace(table, index.Name);
+        var relation = CatalogRelation(table, true);
+        var name = (relation.Schema == null ? "" : _dialect.QuoteIdentifier(relation.Schema) + ".") + QuoteConstraintNameIfRequired(index.Name);
         table = QuoteTableNameIfRequired(table);
 
         List<string> singleFilterStrings = [];

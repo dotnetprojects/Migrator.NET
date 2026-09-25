@@ -96,6 +96,8 @@ public class HanaTransformationProvider : TransformationProvider
         ChangeColumn(table, definition);
     }
     public override int TruncateTable(string table) => ExecuteNonQuery("TRUNCATE TABLE " + QuoteTableNameIfRequired(table));
+    public override void AddForeignKey(string name, string child, string[] columns, string parent, string[] parentColumns, ForeignKeyConstraintType action) =>
+        AddForeignKey(name, child, columns, parent, parentColumns, action, action);
     public override void AddForeignKey(string name, string child, string[] columns, string parent, string[] parentColumns, ForeignKeyConstraintType onDelete, ForeignKeyConstraintType onUpdate) =>
         base.AddForeignKey(name, child, columns, parent, parentColumns,
             onDelete == ForeignKeyConstraintType.NoAction ? ForeignKeyConstraintType.Restrict : onDelete,

@@ -18,7 +18,7 @@ internal static class NamespaceCatalog
 {
     internal static string[] Tables(TransformationProvider provider, string schema)
     {
-        var part = schema == null ? (SqlIdentifier.Part?)null : SqlIdentifier.Parse(schema).Single();
+        var part = schema == null ? (SqlIdentifier.Part?)null : SqlIdentifier.Parse(provider.Dialect.QuoteTableNameIfRequired(schema)).Single();
         var name = part?.Value;
         if (part is { Quoted: false } && provider.Dialect is OracleDialect or DB2Dialect) name = name.ToUpperInvariant();
         if (part is { Quoted: false } && provider.Dialect is PostgreSQLDialect or InformixDialect or IngresDialect) name = name.ToLowerInvariant();
