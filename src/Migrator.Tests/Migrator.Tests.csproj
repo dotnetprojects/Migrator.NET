@@ -5,6 +5,11 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
+  <!-- Licensed Ingres installations can opt into the same lifecycle suite. -->
+  <PropertyGroup Condition="'$(LiveDatabase)' == 'Ingres'">
+    <DefineConstants>$(DefineConstants);INGRES_LIVE</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4">
       <PrivateAssets>all</PrivateAssets>

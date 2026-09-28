@@ -41,7 +41,7 @@ internal static class ForeignKeyMetadataReader
         {
             var relation = SqlIdentifier.Catalog(provider.QuoteTableNameIfRequired(table));
             parameterTable = relation.Name; schema = relation.Schema;
-            sql = @"SELECT k.CONSTRAINT_NAME,k.REFERENCED_TABLE_NAME,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.ORDINAL_POSITION,r.DELETE_RULE,r.UPDATE_RULE
+            sql = @"SELECT k.CONSTRAINT_NAME,CASE WHEN k.REFERENCED_TABLE_SCHEMA=k.TABLE_SCHEMA THEN k.REFERENCED_TABLE_NAME ELSE CONCAT(k.REFERENCED_TABLE_SCHEMA,'.',k.REFERENCED_TABLE_NAME) END,k.COLUMN_NAME,k.REFERENCED_COLUMN_NAME,k.ORDINAL_POSITION,r.DELETE_RULE,r.UPDATE_RULE
                 FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r
                   ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.TABLE_NAME=k.TABLE_NAME AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME
                 WHERE k.TABLE_NAME=@lookup_table AND k.TABLE_SCHEMA=COALESCE(@lookup_schema,DATABASE())
@@ -63,11 +63,12 @@ internal static class ForeignKeyMetadataReader
         }
         else if (provider.Dialect is DB2Dialect)
         {
-            parameterTable = table.StartsWith('"') ? table.Trim('"') : table.ToUpperInvariant();
-            sql = @"SELECT r.CONSTNAME,r.REFTABNAME,c.COLNAME,p.COLNAME,c.COLSEQ,r.DELETERULE,r.UPDATERULE
+            var relation = provider.CatalogRelation(table, true);
+            parameterTable = relation.Name; schema = relation.Schema;
+            sql = @"SELECT r.CONSTNAME,CASE WHEN r.REFTABSCHEMA=r.TABSCHEMA THEN r.REFTABNAME ELSE RTRIM(r.REFTABSCHEMA)||'.'||RTRIM(r.REFTABNAME) END,c.COLNAME,p.COLNAME,c.COLSEQ,r.DELETERULE,r.UPDATERULE
                 FROM SYSCAT.REFERENCES r JOIN SYSCAT.KEYCOLUSE c ON c.TABSCHEMA=r.TABSCHEMA AND c.TABNAME=r.TABNAME AND c.CONSTNAME=r.CONSTNAME
                 JOIN SYSCAT.KEYCOLUSE p ON p.TABSCHEMA=r.REFTABSCHEMA AND p.TABNAME=r.REFTABNAME AND p.CONSTNAME=r.REFKEYNAME AND p.COLSEQ=c.COLSEQ
-                WHERE r.TABSCHEMA=CURRENT SCHEMA AND r.TABNAME=@lookup_table ORDER BY r.CONSTNAME,c.COLSEQ";
+                WHERE r.TABSCHEMA=COALESCE(@lookup_schema,CURRENT SCHEMA) AND r.TABNAME=@lookup_table ORDER BY r.CONSTNAME,c.COLSEQ";
         }
         else if (provider.Dialect is FirebirdDialect)
         {
@@ -83,7 +84,7 @@ internal static class ForeignKeyMetadataReader
         else throw new NotSupportedException("Foreign-key metadata is unsupported by " + provider.Dialect.GetType().Name + ".");
         using var command = provider.CreateCommand();
         AddParameter(command, "lookup_table", parameterTable);
-        if (provider.Dialect is MysqlDialect or OracleDialect) AddParameter(command, "lookup_schema", schema);
+        if (provider.Dialect is MysqlDialect or OracleDialect or DB2Dialect) AddParameter(command, "lookup_schema", schema);
         var rows = new List<(string Name, string Parent, string ChildColumn, string ParentColumn, string Delete, string Update)>();
         using (var reader = provider.ExecuteQuery(command, sql))
             while (reader.Read())

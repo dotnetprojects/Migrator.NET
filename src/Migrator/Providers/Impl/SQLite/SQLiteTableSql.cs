@@ -80,7 +80,11 @@ internal static class SQLiteTableSql
             var match = ValidateMatch(fk.Match);
             var sourceColumnNamesQuotedString = string.Join(", ", fk.ChildColumns.Select(dialect.QuoteColumnNameIfRequired));
             var parentColumnNamesQuotedString = string.Join(", ", fk.ParentColumns.Select(dialect.QuoteColumnNameIfRequired));
-            var parentTableNameQuoted = dialect.QuoteTableNameIfRequired(fk.ParentTable);
+            var childRelation = SqlIdentifier.Catalog(quotedTable);
+            var parentRelation = SqlIdentifier.Catalog(fk.ParentTable);
+            if (parentRelation.Schema != null && !string.Equals(parentRelation.Schema, childRelation.Schema ?? "main", StringComparison.OrdinalIgnoreCase))
+                throw new NotSupportedException("SQLite foreign keys cannot reference another database namespace.");
+            var parentTableNameQuoted = dialect.QuoteIdentifier(parentRelation.Name);
 
             var foreignKeySql = (fk.Name == null ? "" : $"CONSTRAINT {dialect.QuoteIdentifier(fk.Name)} ") +
                 $"FOREIGN KEY ({sourceColumnNamesQuotedString}) REFERENCES {parentTableNameQuoted}" +

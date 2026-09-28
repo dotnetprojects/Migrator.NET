@@ -1,8 +1,8 @@
 using System.Data;
-using System.Data.Common;
 using System.Linq;
-using DotNetProjects.Migrator.Providers.Impl.SQLite;
-using NSubstitute;
+using DotNetProjects.Migrator;
+using DotNetProjects.Migrator.Providers;
+using Microsoft.Data.Sqlite;
 using NUnit.Framework;
 
 namespace Migrator.Tests;
@@ -10,27 +10,15 @@ namespace Migrator.Tests;
 public class SchemaCatalogContractTests
 {
     [Test]
-    public void SchemaColumnEnumerationReturnsColumnNamesAndScopesTheRequest()
+    public void ExplicitAndDefaultNamespacesEnumerateOnlyTheirOwnObjects()
     {
-        using var table = new DataTable();
-        table.Columns.Add("TABLE_NAME"); table.Columns.Add("COLUMN_NAME");
-        table.Rows.Add("Orders", "Id"); table.Rows.Add("Orders", "Total");
-        var connection = Substitute.For<DbConnection>();
-        connection.GetSchema("Columns", Arg.Any<string[]>()).Returns(table);
-        using var provider = new SQLiteTransformationProvider(new SQLiteDialect(), connection, "default", null);
-        Assert.That(provider.GetColumns("sales", "Orders").ToArray(), Is.EqualTo(new[] { "Id", "Total" }));
-        connection.Received(1).GetSchema("Columns", Arg.Is<string[]>(x => x.Length == 4 && x[0] == null && x[1] == "sales" && x[2] == "Orders" && x[3] == null));
-    }
-
-    [Test]
-    public void SchemaTableEnumerationPreservesReturnedNamesAndSchemaRestriction()
-    {
-        using var table = new DataTable(); table.Columns.Add("TABLE_NAME");
-        table.Rows.Add("Orders"); table.Rows.Add("Order Details");
-        var connection = Substitute.For<DbConnection>();
-        connection.GetSchema("Tables", Arg.Any<string[]>()).Returns(table);
-        using var provider = new SQLiteTransformationProvider(new SQLiteDialect(), connection, "default", null);
-        Assert.That(provider.GetTables("sales").ToArray(), Is.EqualTo(new[] { "Orders", "Order Details" }));
-        connection.Received(1).GetSchema("Tables", Arg.Is<string[]>(x => x.Length == 4 && x[1] == "sales" && x[2] == null));
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, "sales");
+        provider.ExecuteNonQuery("ATTACH ':memory:' AS sales; CREATE TABLE main.Orders(Wrong INTEGER); CREATE TABLE sales.Orders(Id INTEGER, Total INTEGER); CREATE TABLE sales.[Order Details](Id INTEGER)");
+        Assert.That(provider.GetTables("sales"), Is.EquivalentTo(new[] { "Orders", "Order Details" }));
+        Assert.That(provider.GetTables(), Is.EquivalentTo(new[] { "Orders", "Order Details" }));
+        Assert.That(provider.GetColumns("sales", "Orders"), Is.EqualTo(new[] { "Id", "Total" }));
+        Assert.That(provider.GetColumns("main", "Orders"), Is.EqualTo(new[] { "Wrong" }));
     }
 }
