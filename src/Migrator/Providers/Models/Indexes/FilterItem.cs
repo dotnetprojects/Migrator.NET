@@ -15,7 +15,8 @@ public class FilterItem
     public FilterType Filter { get; set; }
 
     /// <summary>
-    /// Gets or sets the value used in the comparison. It needs to be a static not dynamic value. Currently we support bool, byte, short, int, long
+    /// Gets or sets the constant comparison value: a string, boolean or integer.
+    /// With EqualTo or NotEqualTo, null and DBNull.Value represent IS NULL and IS NOT NULL.
     /// </summary>
     public object Value { get; set; }
 }

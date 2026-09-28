@@ -437,19 +437,22 @@ public partial class SQLiteTransformationProvider : TransformationProvider
     }
 
     public string[] GetCreateIndexSqlStrings(string table)
+        => GetCreateIndexSqlByName(table).Values.ToArray();
+
+    private Dictionary<string, string> GetCreateIndexSqlByName(string table)
     {
-        var sqlStrings = new List<string>();
+        var sqlStrings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         using (var cmd = CreateCommand())
-        using (var reader = ExecuteQuery(cmd, string.Format("SELECT sql FROM sqlite_master WHERE type='index' AND sql NOT NULL AND lower(tbl_name)=lower('{0}')", table)))
+        using (var reader = ExecuteQuery(cmd, string.Format("SELECT name, sql FROM sqlite_master WHERE type='index' AND sql NOT NULL AND lower(tbl_name)=lower('{0}')", table.Replace("'", "''"))))
         {
             while (reader.Read())
             {
-                sqlStrings.Add((string)reader[0]);
+                sqlStrings.Add(reader.GetString(0), reader.GetString(1));
             }
         }
 
-        return [.. sqlStrings];
+        return sqlStrings;
     }
 
     public void MoveIndexesFromOriginalTable(string origTable, string newTable)
@@ -1243,10 +1246,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override Index[] GetIndexes(string table)
     {
-        var afterWhereRegex = new Regex("(?<= WHERE ).+");
         List<Index> indexes = [];
 
-        var indexCreateScripts = GetCreateIndexSqlStrings(table);
+        var indexCreateScripts = GetCreateIndexSqlByName(table);
 
         var pragmaIndexListItems = GetPragmaIndexListItems(table).Where(x => x.Origin == "c");
 
@@ -1273,68 +1275,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 Unique = pragmaIndexListItem.Unique
             };
 
-            var script = indexCreateScripts.FirstOrDefault(x => x.Contains(pragmaIndexListItem.Name, StringComparison.OrdinalIgnoreCase));
-
-            if (script != null)
-            {
-                if (afterWhereRegex.Match(script) is Match match && match.Success)
-                {
-                    // We cannot use GeneratedRegexAttribute due to old .NET version
-                    var andSplitted = Regex.Split(match.Value, " AND ");
-
-                    var filterSingleStrings = andSplitted
-                        .Select(x => x.Trim())
-                        .ToList();
-
-                    foreach (var filterSingleString in filterSingleStrings)
-                    {
-                        var splitted = filterSingleString.Split(' ')
-                            .Where(x => !string.IsNullOrWhiteSpace(x))
-                            .Select(x => x.Trim())
-                            .ToList();
-
-                        var filterItem = new FilterItem { ColumnName = splitted[0], Filter = _dialect.GetFilterTypeByComparisonString(splitted[1]) };
-
-                        var column = columns.Single(x => x.Name.Equals(splitted[0], StringComparison.OrdinalIgnoreCase));
-
-                        var sqliteIntegerDataTypes = new[] {
-                            MigratorDbType.Int16,
-                            MigratorDbType.Int32,
-                            MigratorDbType.Int64,
-                            MigratorDbType.UInt16,
-                            MigratorDbType.UInt32,
-                            MigratorDbType.UInt64
-                        };
-
-                        if (sqliteIntegerDataTypes.Contains(column.MigratorDbType))
-                        {
-                            if (long.TryParse(splitted[2], out var longValue))
-                            {
-                                filterItem.Value = longValue;
-                            }
-                            else if (ulong.TryParse(splitted[2], out var uLongValue))
-                            {
-                                filterItem.Value = uLongValue;
-                            }
-                            else
-                            {
-                                throw new Exception();
-                            }
-                        }
-                        else
-                        {
-                            filterItem.Value = column.MigratorDbType switch
-                            {
-                                MigratorDbType.Boolean => splitted[2] == "1" || splitted[2].Equals("true", StringComparison.OrdinalIgnoreCase),
-                                MigratorDbType.String => splitted[2].Substring(1, splitted[2].Length - 2),
-                                _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),
-                            };
-                        }
-
-                        index.FilterItems.Add(filterItem);
-                    }
-                }
-            }
+            if (indexCreateScripts.TryGetValue(pragmaIndexListItem.Name, out var script))
+                index.FilterItems = IndexFilterSql.ParseCreateIndex(script, columns);
 
             indexes.Add(index);
         }
@@ -1352,7 +1294,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override string AddIndex(string table, Index index)
     {
-        ValidateIndex(table, index);
+        var hasFilterItems = ShouldApplyIndexFilters(index, supported: true);
+        ValidateIndex(table, index, validateFilters: hasFilterItems);
 
         var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
 
@@ -1375,38 +1318,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         var columnsString = $"({string.Join(", ", columns)})";
         var filterString = string.Empty;
 
-        if (index.FilterItems != null && index.FilterItems.Count > 0)
-        {
-            List<string> singleFilterStrings = [];
-
-            foreach (var filterItem in index.FilterItems)
-            {
-                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
-
-                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
-                string value = null;
-
-                value = filterItem.Value switch
-                {
-                    bool booleanValue => booleanValue ? "1" : "0",
-                    string stringValue => $"'{stringValue.Replace("'", "''")}'",
-                    byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
-                    sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
-                    _ => throw new NotImplementedException("Given type is not implemented. Please file an issue."),
-                };
-
-                if ((filterItem.Value is string || filterItem.Value is bool) && filterItem.Filter != FilterType.EqualTo && filterItem.Filter != FilterType.NotEqualTo)
-                {
-                    throw new MigrationException($"Bool and string in {nameof(FilterItem)} can only be used with '{nameof(FilterType.EqualTo)}' or '{nameof(FilterType.EqualTo)}'.");
-                }
-
-                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
-
-                singleFilterStrings.Add(singleFilterString);
-            }
-
-            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
-        }
+        if (hasFilterItems)
+            filterString = "WHERE " + string.Join(" AND ", index.FilterItems.Select(f => IndexFilterSql.Format(_dialect, f, numericBooleans: true)));
 
         List<string> list = ["CREATE", uniqueString, "INDEX", name, "ON", table, columnsString, filterString];
 

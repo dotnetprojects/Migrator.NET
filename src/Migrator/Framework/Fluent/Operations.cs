@@ -256,7 +256,14 @@ public static class Definitions
     public static IDbField Copy(IDbField field) => field switch
     {
         Column c => CopyColumn(c),
-        Index i => new Index { Name = i.Name, Unique = i.Unique, Clustered = i.Clustered, KeyColumns = (string[])i.KeyColumns.Clone(), IncludeColumns = (string[])i.IncludeColumns.Clone(), FilterItems = i.FilterItems.Select(f => new DotNetProjects.Migrator.Providers.Models.Indexes.FilterItem { ColumnName = f.ColumnName, Filter = f.Filter, Value = f.Value }).ToList() },
+        Index i => new Index
+        {
+            Name = i.Name, Unique = i.Unique, Clustered = i.Clustered,
+            PrimaryKey = i.PrimaryKey, UniqueConstraint = i.UniqueConstraint,
+            UnsupportedFilterBehavior = i.UnsupportedFilterBehavior,
+            KeyColumns = i.KeyColumns?.ToArray() ?? [], IncludeColumns = i.IncludeColumns?.ToArray() ?? [],
+            FilterItems = i.FilterItems?.Select(f => new DotNetProjects.Migrator.Providers.Models.Indexes.FilterItem { ColumnName = f.ColumnName, Filter = f.Filter, Value = f.Value }).ToList() ?? []
+        },
         ForeignKeyConstraint f => new ForeignKeyConstraint(f.Name, f.ParentTable, (string[])f.ParentColumns.Clone(), f.ChildTable, (string[])f.ChildColumns.Clone()) { OnDelete = f.OnDelete, OnUpdate = f.OnUpdate, Match = f.Match, Id = f.Id },
         PrimaryKeyConstraint k => new PrimaryKeyConstraint(k.Name, k.KeyColumns) { NonClustered = k.NonClustered },
         UniqueConstraint u => new UniqueConstraint { Name = u.Name, KeyColumns = (string[])u.KeyColumns.Clone() },

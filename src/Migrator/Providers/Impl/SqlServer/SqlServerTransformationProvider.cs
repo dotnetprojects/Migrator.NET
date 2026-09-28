@@ -172,7 +172,8 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
     public override string AddIndex(string table, Index index)
     {
-        ValidateIndex(tableName: table, index: index);
+        var hasFilterItems = ShouldApplyIndexFilters(index, supported: _dialect is not SqlServer2005Dialect);
+        ValidateIndex(table, index, validateFilters: hasFilterItems);
 
         var hasIncludedColumns = index.IncludeColumns != null && index.IncludeColumns.Length > 0;
         var name = QuoteConstraintNameIfRequired(index.Name);
@@ -181,49 +182,12 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
         var uniqueString = index.Unique ? "UNIQUE" : null;
         var columnsString = $"({string.Join(", ", columns)})";
-        var includeString = hasIncludedColumns ? $"INCLUDE ({string.Join(", ", index.IncludeColumns)})" : null;
+        var includeString = hasIncludedColumns ? $"INCLUDE ({string.Join(", ", QuoteColumnNamesIfRequired(index.IncludeColumns))})" : null;
         var filterString = string.Empty;
         var clusteredString = index.Clustered ? "CLUSTERED" : "NONCLUSTERED";
 
-        if (index.FilterItems != null && index.FilterItems.Count > 0)
-        {
-            List<string> singleFilterStrings = [];
-
-            foreach (var filterItem in index.FilterItems)
-            {
-                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
-
-                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
-                string value = null;
-
-                if (filterItem.Value is bool booleanValue)
-                {
-                    value = booleanValue ? "1" : "0";
-                }
-                else if (filterItem.Value is string stringValue)
-                {
-                    value = $"'{stringValue}'";
-                }
-                else if (filterItem.Value is byte || filterItem.Value is short || filterItem.Value is int || filterItem.Value is long)
-                {
-                    value = Convert.ToInt64(filterItem.Value).ToString();
-                }
-                else if (filterItem.Value is sbyte || filterItem.Value is ushort || filterItem.Value is uint || filterItem.Value is ulong)
-                {
-                    value = Convert.ToUInt64(filterItem.Value).ToString();
-                }
-                else
-                {
-                    throw new NotImplementedException("Given type is not implemented. Please file an issue.");
-                }
-
-                var singleFilterString = $"{filterColumnQuoted} {comparisonString} {value}";
-
-                singleFilterStrings.Add(singleFilterString);
-            }
-
-            filterString = $"WHERE {string.Join(" AND ", singleFilterStrings)}";
-        }
+        if (hasFilterItems)
+            filterString = "WHERE " + string.Join(" AND ", index.FilterItems.Select(f => IndexFilterSql.Format(_dialect, f, numericBooleans: true)));
 
         List<string> list = [];
         list.Add("CREATE");
@@ -302,7 +266,8 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
 
     public override Index[] GetIndexes(string table)
     {
-        var relation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(table));
+        var qualifiedTable = QuoteTableNameIfRequired(table);
+        var relation = SqlIdentifier.Catalog(qualifiedTable);
         var schemaName = relation.Schema ?? "dbo";
         table = relation.Name;
 
@@ -316,7 +281,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
                         i.is_unique AS IsUnique,
                         i.is_primary_key AS IsPrimaryKey,
                         i.is_unique_constraint AS IsUniqueConstraint,
-                        ic.index_column_id AS ColumnOrder,
+                        CASE WHEN ic.is_included_column = 1 THEN ic.index_column_id ELSE ic.key_ordinal END AS ColumnOrder,
                         col.name AS ColumnName,
                         ic.is_descending_key AS IsDescending,
                         ic.is_included_column AS IsIncludedColumn,
@@ -386,75 +351,8 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
         {
             var first = indexGroup.First();
 
-            List<FilterItem> filterItems = [];
-
-            if (!string.IsNullOrWhiteSpace(first.FilterString))
-            {
-                const string unexpectedPatternString = "Unexpected pattern in filter string detected. Not implemented yet - please file an issue";
-                var comparisonStrings = _dialect.GetComparisonStrings();
-                var stripOuterBracesRegex = new Regex(@"(?<=^\().+(?=\)$)");
-                var stripBracesMatch = stripOuterBracesRegex.Match(first.FilterString.Trim());
-
-                if (!stripBracesMatch.Success)
-                {
-                    throw new NotImplementedException(unexpectedPatternString);
-                }
-
-                var andSplitted = Regex.Split(stripBracesMatch.Value, @" AND (?=\[)")
-                    .Select(x => x.Trim())
-                    .ToList();
-
-                var columns = GetColumns(table: table);
-
-                foreach (var andSplittedItem in andSplitted)
-                {
-                    var filterItem = new FilterItem();
-                    // We assume nobody uses column names with brackets in it.
-                    var columnRegex = new Regex(@"(?<=^\[)[^\]]+");
-                    var columnMatch = columnRegex.Match(andSplittedItem);
-
-                    if (!columnMatch.Success)
-                    {
-                        throw new NotImplementedException(unexpectedPatternString);
-                    }
-
-                    filterItem.ColumnName = columnMatch.Value;
-                    var column = columns.OrderByDescending(x => x.Name).First(x => x.Name.Equals(filterItem.ColumnName, StringComparison.OrdinalIgnoreCase));
-
-                    var remainingString = andSplittedItem.Substring(filterItem.ColumnName.Length + 2);
-                    var comparisonString = comparisonStrings.OrderByDescending(x => x.Length)
-                        .First(x => remainingString.StartsWith(x));
-
-                    filterItem.Filter = _dialect.GetFilterTypeByComparisonString(comparisonString);
-                    remainingString = remainingString.Substring(comparisonString.Length);
-
-                    var valueRegex = new Regex(@"(?<=^[\(|']).+(?=[\)|']$)");
-                    var valueStringMatch = valueRegex.Match(remainingString);
-
-                    if (!valueStringMatch.Success)
-                    {
-                        throw new NotImplementedException(unexpectedPatternString);
-                    }
-
-                    var valueAsString = valueStringMatch.Value;
-
-                    filterItem.Value = column.MigratorDbType switch
-                    {
-                        MigratorDbType.Int16 => short.Parse(valueAsString),
-                        MigratorDbType.Int32 => int.Parse(valueAsString),
-                        MigratorDbType.Int64 => long.Parse(valueAsString),
-                        MigratorDbType.UInt16 => ushort.Parse(valueAsString),
-                        MigratorDbType.UInt32 => uint.Parse(valueAsString),
-                        MigratorDbType.UInt64 => ulong.Parse(valueAsString),
-                        MigratorDbType.Decimal => decimal.Parse(valueAsString),
-                        MigratorDbType.Boolean => valueAsString == "1" || valueAsString.Equals("true", StringComparison.OrdinalIgnoreCase),
-                        MigratorDbType.String => valueAsString,
-                        _ => throw new NotImplementedException("Type not yet supported. Please file an issue."),
-                    };
-
-                    filterItems.Add(filterItem);
-                }
-            }
+            var filterItems = IndexFilterSql.Parse(first.FilterString,
+                string.IsNullOrWhiteSpace(first.FilterString) ? [] : GetColumns(qualifiedTable));
 
             var index = new Index
             {

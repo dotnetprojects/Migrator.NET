@@ -70,64 +70,28 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override string AddIndex(string table, Index index)
     {
-        ValidateIndex(tableName: table, index: index);
-        var hasFilterItems = index.FilterItems != null && index.FilterItems.Count > 0;
+        var hasFilterItems = ShouldApplyIndexFilters(index,
+            supported: !index.Unique && (index.FilterItems == null || index.FilterItems.All(f =>
+                index.KeyColumns.Any(c => c.Equals(f.ColumnName, StringComparison.OrdinalIgnoreCase)))),
+            reason: "Oracle filter emulation requires a non-unique index and filters on key columns only.");
+        ValidateIndex(table, index, validateFilters: hasFilterItems);
 
         if (index.IncludeColumns?.Length > 0 || index.Clustered)
             throw new NotSupportedException("Oracle does not support included columns or SQL Server-style clustered indexes. Use an explicit Oracle operation.");
 
-        if (index.Unique && hasFilterItems)
-        {
-            throw new MigrationException($"You cannot use unique together with functional expressions in Oracle ({nameof(FilterItem)}).");
-        }
-
         var name = QuoteConstraintNameIfRequired(index.Name);
         table = QuoteTableNameIfRequired(table);
 
+        var keyColumns = index.KeyColumns;
         List<string> singleFilterStrings = [];
-
-
         if (hasFilterItems)
         {
-            // In Oracle functional expressions replace the normal columns so we need to remove them
-            if (index.KeyColumns != null && index.KeyColumns.Length > 0)
-            {
-                var keyColumnsList = index.KeyColumns.ToList();
-
-                for (var i = keyColumnsList.Count - 1; i >= 0; i--)
-                {
-                    if (index.FilterItems.Any(x => keyColumnsList[i].Equals(x.ColumnName, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        keyColumnsList.RemoveAt(i);
-                    }
-                }
-
-                index.KeyColumns = keyColumnsList.ToArray();
-            }
-
-            foreach (var filterItem in index.FilterItems)
-            {
-                var comparisonString = _dialect.GetComparisonStringByFilterType(filterItem.Filter);
-
-                var filterColumnQuoted = QuoteColumnNameIfRequired(filterItem.ColumnName);
-                string value = null;
-
-                value = filterItem.Value switch
-                {
-                    bool booleanValue => booleanValue ? "TRUE" : "FALSE",
-                    string stringValue => $"'{stringValue.Replace("'", "''")}'",
-                    byte or short or int or long => Convert.ToInt64(filterItem.Value).ToString(),
-                    sbyte or ushort or uint or ulong => Convert.ToUInt64(filterItem.Value).ToString(),
-                    _ => throw new NotImplementedException($"Given type in '{nameof(FilterItem)}' is not implemented. Please file an issue."),
-                };
-
-                var singleFilterString = $"CASE WHEN {filterColumnQuoted} {comparisonString} {value} THEN {filterColumnQuoted} ELSE NULL END";
-
-                singleFilterStrings.Add(singleFilterString);
-            }
+            keyColumns = keyColumns.Where(c => !index.FilterItems.Any(f => c.Equals(f.ColumnName, StringComparison.OrdinalIgnoreCase))).ToArray();
+            foreach (var filter in index.FilterItems)
+                singleFilterStrings.Add($"CASE WHEN {IndexFilterSql.Format(_dialect, filter, numericBooleans: false)} THEN {QuoteColumnNameIfRequired(filter.ColumnName)} ELSE NULL END");
         }
 
-        var mixedColumnNamesAndFilters = QuoteColumnNamesIfRequired(index.KeyColumns).ToList();
+        var mixedColumnNamesAndFilters = QuoteColumnNamesIfRequired(keyColumns).ToList();
         mixedColumnNamesAndFilters.AddRange(singleFilterStrings);
         var columnNamesAndFiltersString = $"({string.Join(", ", mixedColumnNamesAndFilters)})";
 

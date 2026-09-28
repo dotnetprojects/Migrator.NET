@@ -334,8 +334,9 @@ public class MySqlTransformationProvider : TransformationProvider
 
     public override string AddIndex(string table, Index index)
     {
+        ShouldApplyIndexFilters(index, supported: false);
         if (index.KeyColumns.Length == 0) throw new ArgumentException("An index needs key columns.", nameof(index));
-        if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
+        if (index.IncludeColumns.Length != 0 || index.Clustered)
             throw new NotSupportedException("MySQL and MariaDB do not support included columns, filtered indexes or explicit clustered indexes.");
         var name = index.Name ?? $"IX_{table}_{string.Join("_", index.KeyColumns)}";
         ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {_dialect.QuoteIdentifier(name)} ON {_dialect.Quote(table)} ({string.Join(", ", index.KeyColumns.Select(_dialect.Quote))})");

@@ -108,6 +108,14 @@ public sealed class IndexOptionsBuilder
         index.FilterItems = filters.Select(f => new FilterItem { ColumnName = f.ColumnName, Filter = f.Filter, Value = f.Value }).ToList();
         return this;
     }
+
+    /// <summary>Choose whether unsupported filters throw or are omitted from the index.</summary>
+    public IndexOptionsBuilder OnUnsupportedFilter(UnsupportedIndexFilterBehavior behavior)
+    {
+        if (!Enum.IsDefined(behavior)) throw new ArgumentOutOfRangeException(nameof(behavior));
+        index.UnsupportedFilterBehavior = behavior;
+        return this;
+    }
 }
 
 public sealed class IndexDefinitionOnTableBuilder

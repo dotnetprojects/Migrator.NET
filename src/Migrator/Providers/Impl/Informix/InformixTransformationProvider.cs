@@ -264,8 +264,9 @@ public class InformixTransformationProvider : TransformationProvider
     public override bool IndexExists(string table, string name) => GetIndexes(table).Any(i => i.Name == Name(name));
     public override string AddIndex(string table, Index index)
     {
+        ShouldApplyIndexFilters(index, supported: false);
         if (index.KeyColumns.Length == 0) throw new ArgumentException("An index needs key columns.", nameof(index));
-        if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
+        if (index.IncludeColumns.Length != 0 || index.Clustered)
             throw new NotSupportedException("This Informix provider supports ordinary and unique indexes without INCLUDE, filters or clustering.");
         var name = index.Name ?? $"ix_{table}_{string.Join("_", index.KeyColumns)}";
         ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {name} ON {table} ({string.Join(", ", index.KeyColumns)})");

@@ -171,8 +171,9 @@ public class FirebirdTransformationProvider : TransformationProvider
 
     public override string AddIndex(string table, Index index)
     {
+        ShouldApplyIndexFilters(index, supported: false);
         if (index.KeyColumns.Length == 0) throw new ArgumentException("An index needs key columns.", nameof(index));
-        if (index.IncludeColumns.Length != 0 || index.FilterItems.Count != 0 || index.Clustered)
+        if (index.IncludeColumns.Length != 0 || index.Clustered)
             throw new NotSupportedException("This Firebird provider supports ordinary and unique indexes without INCLUDE or filters.");
         var name = index.Name ?? $"IX_{table}_{string.Join("_", index.KeyColumns)}";
         ExecuteNonQuery($"CREATE {(index.Unique ? "UNIQUE " : "")}INDEX {QuoteConstraintNameIfRequired(name)} ON {QuoteTableNameIfRequired(table)} ({string.Join(", ", index.KeyColumns.Select(QuoteColumnNameIfRequired))})");

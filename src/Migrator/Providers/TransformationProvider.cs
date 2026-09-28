@@ -2046,9 +2046,21 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         return from DataRow row in tables.Rows select (row["COLUMN_NAME"] as string);
     }
 
-    protected void ValidateIndex(string tableName, Index index)
+    protected bool ShouldApplyIndexFilters(Index index, bool supported, string reason = null)
     {
-        var hasFilterItems = index.FilterItems != null && index.FilterItems.Count > 0;
+        if (!Enum.IsDefined(index.UnsupportedFilterBehavior))
+            throw new ArgumentOutOfRangeException(nameof(index.UnsupportedFilterBehavior));
+        if (index.FilterItems == null || index.FilterItems.Count == 0) return false;
+        if (supported) return true;
+        if (index.UnsupportedFilterBehavior == UnsupportedIndexFilterBehavior.Ignore) return false;
+        throw new NotSupportedException($"{GetType().Name} does not support the requested index filters. {reason}".TrimEnd());
+    }
+
+    protected void ValidateIndex(string tableName, Index index, bool validateFilters = true)
+    {
+        if (!Enum.IsDefined(index.UnsupportedFilterBehavior))
+            throw new ArgumentOutOfRangeException(nameof(index.UnsupportedFilterBehavior));
+        var hasFilterItems = validateFilters && index.FilterItems != null && index.FilterItems.Count > 0;
         var columns = GetColumns(table: tableName);
 
         if (!TableExists(tableName))
@@ -2058,7 +2070,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         foreach (var keyColumn in index.KeyColumns)
         {
-            if (!index.KeyColumns.All(x => columns.Any(y => y.Name.Equals(x, StringComparison.OrdinalIgnoreCase))))
+            if (!columns.Any(column => column.Name.Equals(keyColumn, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new MigrationException($"Column '{keyColumn}' does not exist.");
             }
@@ -2066,9 +2078,10 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         if (hasFilterItems)
         {
-            if (!index.FilterItems.All(x => index.KeyColumns.Any(y => x.ColumnName.Equals(y, StringComparison.OrdinalIgnoreCase))))
+            foreach (var filter in index.FilterItems)
             {
-                throw new MigrationException($"All columns in the {nameof(index.FilterItems)} should exist in the {nameof(index.KeyColumns)}.");
+                if (!columns.Any(column => column.Name.Equals(filter.ColumnName, StringComparison.OrdinalIgnoreCase)))
+                    throw new MigrationException($"Filter column '{filter.ColumnName}' does not exist in table '{tableName}'.");
             }
         }
 

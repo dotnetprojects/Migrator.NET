@@ -23,6 +23,11 @@ public class SQLServerTransformationProvider_AddIndexTests : Generic_AddIndexTes
         await BeginSQLServerTransactionAsync();
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void FilteredIndexWithNonKeyColumnAndNullPredicateRoundTrips(bool fluent)
+        => FilteredIndexTests.VerifyRoundTrip(Provider, fluent, includeColumns: true);
+
     [Test]
     public void AddIndex_Unique_Success()
     {
