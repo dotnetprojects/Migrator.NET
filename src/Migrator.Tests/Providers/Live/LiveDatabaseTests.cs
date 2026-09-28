@@ -179,7 +179,9 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         }
         else
         {
-            ExecuteAdmin("CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : database == "Sybase" ? " ON migrator_data = 32 LOG ON migrator_log = 16" : ""));
+            var createDatabase = "CREATE DATABASE " + isolatedName + (database == "Informix" ? " WITH LOG" : database == "Sybase" ? " ON migrator_data = 32 LOG ON migrator_log = 16" : "");
+            if (database == "Sybase") CreateSybaseDatabase(() => ExecuteAdmin(createDatabase), System.Threading.Thread.Sleep);
+            else ExecuteAdmin(createDatabase);
             var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
             builder["Database"] = isolatedName;
             connectionString = builder.ConnectionString;
@@ -199,6 +201,21 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         provider = ProviderFactory.Create(providerType, connectionString, null);
         if (database == "Db2") provider.ExecuteNonQuery("SET CURRENT SCHEMA " + isolatedName);
         if (database == "Sybase") provider.ExecuteNonQuery("CHECKPOINT");
+    }
+
+    internal static void CreateSybaseDatabase(Action create, Action<TimeSpan> delay)
+    {
+        // ASE can briefly hold model during consecutive database creation. Retry only
+        // this setup error; never retry assertions, arbitrary SQL, or unknown failures.
+        for (var attempt = 1; ; attempt++)
+        {
+            try { create(); return; }
+            catch (DbException ex) when (attempt < 5 && ex.Message.Contains("MODEL database in use", StringComparison.OrdinalIgnoreCase))
+            {
+                TestContext.Progress.WriteLine($"ASE model is busy; retrying disposable database creation ({attempt}/4).");
+                delay(TimeSpan.FromSeconds(attempt));
+            }
+        }
     }
 
     private void ExecuteAdmin(string sql)
