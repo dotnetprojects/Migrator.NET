@@ -174,6 +174,19 @@ public class IngresMetadataTests
         provider.DidNotReceive().ExecuteNonQuery(Arg.Is<string>(s => s.Contains("DROP CONSTRAINT \"$pk_storage\"")));
     }
 
+    [Test]
+    public void UnsupportedFiltersHonorExplicitIgnorePolicyWithoutLosingOwner()
+    {
+        provider.Configure().ExecuteNonQuery(Arg.Any<string>()).Returns(1);
+        var index = new Index { Name = "ix_policy", KeyColumns = ["amount"], FilterItems = [new() { ColumnName = "amount", Value = 1 }] };
+        Assert.Throws<NotSupportedException>(() => provider.AddIndex("tenant.items", index));
+        provider.DidNotReceiveWithAnyArgs().ExecuteNonQuery(default(string));
+        index.UnsupportedFilterBehavior = UnsupportedIndexFilterBehavior.Ignore;
+        provider.AddIndex("tenant.items", index);
+        provider.Received(1).ExecuteNonQuery("CREATE INDEX \"tenant\".\"ix_policy\" ON tenant.items (amount) WITH STRUCTURE=BTREE, KEY=(amount), PERSISTENCE");
+        Assert.That(index.FilterItems, Has.Count.EqualTo(1));
+    }
+
     [TestCase(null, 2)]
     [TestCase("b", 2)]
     [TestCase("code", 0)]

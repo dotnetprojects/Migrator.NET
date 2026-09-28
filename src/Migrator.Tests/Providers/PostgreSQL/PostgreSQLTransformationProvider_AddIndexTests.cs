@@ -24,6 +24,11 @@ public class PostgreSQLTransformationProvider_AddIndexTests : Generic_AddIndexTe
         await BeginPostgreSQLTransactionAsync();
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void FilteredIndexWithNonKeyColumnAndNullPredicateRoundTrips(bool fluent)
+        => FilteredIndexTests.VerifyRoundTrip(Provider, fluent, includeColumns: true);
+
     [Test]
     public void AddTableWithCompoundPrimaryKey()
     {

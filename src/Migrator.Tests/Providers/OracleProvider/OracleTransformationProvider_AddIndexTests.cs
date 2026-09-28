@@ -169,7 +169,7 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
         ];
 
         // Act/Assert
-        Assert.Throws<MigrationException>(() => Provider.AddIndex(tableName,
+        Assert.Throws<NotSupportedException>(() => Provider.AddIndex(tableName,
             new Index
             {
                 Name = indexName,

@@ -171,8 +171,9 @@ public class IngresTransformationProvider : TransformationProvider
 
     public override string AddIndex(string table, Index index)
     {
-        if (index.Clustered || index.FilterItems.Count != 0)
-            throw new NotSupportedException("Ingres secondary indexes do not support Clustered or FilterItems.");
+        ShouldApplyIndexFilters(index, supported: false);
+        if (index.Clustered)
+            throw new NotSupportedException("Ingres secondary indexes do not support Clustered.");
         if (index.KeyColumns == null || index.KeyColumns.Length == 0 || index.KeyColumns.Any(string.IsNullOrWhiteSpace))
             throw new MigrationException("An index requires nonempty key columns.");
         var name = index.Name ?? "IX_" + CatalogRelation(table).Name + "_" + string.Join("_", index.KeyColumns);

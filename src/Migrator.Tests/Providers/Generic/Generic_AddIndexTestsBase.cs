@@ -1,6 +1,7 @@
 using System.Data;
 using System.Linq;
 using DotNetProjects.Migrator.Framework;
+using DotNetProjects.Migrator.Providers.Impl.Oracle;
 using DotNetProjects.Migrator.Providers.Models.Indexes;
 using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
 using Migrator.Tests.Providers.Base;
@@ -55,7 +56,7 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
     }
 
     [Test]
-    public void AddIndex_ColumnNameUsedInFilterItemDoesNotExistInKeyColumns_Throws()
+    public void AddIndex_FilterOnNonKeyColumnIsSupportedByNativeFilteredIndexProviders()
     {
         // Arrange
         const string tableName = "TestTable";
@@ -68,13 +69,22 @@ public abstract class Generic_AddIndexTestsBase : TransformationProviderBase
             new Column(columnName2, DbType.Int32)
         );
 
-        Assert.Throws<MigrationException>(() => Provider.AddIndex(tableName,
-            new Index
-            {
-                Name = indexName,
-                KeyColumns = [columnName1],
-                FilterItems = [new FilterItem { Filter = FilterType.GreaterThan, ColumnName = columnName2, Value = 12 }]
-            }));
+        var definition = new Index
+        {
+            Name = indexName,
+            KeyColumns = [columnName1],
+            FilterItems = [new FilterItem { Filter = FilterType.GreaterThan, ColumnName = columnName2, Value = 12 }]
+        };
+        if (Provider is OracleTransformationProvider)
+            Assert.Throws<System.NotSupportedException>(() => Provider.AddIndex(tableName, definition));
+        else
+        {
+            Provider.AddIndex(tableName, definition);
+            var actual = Provider.GetIndexes(tableName).Single();
+            Assert.That(actual.KeyColumns, Is.EqualTo(definition.KeyColumns).IgnoreCase);
+            Assert.That(actual.FilterItems.Single().ColumnName, Is.EqualTo(columnName2).IgnoreCase);
+            Assert.That(actual.FilterItems.Single().Value, Is.EqualTo(12));
+        }
     }
 
     [Test]

@@ -40,6 +40,36 @@ migration.Delete.Index("IX_Users_Email").FromTable("Users");
 migration.Delete.Column("Email").FromTable("Users");
 ```
 
+Filtered indexes can use columns outside the index keys on SQL Server (2008+), PostgreSQL and SQLite. For example, enforce unique identifiers only for active users with a non-null identifier:
+
+```csharp
+// FilterItem and FilterType are in Providers.Models.Indexes and its Enums namespace.
+migration.Create.Index("UX_ActiveUsers").OnTable("Users")
+    .WithColumns("IpaUserIdentifier").Unique()
+    .WithFilter(
+        new FilterItem { ColumnName = "IpaUserIdentifier", Filter = FilterType.NotEqualTo, Value = null },
+        new FilterItem { ColumnName = "Archive", Filter = FilterType.EqualTo, Value = 0 })
+    .OnUnsupportedFilter(UnsupportedIndexFilterBehavior.Throw);
+```
+
+Classic migrations use the same `FilterItems` list on `Index`, with
+`UnsupportedFilterBehavior = UnsupportedIndexFilterBehavior.Throw` (the default).
+Choose `Ignore` to omit all filters when the provider cannot apply them. The resulting
+index is unfiltered; a unique index then constrains all rows. Supported providers
+still apply the filters in Ignore mode, and database errors are never swallowed.
+Oracle retains its limited non-unique, key-column expression emulation; unique or
+non-key filters use the unsupported behavior. Other providers without implemented
+filter support, including the SQL Server 2005 dialect, also use that behavior.
+
+Read the definition back with `Database.GetIndexes("Users")` or
+`Schema.Table("Users").Indexes()` inside a fluent migration. SQL Server, PostgreSQL
+and SQLite return supported filter predicates, including null checks, together with
+the index name, key order, included columns and flags. Those definitions can be used
+to recreate the index. Predicates outside the `FilterItems` model (such as `OR`) fail
+explicitly. Oracle expression-index metadata remains outside this read-back support.
+The unsupported-filter policy is not stored in the database and reads back as the
+default. SQL preview still rejects filtered indexes, including Ignore mode.
+
 Table definitions, column additions and column alterations share the same type
 and option methods. Each named column must specify its type. `AsDateTime()` maps
 to `DbType.DateTime`, while `AsDateTime2()` maps to `DbType.DateTime2`.
