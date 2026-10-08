@@ -54,8 +54,7 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
 
     /// <summary>
     /// This test is located in the dedicated database type folder not in the base class since <see cref="OracleTransformationProvider.GetIndexes"/>
-    /// cannot read filter items for Oracle and Oracle does not allow
-    /// Unique = true for indexes with functional expressions
+    /// cannot read filter items for Oracle's functional expressions.
     /// </summary>
     [Test]
     public void AddIndex_FilteredIndexMiscellaneousFilterTypesAndDataTypes_Success()
@@ -139,7 +138,7 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
         // Assert
         var indexesFromDatabase = Provider.GetIndexes(table: tableName);
 
-        // In Oracle it seems that functional expressions are stored as column with generated column name. FilterItems are not 
+        // In Oracle it seems that functional expressions are stored as column with generated column name. FilterItems are not
         // implemented in Provider.GetIndexes() for Oracle. No further assert possible at this point in time.
         Assert.That(indexesFromDatabase.Single().KeyColumns.Count, Is.EqualTo(13));
 
@@ -150,10 +149,10 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
     }
 
     /// <summary>
-    /// Migrator throws if UNIQUE is used with functional expressions.
+    /// A filtered unique index enforces uniqueness only for rows matching the complete predicate.
     /// </summary>
     [Test]
-    public void AddIndex_FilterItemsCombinedWithUnique_Throws()
+    public void AddIndex_FilterItemsCombinedWithUnique_Success()
     {
         // Arrange
         const string tableName = "TestTable";
@@ -161,15 +160,16 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
         const string indexName = "TestIndexName";
 
         Provider.AddTable(tableName,
-            new Column(columnName1, DbType.Int16)
+            new Column(columnName1, DbType.Int16),
+            new Column("Archive", DbType.Int64)
         );
 
         List<FilterItem> filterItems = [
-            new() { Filter = FilterType.EqualTo, ColumnName = columnName1, Value = 1 },
+            new() { Filter = FilterType.NotEqualTo, ColumnName = columnName1, Value = null },
+            new() { Filter = FilterType.EqualTo, ColumnName = "Archive", Value = 0 },
         ];
 
-        // Act/Assert
-        Assert.Throws<NotSupportedException>(() => Provider.AddIndex(tableName,
+        Provider.AddIndex(tableName,
             new Index
             {
                 Name = indexName,
@@ -178,6 +178,47 @@ public class OracleTransformationProvider_AddIndex_Tests : Generic_AddIndexTests
                 ],
                 Unique = true,
                 FilterItems = filterItems
-            }));
+            });
+
+        Provider.Insert(tableName, [columnName1, "Archive"], [null, 0L]);
+        Provider.Insert(tableName, [columnName1, "Archive"], [null, 0L]);
+        Provider.Insert(tableName, [columnName1, "Archive"], [1, 1L]);
+        Provider.Insert(tableName, [columnName1, "Archive"], [1, 1L]);
+        Provider.Insert(tableName, [columnName1, "Archive"], [1, 0L]);
+        var duplicate = Assert.Throws<OracleException>(() => Provider.Insert(tableName, [columnName1, "Archive"], [1, 0L]));
+        Assert.That(duplicate.Number, Is.EqualTo(1));
+        Assert.That(Provider.GetIndexes(tableName).Single().Unique, Is.True);
+    }
+
+    [Test]
+    public void AddIndex_FilteredCompositeUniqueIndex_ExcludesEveryNonMatchingRow()
+    {
+        Provider.AddTable("FilteredUsers", new Column("Code", DbType.String, 80), new Column("Tenant", DbType.Int32),
+            new Column("Archive", DbType.Int64), new Column("Enabled", DbType.Boolean));
+        Provider.AddIndex("FilteredUsers", new Index
+        {
+            Name = "UX_FilteredUsers",
+            KeyColumns = ["Code", "Tenant"],
+            Unique = true,
+            FilterItems =
+            [
+                new() { ColumnName = "Archive", Filter = FilterType.EqualTo, Value = 0 },
+                new() { ColumnName = "Enabled", Filter = FilterType.EqualTo, Value = true }
+            ]
+        });
+
+        void Insert(string code, int tenant, object archive, bool enabled) =>
+            Provider.Insert("FilteredUsers", ["Code", "Tenant", "Archive", "Enabled"], [code, tenant, archive, enabled]);
+        Insert("same", 1, 0L, true);
+        Insert("same", 2, 0L, true);
+        foreach (var archive in new object[] { 1L, null })
+        {
+            Insert("same", 1, archive, true);
+            Insert("same", 1, archive, true);
+        }
+        Insert("same", 1, 0L, false);
+        Insert("same", 1, 0L, false);
+        var duplicate = Assert.Throws<OracleException>(() => Insert("same", 1, 0L, true));
+        Assert.That(duplicate.Number, Is.EqualTo(1));
     }
 }

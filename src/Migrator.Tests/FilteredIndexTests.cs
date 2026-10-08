@@ -6,8 +6,8 @@ using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Fluent;
 using DotNetProjects.Migrator.Providers;
-using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 using DotNetProjects.Migrator.Providers.Impl.Oracle;
+using DotNetProjects.Migrator.Providers.Impl.PostgreSQL;
 using DotNetProjects.Migrator.Providers.Impl.SqlServer;
 using DotNetProjects.Migrator.Providers.Models.Indexes;
 using DotNetProjects.Migrator.Providers.Models.Indexes.Enums;
@@ -23,7 +23,9 @@ public class FilteredIndexTests
     private static Column[] Columns() => [new("IpaUserIdentifier", DbType.String, 80), new("Archive", DbType.Int32), new("select", DbType.String, 80)];
     private static Index Definition() => new()
     {
-        Name = "UX_ActiveUsers", Unique = true, KeyColumns = ["IpaUserIdentifier"],
+        Name = "UX_ActiveUsers",
+        Unique = true,
+        KeyColumns = ["IpaUserIdentifier"],
         FilterItems = [
             new() { ColumnName = "IpaUserIdentifier", Filter = FilterType.NotEqualTo, Value = null },
             new() { ColumnName = "Archive", Filter = FilterType.EqualTo, Value = 0 }]
@@ -89,10 +91,24 @@ public class FilteredIndexTests
         using var provider = new SqlServerProvider(Connection(out var command), new SqlServerDialect());
         var index = Definition();
         index.UnsupportedFilterBehavior = UnsupportedIndexFilterBehavior.Ignore;
-        if (missingColumn) index.FilterItems[0].ColumnName = "Missing";
-        else index.FilterItems[0].Filter = FilterType.GreaterThan;
-        if (missingColumn) Assert.Throws<MigrationException>(() => provider.AddIndex("Users", index));
-        else Assert.Throws<ArgumentException>(() => provider.AddIndex("Users", index));
+        if (missingColumn)
+        {
+            index.FilterItems[0].ColumnName = "Missing";
+        }
+        else
+        {
+            index.FilterItems[0].Filter = FilterType.GreaterThan;
+        }
+
+        if (missingColumn)
+        {
+            Assert.Throws<MigrationException>(() => provider.AddIndex("Users", index));
+        }
+        else
+        {
+            Assert.Throws<ArgumentException>(() => provider.AddIndex("Users", index));
+        }
+
         command.DidNotReceive().ExecuteNonQuery();
     }
 
@@ -104,7 +120,6 @@ public class FilteredIndexTests
     [TestCase(ProviderTypes.Sybase)]
     [TestCase(ProviderTypes.Hana)]
     [TestCase(ProviderTypes.SqlServer2005)]
-    [TestCase(ProviderTypes.Oracle)]
     public void UnsupportedFiltersThrowByDefaultAndCanBeIgnoredThroughFluent(ProviderTypes type)
     {
         var connection = Connection(out var command);
@@ -127,7 +142,11 @@ public class FilteredIndexTests
         command.ClearReceivedCalls();
         index.UnsupportedFilterBehavior = UnsupportedIndexFilterBehavior.Ignore;
         index.IncludeColumns = ["select"];
-        if (type == ProviderTypes.SqlServer2005) return; // INCLUDE is supported by this dialect.
+        if (type == ProviderTypes.SqlServer2005)
+        {
+            return; // INCLUDE is supported by this dialect.
+        }
+
         Assert.Throws<NotSupportedException>(() => provider.AddIndex("Users", index));
         command.DidNotReceive().ExecuteNonQuery();
     }
@@ -161,6 +180,71 @@ public class FilteredIndexTests
         Assert.That(sql, Does.Contain("CASE WHEN").And.Contain("IS NOT NULL"));
         Assert.That(index.KeyColumns, Is.EqualTo(new[] { "IpaUserIdentifier", "Archive" }));
         Assert.That(index.FilterItems.Count, Is.EqualTo(2));
+        command.Received(1).ExecuteNonQuery();
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void OracleUniqueFiltersApplyTheCompletePredicateToEveryKey(bool fluent)
+    {
+        using var provider = new OracleProvider(Connection(out var command));
+        var index = Definition();
+        index.KeyColumns = ["select", "IpaUserIdentifier"];
+        var expected = "CREATE UNIQUE INDEX UX_ActiveUsers ON Users (CASE WHEN IpaUserIdentifier IS NOT NULL AND \"Archive\" = 0 THEN \"select\" ELSE NULL END, " +
+            "CASE WHEN IpaUserIdentifier IS NOT NULL AND \"Archive\" = 0 THEN IpaUserIdentifier ELSE NULL END)";
+        if (fluent)
+        {
+            var builder = new MigrationBuilder();
+            builder.Create.Index(index).OnTable("Users");
+            builder.Apply(provider);
+            Assert.That(command.CommandText, Is.EqualTo(expected));
+        }
+        else
+        {
+            Assert.That(provider.AddIndex("Users", index), Is.EqualTo(expected));
+        }
+
+        Assert.That(index.KeyColumns, Is.EqualTo(new[] { "select", "IpaUserIdentifier" }));
+        Assert.That(index.FilterItems.Count, Is.EqualTo(2));
+        command.Received(1).ExecuteNonQuery();
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void OracleUniqueFiltersValidateColumnsAndOperators(bool missingColumn)
+    {
+        using var provider = new OracleProvider(Connection(out var command));
+        var index = Definition();
+        if (missingColumn)
+        {
+            index.FilterItems[1].ColumnName = "Missing";
+        }
+        else
+        {
+            index.FilterItems[0].Filter = FilterType.GreaterThan;
+        }
+
+        if (missingColumn)
+        {
+            Assert.Throws<MigrationException>(() => provider.AddIndex("Users", index));
+        }
+        else
+        {
+            Assert.Throws<ArgumentException>(() => provider.AddIndex("Users", index));
+        }
+
+        command.DidNotReceive().ExecuteNonQuery();
+    }
+
+    [Test]
+    public void OracleNonUniqueNonKeyFiltersStillUseTheUnsupportedPolicy()
+    {
+        using var provider = new OracleProvider(Connection(out var command));
+        var index = Definition();
+        index.Unique = false;
+        Assert.Throws<NotSupportedException>(() => provider.AddIndex("Users", index));
+        index.UnsupportedFilterBehavior = UnsupportedIndexFilterBehavior.Ignore;
+        Assert.That(provider.AddIndex("Users", index), Is.EqualTo("CREATE INDEX UX_ActiveUsers ON Users (IpaUserIdentifier)"));
         command.Received(1).ExecuteNonQuery();
     }
 
@@ -203,16 +287,26 @@ public class FilteredIndexTests
     public void NullAndDbNullHaveTheSameSql(FilterType type, string expected)
     {
         foreach (var value in new[] { null, DBNull.Value })
+        {
             Assert.That(IndexFilterSql.Format(new SqlServerDialect(), new FilterItem { ColumnName = "select", Filter = type, Value = value }, true), Is.EqualTo("[select] " + expected));
+        }
     }
 
     [Test]
     public void SqlServerGetIndexesReturnsAllDefinitionFieldsFromCatalog()
     {
         using var data = new DataTable();
-        foreach (var name in new[] { "SchemaName", "TableName", "IndexName", "IndexType", "ColumnName", "FilterDefinition" }) data.Columns.Add(name);
+        foreach (var name in new[] { "SchemaName", "TableName", "IndexName", "IndexType", "ColumnName", "FilterDefinition" })
+        {
+            data.Columns.Add(name);
+        }
+
         data.Columns.Add("ColumnOrder", typeof(int));
-        foreach (var name in new[] { "IsUnique", "IsPrimaryKey", "IsUniqueConstraint", "IsDescending", "IsIncludedColumn", "IsFilteredIndex" }) data.Columns.Add(name, typeof(bool));
+        foreach (var name in new[] { "IsUnique", "IsPrimaryKey", "IsUniqueConstraint", "IsDescending", "IsIncludedColumn", "IsFilteredIndex" })
+        {
+            data.Columns.Add(name, typeof(bool));
+        }
+
         foreach (var (name, order, included) in new[] { ("Archive", 2, false), ("select", 3, true), ("IpaUserIdentifier", 1, false) })
         {
             var row = data.NewRow();
@@ -233,8 +327,16 @@ public class FilteredIndexTests
     public void PostgresGetIndexesReturnsAllDefinitionFieldsFromCatalog()
     {
         using var data = new DataTable();
-        foreach (var name in new[] { "schema_name", "table_name", "index_name", "index_definition", "index_columns", "include_columns", "partial_filter" }) data.Columns.Add(name);
-        foreach (var name in new[] { "is_unique", "is_clustered", "is_unique_constraint", "is_primary_constraint" }) data.Columns.Add(name, typeof(bool));
+        foreach (var name in new[] { "schema_name", "table_name", "index_name", "index_definition", "index_columns", "include_columns", "partial_filter" })
+        {
+            data.Columns.Add(name);
+        }
+
+        foreach (var name in new[] { "is_unique", "is_clustered", "is_unique_constraint", "is_primary_constraint" })
+        {
+            data.Columns.Add(name, typeof(bool));
+        }
+
         var row = data.NewRow();
         row["schema_name"] = "audit"; row["table_name"] = "Users"; row["index_name"] = "UX_ActiveUsers";
         row["index_definition"] = "CREATE UNIQUE INDEX ...";
@@ -304,17 +406,33 @@ public class FilteredIndexTests
     {
         provider.AddTable("FilteredUsers", Columns());
         var definition = Definition();
-        if (includeColumns) definition.IncludeColumns = ["select"];
+        if (includeColumns)
+        {
+            definition.IncludeColumns = ["select"];
+        }
+
         if (fluent)
         {
             var builder = new MigrationBuilder();
             var options = builder.Create.Index(definition.Name).OnTable("FilteredUsers").WithColumns(definition.KeyColumns).Unique()
                 .WithFilter(definition.FilterItems.ToArray()).OnUnsupportedFilter(UnsupportedIndexFilterBehavior.Throw);
-            if (includeColumns) options.IncludeColumns(definition.IncludeColumns);
+            if (includeColumns)
+            {
+                options.IncludeColumns(definition.IncludeColumns);
+            }
+
             builder.Apply(provider);
         }
-        else provider.AddIndex("FilteredUsers", definition);
-        if (rebuild) provider.ChangeColumn("FilteredUsers", new Column("select", DbType.String, 120));
+        else
+        {
+            provider.AddIndex("FilteredUsers", definition);
+        }
+
+        if (rebuild)
+        {
+            provider.ChangeColumn("FilteredUsers", new Column("select", DbType.String, 120));
+        }
+
         var actual = provider.GetIndexes("FilteredUsers").Single(i => i.Name.Equals(definition.Name, StringComparison.OrdinalIgnoreCase));
         Assert.That(actual.Name, Is.EqualTo(definition.Name).IgnoreCase);
         Assert.That(actual.KeyColumns, Is.EqualTo(definition.KeyColumns).IgnoreCase);
@@ -338,7 +456,11 @@ public class FilteredIndexTests
             builder.Create.Index(actual).OnTable("FilteredUsers");
             builder.Apply(provider);
         }
-        else provider.AddIndex("FilteredUsers", actual);
+        else
+        {
+            provider.AddIndex("FilteredUsers", actual);
+        }
+
         provider.Insert("FilteredUsers", ["IpaUserIdentifier", "Archive"], [null, 0]);
         provider.Insert("FilteredUsers", ["IpaUserIdentifier", "Archive"], [null, 0]);
         provider.Insert("FilteredUsers", ["IpaUserIdentifier", "Archive"], ["same", 1]);
