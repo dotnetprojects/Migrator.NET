@@ -1,17 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Framework.Models;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Data;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Data.Interfaces;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Interfaces;
 using DotNetProjects.Migrator.Providers.Impl.Oracle.Models;
-using DotNetProjects.Migrator.Providers.Models.Indexes;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
 using Index = DotNetProjects.Migrator.Framework.Index;
 
@@ -71,13 +69,15 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     public override string AddIndex(string table, Index index)
     {
         var hasFilterItems = ShouldApplyIndexFilters(index,
-            supported: !index.Unique && (index.FilterItems == null || index.FilterItems.All(f =>
+            supported: index.Unique || (index.FilterItems == null || index.FilterItems.All(f =>
                 index.KeyColumns.Any(c => c.Equals(f.ColumnName, StringComparison.OrdinalIgnoreCase)))),
-            reason: "Oracle filter emulation requires a non-unique index and filters on key columns only.");
+            reason: "Oracle non-unique filter emulation requires filters on key columns only.");
         ValidateIndex(table, index, validateFilters: hasFilterItems);
 
         if (index.IncludeColumns?.Length > 0 || index.Clustered)
+        {
             throw new NotSupportedException("Oracle does not support included columns or SQL Server-style clustered indexes. Use an explicit Oracle operation.");
+        }
 
         var relation = CatalogRelation(table, true);
         var name = (relation.Schema == null ? "" : _dialect.QuoteIdentifier(relation.Schema) + ".") + QuoteConstraintNameIfRequired(index.Name);
@@ -85,11 +85,25 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
         var keyColumns = index.KeyColumns;
         List<string> singleFilterStrings = [];
-        if (hasFilterItems)
+        if (hasFilterItems && index.Unique)
+        {
+            // Every key must use the complete predicate: excluded rows then have all-NULL keys,
+            // while included rows retain the original composite uniqueness and key order.
+            var predicate = string.Join(" AND ", index.FilterItems.Select(filter => IndexFilterSql.Format(_dialect, filter, numericBooleans: true)));
+            foreach (var keyColumn in keyColumns)
+            {
+                singleFilterStrings.Add($"CASE WHEN {predicate} THEN {QuoteColumnNameIfRequired(keyColumn)} ELSE NULL END");
+            }
+
+            keyColumns = [];
+        }
+        else if (hasFilterItems)
         {
             keyColumns = keyColumns.Where(c => !index.FilterItems.Any(f => c.Equals(f.ColumnName, StringComparison.OrdinalIgnoreCase))).ToArray();
             foreach (var filter in index.FilterItems)
+            {
                 singleFilterStrings.Add($"CASE WHEN {IndexFilterSql.Format(_dialect, filter, numericBooleans: false)} THEN {QuoteColumnNameIfRequired(filter.ColumnName)} ELSE NULL END");
+            }
         }
 
         var mixedColumnNamesAndFilters = QuoteColumnNamesIfRequired(keyColumns).ToList();
@@ -135,15 +149,25 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
     {
         var existing = GetColumnByName(table, column.Name);
         var definition = column.CopyDefinition();
-        if (definition.DefaultValue == null) RemoveColumnDefaultValue(table, definition.Name);
+        if (definition.DefaultValue == null)
+        {
+            RemoveColumnDefaultValue(table, definition.Name);
+        }
         // Oracle rejects restating an existing NOT NULL constraint. Render type/default
         // separately and change nullability only when its value actually changes.
         definition.IsNullable = true;
         var mapper = _dialect.GetAndMapColumnProperties(definition);
         var sql = mapper.ColumnSql;
-        if (sql.EndsWith(" NULL", StringComparison.Ordinal)) sql = sql[..^5];
+        if (sql.EndsWith(" NULL", StringComparison.Ordinal))
+        {
+            sql = sql[..^5];
+        }
+
         if (existing.IsNullable != column.IsNullable)
+        {
             sql += column.IsNullable ? " NULL" : " NOT NULL";
+        }
+
         ChangeColumn(table, sql);
     }
 
@@ -161,7 +185,10 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         var oldRelation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(oldName), true);
         var newRelation = SqlIdentifier.Catalog(_dialect.QuoteTableNameIfRequired(newName), true);
         if (newRelation.Schema != null && newRelation.Schema != oldRelation.Schema)
+        {
             throw new NotSupportedException("Oracle RENAME does not move a table between schemas.");
+        }
+
         GuardAgainstMaximumIdentifierLengthForOracle(newRelation.Name);
         var target = (oldRelation.Schema == null ? "" : _dialect.QuoteIdentifier(oldRelation.Schema) + ".") + _dialect.QuoteIdentifier(newRelation.Name);
         GuardAgainstExistingTableWithSameName(target, oldName);
@@ -218,7 +245,11 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void AddColumn(string table, string sqlColumn)
     {
-        foreach (var part in SqlIdentifier.Parse(table)) GuardAgainstMaximumIdentifierLengthForOracle(part.Value);
+        foreach (var part in SqlIdentifier.Parse(table))
+        {
+            GuardAgainstMaximumIdentifierLengthForOracle(part.Value);
+        }
+
         table = QuoteTableNameIfRequired(table);
 
         ExecuteNonQuery(string.Format("ALTER TABLE {0} ADD {1}", table, sqlColumn));
@@ -454,10 +485,18 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
                     throw new NotImplementedException($"The data type '{dataTypeString}' is not implemented yet. Please file an issue.");
                 }
 
-                if (dataTypeString is "CLOB" or "NCLOB" or "BLOB") column.Size = int.MaxValue;
+                if (dataTypeString is "CLOB" or "NCLOB" or "BLOB")
+                {
+                    column.Size = int.MaxValue;
+                }
                 else if (dataTypeString is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR")
+                {
                     column.Size = charColDeclLength ?? dataLength ?? 0;
-                else if (dataTypeString == "RAW") column.Size = dataLength ?? 0;
+                }
+                else if (dataTypeString == "RAW")
+                {
+                    column.Size = dataLength ?? 0;
+                }
 
                 OracleColumnDefault.Apply(column, dataDefaultString);
 
@@ -489,7 +528,9 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
             var oracleType = parameter.GetType().GetProperty("OracleDbType");
             if (oracleType?.CanWrite == true && oracleType.PropertyType.IsEnum &&
                 Enum.IsDefined(oracleType.PropertyType, "BinaryFloat"))
+            {
                 oracleType.SetValue(parameter, Enum.Parse(oracleType.PropertyType, "BinaryFloat"));
+            }
             else
             {
                 parameter.DbType = DbType.Double;
@@ -611,12 +652,21 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override void AddTable(string name, params IDbField[] fields)
     {
-        foreach (var part in SqlIdentifier.Parse(name)) GuardAgainstMaximumIdentifierLengthForOracle(part.Value);
+        foreach (var part in SqlIdentifier.Parse(name))
+        {
+            GuardAgainstMaximumIdentifierLengthForOracle(part.Value);
+        }
+
         var columns = fields.OfType<Column>().ToArray();
-        GuardAgainstMaximumColumnNameLengthForOracle(name, columns);
+        GuardAgainstMaximumColumnNameLengthForOracle(columns);
         foreach (var identity in columns.Where(c => c.IsIdentity))
+        {
             if (identity.Type is not (DbType.Int16 or DbType.Int32 or DbType.Int64 or DbType.UInt16 or DbType.UInt32 or DbType.UInt64))
+            {
                 throw new MigrationException("Oracle identity columns require an integer type.");
+            }
+        }
+
         base.AddTable(name, fields);
     }
 
@@ -636,7 +686,10 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         {
             GuardAgainstMaximumIdentifierLengthForOracle(sequence);
             if (!System.Text.RegularExpressions.Regex.IsMatch(sequence, @"^[A-Za-z][A-Za-z0-9_$#]*$"))
+            {
                 throw new ArgumentException("Legacy sequence cleanup requires simple unquoted sequence names.", nameof(ownedSequenceNames));
+            }
+
             return sequence.ToUpperInvariant();
         }).Distinct(StringComparer.Ordinal).ToArray();
         foreach (var sequence in sequences)
@@ -645,16 +698,29 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
             command.CommandText = "SELECT COUNT(*) FROM USER_SEQUENCES WHERE SEQUENCE_NAME = :sequenceName";
             var parameter = command.CreateParameter(); parameter.ParameterName = "sequenceName"; parameter.Value = sequence;
             command.Parameters.Add(parameter);
-            if (Convert.ToInt32(command.ExecuteScalar()) != 1) throw new MigrationException("Owned legacy sequence was not found: " + sequence);
+            if (Convert.ToInt32(command.ExecuteScalar()) != 1)
+            {
+                throw new MigrationException("Owned legacy sequence was not found: " + sequence);
+            }
         }
-        if (!TableExists(name)) throw new MigrationException("Table was not found: " + name);
+        if (!TableExists(name))
+        {
+            throw new MigrationException("Table was not found: " + name);
+        }
+
         base.RemoveTable(name);
-        foreach (var sequence in sequences) ExecuteNonQuery("DROP SEQUENCE " + _dialect.Quote(sequence));
+        foreach (var sequence in sequences)
+        {
+            ExecuteNonQuery("DROP SEQUENCE " + _dialect.Quote(sequence));
+        }
     }
 
-    private void GuardAgainstMaximumColumnNameLengthForOracle(string name, Column[] columns)
+    private void GuardAgainstMaximumColumnNameLengthForOracle(Column[] columns)
     {
-        foreach (var column in columns) GuardAgainstMaximumIdentifierLengthForOracle(column.Name);
+        foreach (var column in columns)
+        {
+            GuardAgainstMaximumIdentifierLengthForOracle(column.Name);
+        }
     }
 
     public override string Encode(Guid guid)

@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
-using DotNetProjects.Migrator.Providers.Models.Indexes;
+using System.Collections.Generic;
 using DotNetProjects.Migrator.Providers;
+using DotNetProjects.Migrator.Providers.Models.Indexes;
 
 namespace DotNetProjects.Migrator.Framework;
 
@@ -11,7 +11,7 @@ public class Index : IDbField
     public bool Unique { get; set; }
 
     /// <summary>
-    /// Indicates whether the index is clustered (false for NONCLUSTERED). 
+    /// Indicates whether the index is clustered (false for NONCLUSTERED).
     /// Please mind that this is ignored in Oracle and SQLite (supported in SQLite but not in this migrator)
     /// </summary>
     public bool Clustered { get; set; }
@@ -38,7 +38,8 @@ public class Index : IDbField
 
     /// <summary>
     /// Gets or sets items that represent filter expressions in filtered indexes. Currently string, integer and boolean values are supported.
-    /// Filter columns need not be key columns on SQL Server, PostgreSQL and SQLite.
+    /// Filter columns need not be key columns on SQL Server, PostgreSQL, SQLite, or Oracle unique indexes.
+    /// Oracle unique indexes apply the complete predicate to every key through functional expressions.
     /// EqualTo/NotEqualTo with null or DBNull.Value generate IS NULL/IS NOT NULL.
     /// </summary>
     public List<FilterItem> FilterItems { get; set; } = [];
