@@ -153,8 +153,8 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
         {
             RemoveColumnDefaultValue(table, definition.Name);
         }
-        // Oracle rejects restating an existing NOT NULL constraint. Render type/default
-        // separately and change nullability only when its value actually changes.
+        // Oracle rejects LOB type declarations combined with nullability changes.
+        // Keep the type/default operation separate from the constraint operation.
         definition.IsNullable = true;
         var mapper = _dialect.GetAndMapColumnProperties(definition);
         var sql = mapper.ColumnSql;
@@ -163,12 +163,26 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
             sql = sql[..^5];
         }
 
-        if (existing.IsNullable != column.IsNullable)
+        var existingType = _dialect.GetColumnMapper(existing).Type;
+        if (mapper.Type is "CLOB" or "NCLOB" or "BLOB" && mapper.Type == existingType &&
+            definition.Collation == null && !definition.IsIdentity && !definition.IsUnsigned)
         {
-            sql += column.IsNullable ? " NULL" : " NOT NULL";
+            // Restating an unchanged LOB type is unnecessary and can invoke Oracle's
+            // restricted LOB conversion path. Defaults still need to be applied.
+            if (definition.DefaultValue != null)
+            {
+                ChangeColumn(table, QuoteColumnNameIfRequired(definition.Name) + " " + _dialect.Default(definition.DefaultValue));
+            }
+        }
+        else
+        {
+            ChangeColumn(table, sql);
         }
 
-        ChangeColumn(table, sql);
+        if (existing.IsNullable != column.IsNullable)
+        {
+            ChangeColumn(table, QuoteColumnNameIfRequired(column.Name) + (column.IsNullable ? " NULL" : " NOT NULL"));
+        }
     }
 
     private void CopyDataFromOneColumnToAnother(string table, string fromColumn, string toColumn)
