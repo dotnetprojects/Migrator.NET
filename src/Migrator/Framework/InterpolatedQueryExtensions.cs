@@ -14,6 +14,7 @@ public static class InterpolatedQueryExtensions
     {
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(sql);
+        if (provider is Providers.NoOpTransformationProvider) return Array.Empty<T>();
         var mapping = DtoMapping.For(typeof(T));
         using var command = Prepare(provider, sql);
         using var reader = provider.ExecuteQuery(command, command.CommandText);
@@ -27,6 +28,7 @@ public static class InterpolatedQueryExtensions
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(sql);
         ArgumentNullException.ThrowIfNull(mapper);
+        if (provider is Providers.NoOpTransformationProvider) return Array.Empty<T>();
         using var command = Prepare(provider, sql);
         using var reader = provider.ExecuteQuery(command, command.CommandText);
         var result = new List<T>();
