@@ -18,6 +18,8 @@ public static class DtoSelectExtensions
         Expression<Func<T, bool>> predicate = null) where T : class, new()
     {
         ArgumentNullException.ThrowIfNull(provider);
+        ArgumentException.ThrowIfNullOrWhiteSpace(table);
+        if (provider is Providers.NoOpTransformationProvider) return Array.Empty<T>();
         var mapping = DtoMapping.For(typeof(T));
         var filter = predicate == null ? null : new PredicateTranslator(mapping, predicate.Parameters[0]).Translate(predicate.Body);
         return SelectQuery.Execute<T>(provider, table, mapping, filter);

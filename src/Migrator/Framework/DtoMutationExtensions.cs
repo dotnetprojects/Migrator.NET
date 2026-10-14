@@ -16,6 +16,7 @@ public static class DtoMutationExtensions
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentException.ThrowIfNullOrWhiteSpace(table);
         ArgumentNullException.ThrowIfNull(predicate);
+        if (provider is Providers.NoOpTransformationProvider) return 0;
         var mapping = DtoMapping.For(typeof(T));
         var filter = new PredicateTranslator(mapping, predicate.Parameters[0]).Translate(predicate.Body);
         var values = new List<object>();
@@ -34,6 +35,7 @@ public static class DtoMutationExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(table);
         ArgumentNullException.ThrowIfNull(changes);
         ArgumentNullException.ThrowIfNull(predicate);
+        if (provider is Providers.NoOpTransformationProvider) return 0;
         var mapping = DtoMapping.For(typeof(T));
         var filter = new PredicateTranslator(mapping, predicate.Parameters[0]).Translate(predicate.Body);
         if (changes.Body is not MemberInitExpression initializer || initializer.NewExpression.Arguments.Count != 0 || initializer.Bindings.Count == 0)
