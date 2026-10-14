@@ -64,6 +64,12 @@ public class DtoSelectIntegrationTests(string database, ProviderTypes providerTy
             Assert.That(Provider.Delete<Row>(table, x => x.Payload.Contains("%_~") && x.Id == 3), Is.EqualTo(1));
             Assert.That(Provider.Select<Row>(table).Count, Is.EqualTo(2));
         }
-        finally { Provider.RemoveTable(table); }
+        finally
+        {
+            // Firebird can retain metadata locks until the attachment closes. Its
+            // fixture closes the provider and drops the isolated database in TearDown.
+            // Do not mask assertion/query failures with an early DROP TABLE failure.
+            if (database != "Firebird") Provider.RemoveTable(table);
+        }
     }
 }
