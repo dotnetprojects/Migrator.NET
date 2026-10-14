@@ -196,6 +196,41 @@ migration.Create.Table("Jobs")
     section("Database storage differs", '<p>SQLite does not enforce declared string lengths or decimal precision. UInt64 values above Int64.MaxValue are rejected there. Oracle character empty strings become NULL; Informix and Sybase have their own trimming and range behavior. Consult the <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/data-type-boundary-tests.md">type support and boundary matrix</a> for supported mappings and live-test scope. A shared DbType does not imply identical native storage.</p>'))
 
 page("Operations", "data", "Data operations", "Insert, update and delete using explicit column/value arrays. Keep predicates separate from changed values.",
+    section("Read DTOs", '<p>Select&lt;T&gt;(table, predicate) reads a single table into a materialized IReadOnlyList&lt;T&gt;, binds predicate values as native driver parameters and disposes the command and reader. DTOs need a public parameterless constructor and public readable/writable scalar properties. ColumnAttribute can override names; NotMappedAttribute excludes properties. Keep DTOs with their migration.</p><p>Predicates support direct comparisons, boolean composition and null checks. Unsupported methods, joins and general LINQ operations fail explicitly. Comparisons follow database collation and SQL null semantics: Optional != 7 excludes NULL rows. Context.Select executes immediately during fluent authoring and cannot see queued operations. See the <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/dto-queries.md">DTO query reference</a> for mapping and translation limits.</p>', pair("Read screens using a typed predicate", '''
+public class ReadScreens : Migration
+{
+    public sealed class ScreenDto
+    {
+        public int Id { get; set; }
+        public bool Archive { get; set; }
+        public string GenericDefinition { get; set; }
+    }
+    public override void Up()
+    {
+        var minimumId = 10;
+        var screens = Database.Select<ScreenDto>(
+            "Common_Screens", x => !x.Archive && x.Id > minimumId);
+    }
+    public override void Down() { }
+}
+''', '''
+public class ReadScreens : FluentMigration
+{
+    public sealed class ScreenDto
+    {
+        public int Id { get; set; }
+        public bool Archive { get; set; }
+        public string GenericDefinition { get; set; }
+    }
+    public override void BuildUp(MigrationBuilder migration)
+    {
+        var minimumId = 10;
+        var screens = Context.Select<ScreenDto>(
+            "Common_Screens", x => !x.Archive && x.Id > minimumId);
+    }
+    public override void BuildDown(MigrationBuilder migration) { }
+}
+''', kind="class")),
     section("Insert rows", '<p>Column and value arrays must have the same length. The provider binds values using its driver-specific parameter mappings. For multiple rows issue multiple Insert.IntoTable(...).Row(...) expressions. Each Row completes one insert; its returned builder offers only IfNotExists, so a second Row cannot silently replace the first. Insert, update and delete each expose only their supported steps.</p>', pair("Insert a user", '''
 Database.Insert("Users", new[] { "Id", "Name" }, new object[] { 1, "Ada" });
 ''', '''

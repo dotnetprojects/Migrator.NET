@@ -724,6 +724,18 @@ public interface ITransformationProvider : IDisposable
     /// <param name="index">The index number of the parameter</param>
     string GenerateParameterName(int index);
 
+    /// <summary>Add a query parameter in SQL occurrence order. Providers can override driver-specific binding.</summary>
+    void AddQueryParameter(IDbCommand command, int index, object value)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = GenerateParameterName(index);
+        parameter.Value = value == null ? DBNull.Value : value is Enum
+            ? Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType()), System.Globalization.CultureInfo.InvariantCulture)
+            : value;
+        command.Parameters.Add(parameter);
+    }
+
     /// <summary>
     /// Remove all indexes of a table
     /// </summary>

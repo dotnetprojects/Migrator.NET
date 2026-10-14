@@ -23,6 +23,7 @@ using System.Data;
 using UniqueConstraint = DotNetProjects.Migrator.Framework.UniqueConstraint;
 using System.Data.Common;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using ForeignKeyConstraint = DotNetProjects.Migrator.Framework.ForeignKeyConstraint;
@@ -1812,6 +1813,18 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
     public virtual string GenerateParameterNameParameter(int index)
     {
         return "@p" + index;
+    }
+
+    /// <summary>Bind a typed query value using the same conversion rules as data operations.</summary>
+    public virtual void AddQueryParameter(IDbCommand command, int index, object value)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (value is Enum)
+            value = Convert.ChangeType(value, Enum.GetUnderlyingType(value.GetType()), CultureInfo.InvariantCulture);
+        var parameter = command.CreateParameter();
+        ConfigureParameterWithValue(parameter, index, value);
+        parameter.ParameterName = GenerateParameterNameParameter(index);
+        command.Parameters.Add(parameter);
     }
 
     public virtual string GenerateParameterName(int index)

@@ -322,6 +322,12 @@ See the [mapping and migration guide](docs/migration-guide-12.1-to-13.md#explici
 
 ### SQLite reconstruction and data types
 
+Read migration-local DTOs with `Database.Select<ScreenDto>("Common_Screens",
+x => !x.Archive && x.Id > minimumId)`. This returns a materialized list, quotes
+identifiers, parameterizes values and uses the active migration transaction.
+See [DTO queries](docs/dto-queries.md) for column mapping, supported predicates
+and SQL null semantics.
+
 Supported rebuilds retain mapped data, named/composite keys, declared column collations, supported indexes and triggers, and the AUTOINCREMENT high-water mark. Generated columns, `STRICT`, `WITHOUT ROWID` and indexes with explicit collations are rejected for reconstruction; hidden rowid values are not preserved. Foreign keys retain separate update/delete actions; unsupported `MATCH FULL`/`PARTIAL` requests fail explicitly. See the [SQLite preservation matrix](docs/migration-framework-comparison.md#what-survives-reconstructionand-what-is-not-guaranteed).
 
 CLR `Guid` defaults use the same blob representation as inserted GUID parameters. Existing text GUID defaults remain unchanged during unrelated rebuilds; converting mixed storage requires an explicit data migration. SQLite's `AsciiIgnoreCase` preset selects ASCII-only `NOCASE`; Unicode case-insensitive requests need a suitable custom collation, registered on the connection and selected by name.
