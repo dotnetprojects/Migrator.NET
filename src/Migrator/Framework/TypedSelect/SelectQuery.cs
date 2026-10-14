@@ -19,7 +19,19 @@ internal static class SelectQuery
         using var command = provider.CreateCommand();
         for (var i = 0; i < values.Count; i++) provider.AddQueryParameter(command, i, values[i]);
         using var reader = provider.ExecuteQuery(command, sql);
-        var ordinals = mapping.Properties.Select(p => reader.GetOrdinal(p.Column)).ToArray();
+        return Materialize<T>(reader, mapping);
+    }
+
+    internal static IReadOnlyList<T> Materialize<T>(IDataReader reader, DtoMapping mapping) where T : class, new()
+    {
+        var ordinals = mapping.Properties.Select(p =>
+        {
+            try { return reader.GetOrdinal(p.Column); }
+            catch (Exception ex) when (ex is IndexOutOfRangeException or ArgumentException)
+            {
+                throw new DataException($"Query result is missing column '{p.Column}' for '{typeof(T).Name}.{p.Property.Name}'.", ex);
+            }
+        }).ToArray();
         var result = new List<T>();
         while (reader.Read())
         {
