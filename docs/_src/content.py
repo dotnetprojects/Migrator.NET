@@ -217,6 +217,16 @@ public class ReadScreens : Migration
             x => x.GenericDefinition.StartsWith("old"));
         int deleted = Database.Delete<ScreenDto>("Common_Screens",
             x => x.Archive && x.GenericDefinition.EndsWith(".obsolete"));
+        var queried = Database.Query<ScreenDto>($"""
+            SELECT {Sql.Col("Id")}, {Sql.Col("Archive")}, {Sql.Col("GenericDefinition")}
+            FROM {Sql.Table("Common_Screens")}
+            WHERE {Sql.Col("Archive")} = {false}
+            """);
+        var tuples = Database.Query($"""
+            SELECT {"Id":column}, {"GenericDefinition":column}
+            FROM {"Common_Screens":table} WHERE {"Archive":column} = {false}
+            """, r => (Id: Convert.ToInt32(r.GetValue(0)),
+                Definition: r.IsDBNull(1) ? null : r.GetString(1)));
     }
     public override void Down() { }
 }
@@ -241,6 +251,16 @@ public class ReadScreens : FluentMigration
             x => x.GenericDefinition.StartsWith("old"));
         int deleted = Context.Delete<ScreenDto>("Common_Screens",
             x => x.Archive && x.GenericDefinition.EndsWith(".obsolete"));
+        var queried = Context.Query<ScreenDto>($"""
+            SELECT {Sql.Col("Id")}, {Sql.Col("Archive")}, {Sql.Col("GenericDefinition")}
+            FROM {Sql.Table("Common_Screens")}
+            WHERE {Sql.Col("Archive")} = {false}
+            """);
+        var tuples = Context.Query($"""
+            SELECT {"Id":column}, {"GenericDefinition":column}
+            FROM {"Common_Screens":table} WHERE {"Archive":column} = {false}
+            """, r => (Id: Convert.ToInt32(r.GetValue(0)),
+                Definition: r.IsDBNull(1) ? null : r.GetString(1)));
     }
     public override void BuildDown(MigrationBuilder migration) { }
 }
