@@ -10,7 +10,8 @@ public static class DtoSelectExtensions
 {
     /// <summary>
     /// Select public writable DTO properties by column name. Supports comparisons, boolean operators,
-    /// null checks and captured scalar fields; unsupported expressions throw before execution.
+    /// null checks, string Contains/StartsWith/EndsWith and captured scalar fields;
+    /// unsupported expressions throw before execution.
     /// Comparisons follow database collation and SQL null semantics.
     /// </summary>
     public static IReadOnlyList<T> Select<T>(this ITransformationProvider provider, string table,

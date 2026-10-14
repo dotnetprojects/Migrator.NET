@@ -41,7 +41,7 @@ internal static class SelectQuery
         return result;
     }
 
-    private static string Render(ITransformationProvider provider, SelectPredicate predicate, List<object> values)
+    internal static string Render(ITransformationProvider provider, SelectPredicate predicate, List<object> values)
     {
         if (predicate is LogicalPredicate logical)
         {
@@ -49,6 +49,15 @@ internal static class SelectQuery
             if (logical.Operator == ExpressionType.Not) return "(NOT " + left + ")";
             return "(" + left + (logical.Operator == ExpressionType.AndAlso ? " AND " : " OR ") +
                 Render(provider, logical.Right, values) + ")";
+        }
+        if (predicate is StringPredicate text)
+        {
+            var pattern = provider.Dialect.EscapeLikePattern(text.Value);
+            if (text.Method != nameof(string.StartsWith)) pattern = "%" + pattern;
+            if (text.Method != nameof(string.EndsWith)) pattern += "%";
+            var name = provider.GenerateParameterName(values.Count);
+            values.Add(pattern);
+            return "(" + provider.QuoteColumnNameIfRequired(text.Property.Column) + " LIKE " + name + " ESCAPE '~')";
         }
         var comparison = (ComparisonPredicate)predicate;
         var column = provider.QuoteColumnNameIfRequired(comparison.Property.Column);

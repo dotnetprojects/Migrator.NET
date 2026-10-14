@@ -174,7 +174,7 @@ public class DtoSelectTests
         var database = Substitute.For<ITransformationProvider>();
         Expression<Func<ScreenDto, bool>> predicate = kind switch
         {
-            "method" => x => x.Definition.StartsWith("O"),
+            "method" => x => x.Definition.ToLower() == "o",
             "column-column" => x => x.Id == x.Optional,
             "arithmetic" => x => x.Id + 1 == 2,
             "unmapped" => x => x.Display == "1",
@@ -246,11 +246,17 @@ public class DtoSelectBindingTests
 {
     public class Row { public int Id { get; set; } public bool Active { get; set; } }
 
-    [TestCase("oracle", ":p0", "p0", "p1", 1)]
-    [TestCase("hana", "?", "p0", "p1", true)]
-    [TestCase("informix", "?", "@p0", "@p1", true)]
+    [TestCase("oracle", ":p0", "p0", "p1", 1, "select")]
+    [TestCase("hana", "?", "p0", "p1", true, "select")]
+    [TestCase("informix", "?", "@p0", "@p1", true, "select")]
+    [TestCase("oracle", ":p0", "p0", "p1", 1, "update")]
+    [TestCase("hana", "?", "p0", "p1", true, "update")]
+    [TestCase("informix", "?", "@p0", "@p1", true, "update")]
+    [TestCase("oracle", ":p0", "p0", "p1", 1, "delete")]
+    [TestCase("hana", "?", "p0", "p1", true, "delete")]
+    [TestCase("informix", "?", "@p0", "@p1", true, "delete")]
     public void PreservesProviderParameterNamesConversionsAndOccurrenceOrder(string kind, string placeholder,
-        string firstName, string secondName, object boolean)
+        string firstName, string secondName, object boolean, string operation)
     {
         var connection = Substitute.For<IDbConnection>();
         connection.State.Returns(ConnectionState.Open);
@@ -269,7 +275,9 @@ public class DtoSelectBindingTests
             "hana" => new HanaTransformationProvider(new HanaDialect(), connection, null, null),
             _ => new InformixTransformationProvider(new InformixDialect(), connection, null, null)
         };
-        provider.Select<Row>("Rows", x => x.Id > 5 && x.Active);
+        if (operation == "update") provider.Update<Row>("Rows", x => new Row { Id = 5 }, x => x.Active);
+        else if (operation == "delete") provider.Delete<Row>("Rows", x => x.Id > 5 && x.Active);
+        else provider.Select<Row>("Rows", x => x.Id > 5 && x.Active);
         Assert.Multiple(() =>
         {
             Assert.That(command.CommandText, Does.Contain(placeholder));
@@ -278,7 +286,7 @@ public class DtoSelectBindingTests
             Assert.That(holder.Parameters[0].Value, Is.EqualTo(5));
             Assert.That(holder.Parameters[1].ParameterName, Is.EqualTo(secondName));
             Assert.That(holder.Parameters[1].Value, Is.EqualTo(boolean));
-            Assert.That(reader.IsClosed, Is.True);
+            if (operation == "select") Assert.That(reader.IsClosed, Is.True);
         });
         command.Received().Dispose();
     }

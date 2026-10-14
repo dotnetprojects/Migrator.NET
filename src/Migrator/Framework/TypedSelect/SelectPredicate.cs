@@ -7,6 +7,7 @@ namespace DotNetProjects.Migrator.Framework.TypedSelect;
 internal abstract record SelectPredicate;
 internal sealed record ComparisonPredicate(MappedProperty Property, ExpressionType Operator, object Value) : SelectPredicate;
 internal sealed record LogicalPredicate(ExpressionType Operator, SelectPredicate Left, SelectPredicate Right = null) : SelectPredicate;
+internal sealed record StringPredicate(MappedProperty Property, string Method, string Value) : SelectPredicate;
 
 internal sealed class PredicateTranslator(DtoMapping mapping, ParameterExpression parameter)
 {
@@ -16,6 +17,15 @@ internal sealed class PredicateTranslator(DtoMapping mapping, ParameterExpressio
             return new LogicalPredicate(logical.NodeType, Translate(logical.Left), Translate(logical.Right));
         if (expression is UnaryExpression { NodeType: ExpressionType.Not } not)
             return new LogicalPredicate(ExpressionType.Not, Translate(not.Operand));
+        if (expression is MethodCallExpression call && call.Method.DeclaringType == typeof(string) &&
+            call.Method.Name is nameof(string.Contains) or nameof(string.StartsWith) or nameof(string.EndsWith) &&
+            call.Arguments.Count == 1 && call.Method.GetParameters()[0].ParameterType == typeof(string) &&
+            TryProperty(call.Object, out var textProperty))
+        {
+            var text = (string)ReadValue(call.Arguments[0]);
+            ArgumentNullException.ThrowIfNull(text);
+            return new StringPredicate(textProperty, call.Method.Name, text);
+        }
         if (expression is BinaryExpression comparison && IsComparison(comparison.NodeType))
         {
             if (TryProperty(comparison.Left, out var property))
@@ -69,7 +79,7 @@ internal sealed class PredicateTranslator(DtoMapping mapping, ParameterExpressio
             source == typeof(int) && target == typeof(long) || source == typeof(uint) && (target == typeof(long) || target == typeof(ulong));
     }
 
-    private static object ReadValue(Expression expression)
+    internal static object ReadValue(Expression expression)
     {
         if (expression is ConstantExpression constant) return constant.Value;
         if (expression is MemberExpression { Member: FieldInfo field } member)

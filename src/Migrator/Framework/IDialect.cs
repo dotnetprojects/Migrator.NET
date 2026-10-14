@@ -4,6 +4,9 @@ namespace DotNetProjects.Migrator.Framework;
 
 public interface IDialect
 {
+    /// <summary>Escape literal text for a LIKE pattern using '~' as the SQL ESCAPE character.</summary>
+    string EscapeLikePattern(string value) => SqlLikePattern.Escape(value);
+
     string QuoteIdentifier(string name);
     string GetCollationSql(string name);
     string GetCollationSql(Collation collation);

@@ -56,6 +56,13 @@ public class DtoSelectIntegrationTests(string database, ProviderTypes providerTy
             var injection = "'; DROP TABLE " + table + "; --";
             Assert.That(Provider.Select<Row>(table, x => x.Payload == injection), Is.Empty);
             Assert.That(Provider.Select<Row>(table).Count, Is.EqualTo(3));
+            var literal = "literal%_~[b]\\tail";
+            Assert.That(Provider.Update<Row>(table, x => new Row { Payload = literal, Optional = null }, x => x.Id == 3), Is.EqualTo(1));
+            Assert.That(Provider.Select<Row>(table, x => x.Payload.Contains("%_~[b]\\")).Single().Id, Is.EqualTo(3));
+            Assert.That(Provider.Select<Row>(table, x => x.Payload.StartsWith("literal%_")).Single().Id, Is.EqualTo(3));
+            Assert.That(Provider.Select<Row>(table, x => x.Payload.EndsWith("[b]\\tail")).Single().Id, Is.EqualTo(3));
+            Assert.That(Provider.Delete<Row>(table, x => x.Payload.Contains("%_~") && x.Id == 3), Is.EqualTo(1));
+            Assert.That(Provider.Select<Row>(table).Count, Is.EqualTo(2));
         }
         finally { Provider.RemoveTable(table); }
     }

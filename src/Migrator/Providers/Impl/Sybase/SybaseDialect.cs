@@ -5,6 +5,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.Sybase;
 
 public class SybaseDialect : Dialect
 {
+    public override string EscapeLikePattern(string value) => base.EscapeLikePattern(value).Replace("[", "~[");
+
     // This flag controls MySQL-style inline INDEX syntax, not CREATE INDEX support.
     public override bool SupportsIndex => false;
 
