@@ -32,7 +32,9 @@ internal sealed class DtoMapping
 
     internal static DtoMapping For(Type type) => Cache.GetOrAdd(type, t => new DtoMapping(t));
 
-    internal MappedProperty Find(PropertyInfo property) => Properties.FirstOrDefault(p => p.Property == property)
+    // Expressions refer to the declaring type; GetProperties reflects inherited members through the DTO type.
+    internal MappedProperty Find(PropertyInfo property) => Properties.FirstOrDefault(p =>
+        p.Property.DeclaringType == property.DeclaringType && p.Property.Name == property.Name)
         ?? throw new NotSupportedException($"Property '{property.Name}' is not a mapped writable DTO property.");
 
     internal static Type ScalarType(Type type) => Nullable.GetUnderlyingType(type) ?? type;
