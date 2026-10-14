@@ -53,8 +53,18 @@ public class DtoSelectIntegrationTests(string database, ProviderTypes providerTy
             Assert.That(rows.Single(x => x.Id == 1).Payload, Is.EqualTo("O'Brien"));
             Assert.That(rows.Single(x => x.Id == 1).Optional, Is.Null);
             Assert.That(rows.Single(x => x.Id == 3).Optional, Is.EqualTo(9));
+            var queried = Provider.Query<Row>($"SELECT {Sql.Col("id")}, {Sql.Col("active")}, {Sql.Col("payload")}, {Sql.Col("optional")}, {Sql.Col("status")} FROM {Sql.Table(table)} WHERE {Sql.Col("active")} = {true}");
+            Assert.That(queried.Select(x => x.Id), Is.EquivalentTo(new[] { 1, 3 }));
+            var tuples = Provider.Query($"SELECT {"id":column}, {"payload":column} FROM {table:table} WHERE {"id":column} = {1}",
+                r => (Id: Convert.ToInt32(r.GetValue(0)), Text: r.GetString(1)));
+            Assert.That(tuples.Single(), Is.EqualTo((1, "O'Brien")));
+            var repeated = System.Runtime.CompilerServices.FormattableStringFactory.Create("SELECT " + Provider.QuoteColumnNameIfRequired("id") +
+                " FROM " + Provider.QuoteTableNameIfRequired(table) + " WHERE " + Provider.QuoteColumnNameIfRequired("id") + " = {0} OR " +
+                Provider.QuoteColumnNameIfRequired("id") + " = {0}", 1);
+            Assert.That(Provider.Query(repeated, r => Convert.ToInt32(r.GetValue(0))).Single(), Is.EqualTo(1));
             var injection = "'; DROP TABLE " + table + "; --";
             Assert.That(Provider.Select<Row>(table, x => x.Payload == injection), Is.Empty);
+            Assert.That(Provider.Query<Row>($"SELECT * FROM {Sql.Table(table)} WHERE {Sql.Col("payload")} = {injection}"), Is.Empty);
             Assert.That(Provider.Select<Row>(table).Count, Is.EqualTo(3));
             var literal = "literal%_~[b]\\tail";
             Assert.That(Provider.Update<Row>(table, x => new Row { Payload = literal, Optional = null }, x => x.Id == 3), Is.EqualTo(1));

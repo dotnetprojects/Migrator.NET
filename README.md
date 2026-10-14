@@ -331,6 +331,9 @@ Predicates also support literal string `Contains`, `StartsWith` and `EndsWith`.
 Typed `Update<T>(table, changes, predicate)` updates only properties assigned in
 a DTO initializer; `Delete<T>(table, predicate)` removes matching rows. Both
 require predicates, retain the migration transaction and return affected counts.
+For explicit SQL, use `Query<T>(FormattableString)` with `Sql.Col`/`Sql.Table`
+identifier wrappers or `:column`/`:table` formats and automatically parameterized
+values. A mapper overload supports tuples. See [interpolated queries](docs/interpolated-queries.md).
 
 Supported rebuilds retain mapped data, named/composite keys, declared column collations, supported indexes and triggers, and the AUTOINCREMENT high-water mark. Generated columns, `STRICT`, `WITHOUT ROWID` and indexes with explicit collations are rejected for reconstruction; hidden rowid values are not preserved. Foreign keys retain separate update/delete actions; unsupported `MATCH FULL`/`PARTIAL` requests fail explicitly. See the [SQLite preservation matrix](docs/migration-framework-comparison.md#what-survives-reconstructionand-what-is-not-guaranteed).
 
