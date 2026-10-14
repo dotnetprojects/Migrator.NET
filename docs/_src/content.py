@@ -210,6 +210,9 @@ public class ReadScreens : Migration
         var minimumId = 10;
         var screens = Database.Select<ScreenDto>(
             "Common_Screens", x => !x.Archive && x.Id > minimumId);
+        var filter = Filter<ScreenDto>.Equal(x => x.Archive, false)
+            .And(Filter<ScreenDto>.GreaterThan(x => x.Id, minimumId));
+        var filteredScreens = Database.Select("Common_Screens", filter);
     }
     public override void Down() { }
 }
@@ -227,6 +230,9 @@ public class ReadScreens : FluentMigration
         var minimumId = 10;
         var screens = Context.Select<ScreenDto>(
             "Common_Screens", x => !x.Archive && x.Id > minimumId);
+        var filter = Filter<ScreenDto>.Equal(x => x.Archive, false)
+            .And(Filter<ScreenDto>.GreaterThan(x => x.Id, minimumId));
+        var filteredScreens = Context.Select("Common_Screens", filter);
     }
     public override void BuildDown(MigrationBuilder migration) { }
 }

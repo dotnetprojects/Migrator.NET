@@ -53,6 +53,10 @@ public class DtoSelectIntegrationTests(string database, ProviderTypes providerTy
             Assert.That(rows.Single(x => x.Id == 1).Payload, Is.EqualTo("O'Brien"));
             Assert.That(rows.Single(x => x.Id == 1).Optional, Is.Null);
             Assert.That(rows.Single(x => x.Id == 3).Optional, Is.EqualTo(9));
+            var filter = Filter<Row>.Equal(x => x.Active, true).And(Filter<Row>.Equal(x => x.State, state))
+                .And(Filter<Row>.GreaterThan(x => x.Id, minimum).Or(Filter<Row>.IsNull(x => x.Optional)));
+            Assert.That(Provider.Select(table, filter).Select(x => x.Id), Is.EquivalentTo(rows.Select(x => x.Id)));
+            Assert.That(Provider.Select(table, Filter<Row>.Equal(x => x.Active, true).Not()).Single().Id, Is.EqualTo(2));
             var injection = "'; DROP TABLE " + table + "; --";
             Assert.That(Provider.Select<Row>(table, x => x.Payload == injection), Is.Empty);
             Assert.That(Provider.Select<Row>(table).Count, Is.EqualTo(3));

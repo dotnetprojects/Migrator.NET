@@ -25,6 +25,9 @@
         <span class="syntax-keyword">var</span> minimumId = <span class="syntax-number">10</span>;
         <span class="syntax-keyword">var</span> screens = Database.Select&lt;ScreenDto&gt;(
             <span class="syntax-string">&quot;Common_Screens&quot;</span>, x =&gt; !x.Archive &amp;&amp; x.Id &gt; minimumId);
+        <span class="syntax-keyword">var</span> filter = Filter&lt;ScreenDto&gt;.Equal(x =&gt; x.Archive, <span class="syntax-keyword">false</span>)
+            .And(Filter&lt;ScreenDto&gt;.GreaterThan(x =&gt; x.Id, minimumId));
+        <span class="syntax-keyword">var</span> filteredScreens = Database.Select(<span class="syntax-string">&quot;Common_Screens&quot;</span>, filter);
     }
     <span class="syntax-keyword">public</span> <span class="syntax-keyword">override</span> <span class="syntax-keyword">void</span> Down() { }
 }</code></pre></section><section class="code-panel" id="data-0-1-example-12-fluent" data-code-style="fluent">
@@ -48,6 +51,9 @@
         <span class="syntax-keyword">var</span> minimumId = <span class="syntax-number">10</span>;
         <span class="syntax-keyword">var</span> screens = Context.Select&lt;ScreenDto&gt;(
             <span class="syntax-string">&quot;Common_Screens&quot;</span>, x =&gt; !x.Archive &amp;&amp; x.Id &gt; minimumId);
+        <span class="syntax-keyword">var</span> filter = Filter&lt;ScreenDto&gt;.Equal(x =&gt; x.Archive, <span class="syntax-keyword">false</span>)
+            .And(Filter&lt;ScreenDto&gt;.GreaterThan(x =&gt; x.Id, minimumId));
+        <span class="syntax-keyword">var</span> filteredScreens = Context.Select(<span class="syntax-string">&quot;Common_Screens&quot;</span>, filter);
     }
     <span class="syntax-keyword">public</span> <span class="syntax-keyword">override</span> <span class="syntax-keyword">void</span> BuildDown(MigrationBuilder migration) { }
 }</code></pre></section><p class="code-caption">Choose one authoring style</p></div></section><section id="insert-rows"><h2>Insert rows</h2><p>Column and value arrays must have the same length. The provider binds values using its driver-specific parameter mappings. For multiple rows issue multiple Insert.IntoTable(...).Row(...) expressions. Each Row completes one insert; its returned builder offers only IfNotExists, so a second Row cannot silently replace the first. Insert, update and delete each expose only their supported steps.</p><div class="code-example" data-example="example-13"><div class="code-toolbar"><span>Insert a user</span><div class="code-tabs" aria-label="Code style" hidden><button type="button" id="data-1-1-example-13-classic-tab" data-style="classic" aria-controls="data-1-1-example-13-classic">Classic</button><button type="button" id="data-1-1-example-13-fluent-tab" data-style="fluent" aria-controls="data-1-1-example-13-fluent">Fluent</button></div></div><section class="code-panel" id="data-1-1-example-13-classic" data-code-style="classic">

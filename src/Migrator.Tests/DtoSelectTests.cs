@@ -235,11 +235,14 @@ public class DtoSelectBindingTests
 {
     public class Row { public int Id { get; set; } public bool Active { get; set; } }
 
-    [TestCase("oracle", ":p0", "p0", "p1", 1)]
-    [TestCase("hana", "?", "p0", "p1", true)]
-    [TestCase("informix", "?", "@p0", "@p1", true)]
+    [TestCase("oracle", ":p0", "p0", "p1", 1, false)]
+    [TestCase("hana", "?", "p0", "p1", true, false)]
+    [TestCase("informix", "?", "@p0", "@p1", true, false)]
+    [TestCase("oracle", ":p0", "p0", "p1", 1, true)]
+    [TestCase("hana", "?", "p0", "p1", true, true)]
+    [TestCase("informix", "?", "@p0", "@p1", true, true)]
     public void PreservesProviderParameterNamesConversionsAndOccurrenceOrder(string kind, string placeholder,
-        string firstName, string secondName, object boolean)
+        string firstName, string secondName, object boolean, bool useFilter)
     {
         var connection = Substitute.For<IDbConnection>();
         connection.State.Returns(ConnectionState.Open);
@@ -258,7 +261,10 @@ public class DtoSelectBindingTests
             "hana" => new HanaTransformationProvider(new HanaDialect(), connection, null, null),
             _ => new InformixTransformationProvider(new InformixDialect(), connection, null, null)
         };
-        provider.Select<Row>("Rows", x => x.Id > 5 && x.Active);
+        if (useFilter)
+            provider.Select("Rows", Filter<Row>.GreaterThan(x => x.Id, 5).And(Filter<Row>.Equal(x => x.Active, true)));
+        else
+            provider.Select<Row>("Rows", x => x.Id > 5 && x.Active);
         Assert.Multiple(() =>
         {
             Assert.That(command.CommandText, Does.Contain(placeholder));

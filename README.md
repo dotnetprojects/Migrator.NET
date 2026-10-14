@@ -327,6 +327,8 @@ x => !x.Archive && x.Id > minimumId)`. This returns a materialized list, quotes
 identifiers, parameterizes values and uses the active migration transaction.
 See [DTO queries](docs/dto-queries.md) for column mapping, supported predicates
 and SQL null semantics.
+Alternatively, pass an immutable typed filter such as
+`Filter<ScreenDto>.Equal(x => x.Archive, false).And(Filter<ScreenDto>.GreaterThan(x => x.Id, minimumId))`.
 
 Supported rebuilds retain mapped data, named/composite keys, declared column collations, supported indexes and triggers, and the AUTOINCREMENT high-water mark. Generated columns, `STRICT`, `WITHOUT ROWID` and indexes with explicit collations are rejected for reconstruction; hidden rowid values are not preserved. Foreign keys retain separate update/delete actions; unsupported `MATCH FULL`/`PARTIAL` requests fail explicitly. See the [SQLite preservation matrix](docs/migration-framework-comparison.md#what-survives-reconstructionand-what-is-not-guaranteed).
 

@@ -8,6 +8,15 @@ namespace DotNetProjects.Migrator.Framework;
 /// <summary>Materialized, single-table DTO queries for migrations.</summary>
 public static class DtoSelectExtensions
 {
+    /// <summary>Select DTOs using an explicit typed filter. The filter is required; use Select&lt;T&gt;(table) to read all rows.</summary>
+    public static IReadOnlyList<T> Select<T>(this ITransformationProvider provider, string table,
+        Filter<T> filter) where T : class, new()
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(filter);
+        return SelectQuery.Execute<T>(provider, table, DtoMapping.For(typeof(T)), filter.Predicate);
+    }
+
     /// <summary>
     /// Select public writable DTO properties by column name. Supports comparisons, boolean operators,
     /// null checks and captured scalar fields; unsupported expressions throw before execution.

@@ -71,3 +71,47 @@ unspecified; sorting after materialization is explicit client-side work.
 
 In a `FluentMigration`, call `Context.Select<T>` for immediate reads. Reads during
 `BuildUp` cannot see schema operations merely queued in that same builder.
+
+## Explicit typed filters
+
+Use `Filter<T>` when you prefer explicit operations to predicate translation:
+
+```csharp
+var filter = Filter<ScreenDto>.Equal(x => x.Archive, false)
+    .And(Filter<ScreenDto>.GreaterThan(x => x.Id, minimumId));
+
+var screens = Database.Select("Common_Screens", filter);
+// Explicit generic syntax is also supported:
+var sameScreens = Database.Select<ScreenDto>("Common_Screens", filter);
+```
+
+The builder supports `Equal`, `NotEqual`, `LessThan`, `LessThanOrEqual`,
+`GreaterThan`, `GreaterThanOrEqual`, `IsNull` and `IsNotNull`. Combine filters using
+`And`, `Or` and `Not()`; each returns a new immutable filter, preserving grouping.
+Reusing a filter does not reuse commands or parameter collections. Values are
+captured when the filter is built, so later changes to local variables do not
+change it.
+
+Selectors must name a direct mapped property in its declared type. The generic
+`TValue` connects selector and comparison value types; widened/boxed selectors,
+casts, calculations, method calls and nested properties are rejected. Ordering
+has the same type restrictions as the lambda API. `IsNull` and `IsNotNull` require
+a nullable value or reference property; equality with a null reference/nullable
+value also renders a SQL null check.
+
+```csharp
+public sealed class OptionalDto
+{
+    public int? Optional { get; set; }
+}
+
+// Include NULL rows explicitly when comparing against a non-null value:
+var optionalFilter = Filter<OptionalDto>.IsNull(x => x.Optional)
+    .Or(Filter<OptionalDto>.NotEqual(x => x.Optional, 7));
+```
+
+Both APIs share the DTO mapping, quoting, native parameter binding, SQL null
+semantics, transaction and resource-lifetime behavior described above. A null
+filter throws instead of selecting all rows; omit the predicate/filter argument
+to select all rows. For explicit null arguments, use `predicate: null` to select
+the lambda overload or `filter: null` to select the filter overload.
