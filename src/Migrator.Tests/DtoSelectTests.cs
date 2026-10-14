@@ -133,6 +133,17 @@ public class DtoSelectTests
 
     public class QuotedDto { [DtoColumn("select")] public int Id { get; set; } }
 
+    public class BaseDto { public int Id { get; set; } }
+    public class DerivedDto : BaseDto { public string GenericDefinition { get; set; } }
+
+    [Test]
+    public void MapsAndFiltersInheritedDtoProperties()
+    {
+        var row = provider.Select<DerivedDto>("Common_Screens", x => x.Id == 1).Single();
+        Assert.That(row.Id, Is.EqualTo(1));
+        Assert.That(row.GenericDefinition, Is.EqualTo("O'Brien"));
+    }
+
     [Test]
     public void QuotesTableAndMappedColumnIdentifiers()
     {
