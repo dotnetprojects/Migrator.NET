@@ -190,8 +190,7 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         if (database == "Informix")
         {
             // CREATE DATABASE implicitly selects it; release that attachment for teardown.
-            admin.Close();
-            admin.Open();
+            ExecuteAdmin("CLOSE DATABASE");
         }
         if (database == "Sybase")
         {
@@ -233,6 +232,13 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
     {
         try
         {
+            if (database == "Informix" && provider != null)
+            {
+                provider.Rollback();
+                // Explicitly release the database before disposing the native
+                // client connection; retained statement handles can delay detach.
+                provider.ExecuteNonQuery("CLOSE DATABASE");
+            }
             // Db2 DROP SCHEMA RESTRICT requires its objects to be removed first.
             if (database == "Db2" && provider != null)
             {

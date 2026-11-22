@@ -11,6 +11,7 @@ public class InformixDialect : Dialect
 
     public InformixDialect()
     {
+        AddReservedWords("SELECT", "FROM", "WHERE", "TABLE", "ORDER", "GROUP", "SEQUENCE");
         RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
         RegisterColumnType(DbType.AnsiString, "VARCHAR(255)");
         RegisterColumnType(DbType.StringFixedLength, "CHAR(255)");
