@@ -42,4 +42,11 @@ public class SybaseDatabaseSetupTests
         Assert.Throws<DatabaseError>(() => LiveDatabaseTests.CreateSybaseDatabase(() => { calls++; throw new DatabaseError(message); }, _ => Assert.Fail("Must not delay")));
         Assert.That(calls, Is.EqualTo(1));
     }
+    [Test]
+    public void UnrelatedExceptionWithSimilarTextIsNotRetried()
+    {
+        var error = new InvalidOperationException("MODEL database in use");
+        Assert.That(Assert.Throws<InvalidOperationException>(() => LiveDatabaseTests.CreateSybaseDatabase(() => throw error,
+            _ => Assert.Fail("Must not delay"))), Is.SameAs(error));
+    }
 }
