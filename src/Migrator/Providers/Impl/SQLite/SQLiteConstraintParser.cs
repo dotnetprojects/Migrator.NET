@@ -43,6 +43,30 @@ internal static class SQLiteConstraintParser
 
     internal static bool HasKeyword(string sql, string keyword) => Tokenize(sql).Any(t => t.Is(keyword));
 
+    private static (List<Token> Tokens, int Name, int NameLast, int Target, int TargetLast) TriggerParts(string sql)
+    {
+        var tokens = Tokenize(sql);
+        int name = tokens.FindIndex(t => t.Is("TRIGGER")) + 1;
+        if (name == 0 || name >= tokens.Count) throw new MigrationException("Missing SQLite trigger name.");
+        if (tokens[name].Is("IF")) name += 3;
+        int nameLast = name + 1 < tokens.Count && tokens[name + 1].Is(".") ? name + 2 : name;
+        int target = tokens.FindIndex(nameLast + 1, t => t.Is("ON")) + 1;
+        if (target == 0 || target >= tokens.Count) throw new MigrationException("Missing SQLite trigger target.");
+        int targetLast = target + 1 < tokens.Count && tokens[target + 1].Is(".") ? target + 2 : target;
+        return (tokens, name, nameLast, target, targetLast);
+    }
+    internal static string TriggerTarget(string sql)
+    {
+        var p = TriggerParts(sql);
+        return sql[p.Tokens[p.Target].Start..p.Tokens[p.TargetLast].End];
+    }
+    internal static string QualifyTrigger(string sql, IDialect dialect, string schema, string target)
+    {
+        var p = TriggerParts(sql);
+        return sql[..p.Tokens[p.Name].Start] + dialect.QuoteIdentifier(schema) + "." + dialect.QuoteIdentifier(p.Tokens[p.NameLast].Text)
+            + sql[p.Tokens[p.NameLast].End..p.Tokens[p.Target].Start] + target + sql[p.Tokens[p.TargetLast].End..];
+    }
+
     internal static bool HasUnsupportedRebuildFeatures(string sql)
     {
         var tokens = Tokenize(sql);
@@ -216,10 +240,10 @@ internal static class SQLiteConstraintParser
                 if (!closed) throw new MigrationException("Unterminated quoted SQL token.");
                 result.Add(new Token(text.ToString(), start, i, true));
             }
-            else if (sql[i] is '(' or ')' or ',' or '.') { result.Add(new Token(sql[i++].ToString(), start, i)); }
+            else if (sql[i] is '(' or ')' or ',' or '.' or ';') { result.Add(new Token(sql[i++].ToString(), start, i)); }
             else
             {
-                while (i < sql.Length && !char.IsWhiteSpace(sql[i]) && sql[i] is not ('(' or ')' or ',' or '.' or '\'' or '"' or '`' or '[') &&
+                while (i < sql.Length && !char.IsWhiteSpace(sql[i]) && sql[i] is not ('(' or ')' or ',' or '.' or ';' or '\'' or '"' or '`' or '[') &&
                     !(i + 1 < sql.Length && ((sql[i] == '/' && sql[i + 1] == '*') || (sql[i] == '-' && sql[i + 1] == '-')))) i++;
                 result.Add(new Token(sql[start..i], start, i));
             }

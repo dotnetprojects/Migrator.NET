@@ -228,3 +228,45 @@ Ingres window numbering fail explicitly; use native SQL or materialized values.
 Modern window-capable engine versions are required (SQLite 3.25+, MySQL 8+,
 Firebird 3+, PostgreSQL 8.4+). Ordered results do not promise physical insert
 order. This API inserts projections; general query-based UPDATE is not included.
+
+## SQLite rebuild dependencies
+
+Table rebuilds temporarily enable legacy_alter_table while the original table
+is absent, then restore its prior value. Foreign-key enforcement is restored
+when the provider owns the transaction. The runner must disable foreign keys
+before starting a rebuild transaction, as before. A savepoint protects callers
+already inside a transaction from a failed copy or dependency validation.
+
+Views and external triggers keep their definitions while the replacement table
+is copied and renamed. Dependent views (including temporary views) are prepared
+again before completing the rebuild. Own triggers, indexes, keys, defaults,
+binary data and identity high-water values retain the existing preservation
+rules. Rebuilds that remove or rename schema used by dependent objects fail
+explicitly; use SQLite native rename/drop or author the dependent changes.
+TEMP triggers attached to the rebuilt table are captured and recreated in the
+temporary catalog with their original qualified target. Qualify TEMP trigger
+targets when same-named tables exist in multiple attached databases; otherwise
+the rebuild fails before DDL rather than guessing the binding.
+Views across the connection's databases that prepare successfully before a
+rebuild must still prepare afterward. This includes indirect dependencies and
+quoted relation names; pre-existing invalid views do not block unrelated DDL.
+Trigger programs that prepared before reconstruction must still prepare afterward.
+INSERT, UPDATE (including watched columns and rowid aliases), and DELETE programs
+are compiled with EXPLAIN; validation never executes their DML or trigger bodies.
+This includes external triggers that depend on the rebuilt table through views.
+Pre-existing invalid programs are left untouched, and unrelated literal table
+names in trigger bodies do not block reconstruction.
+Before and after schema-changing rebuilds, dependent views and trigger programs
+also prepare with double-quoted string fallback disabled, so a removed quoted
+column cannot silently become a string constant. SQLite's compiled b-tree
+bindings identify dependencies, including attached databases, covering indexes
+and indirect views. Unrelated legacy views keep their existing string behavior.
+Use single quotes for string literals in dependent views and triggers before
+such rebuilds. The original DQS_DML connection setting is restored on success
+and failure. Microsoft.Data.Sqlite and System.Data.SQLite expose the required
+configuration; other drivers must already have DQS_DML disabled.
+
+SQLite guard and audit exports validate UPDATE OF names against queued table
+definitions or the preview's existing-table metadata callback. Missing table
+metadata, schema invalidated by raw SQL, and unverified implicit rowid aliases
+on existing tables fail explicitly instead of emitting an unchecked trigger.
