@@ -10,7 +10,7 @@
               <h2 id="compare-title">Choose by how you work.</h2>
             </div>
             <p>
-              Feature comparison · Reviewed 23 September 2026<br /><a
+              Workflows reviewed 23 September 2026<br />Schema features reviewed 22 November 2026<br /><a
                 href="#sources"
                 >Read the sources and qualifications ↓</a
               >
@@ -50,14 +50,14 @@
           >
             <table>
               <caption>
-                Built-in capabilities and documented workflows. “Custom” means
-                application code or configuration is needed.
+                Built-in capabilities and documented workflows. ✓ means dedicated API support;
+                ✗ means raw SQL or custom code is required. Provider limits apply to every framework.
               </caption>
               <thead>
                 <tr>
                   <th scope="col">Capability</th>
                   <th scope="col" class="ours">
-                    Migrator.NET <span>DotNetProjects fork</span
+                    Migrator.NET <span>Classic + Fluent APIs</span
                     ><a href="#source-migrator">Source [1]</a>
                   </th>
                   <th scope="col">
@@ -77,7 +77,7 @@
               <tbody>
                 <tr>
                   <th scope="row">Authoring style</th>
-                  <td class="ours">Imperative C# + structured fluent API</td>
+                  <td class="ours">Classic provider API + Fluent migration builder</td>
                   <td>Handwritten C#<br />Fluent DSL</td>
                   <td>C# generated from model changes; editable</td>
                   <td>SQL scripts; C# scripts also supported</td>
@@ -103,11 +103,11 @@
                 </tr>
                 <tr>
                   <th scope="row">Raw SQL</th>
-                  <td class="ours"><code>ExecuteNonQuery</code> / fluent <code>Execute.Sql</code> / scripts</td>
-                  <td><code>Execute.Sql</code> / scripts</td>
-                  <td><code>migrationBuilder.Sql</code></td>
-                  <td>Primary workflow</td>
-                  <td>Primary workflow</td>
+                  <td class="ours">✓ <code>ExecuteNonQuery</code> / fluent <code>Execute.Sql</code> / scripts</td>
+                  <td>✓ <code>Execute.Sql</code> / scripts</td>
+                  <td>✓ <code>migrationBuilder.Sql</code></td>
+                  <td>✓ Primary workflow</td>
+                  <td>✓ Primary workflow</td>
                 </tr>
                 <tr>
                   <th scope="row">Downgrade an applied version</th>
@@ -169,11 +169,11 @@
                 </tr>
                 <tr>
                   <th scope="row">Automatic SQLite reconstruction</th>
-                  <td class="ours">Live-schema rebuilds; no ORM model</td>
-                  <td>Manual for general column and foreign-key alterations</td>
-                  <td>Rebuilds for model-represented artifacts</td>
-                  <td>Author scripts</td>
-                  <td>Author scripts</td>
+                  <td class="ours">✓ Live-schema rebuilds; no ORM model</td>
+                  <td>✗ Manual for general column and foreign-key alterations</td>
+                  <td>✓ Rebuilds for model-represented artifacts</td>
+                  <td>✗ Author scripts</td>
+                  <td>✗ Author scripts</td>
                 </tr>
                 <tr>
                   <th scope="row">Planning and SQL preview</th>
@@ -191,9 +191,11 @@
                   <td>Host/provider concern</td>
                   <td>Cluster setting; provider-dependent</td>
                 </tr>
+                {{advanced_features}}
               </tbody>
             </table>
           </div>
+          {{feature_notes}}
           <div class="comparison-notes">
             <p>
               <strong>Rollback has two meanings.</strong> Reversing an already
@@ -244,7 +246,7 @@
               Our column is based on the current repository source, which
               targets <code>net9.0</code>. Other columns summarize official
               documentation reviewed on 22 September 2026, with SQLite comparisons rechecked on 23 September, rather than claiming
-              parity across every released package. Check your chosen release,
+              parity across every released package. The schema-operation rows have a separate source review dated 22 November 2026, linked immediately below the table. Check your chosen release,
               provider and database version. Suitability notes are our
               interpretation of these documented capabilities.
             </p>

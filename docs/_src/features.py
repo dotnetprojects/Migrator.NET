@@ -1,64 +1,60 @@
-"""Homepage operation matrices. Checkmarks describe APIs, not universal engine guarantees."""
+"""Framework-level capabilities, independent of individual database coverage."""
 from html import escape
 
-PROVIDERS = ["SQLite", "PostgreSQL", "SQL Server", "MySQL", "MariaDB", "Oracle", "Db2", "Firebird", "Informix", "Sybase ASE", "SAP HANA", "Ingres"]
-LABELS = {
-    "yes": ("✓", "Built-in API"),
-    "limited": ("△", "Provider or version limits"),
-    "sql": ("SQL", "Author native SQL; no portable API"),
-    "no": ("—", "Not implemented by this API"),
-}
+FRAMEWORKS = ["Migrator.NET", "FluentMigrator", "EF Core", "DbUp", "Evolve"]
 
-def cells(default="yes", **overrides):
-    return [overrides.get(p, default) for p in PROVIDERS]
-
-DATABASE_ROWS = [
-    ("Create / drop tables", cells(Ingres="limited"), "Named fields, keys and explicit engine limits."),
-    ("Rename tables", cells(Firebird="no", Ingres="limited"), "Firebird 5 table rename is unsupported; this is not a schema-move API."),
-    ("Add / drop / rename columns", cells("limited"), "Native DDL or reconstruction; dependent objects and data types impose limits."),
-    ("Change type, default or nullability", cells("limited"), "Database conversion rules apply. SQLite reconstructs supported definitions."),
-    ("Primary, foreign and unique keys", cells(Ingres="limited"), "Composite keys supported; action/match options follow provider capabilities."),
-    ("Indexes and conditional uniqueness", cells("limited"), "Native filtered indexes or supported emulation; not every filter is portable."),
-    ("Conditional guard triggers", cells(Ingres="no"), "INSERT/UPDATE/DELETE guards; SQL Server/ASE UPDATE needs immutable pairing keys."),
-    ("Audit triggers with JSON snapshots", cells("sql", **{p: "yes" for p in ["SQLite", "PostgreSQL", "SQL Server", "MySQL", "MariaDB", "Oracle", "Db2"]}), "One event per matching row; native JSON/UTC and minimum-version requirements."),
-    ("General triggers / procedures / functions", cells("sql"), "Use explicit native SQL for arbitrary trigger bodies and stored programs."),
-    ("Filtered, aliased views: create / replace / drop", cells(Ingres="limited"), "Inner/left joins, grouped predicates and correlated EXISTS; lifecycle limits apply."),
-    ("Binary byte-length CHECK expressions", cells(Oracle="no", Informix="no", Ingres="no", **{"Sybase ASE": "no"}), "Length counts bytes, including zero bytes; ASE IMAGE and other LOB CHECK restrictions apply."),
-    ("JSON validity / array / object CHECK expressions", cells("no", **{p: "limited" for p in ["SQLite", "PostgreSQL", "SQL Server", "MySQL", "MariaDB", "Oracle"]}), "Strict JSON and shape checks; SQL Server scalar JSON needs 2022+."),
-    ("Projected INSERT … SELECT", cells(Ingres="limited"), "Ordered target mapping, parameters, expressions and binary values stay on the server."),
-    ("Partitioned ROW_NUMBER projections", cells("limited", **{"Sybase ASE": "no", "Ingres": "no"}), "Modern engine versions required; supply deterministic ordering and a unique tie-breaker."),
-    ("SQLite rebuild with views / external triggers", ["yes"] + ["no"] * 11, "SQLite-specific reconstruction; savepoints and connection settings are restored."),
-]
-
+# A dedicated API on applicable providers earns a check. Raw SQL and custom
+# extensions do not count as that feature; SQL execution has its own row.
 FRAMEWORK_ROWS = [
-    ("Create / drop tables", ["✓ API", "✓ Fluent API", "✓ Operations", "SQL", "SQL"]),
-    ("Rename tables / columns", ["△ Provider limits", "✓ Fluent API", "✓ Operations", "SQL", "SQL"]),
-    ("Reusable conditional guard definitions", ["✓ Provider adapters", "SQL / custom", "SQL / custom", "SQL", "SQL"]),
-    ("Transactional JSON audit convenience API", ["△ Seven engines", "SQL / custom", "SQL / custom", "SQL", "SQL"]),
-    ("Filtered view query + lifecycle API", ["✓ SelectQuery", "SQL / custom", "SQL / custom", "SQL", "SQL"]),
-    ("Portable byte-length / JSON CHECK expressions", ["△ Provider adapters", "SQL / custom", "SQL predicate", "SQL", "SQL"]),
-    ("Projected INSERT … SELECT", ["✓ Query expressions", "SQL / custom", "SQL / custom", "SQL", "SQL"]),
-    ("SQLite table reconstruction", ["✓ Live schema", "△ Manual for general alteration", "✓ Model metadata", "SQL", "SQL"]),
-    ("ORM model-based migration scaffolding", ["—", "—", "✓ Built in", "—", "—"]),
+    ("Create / drop tables", [True, True, True, False, False], "Structured table definitions and lifecycle operations."),
+    ("Rename tables / columns", [True, True, True, False, False], "Native DDL or provider emulation; engine restrictions apply to every framework."),
+    ("Change column type, default or nullability", [True, True, True, False, False], "Conversion and preservation rules depend on the provider."),
+    ("Composite primary, foreign and unique keys", [True, True, True, False, False], "Named constraints and multi-column definitions."),
+    ("Filtered indexes / conditional uniqueness", [True, True, True, False, False], "Provider-specific filters and index options are not universal engine capabilities."),
+    ("Conditional guard triggers", [True, False, False, False, False], "A reusable definition rejects writes when its predicate matches."),
+    ("Related-row EXISTS guard rules", [True, False, False, False, False], "Correlate affected rows with related tables without writing a trigger body."),
+    ("Null-safe OLD / NEW change predicates", [True, False, False, False, False], "Compose change rules, including null transitions and negation."),
+    ("Atomic multirow guard enforcement", [True, False, False, False, False], "Reject the whole statement if any affected row violates the guard."),
+    ("Transactional JSON audit triggers", [True, False, False, False, False], "Record keys, operation, UTC time and previous values through a dedicated API."),
+    ("Conditional auditing / selected JSON fields", [True, False, False, False, False], "Filter audit events and declare the fields in each snapshot."),
+    ("General declarative trigger actions", [False, False, False, False, False], "Arbitrary actions such as dependent-row updates require SQL or custom code; dedicated guard and audit APIs are compared above."),
+    ("Structured stored-procedure / function definitions", [False, False, False, False, False], "A dedicated definition API, rather than executing a hand-written SQL body."),
+    ("Filtered view query + lifecycle API", [True, False, False, False, False], "Structured view creation, replacement and removal."),
+    ("View queries with joins / correlated predicates", [True, False, False, False, False], "Inner/left joins, aliases, grouped predicates and correlated EXISTS."),
+    ("Portable binary byte-length CHECK rules", [True, False, False, False, False], "A typed expression translates byte-length semantics for the selected provider."),
+    ("Portable JSON validity / shape CHECK rules", [True, False, False, False, False], "Typed JSON validation and array/object checks on applicable providers."),
+    ("Projected INSERT … SELECT", [True, False, False, False, False], "Explicit target mapping and server-side data movement through a query API."),
+    ("CASE / COALESCE in data projections", [True, False, False, False, False], "Compose defaults and conditional projected values without a SQL string."),
+    ("Partitioned ROW_NUMBER projections", [True, False, False, False, False], "Window numbering inside the migration query API; deterministic ordering is required."),
+    ("Ordered / limited / anti-join data selection", [True, False, False, False, False], "Build ordered seeds and NOT EXISTS selection on the server."),
+    ("SQLite rebuild preservation of views / triggers", [True, False, False, False, False], "Live-schema preservation, dependency validation and savepoint rollback, including external and TEMP objects."),
 ]
+
 
 def render():
-    header = "".join(f'<th scope="col">{escape(p)}</th>' for p in PROVIDERS)
-    rows = []
-    for title, states, note in DATABASE_ROWS:
-        values = "".join(f'<td><span class="feature-status feature-{state}" aria-label="{LABELS[state][1]}">{LABELS[state][0]}</span></td>' for state in states)
-        rows.append(f'<tr><th scope="row">{escape(title)}</th>{values}<td class="feature-note">{escape(note)}</td></tr>')
-    framework_rows = "".join('<tr><th scope="row">' + escape(title) + '</th>' + ''.join('<td>' + escape(value) + '</td>' for value in values) + '</tr>' for title, values in FRAMEWORK_ROWS)
-    return '''<section class="container section feature-section" id="database-features" aria-labelledby="features-title">
-<div class="section-heading"><div><p class="eyebrow">OPERATIONS, DATABASE BY DATABASE</p><h2 id="features-title">Check the features<br><em>your migration needs.</em></h2></div><p>Source capability review: 22 November 2026.<br>Released packages can differ from repository source.</p></div>
-<p>Choose an operation first, then check its database and version requirements. A checkmark means an implemented API with provider rendering. It does not promise that every option, data type or DDL transaction is supported on every version.</p>
-<p class="feature-legend"><strong>✓</strong> Built-in API &nbsp; <strong>△</strong> Provider/version limits &nbsp; <strong>SQL</strong> Author native SQL &nbsp; <strong>—</strong> No implementation / not applicable</p>
-<div class="table-scroll" role="region" aria-label="Database operation support checklist" tabindex="0"><table class="database-feature-table"><caption>DotNetProjects.Migrator source operations. Scroll horizontally to compare all twelve databases.</caption><thead><tr><th scope="col">Operation</th>''' + header + '<th scope="col">Qualifications</th></tr></thead><tbody>' + ''.join(rows) + '''</tbody></table></div>
-<p class="feature-note">SQLite aliases use the same adapter; PostgreSQL and SQL Server legacy selectors still require an engine version that supports the requested feature. Ingres has owner/catalog contracts but no default live CI job. Oracle, MySQL and HANA retain native DDL commit behavior. General stored-program support through SQL is separate from the portable guard/audit APIs.</p>
-<p>See the <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/portable-schema-api.md">portable schema API and exact version limits</a>, <a href="guide/providers.html">provider guide</a>, <a href="guide/sqlite.html">SQLite preservation limits</a> and <a href="#test-results">live CI evidence</a>.</p>
-<h3 id="schema-operation-comparison">The same operations in other frameworks</h3>
-<p>“SQL / custom” means the operation can be implemented using native SQL or an extension; it does not mean that the framework cannot execute it. This compares the core APIs in the linked sources, excluding third-party extensions. Database/provider limitations apply to every column.</p>
-<div class="table-scroll" role="region" aria-label="Schema operation comparison by framework" tabindex="0"><table><caption>Built-in schema abstractions versus native SQL workflows; reviewed 22 November 2026.</caption><thead><tr><th scope="col">Operation</th><th scope="col">Migrator.NET</th><th scope="col">FluentMigrator</th><th scope="col">EF Core</th><th scope="col">DbUp</th><th scope="col">Evolve</th></tr></thead><tbody>''' + framework_rows + '''</tbody></table></div>
-<p class="feature-note">Sources: <a href="https://github.com/dotnetprojects/Migrator.NET/tree/master/src/Migrator/Framework">Migrator APIs</a>; FluentMigrator <a href="https://github.com/fluentmigrator/fluentmigrator/blob/main/src/FluentMigrator.Abstractions/Builders/Create/ICreateExpressionRoot.cs">create</a>, <a href="https://github.com/fluentmigrator/fluentmigrator/blob/main/src/FluentMigrator.Abstractions/Builders/Rename/IRenameExpressionRoot.cs">rename</a> and <a href="https://fluentmigrator.github.io/operations/execute-sql.html">SQL</a>; EF Core <a href="https://learn.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.migrations.migrationbuilder">operations</a> and <a href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing#arbitrary-changes-via-raw-sql">triggers/views through SQL</a>; <a href="https://dbup.readthedocs.io/en/latest/usage/">DbUp execution</a>; <a href="https://evolve-db.netlify.app/concepts/">Evolve SQL migrations</a>. The <a href="#compare">broader workflow comparison</a> is below.</p>
-<details class="feature-ideas"><summary>Possible next additions — not implemented promises</summary><ul><li>☐ General declarative trigger actions and dependent-row updates.</li><li>☐ Projected UPDATE queries with explicit row-pairing guarantees.</li><li>☐ Ingres guard rules and broader live provider qualification.</li><li>☐ Portable stored-procedure/function definitions.</li><li>☐ Migration-content checksums and richer schema-diff tooling.</li></ul><p>These are candidate improvements, not support checkmarks. Native SQL remains available for engine-specific behavior.</p></details>
-</section>'''
+    rows = ['<tr class="feature-group"><th colspan="6" id="schema-operation-comparison">Schema, triggers and data operations</th></tr>']
+    for title, supported, note in FRAMEWORK_ROWS:
+        values = []
+        for index, available in enumerate(supported):
+            state, symbol, label = ("yes", "✓", "Dedicated framework API") if available else ("no", "✗", "No dedicated API; raw SQL or custom code may be used")
+            css = ' class="ours"' if index == 0 else ''
+            values.append(f'<td{css}><span class="feature-status feature-{state}" aria-label="{label}">{symbol}</span></td>')
+        rows.append(f'<tr class="advanced-feature"><th scope="row">{escape(title)}<span class="feature-detail">{escape(note)}</span></th>{"".join(values)}</tr>')
+    return '\n'.join(rows)
+
+
+def render_notes():
+    return '''<div class="feature-qualifications" id="feature-qualifications">
+<p><strong>One rule for every framework:</strong> ✓ means a dedicated framework API implements the feature on applicable providers. A missing database capability does not remove the framework's checkmark. ✗ means there is no dedicated API in the reviewed core/provider packages; authoring raw SQL or custom code does not earn a check for that feature. SQL execution is compared in its own row.</p>
+<p><strong>Classic + Fluent:</strong> Migrator.NET exposes the schema, guard, audit, CHECK, view and projected-data operations above through both provider calls and the fluent migration builder. Provider support, engine versions, data types and DDL transaction rules still apply. See the <a href="https://github.com/dotnetprojects/Migrator.NET/blob/master/docs/portable-schema-api.md">portable API and provider qualifications</a> and <a href="guide/providers.html">provider guide</a>.</p>
+<p class="feature-note">Schema feature sources reviewed 22 November 2026: <a href="https://github.com/dotnetprojects/Migrator.NET/tree/master/src/Migrator/Framework">Migrator APIs</a>; FluentMigrator <a href="https://github.com/fluentmigrator/fluentmigrator/blob/main/src/FluentMigrator.Abstractions/Builders/Create/ICreateExpressionRoot.cs">schema builders</a>, <a href="https://fluentmigrator.github.io/providers/sql-server.html#filtered-indexes">filtered indexes</a> and <a href="https://fluentmigrator.github.io/operations/execute-sql.html">SQL execution</a>; EF Core <a href="https://learn.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.migrations.migrationbuilder">migration operations</a>, <a href="https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing#arbitrary-changes-via-raw-sql">views and triggers through SQL</a> and <a href="https://learn.microsoft.com/en-us/ef/core/providers/sqlite/limitations#migrations-limitations">SQLite preservation limits</a>; <a href="https://dbup.readthedocs.io/en/latest/usage/">DbUp</a>; <a href="https://evolve-db.netlify.app/concepts/">Evolve</a>. Third-party extensions are outside this comparison.</p>
+</div>
+<details class="feature-ideas"><summary>Possible next additions — ideas, not commitments</summary>
+<p>Guard and JSON audit triggers, structured views, typed CHECK rules and projected INSERT queries are already implemented above. The remaining ideas would extend those APIs:</p>
+<ul>
+<li>☐ General declarative trigger actions, such as updating dependent rows, beyond the existing guard and audit definitions.</li>
+<li>☐ Expression-based UPDATE projections with joins and explicit row-pairing guarantees, beyond the existing column-copy UpdateTable/Match API.</li>
+<li>☐ Structured stored-procedure and function definitions with provider translations, beyond executing their SQL directly.</li>
+<li>☐ Migration-content checksum validation and checksum-driven repeatables, beyond version history and maintenance hooks.</li>
+<li>☐ Schema comparison that generates migration operations, beyond explicit migrations and the current version plan.</li>
+</ul><p>These are unimplemented proposals, not a release roadmap or supported feature checkmarks.</p></details>'''

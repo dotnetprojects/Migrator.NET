@@ -120,7 +120,8 @@ def outputs():
         search.append(dict(title=page['title'], group=page['group'], summary=page['summary'], url='guide/' + page['slug'] + '.html', text=html.unescape(re.sub('<[^>]+>', ' ', prose))))
     result[DOCS / 'assets/search-index.json'] = json.dumps(search, ensure_ascii=False, indent=2) + '\n'
     home = (DOCS / '_src/home.html').read_text(encoding='utf-8')
-    for key, value in dict(header=header(''), footer=footer(''), hero=example_html(content.CREATE_USERS, 'hero'), install=example_html(content.INSTALL, 'install'), sqlite=example_html(content.SQLITE_ALTER, 'sqlite'), features=features.render(), comparison=(DOCS / '_src/comparison.html').read_text(encoding='utf-8')).items():
+    comparison = (DOCS / '_src/comparison.html').read_text(encoding='utf-8').replace('{{advanced_features}}', features.render()).replace('{{feature_notes}}', features.render_notes())
+    for key, value in dict(header=header(''), footer=footer(''), hero=example_html(content.CREATE_USERS, 'hero'), install=example_html(content.INSTALL, 'install'), sqlite=example_html(content.SQLITE_ALTER, 'sqlite'), comparison=comparison).items():
         home = home.replace('{{' + key + '}}', value)
     result[DOCS / 'index.html'] = document('Database changes, written in C#', 'Classic and Fluent C# migrations. Automatic SQLite schema reconstruction. A complete manual for your next database change.', home, body_class='homepage')
     return result
