@@ -12,6 +12,9 @@ DOCS = ROOT / "docs"
 spec = importlib.util.spec_from_file_location("documentation_content", DOCS / "_src/content.py")
 content = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(content)
+feature_spec = importlib.util.spec_from_file_location("homepage_features", DOCS / "_src/features.py")
+features = importlib.util.module_from_spec(feature_spec)
+feature_spec.loader.exec_module(features)
 
 
 def slug(value):
@@ -117,7 +120,7 @@ def outputs():
         search.append(dict(title=page['title'], group=page['group'], summary=page['summary'], url='guide/' + page['slug'] + '.html', text=html.unescape(re.sub('<[^>]+>', ' ', prose))))
     result[DOCS / 'assets/search-index.json'] = json.dumps(search, ensure_ascii=False, indent=2) + '\n'
     home = (DOCS / '_src/home.html').read_text(encoding='utf-8')
-    for key, value in dict(header=header(''), footer=footer(''), hero=example_html(content.CREATE_USERS, 'hero'), install=example_html(content.INSTALL, 'install'), sqlite=example_html(content.SQLITE_ALTER, 'sqlite'), comparison=(DOCS / '_src/comparison.html').read_text(encoding='utf-8')).items():
+    for key, value in dict(header=header(''), footer=footer(''), hero=example_html(content.CREATE_USERS, 'hero'), install=example_html(content.INSTALL, 'install'), sqlite=example_html(content.SQLITE_ALTER, 'sqlite'), features=features.render(), comparison=(DOCS / '_src/comparison.html').read_text(encoding='utf-8')).items():
         home = home.replace('{{' + key + '}}', value)
     result[DOCS / 'index.html'] = document('Database changes, written in C#', 'Classic and Fluent C# migrations. Automatic SQLite schema reconstruction. A complete manual for your next database change.', home, body_class='homepage')
     return result

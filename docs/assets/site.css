@@ -1493,6 +1493,16 @@ caption {
   font-size:12px;
   color:var(--muted);
 }
+.feature-legend,.feature-note,.feature-section td,.feature-section th { font-size:.875rem; }
+.database-feature-table { min-width:1500px; }
+.feature-status { display:inline-block; min-width:2rem; text-align:center; font-weight:700; }
+.feature-yes { color:#176b44; }
+.feature-limited { color:#875000; }
+.feature-note { min-width:240px; }
+.feature-section h3 { margin-top:2rem; }
+.feature-ideas { margin-top:2rem; padding:1.25rem; border:1px solid var(--line); }
+.feature-ideas summary { cursor:pointer; font-weight:700; }
+.feature-ideas li { margin:.6rem 0; list-style:none; }
 .comparison-notes p {
   margin:0;
 }

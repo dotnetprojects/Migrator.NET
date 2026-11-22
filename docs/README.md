@@ -4,7 +4,7 @@ The static GitHub Pages site contains the homepage, sourced framework comparison
 
 ## Edit and build
 
-The generator uses only Python's standard library. Edit `_src/content.py` for chapters and paired code examples, `_src/home.html` for the homepage, and `_src/comparison.html` for its comparison table. Styling and progressive enhancements live in `assets/site.css` and `assets/site.js`. Commit generated `guide/*.html`, `index.html` and `assets/search-index.json` with their sources.
+The generator uses only Python's standard library. Edit `_src/content.py` for chapters and paired code examples, `_src/home.html` for the homepage, `_src/features.py` for database/operation checklists, and `_src/comparison.html` for the workflow comparison. Styling and progressive enhancements live in `assets/site.css` and `assets/site.js`. Commit generated `guide/*.html`, `index.html` and `assets/search-index.json` with their sources.
 
 From the repository root:
 
