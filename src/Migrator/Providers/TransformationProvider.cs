@@ -687,8 +687,9 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         }
         else
         {
-            Logger.Trace(string.Format(sql, args));
-            Logger.ApplyingDBChange(string.Format(sql, args));
+            // Parameterized SQL can contain literal JSON braces; it is not a format string.
+            Logger.Trace(sql);
+            Logger.ApplyingDBChange(sql);
         }
 
         using var cmd = BuildCommand(sql);
