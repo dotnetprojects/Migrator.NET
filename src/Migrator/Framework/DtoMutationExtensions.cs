@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Reflection;
 using DotNetProjects.Migrator.Framework.TypedSelect;
+using TypedSelectQuery = DotNetProjects.Migrator.Framework.TypedSelect.SelectQuery;
 
 namespace DotNetProjects.Migrator.Framework;
 
@@ -20,7 +21,7 @@ public static class DtoMutationExtensions
         var mapping = DtoMapping.For(typeof(T));
         var filter = new PredicateTranslator(mapping, predicate.Parameters[0]).Translate(predicate.Body);
         var values = new List<object>();
-        var sql = "DELETE FROM " + provider.QuoteTableNameIfRequired(table) + " WHERE " + SelectQuery.Render(provider, filter, values);
+        var sql = "DELETE FROM " + provider.QuoteTableNameIfRequired(table) + " WHERE " + TypedSelectQuery.Render(provider, filter, values);
         return Execute(provider, sql, values);
     }
 
@@ -57,7 +58,7 @@ public static class DtoMutationExtensions
             assignments.Add(provider.QuoteColumnNameIfRequired(mapped.Column) + " = " + parameter);
         }
         var sql = "UPDATE " + provider.QuoteTableNameIfRequired(table) + " SET " + string.Join(", ", assignments) +
-            " WHERE " + SelectQuery.Render(provider, filter, values);
+            " WHERE " + TypedSelectQuery.Render(provider, filter, values);
         return Execute(provider, sql, values);
     }
 

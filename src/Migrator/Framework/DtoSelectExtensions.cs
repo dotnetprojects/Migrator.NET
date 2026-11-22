@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using DotNetProjects.Migrator.Framework.TypedSelect;
+using TypedSelectQuery = DotNetProjects.Migrator.Framework.TypedSelect.SelectQuery;
 
 namespace DotNetProjects.Migrator.Framework;
 
@@ -22,6 +23,6 @@ public static class DtoSelectExtensions
         if (provider is Providers.NoOpTransformationProvider) return Array.Empty<T>();
         var mapping = DtoMapping.For(typeof(T));
         var filter = predicate == null ? null : new PredicateTranslator(mapping, predicate.Parameters[0]).Translate(predicate.Body);
-        return SelectQuery.Execute<T>(provider, table, mapping, filter);
+        return TypedSelectQuery.Execute<T>(provider, table, mapping, filter);
     }
 }
