@@ -23,6 +23,13 @@ public abstract record MigrationOperation
 
 public sealed record CreateTableOperation(string Table, string Engine, IDbField[] Fields) : MigrationOperation
 {
+    public override void Validate(ITransformationProvider p)
+    {
+        base.Validate(p);
+        if (p is NoOpTransformationProvider) return;
+        foreach (var check in Fields.OfType<CheckConstraint>())
+            check.Expression?.ToSql(new SqlExpressionContext(p.Dialect));
+    }
     public override void Apply(ITransformationProvider p)
     {
         var fields = Fields.Select(Definitions.Copy).ToArray();
@@ -267,7 +274,7 @@ public static class Definitions
         ForeignKeyConstraint f => new ForeignKeyConstraint(f.Name, f.ParentTable, (string[])f.ParentColumns.Clone(), f.ChildTable, (string[])f.ChildColumns.Clone()) { OnDelete = f.OnDelete, OnUpdate = f.OnUpdate, Match = f.Match, Id = f.Id },
         PrimaryKeyConstraint k => new PrimaryKeyConstraint(k.Name, k.KeyColumns) { NonClustered = k.NonClustered },
         UniqueConstraint u => new UniqueConstraint { Name = u.Name, KeyColumns = (string[])u.KeyColumns.Clone() },
-        CheckConstraint c => new CheckConstraint(c.Name, c.CheckConstraintString),
+        CheckConstraint c => new CheckConstraint(c.Name, c.CheckConstraintString) { Expression = c.Expression },
         _ => throw new NotSupportedException($"Cannot snapshot {field.GetType().Name}.")
     };
 }

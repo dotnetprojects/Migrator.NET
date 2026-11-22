@@ -57,6 +57,7 @@ public abstract class Dialect : IDialect
             PrimaryKeyConstraint p when p.NonClustered && !SupportsNonClustered => throw new System.NotSupportedException("This dialect does not support nonclustered primary keys."),
             PrimaryKeyConstraint p => $"PRIMARY KEY{(p.NonClustered ? " NONCLUSTERED" : "")} ({Keys(p.KeyColumns)})",
             UniqueConstraint u => $"UNIQUE ({Keys(u.KeyColumns)})",
+            CheckConstraint c when c.Expression != null => $"CHECK ({c.Expression.ToSql(new SqlExpressionContext(this))})",
             CheckConstraint c when !string.IsNullOrWhiteSpace(c.CheckConstraintString) => $"CHECK ({c.CheckConstraintString})",
             _ => throw new System.NotSupportedException($"No table-constraint SQL generator for {constraint.GetType().Name}.")
         };

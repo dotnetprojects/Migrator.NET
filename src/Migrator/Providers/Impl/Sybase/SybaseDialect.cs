@@ -10,6 +10,7 @@ public class SybaseDialect : Dialect
 
     public SybaseDialect()
     {
+        AddReservedWords("SELECT", "FROM", "WHERE", "TABLE", "ORDER", "GROUP", "SEQUENCE");
         RegisterColumnType(DbType.Int16, "SMALLINT");
         RegisterColumnType(DbType.Int32, "INT");
         RegisterColumnType(DbType.Int64, "BIGINT");

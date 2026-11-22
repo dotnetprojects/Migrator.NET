@@ -6,7 +6,7 @@ using DotNetProjects.Migrator.Framework.Fluent;
 namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>A composable server expression. Raw SQL is an explicit provider-specific escape hatch.</summary>
-public sealed class SqlExpression
+public class SqlExpression
 {
     private readonly Func<SqlExpressionContext, string> render;
     internal SqlExpression(Func<SqlExpressionContext, string> render) => this.render = render;
