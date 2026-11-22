@@ -12,6 +12,7 @@ public class FirebirdDialect : Dialect
 
     public FirebirdDialect()
     {
+        AddReservedWords("SELECT", "FROM", "WHERE", "TABLE", "ORDER", "GROUP", "SEQUENCE");
         RegisterColumnType(DbType.AnsiStringFixedLength, "CHAR(255)");
         RegisterColumnType(DbType.AnsiStringFixedLength, 8000, "CHAR($l)");
         RegisterColumnType(DbType.AnsiString, "VARCHAR(255)");

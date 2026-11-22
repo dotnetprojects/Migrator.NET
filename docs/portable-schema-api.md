@@ -201,3 +201,30 @@ DB2 uses CURRENT TIMESTAMP minus CURRENT TIMEZONE (microsecond precision).
 Use native timestamp target columns to retain clock precision. Firebird, HANA,
 Informix, Sybase and Ingres explicitly reject this audit convenience API until
 their transactional JSON serialization is implemented; guard support is separate.
+
+## Projected data migrations
+
+`InsertFromQuery(target, targetColumns, query)` executes one INSERT ... SELECT
+in the current migration transaction, with an explicit ordered target mapping.
+The fluent queue is `builder.InsertFromQuery(target, targetColumns, query)`.
+Projection count and duplicate target columns are validated before execution.
+Joins, predicates, CASE, explicit NULL/constants and binary columns remain on
+the server. `SqlExpression.Parameter(value)` binds values through the existing
+provider parameter conversion and timeout handling; repeated occurrences bind
+in SQL order, including positional drivers. Parameters are not available in
+view or trigger DDL. Value emits a DDL literal; Raw remains trusted native SQL.
+
+`SelectQuery.Ordered(table, alias, columns, orderBy, limit: ...)` supports ordered
+seed selection with correlated NOT EXISTS. The original constructor retains its
+optional predicate and joins, including an explicit null fourth argument.
+Firebird string parameters use UTF-8 VARCHAR up to 8191 characters and text BLOB
+casts above that bound, preserving long CASE values without a narrowing fallback.
+Limit uses native TOP/FIRST/LIMIT/FETCH FIRST syntax. Constant-only queries use
+the provider's single-row source. Coalesce/Max support aggregate seed inserts,
+and Scalar embeds a scalar query. RowNumber supports explicit partition keys
+and ordering; include a unique tie-breaker such as CreatedAt plus Id. Legacy
+SQLite rowid ordering can be requested explicitly through Raw. Sybase ASE and
+Ingres window numbering fail explicitly; use native SQL or materialized values.
+Modern window-capable engine versions are required (SQLite 3.25+, MySQL 8+,
+Firebird 3+, PostgreSQL 8.4+). Ordered results do not promise physical insert
+order. This API inserts projections; general query-based UPDATE is not included.

@@ -19,11 +19,13 @@ public class ConsoleWriter : ILogWriter
 {
     public void Write(string message, params object[] args)
     {
-        Console.Write(message, args);
+        if (args == null || args.Length == 0) Console.Write(message);
+        else Console.Write(message, args);
     }
 
     public void WriteLine(string message, params object[] args)
     {
-        Console.WriteLine(message, args);
+        if (args == null || args.Length == 0) Console.WriteLine(message);
+        else Console.WriteLine(message, args);
     }
 }
