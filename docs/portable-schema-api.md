@@ -85,3 +85,47 @@ Syntax references: [SQLite triggers](https://www.sqlite.org/lang_createtrigger.h
 [PostgreSQL triggers](https://www.postgresql.org/docs/current/sql-createtrigger.html),
 [SQL Server multi-row triggers](https://learn.microsoft.com/en-us/sql/relational-databases/triggers/create-dml-triggers-to-handle-multiple-rows-of-data),
 [MySQL SIGNAL](https://dev.mysql.com/doc/refman/8.0/en/signal.html).
+
+## Audit triggers
+
+`CreateAuditTrigger(AuditTrigger)` and `builder.Create.AuditTrigger(definition)`
+write a row to an existing audit table after each affected source row. Supply
+an EntityKey expression (OLD on delete, NEW on insert, either on update) and
+BeforeFields with stable JSON keys. INSERT stores SQL NULL as BeforeJson;
+UPDATE and DELETE use the explicitly supplied previous-row expressions.
+`DropAuditTrigger(name, table)` removes the rule and its PostgreSQL function.
+
+The default target columns are OccurredAt, EntityId, Operation, BeforeJson;
+all can be renamed. JsonObject preserves SQL NULL as JSON null and uses native
+database value types. SQLite stores booleans as integers, so its JSON contains
+numbers for such fields. BLOBs must be omitted or explicitly converted using
+Raw; there is no implicit portable binary JSON encoding. SQL Server JSON PATH
+interprets dots in field keys as paths; use simple keys on that provider.
+
+Condition supports change-only auditing (`Old("Label").ChangedFrom(New("Label"))`)
+and related-row predicates. UpdateColumns instead selects assignments, including
+same-value assignments, with the same provider restrictions as guards. The
+trigger runs in the writer's transaction; rollback removes source changes and
+audit events. Multi-row writes produce one snapshot per matching source row.
+SQL Server uses set-based inserted/deleted pairing and the same immutable key
+requirement as guards. Audit JSON requires SQL Server 2016+ and PostgreSQL 9.4+.
+
+RecordedAt defaults to database UTC: SQLite text with three fractional digits,
+PostgreSQL timestamp without time zone with microsecond precision, SQL Server
+datetime2 with seven fractional digits, MySQL/MariaDB UTC_TIMESTAMP(6) with six.
+Use a target column that preserves this precision. Alternatively supply a
+RecordedAt expression for a source timestamp; its value is copied unchanged.
+These are wall-clock timestamps, not a unique event sequence. No application
+clock is consulted. Unsupported providers fail before execution.
+
+On SQLite, a suppressed audit INSERT (for example, an outer INSERT OR IGNORE
+meeting an audit-table unique constraint) aborts the source statement. Audit
+tables must permit a separate row for every event. Avoid REPLACE conflict modes
+that can replace earlier audit rows when their keys conflict.
+
+Oracle 18c+ and DB2 11.5+ also render per-row audit triggers with native
+JSON_OBJECT and explicit NULL ON NULL. Oracle uses SYS_EXTRACT_UTC(SYSTIMESTAMP),
+DB2 uses CURRENT TIMESTAMP minus CURRENT TIMEZONE (microsecond precision).
+Use native timestamp target columns to retain clock precision. Firebird, HANA,
+Informix, Sybase and Ingres explicitly reject this audit convenience API until
+their transactional JSON serialization is implemented; guard support is separate.

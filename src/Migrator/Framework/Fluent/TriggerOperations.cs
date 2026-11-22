@@ -26,3 +26,16 @@ public sealed record DropTriggerOperation(string Name, string Table) : Migration
     public override void Apply(ITransformationProvider p) => p.DropGuardTrigger(Name, Table);
     public override string ToSql(SqlGenerationContext c) => string.Join(";\n", GuardTriggers.DropSql(c.Dialect, Name, Table)) + ";";
 }
+
+public sealed record AuditTriggerOperation(AuditTrigger Definition) : MigrationOperation
+{
+    public override void Validate(ITransformationProvider p) { if (p is not Providers.NoOpTransformationProvider) AuditTriggers.CreateSql(p.Dialect, Definition, p.QuoteTableNameIfRequired); }
+    public override void Apply(ITransformationProvider p) => p.CreateAuditTrigger(Definition);
+    public override MigrationOperation Reverse() => new DropTriggerOperation(Definition.Name, Definition.Table);
+    public override string ToSql(SqlGenerationContext c)
+    {
+        var sql = string.Join(";\n", AuditTriggers.CreateSql(c.Dialect, Definition));
+        c.ValidateTriggerUpdateColumns(Definition.Table, Definition.UpdateColumns);
+        return c.Dialect is Providers.Impl.SqlServer.SqlServerDialect ? "EXEC(" + new SqlExpressionContext(c.Dialect).Literal(sql) + ");" : sql + ";";
+    }
+}
