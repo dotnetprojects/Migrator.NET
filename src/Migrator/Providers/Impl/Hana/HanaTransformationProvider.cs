@@ -13,6 +13,23 @@ namespace DotNetProjects.Migrator.Providers.Impl.Hana;
 /// whole-session transactional DDL and native migration locks are not advertised.</summary>
 public class HanaTransformationProvider : TransformationProvider
 {
+    internal string GetTriggerColumnType(string table, string column)
+    {
+        var name = Name(table);
+        using var command = Catalog("SELECT DATA_TYPE_NAME,LENGTH,SCALE FROM SYS.TABLE_COLUMNS WHERE SCHEMA_NAME=COALESCE(?,CURRENT_SCHEMA) AND TABLE_NAME=? AND COLUMN_NAME=?", name.Schema, name.Table, column);
+        using var reader = command.ExecuteReader();
+        if (!reader.Read()) throw new MigrationException("HANA trigger column does not exist: " + column);
+        var type = reader.GetString(0).ToUpperInvariant();
+        int length = Convert.ToInt32(reader.GetValue(1));
+        int scale = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetValue(2));
+        return type switch
+        {
+            "CHAR" or "NCHAR" or "VARCHAR" or "NVARCHAR" or "VARBINARY" or "ALPHANUM" or "SHORTTEXT" => type + "(" + length + ")",
+            "DECIMAL" => "DECIMAL(" + length + "," + scale + ")",
+            "TINYINT" or "SMALLINT" or "INTEGER" or "BIGINT" or "REAL" or "DOUBLE" or "BOOLEAN" or "DATE" or "TIME" or "SECONDDATE" or "TIMESTAMP" or "BLOB" or "CLOB" or "NCLOB" => type,
+            _ => throw new NotSupportedException("HANA trigger scalar binding cannot preserve type " + type)
+        };
+    }
     public HanaTransformationProvider(Dialect dialect, string connectionString, string defaultSchema, string scope, string providerName)
         : base(dialect, connectionString, defaultSchema, scope)
     {

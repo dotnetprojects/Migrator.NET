@@ -1320,7 +1320,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         if (whereColumns == null && whereValues == null)
         {
-            return ExecuteNonQuery(string.Format("DELETE FROM {0}", table));
+            return ExecuteNonQuery(string.Format("DELETE FROM {0}", QuoteTableNameIfRequired(table)));
         }
         else
         {
