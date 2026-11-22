@@ -10,14 +10,15 @@ public class SybaseDatabaseSetupTests
 {
     private sealed class DatabaseError(string message) : DbException(message);
 
-    [Test]
-    public void BusyModelIsRetriedBeforeRunningTheTest()
+    [TestCase("MODEL database in use, cannot create new database.")]
+    [TestCase("The model database is unavailable. It is being used to create a new database.")]
+    public void BusyModelIsRetriedBeforeRunningTheTest(string message)
     {
         var calls = 0;
         var delays = new List<TimeSpan>();
         LiveDatabaseTests.CreateSybaseDatabase(() =>
         {
-            if (++calls < 3) throw new DatabaseError("MODEL database in use, cannot create new database.");
+            if (++calls < 3) throw new DatabaseError(message);
         }, delays.Add);
         Assert.That(calls, Is.EqualTo(3));
         Assert.That(delays, Is.EqualTo(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2) }));
