@@ -78,6 +78,11 @@ public sealed class ConstraintColumnsBuilder
 
 public sealed class CheckExpressionBuilder
 {
+    public void WithExpression<TExpression>(TExpression expression) where TExpression : SqlExpression
+    {
+        ArgumentNullException.ThrowIfNull(expression);
+        pending.Complete(() => new PortableCheckOperation(name, table, expression));
+    }
     private readonly PendingOperation pending;
     private readonly string name, table;
     internal CheckExpressionBuilder(PendingOperation pending, string name, string table)

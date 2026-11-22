@@ -152,7 +152,49 @@ explicitly where case matters, and supply output aliases as literal names.
 Output aliases are always quoted. Native replacement may restrict changes to
 the public column signature; use explicit drop/create when changing it.
 
+## Portable CHECK expressions
 
+`CheckConstraint.FromExpression(name, expression)` works in CREATE TABLE. The
+existing string constructor and fluent string overloads remain unambiguous for
+`null` arguments; portable fluent expressions use inferred generic overloads. Use
+`provider.AddCheckConstraint(name, table, expression)` to add to an existing
+table (SQLite performs its existing transactional table rebuild). Fluent table
+`WithCheckConstraint` and `Create.CheckConstraint(...).OnTable(...).WithExpression`
+also accept expressions. Grouped AND/OR, null checks and column comparisons use
+the same expression model as guards/views.
+
+`Column("Payload").IsNotNull().And(Column("Payload").BinaryLength().GreaterThan(Value(0)))`
+rejects SQL NULL and zero-length binary, while accepting a zero byte. BinaryLength
+supports SQLite, PostgreSQL, SQL Server, MySQL/MariaDB, DB2, Firebird and HANA.
+Oracle LOBs, Informix BYTE, ASE IMAGE and Ingres have no guaranteed CHECK-safe
+implementation here and throw before DDL rather than assuming character length.
+ASE retains `IMAGE` for binary byte preservation: its `VARBINARY` storage strips
+trailing zero bytes and cannot faithfully represent empty binary values. ASE
+forbids `IMAGE` references in CHECK constraints, so binary-length CHECK rendering
+fails explicitly rather than changing storage to a lossy type.
+
+`Column("Payload").IsJson(JsonShape.Array)` rejects malformed JSON, nonarrays,
+JSON null and SQL NULL. `IsJson(allowNull: true)` accepts SQL NULL and every
+valid JSON value including scalars. JsonShape.Object restricts to an object.
+SQLite JSON1 and MySQL/MariaDB use a CASE around shape parsing so malformed
+input cannot slip through UNKNOWN. PostgreSQL uses its JSON parser (9.3+);
+malformed input raises a parser error and rejects the write. Native json/jsonb
+columns still get shape checks. SQL Server array/object rules work on 2016+;
+Any JSON value (including scalars) requires ISJSON VALUE from SQL Server 2022+.
+Oracle requires 21c+ with compatible >=20 for scalar JSON; shape uses the JSON
+type() item method. DB2, Firebird, Informix, Ingres, HANA and Sybase JSON checks
+are explicitly unsupported. Server versions are requirements, not silently
+detected fallbacks. Use transactional tables and enforced CHECK support
+(MySQL 8.0.16+). Oracle treats empty text as SQL NULL.
+
+CHECK accepts UNKNOWN on most engines. Combine IsNotNull explicitly with
+comparisons when NULL must be rejected. Trim/TextLength support nonblank reason
+rules; TextLength follows database character and trailing-space semantics and
+must not be used for binary length.
+
+References: [SQLite JSON](https://www.sqlite.org/json1.html),
+[PostgreSQL JSON](https://www.postgresql.org/docs/13/functions-json.html),
+[SQL Server ISJSON](https://learn.microsoft.com/en-us/sql/t-sql/functions/isjson-transact-sql).
 Oracle 18c+ and DB2 11.5+ also render per-row audit triggers with native
 JSON_OBJECT and explicit NULL ON NULL. Oracle uses SYS_EXTRACT_UTC(SYSTIMESTAMP),
 DB2 uses CURRENT TIMESTAMP minus CURRENT TIMEZONE (microsecond precision).
