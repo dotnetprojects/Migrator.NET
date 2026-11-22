@@ -880,10 +880,17 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             throw new NotSupportedException("This table contains SQLite features that cannot be reconstructed faithfully. Use native SQL.");
         if (GetCreateIndexSqlStrings(oldName).Any(sql => SQLiteConstraintParser.HasKeyword(sql, "COLLATE")))
             throw new NotSupportedException("Rebuilding indexes with explicit collations requires native SQL.");
-        var triggers = ExecuteStringQuery($"SELECT sql FROM {Catalog(oldName)} WHERE type='trigger' AND tbl_name={ObjectSqlLiteral(oldName)} COLLATE NOCASE");
+        var triggers = RebuildTriggers(oldName);
         if (triggers.Count > 0 && (oldName != sqliteTableInfo.TableNameMapping.NewName || sqliteTableInfo.ColumnMappings.Any(m => m.OldName != null && m.OldName != m.NewName)))
             throw new NotSupportedException("Use native SQLite rename when triggers reference renamed objects.");
         var originalColumns = GetColumns(oldName);
+        var views = PreparedViewsBeforeRebuild();
+        var triggerPrograms = PreparedTriggerProgramsBeforeRebuild();
+        var changesSchema = oldName != sqliteTableInfo.TableNameMapping.NewName
+            || sqliteTableInfo.ColumnMappings.Any(m => m.OldName != null && m.OldName != m.NewName)
+            || originalColumns.Any(c => !sqliteTableInfo.Columns.Any(n => n.Name.Equals(c.Name, StringComparison.OrdinalIgnoreCase)));
+        var strictBindings = changesSchema ? RebuildBindingStatements(oldName, views, triggerPrograms) : new List<string>();
+        if (strictBindings.Count > 0) ValidateBindingsWithoutDoubleQuotedStrings(strictBindings);
         if (triggers.Count > 0 && originalColumns.Any(c => !sqliteTableInfo.Columns.Any(n => n.Name.Equals(c.Name, StringComparison.OrdinalIgnoreCase))))
             throw new NotSupportedException("Removing columns from a table with triggers requires native SQLite alteration or explicit trigger recreation.");
         var sequence = TableExists(QualifiedSibling(oldName, "sqlite_sequence"))
@@ -893,6 +900,9 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         if (HasActiveTransaction && foreignKeys)
             throw new MigrationException("SQLite rebuild requires foreign keys to be disabled before beginning the transaction. Use the migration runner.");
         var ownsTransaction = !HasActiveTransaction;
+        var legacyAlter = Convert.ToInt32(ExecuteScalar("PRAGMA legacy_alter_table"));
+        var savepoint = "rebuild_" + Guid.NewGuid().ToString("N");
+        var saved = false;
         Exception failure = null;
         try
         {
@@ -901,6 +911,10 @@ public partial class SQLiteTransformationProvider : TransformationProvider
                 if (foreignKeys) SetPragmaForeignKeys(false);
                 BeginTransaction();
             }
+            // During drop/copy/rename, views and external triggers briefly reference a
+            // missing table. Legacy rename suppresses validation of that transient state.
+            ExecuteNonQuery("PRAGMA legacy_alter_table=ON");
+            ExecuteNonQuery("SAVEPOINT " + savepoint); saved = true;
             RecreateTableCore(sqliteTableInfo);
             if (highWater.HasValue && sqliteTableInfo.Columns.Any(c => c.IsIdentity))
             {
@@ -912,15 +926,26 @@ public partial class SQLiteTransformationProvider : TransformationProvider
             }
             foreach (var trigger in triggers)
             {
-                var qualifiedTrigger = Regex.Replace(trigger, @"^(CREATE\s+(?:TEMP(?:ORARY)?\s+)?TRIGGER\s+(?:IF\s+NOT\s+EXISTS\s+)?)", "$1" + _dialect.QuoteIdentifier(Namespace(oldName)) + ".", RegexOptions.IgnoreCase);
+                var target = _dialect.QuoteIdentifier(Namespace(oldName)) + "." + _dialect.QuoteIdentifier(CatalogRelation(oldName).Name);
+                var qualifiedTrigger = SQLiteConstraintParser.QualifyTrigger(trigger.Sql, _dialect, trigger.Schema, target);
                 ExecuteNonQuery(qualifiedTrigger);
             }
+            foreach (var view in views)
+                ExecuteScalar("SELECT * FROM " + view + " LIMIT 0");
+            foreach (var program in triggerPrograms) PrepareRebuildStatement(program);
+            if (strictBindings.Count > 0) ValidateBindingsWithoutDoubleQuotedStrings(strictBindings);
             if (ownsTransaction && !CheckForeignKeyIntegrity()) throw new MigrationException("SQLite rebuild would leave invalid foreign keys.");
+            ExecuteNonQuery("RELEASE " + savepoint); saved = false;
             if (ownsTransaction) Commit();
         }
         catch (Exception ex)
         {
             failure = ex;
+            if (saved)
+            {
+                try { ExecuteNonQuery("ROLLBACK TO " + savepoint); ExecuteNonQuery("RELEASE " + savepoint); }
+                catch (Exception rollback) { ex.Data["SavepointRollbackException"] = rollback; }
+            }
             if (ownsTransaction)
             {
                 try { Rollback(); } catch (Exception rollback) { ex.Data["RollbackException"] = rollback; }
@@ -929,9 +954,71 @@ public partial class SQLiteTransformationProvider : TransformationProvider
         }
         finally
         {
+            try { ExecuteNonQuery("PRAGMA legacy_alter_table=" + legacyAlter); }
+            catch (Exception restore) { if (failure == null) throw; failure.Data["LegacyAlterRestoreException"] = restore; }
             try { if (ownsTransaction && foreignKeys) SetPragmaForeignKeys(true); }
             catch (Exception restore) { if (failure == null) throw; failure.Data["ConnectionRestoreException"] = restore; }
         }
+    }
+
+    private List<string> PreparedViewsBeforeRebuild()
+    {
+        var schemas = new List<string> { "temp" };
+        using (var command = CreateCommand())
+        using (var reader = ExecuteQuery(command, "PRAGMA database_list"))
+            while (reader.Read()) schemas.Add(reader.GetString(1));
+        var names = new List<string>();
+        foreach (var schema in schemas.Distinct(StringComparer.OrdinalIgnoreCase))
+            names.AddRange(ExecuteStringQuery($"SELECT name FROM {_dialect.QuoteIdentifier(schema)}.sqlite_master WHERE type='view'")
+                .Select(name => _dialect.QuoteIdentifier(schema) + "." + _dialect.QuoteIdentifier(name)));
+        var valid = new List<string>();
+        foreach (var name in names)
+        {
+            try { ExecuteScalar("SELECT * FROM " + name + " LIMIT 0"); valid.Add(name); }
+            catch (Exception ex) when (ex is MigrationException or System.Data.Common.DbException)
+            { /* Preserve pre-existing invalid views without blocking an unrelated rebuild. */ }
+        }
+        return valid;
+    }
+
+    private void ValidateBindingsWithoutDoubleQuotedStrings(List<string> statements)
+    {
+        using var strict = SQLiteDoubleQuotedStrings.Disable(this, _connection);
+        foreach (var sql in statements)
+        {
+            // A fresh command must be prepared under the strict setting. Do not
+            // reuse a statement cached while double-quoted strings were enabled.
+            try { PrepareRebuildStatement(sql); }
+            catch (System.Data.Common.DbException ex)
+            { throw new MigrationException("SQLite rebuild requires dependent views and triggers with valid column bindings. Use single quotes for string literals. Statement: " + sql, ex); }
+        }
+    }
+
+    private List<(string Sql, string Schema)> RebuildTriggers(string table)
+    {
+        var schema = Namespace(table);
+        var triggers = new List<(string, string)>();
+        if (!schema.Equals("temp", StringComparison.OrdinalIgnoreCase))
+            triggers.AddRange(ExecuteStringQuery($"SELECT sql FROM {Catalog(table)} WHERE type='trigger' AND tbl_name={ObjectSqlLiteral(table)} COLLATE NOCASE").Select(sql => (sql, schema)));
+        foreach (var sql in ExecuteStringQuery($"SELECT sql FROM temp.sqlite_master WHERE type='trigger' AND tbl_name={ObjectSqlLiteral(table)} COLLATE NOCASE"))
+        {
+            var target = SqlIdentifier.Parse(SQLiteConstraintParser.TriggerTarget(sql));
+            string targetSchema;
+            if (target.Length > 1) targetSchema = target[^2].Value;
+            else
+            {
+                var schemas = new List<string> { "temp" };
+                using (var command = CreateCommand())
+                using (var reader = ExecuteQuery(command, "PRAGMA database_list"))
+                    while (reader.Read()) schemas.Add(reader.GetString(1));
+                var candidates = schemas.Distinct(StringComparer.OrdinalIgnoreCase).Where(s => TableExists(_dialect.QuoteIdentifier(s) + "." + _dialect.QuoteIdentifier(target[0].Value))).ToArray();
+                if (candidates.Length != 1)
+                    throw new NotSupportedException("Qualify TEMP trigger targets when the table name occurs in multiple SQLite databases before rebuilding.");
+                targetSchema = candidates[0];
+            }
+            if (schema.Equals(targetSchema, StringComparison.OrdinalIgnoreCase)) triggers.Add((sql, "temp"));
+        }
+        return triggers;
     }
 
     private void RecreateTableCore(SQLiteTableInfo sqliteTableInfo)
