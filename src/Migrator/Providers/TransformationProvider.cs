@@ -253,7 +253,7 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
         var select = string.Format("SELECT {0} FROM {1} {2}", string.Join(",", lst), tableName, joins);
 
-        var sql = string.Format("CREATE VIEW {0} AS {1}", name, select);
+        var sql = string.Format("CREATE VIEW {0} AS {1}", QuoteTableNameIfRequired(name), select);
 
         ExecuteNonQuery(sql);
     }
@@ -292,18 +292,12 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         }
 
         var select = string.Format("SELECT {0} FROM {1} {1} {2}", string.Join(",", selectedColumns), tableName, joins);
-        var sql = string.Format("CREATE VIEW {0} AS {1}", name, select);
+        var sql = string.Format("CREATE VIEW {0} AS {1}", QuoteTableNameIfRequired(name), select);
 
 
-        // Works with all DBs. "CREATE OR REPLACE" does not work with SQLite. "DROP IF EXISTS" does not work with oracle.
-        try
-        {
-            ExecuteNonQuery($"DROP VIEW {name}");
-        }
-        catch
-        {
-            // Works with all DBs. "CREATE OR REPLACE" does not work with SQLite. "DROP IF EXISTS" does not work with oracle.
-        }
+        // A failed DROP aborts PostgreSQL transactions even if the exception is caught.
+        // Inspect the catalog instead of deliberately issuing invalid DDL.
+        if (ViewExists(name)) ExecuteNonQuery($"DROP VIEW {QuoteTableNameIfRequired(name)}");
 
         ExecuteNonQuery(sql);
     }
