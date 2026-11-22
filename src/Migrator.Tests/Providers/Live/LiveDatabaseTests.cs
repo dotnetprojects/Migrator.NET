@@ -210,7 +210,10 @@ public class LiveDatabaseTests(string database, ProviderTypes providerType)
         for (var attempt = 1; ; attempt++)
         {
             try { create(); return; }
-            catch (DbException ex) when (attempt < 5 && ex.Message.Contains("MODEL database in use", StringComparison.OrdinalIgnoreCase))
+            catch (Exception ex) when (attempt < 5
+                && (ex is DbException || ex.GetType().FullName == "AdoNetCore.AseClient.AseException")
+                && (ex.Message.Contains("MODEL database in use", StringComparison.OrdinalIgnoreCase)
+                    || ex.Message.Contains("The model database is unavailable. It is being used to create a new database.", StringComparison.OrdinalIgnoreCase)))
             {
                 TestContext.Progress.WriteLine($"ASE model is busy; retrying disposable database creation ({attempt}/4).");
                 delay(TimeSpan.FromSeconds(attempt));
