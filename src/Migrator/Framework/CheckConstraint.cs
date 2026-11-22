@@ -1,10 +1,18 @@
 namespace DotNetProjects.Migrator.Framework;
 
 /// <summary>
-/// Currently only used for SQLite
+/// A CHECK constraint expressed as native SQL or a portable expression.
 /// </summary>
 public class CheckConstraint : TableConstraint
 {
+    /// <summary>Portable expression rendered by the target dialect. Takes precedence over raw SQL.</summary>
+    public SqlExpression Expression { get; set; }
+    /// <summary>Creates a CHECK from a portable expression, keeping the string constructor unambiguous.</summary>
+    public static CheckConstraint FromExpression(string name, SqlExpression expression)
+    {
+        System.ArgumentNullException.ThrowIfNull(expression);
+        return new CheckConstraint { Name = name, Expression = expression };
+    }
     public CheckConstraint()
     { }
 

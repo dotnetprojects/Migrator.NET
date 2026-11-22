@@ -84,6 +84,8 @@ public sealed class TableBuilder
         => WithFields(new UniqueConstraint(BuilderArguments.Name(name), BuilderArguments.Names(columns)));
     public TableBuilder WithCheckConstraint(string name, string expression)
         => WithFields(new CheckConstraint(BuilderArguments.Name(name), BuilderArguments.Name(expression)));
+    public TableBuilder WithCheckConstraint<TExpression>(string name, TExpression expression) where TExpression : SqlExpression
+        => WithFields(CheckConstraint.FromExpression(BuilderArguments.Name(name), expression));
     public TableBuilder WithEngine(string value) { engine = BuilderArguments.Name(value); return this; }
 }
 
@@ -97,6 +99,7 @@ public sealed class TableColumnBuilder : ColumnDefinitionBuilder<TableColumnBuil
     public TableBuilder WithPrimaryKey(string name, params string[] columns) => table.WithPrimaryKey(name, columns);
     public TableBuilder WithUniqueConstraint(string name, params string[] columns) => table.WithUniqueConstraint(name, columns);
     public TableBuilder WithCheckConstraint(string name, string expression) => table.WithCheckConstraint(name, expression);
+    public TableBuilder WithCheckConstraint<TExpression>(string name, TExpression expression) where TExpression : SqlExpression => table.WithCheckConstraint(name, expression);
     public TableBuilder WithEngine(string engine) => table.WithEngine(engine);
 }
 

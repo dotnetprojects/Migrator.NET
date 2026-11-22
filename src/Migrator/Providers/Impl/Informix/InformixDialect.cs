@@ -49,7 +49,7 @@ public class InformixDialect : Dialect
         {
             PrimaryKeyConstraint p => (TableConstraint)new PrimaryKeyConstraint(null, p.KeyColumns) { NonClustered = p.NonClustered },
             DotNetProjects.Migrator.Framework.UniqueConstraint u => new DotNetProjects.Migrator.Framework.UniqueConstraint(null, u.KeyColumns),
-            CheckConstraint c => new CheckConstraint(null, c.CheckConstraintString),
+            CheckConstraint c => new CheckConstraint(null, c.CheckConstraintString) { Expression = c.Expression },
             _ => throw new NotSupportedException("Unsupported Informix table constraint.")
         };
         var body = base.GetTableConstraintSql(copy);
