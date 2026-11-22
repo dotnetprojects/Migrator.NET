@@ -123,6 +123,36 @@ meeting an audit-table unique constraint) aborts the source statement. Audit
 tables must permit a separate row for every event. Avoid REPLACE conflict modes
 that can replace earlier audit rows when their keys conflict.
 
+## Filtered views
+
+`SelectQuery` declares a source table/alias, an ordered list of `SelectItem`
+expressions with explicit output aliases, optional inner/left `QueryJoin`s,
+and a predicate. The expression model supports correlated EXISTS/NOT EXISTS,
+column comparisons and grouped Boolean conditions. SQL NULL and native
+database comparison semantics apply. Input arrays are copied at construction.
+
+Use `CreateView(name, query)`, `ReplaceView(name, query)` and
+`DropView(name, ifExists: true)`. Create fails if the view exists; ordinary
+drop fails if absent. Conditional drop uses a catalog lookup and never catches
+a deliberate missing-object error. There is a race if another session changes
+the same view concurrently; serialize schema migrations.
+
+The fluent API is `builder.Create.View(name, query, replace: false)` and
+`builder.Delete.View(name, ifExists: false)`. Standard SELECT, alias, inner/left
+join and predicate rendering works for every provider. Native replace is used
+on PostgreSQL, Oracle, MySQL/MariaDB, DB2, Sybase ASE 16+ and HANA; SQL Server uses ALTER
+for existing views; Firebird uses CREATE OR ALTER. SQLite uses a savepoint and
+validates the replacement by preparing a read, preserving the old definition
+on failure. Ingres/Informix use transactional drop/create: if already inside a
+migration transaction the caller must roll back that transaction on failure.
+DDL-committing engines retain their native transaction limitations.
+
+Object paths and identifier atoms remain distinct: delimit table/view paths
+explicitly where case matters, and supply output aliases as literal names.
+Output aliases are always quoted. Native replacement may restrict changes to
+the public column signature; use explicit drop/create when changing it.
+
+
 Oracle 18c+ and DB2 11.5+ also render per-row audit triggers with native
 JSON_OBJECT and explicit NULL ON NULL. Oracle uses SYS_EXTRACT_UTC(SYSTIMESTAMP),
 DB2 uses CURRENT TIMESTAMP minus CURRENT TIMEZONE (microsecond precision).
