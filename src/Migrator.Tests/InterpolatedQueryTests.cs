@@ -81,6 +81,27 @@ public class InterpolatedQueryTests
         Assert.That(row, Is.EqualTo(("{literal}", 7L, 7L, true, true)));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    [NonParallelizable]
+    public void EscapedBracesRemainLiteralWithConsoleTracing(bool dto)
+    {
+        var original = Console.Out;
+        using var output = new System.IO.StringWriter();
+        try
+        {
+            Console.SetOut(output);
+            provider.Logger = new DotNetProjects.Migrator.Framework.Loggers.Logger(true, new DotNetProjects.Migrator.Framework.Loggers.ConsoleWriter());
+            var sql = FormattableStringFactory.Create("SELECT {0} AS \"select\", '{{literal}}' AS Text, {1} AS Active", 7, true);
+            var row = dto ? provider.Query<Row>(sql).Single() : provider.Query(sql, r => new Row { Id = Convert.ToInt32(r.GetValue(0)), Text = r.GetString(1), Active = Convert.ToBoolean(r.GetValue(2)) }).Single();
+            Assert.That(row.Id, Is.EqualTo(7));
+            Assert.That(row.Text, Is.EqualTo("{literal}"));
+            Assert.That(row.Active, Is.True);
+            Assert.That(output.ToString(), Does.Contain("{literal}"));
+        }
+        finally { Console.SetOut(original); }
+    }
+
     [Test]
     public void UsesTheActiveTransactionAndSupportsMapperFailures()
     {

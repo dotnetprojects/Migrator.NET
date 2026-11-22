@@ -142,7 +142,8 @@ public class Logger : IAttachableLogger
     {
         foreach (var writer in _writers)
         {
-            writer.Write(message, args);
+            if (args == null || args.Length == 0) writer.Write("{0}", message);
+            else writer.Write(message, args);
         }
     }
 
@@ -150,7 +151,8 @@ public class Logger : IAttachableLogger
     {
         foreach (var writer in _writers)
         {
-            writer.WriteLine(message, args);
+            if (args == null || args.Length == 0) writer.WriteLine("{0}", message);
+            else writer.WriteLine(message, args);
         }
     }
 

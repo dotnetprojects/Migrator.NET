@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using DotNetProjects.Migrator.Framework.TypedSelect;
+using TypedSelectQuery = DotNetProjects.Migrator.Framework.TypedSelect.SelectQuery;
 
 namespace DotNetProjects.Migrator.Framework;
 
@@ -18,7 +19,7 @@ public static class InterpolatedQueryExtensions
         var mapping = DtoMapping.For(typeof(T));
         using var command = Prepare(provider, sql);
         using var reader = provider.ExecuteQuery(command, command.CommandText);
-        return SelectQuery.Materialize<T>(reader, mapping);
+        return TypedSelectQuery.Materialize<T>(reader, mapping);
     }
 
     /// <summary>Map each result row to a DTO, tuple or other value. The mapper does not own the reader.</summary>
