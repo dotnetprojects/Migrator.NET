@@ -7,6 +7,7 @@ namespace DotNetProjects.Migrator.Framework.Fluent;
 
 public sealed class CreateRoot(MigrationBuilder builder)
 {
+    public void AuditTrigger(AuditTrigger definition) => builder.Add(new AuditTriggerOperation(definition with { BeforeFields = definition.BeforeFields?.ToArray(), UpdateColumns = definition.UpdateColumns?.ToArray(), KeyColumns = definition.KeyColumns?.ToArray() }));
     public void GuardTrigger(GuardTrigger definition) => builder.Add(new GuardTriggerOperation(definition with { UpdateColumns = definition.UpdateColumns?.ToArray(), KeyColumns = definition.KeyColumns?.ToArray() }));
     public TableBuilder Table(string name) => new(builder, name);
     public OnTableBuilder<ColumnBuilder> Column(string name) => ColumnExpression.Start(builder, name, false);
