@@ -10,6 +10,7 @@ public sealed class SqlGenerationContext
 {
     private readonly Dictionary<string, Dictionary<string, Column>> tables = new(StringComparer.Ordinal);
     private readonly HashSet<string> removed = new(StringComparer.Ordinal);
+    private readonly HashSet<string> rowidTables = new(StringComparer.Ordinal);
     private readonly Func<string, Column[]> existingTable;
     private bool schemaUnknown;
     public void InvalidateSchema() => schemaUnknown = true;
@@ -46,9 +47,39 @@ public sealed class SqlGenerationContext
         var columns = existingTable?.Invoke(table) ?? throw new MigrationException("Offline preview needs a definition for existing table: " + table);
         tables.Add(table, columns.ToDictionary(c => c.Name, Definitions.CopyColumn));
     }
-    public void AddTable(string table, IEnumerable<Column> columns) { RequireKnownSchema(); if (tables.ContainsKey(table)) throw new MigrationException("Duplicate table: " + table); removed.Remove(table); tables.Add(table, columns.ToDictionary(c => c.Name, Definitions.CopyColumn)); }
-    public void RemoveTable(string table) { tables.Remove(table); removed.Add(table); }
-    public void RenameTable(string table, string name) { var columns = tables[table].Values.ToArray(); RemoveTable(table); AddTable(name, columns); }
+    public void AddTable(string table, IEnumerable<Column> columns) { RequireKnownSchema(); if (tables.ContainsKey(table)) throw new MigrationException("Duplicate table: " + table); removed.Remove(table); tables.Add(table, columns.ToDictionary(c => c.Name, Definitions.CopyColumn)); rowidTables.Add(table); }
+    public void RemoveTable(string table) { tables.Remove(table); removed.Add(table); rowidTables.Remove(table); }
+    public void RenameTable(string table, string name) { var columns = tables[table].Values.ToArray(); var rowid = rowidTables.Contains(table); RemoveTable(table); AddTable(name, columns); if (!rowid) rowidTables.Remove(name); }
     public void AddColumn(string table, Column column) => tables[table].Add(column.Name, Definitions.CopyColumn(column));
     public void RenameColumn(string table, string oldName, string newName) { var column = tables[table][oldName]; tables[table].Remove(oldName); column.Name = newName; tables[table].Add(newName, column); }
+
+    internal void ValidateTriggerUpdateColumns(string table, string[] columns)
+    {
+        if (Dialect is not Providers.Impl.SQLite.SQLiteDialect || columns == null || columns.Length == 0) return;
+        RequireKnownSchema();
+        static string Fold(string name) => string.Concat(name.Select(c => c is >= 'A' and <= 'Z' ? (char)(c + ('a' - 'A')) : c));
+        static string TableKey(string name)
+        {
+            var parts = SqlIdentifier.Parse(name);
+            return string.Join("\0", (parts.Length == 1 ? new[] { "main", parts[0].Value } : parts.Select(p => p.Value)).Select(Fold));
+        }
+        var key = tables.Keys.FirstOrDefault(name => TableKey(name) == TableKey(table));
+        if (key == null)
+        {
+            if (removed.Any(name => TableKey(name) == TableKey(table))) throw new MigrationException("Table was removed earlier in the plan: " + table);
+            RequireTable(table); key = table;
+        }
+        var actual = new HashSet<string>(tables[key].Keys.Select(Fold), StringComparer.Ordinal);
+        foreach (var column in columns)
+        {
+            var name = Fold(column);
+            if (actual.Contains(name)) continue;
+            if (name is "rowid" or "oid" or "_rowid_")
+            {
+                if (rowidTables.Contains(key)) continue;
+                throw new NotSupportedException("SQLite UPDATE OF preview cannot verify implicit rowid aliases on an existing table from column metadata alone: " + table);
+            }
+            throw new ArgumentException("SQLite UPDATE OF references a missing column: " + column, nameof(columns));
+        }
+    }
 }

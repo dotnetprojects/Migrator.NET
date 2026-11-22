@@ -28,7 +28,9 @@ public class IdentifierAndTimeRegressionTests
     [TestCase(51)]
     public void SQLiteIntervalsKeepTheirSignAndDaysSeparateFromTimeOfDay(int hours)
     {
-        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, "Data Source=:memory:", null);
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        using var provider = ProviderFactory.Create(ProviderTypes.SQLite, connection, null);
         var duration = TimeSpan.FromHours(hours).Add(TimeSpan.FromTicks(1234567));
         provider.AddTable("Durations", new Column("Id", DbType.Int32), new Column("Elapsed", MigratorDbType.Interval, duration));
         provider.Insert("Durations", ["Id"], [1]);

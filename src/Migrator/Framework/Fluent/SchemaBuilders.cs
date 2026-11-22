@@ -7,6 +7,7 @@ namespace DotNetProjects.Migrator.Framework.Fluent;
 
 public sealed class CreateRoot(MigrationBuilder builder)
 {
+    public void GuardTrigger(GuardTrigger definition) => builder.Add(new GuardTriggerOperation(definition with { UpdateColumns = definition.UpdateColumns?.ToArray(), KeyColumns = definition.KeyColumns?.ToArray() }));
     public TableBuilder Table(string name) => new(builder, name);
     public OnTableBuilder<ColumnBuilder> Column(string name) => ColumnExpression.Start(builder, name, false);
     public ColumnDefinitionOnTableBuilder Column(Column definition) => new(builder, definition, false);
@@ -156,6 +157,7 @@ public sealed class ViewDefinitionBuilder
 
 public sealed class DeleteRoot(MigrationBuilder builder)
 {
+    public void Trigger(string name, string table) => builder.Add(new DropTriggerOperation(name, table));
     public FromTableBuilder<DuplicateRowsBuilder> DuplicateRows()
     {
         var pending = new PendingOperation(builder, "Duplicate-row deletion requires FromTable(...).ByColumns(...).KeepAny()");

@@ -13,7 +13,8 @@ case "$database" in
   Unit|SQLite) exit 0 ;;
   Hana) bash .github/scripts/start-hana.sh; exit 0 ;;
   MySQL)
-    docker run -d --name migrator-db -p 3306:3306 -e MYSQL_ROOT_PASSWORD=rootpass -e MYSQL_DATABASE=testdb -e MYSQL_USER=testuser -e MYSQL_PASSWORD=testpass mysql:8.0.44
+    # Disposable CI server: permit the migration user to create triggers with binlogging enabled.
+    docker run -d --name migrator-db -p 3306:3306 -e MYSQL_ROOT_PASSWORD=rootpass -e MYSQL_DATABASE=testdb -e MYSQL_USER=testuser -e MYSQL_PASSWORD=testpass mysql:8.0.44 --log-bin-trust-function-creators=1
     ready() { docker exec migrator-db mysql -uroot -prootpass -e 'SELECT 1' >/dev/null 2>&1; }
     ;;
   MariaDB)
