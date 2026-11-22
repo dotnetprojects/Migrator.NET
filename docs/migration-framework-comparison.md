@@ -8,6 +8,14 @@ Migrator findings are pinned to repository commit [`482b4d1`][m-revision]. Fluen
 
 [Homepage](https://dotnetprojects.github.io/Migrator.NET/) · [Fluent API example](https://dotnetprojects.github.io/Migrator.NET/#fluent-api) · [Project README](../README.md) · [SQLite emulation comparison](#sqlite-emulation-comparison) · [Source index](#source-index)
 
+### OrmLite and grate: review added 22 November 2026
+
+The [homepage framework table](https://dotnetprojects.github.io/Migrator.NET/#compare) now includes **ServiceStack.OrmLite Migrations** and **grate**, alongside the five frameworks in the September matrices below. It uses ✓ for a dedicated API on applicable providers and ✗ for operations requiring raw SQL or custom code. SQL execution has its own row.
+
+OrmLite migrations expose their OrmLite connection, so its built-in schema and query APIs count. Supported operations include table creation/removal, column rename/alteration, filtered unique indexes, `InsertIntoSelect`, CASE/COALESCE and partitioned row numbering. Its model/database schema diff can generate reviewable C# migrations and rebuild SQLite tables from models. Column rename does not imply table rename; its primary-key model is single-column. Table-local trigger preservation does not imply Migrator's external/TEMP dependency validation. See [migrations](https://docs.servicestack.net/ormlite/db-migrations), [schema APIs](https://docs.servicestack.net/ormlite/apis/schema), [indexes](https://docs.servicestack.net/ormlite/ddl-attributes), [key limitations](https://docs.servicestack.net/ormlite/limitations), [schema diff](https://docs.servicestack.net/ormlite/schema-diff), [window functions](https://docs.servicestack.net/ormlite/window-functions), [insert source](https://github.com/ServiceStack/ServiceStack/blob/main/ServiceStack.OrmLite/src/ServiceStack.OrmLite/OrmLiteWriteApi.cs) and [rebuild source](https://github.com/ServiceStack/ServiceStack/blob/main/ServiceStack.OrmLite/src/ServiceStack.OrmLite/OrmLiteRebuildTable.cs).
+
+grate executes ordered SQL files, with hash-driven anytime scripts, everytime scripts, dry runs and configurable history schema. Its folders for triggers, views and procedures organize hand-written SQL; they do not earn dedicated schema API checkmarks. Transactions are opt-in: the reviewed SQL Server/PostgreSQL providers support the migration transaction, while SQLite, MariaDB and Oracle disable it. There is no automatic Down migration. See [configuration](https://grate-devs.github.io/grate/configuration-options/), [anytime scripts](https://grate-devs.github.io/grate/script-types/anytime/) and [transaction/recovery qualifications](https://grate-devs.github.io/grate/skills/use-grate/references/operations.html).
+
 ## Contents
 
 - [How to read the matrices](#how-to-read-the-matrices)

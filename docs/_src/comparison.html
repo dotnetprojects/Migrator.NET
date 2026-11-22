@@ -10,7 +10,7 @@
               <h2 id="compare-title">Choose by how you work.</h2>
             </div>
             <p>
-              Workflows reviewed 23 September 2026<br />Schema features reviewed 22 November 2026<br /><a
+              Workflows reviewed 23 September 2026<br />Schema features and OrmLite/grate reviewed 22 November 2026<br /><a
                 href="#sources"
                 >Read the sources and qualifications ↓</a
               >
@@ -38,7 +38,7 @@
             >
           </p>
           <p class="table-hint" id="table-help">
-            Scroll horizontally to compare all five frameworks on smaller
+            Scroll horizontally to compare all seven frameworks on smaller
             screens.
           </p>
           <div
@@ -72,6 +72,8 @@
                   <th scope="col">
                     Evolve <a href="#source-evolve">Sources [5]</a>
                   </th>
+                  <th scope="col">OrmLite <a href="#source-ormlite">Sources [6]</a></th>
+                  <th scope="col">grate <a href="#source-grate">Sources [7]</a></th>
                 </tr>
               </thead>
               <tbody>
@@ -82,6 +84,8 @@
                   <td>C# generated from model changes; editable</td>
                   <td>SQL scripts; C# scripts also supported</td>
                   <td>Versioned SQL files</td>
+                  <td>C# Up/Down; typed schema APIs and declarative model attributes</td>
+                  <td>SQL scripts in ordered folders</td>
                 </tr>
                 <tr>
                   <th scope="row">ORM-independent workflow</th>
@@ -89,6 +93,8 @@
                   <td>Yes</td>
                   <td>Uses EF model and DbContext</td>
                   <td>Yes</td>
+                  <td>Yes</td>
+                  <td>Uses OrmLite models and connections; no EF dependency</td>
                   <td>Yes</td>
                 </tr>
                 <tr>
@@ -100,6 +106,8 @@
                   <td>Yes — model snapshots</td>
                   <td>Hand-authored</td>
                   <td>Hand-authored</td>
+                  <td>✓ Live database/model diff; generates reviewable C# migrations</td>
+                  <td>✗ Hand-authored scripts</td>
                 </tr>
                 <tr>
                   <th scope="row">Raw SQL</th>
@@ -107,6 +115,8 @@
                   <td>✓ <code>Execute.Sql</code> / scripts</td>
                   <td>✓ <code>migrationBuilder.Sql</code></td>
                   <td>✓ Primary workflow</td>
+                  <td>✓ Primary workflow</td>
+                  <td>✓ <code>Db.ExecuteSql</code> / custom SQL hooks</td>
                   <td>✓ Primary workflow</td>
                 </tr>
                 <tr>
@@ -120,6 +130,8 @@
                   <td><code>Down()</code>; target an earlier migration</td>
                   <td>Forward fixes; custom undo workflow</td>
                   <td>Forward fixes; no Down command</td>
+                  <td>Authored <code>Down()</code>; runner revert commands</td>
+                  <td>Forward fixes; no automatic Down migrations</td>
                 </tr>
                 <tr>
                   <th scope="row">History / module separation</th>
@@ -132,6 +144,8 @@
                   </td>
                   <td>Separate journals + script filtering</td>
                   <td>Metadata table/schema + script locations</td>
+                  <td>Named connections; migration history in the primary database</td>
+                  <td>Configurable tracking schema and script folders; repository/version labels</td>
                 </tr>
                 <tr>
                   <th scope="row">Transactions</th>
@@ -140,6 +154,8 @@
                   <td>Most migrations wrapped automatically</td>
                   <td>Opt-in per script or whole run; none by default</td>
                   <td>Per migration by default; whole-run option</td>
+                  <td>Per migration; database DDL limits apply</td>
+                  <td>Opt-in migration transaction; SQL Server/PostgreSQL support; other reviewed providers disable it</td>
                 </tr>
                 <tr>
                   <th scope="row">Execution / deployment</th>
@@ -148,6 +164,8 @@
                   <td>CLI, SQL scripts, bundles, runtime API</td>
                   <td>Library; host in a console app or application</td>
                   <td>.NET library, .NET tool, CLI</td>
+                  <td>Library + AppTasks / application host</td>
+                  <td>CLI, .NET tool, self-contained executable and Docker</td>
                 </tr>
                 <tr>
                   <th scope="row">Database abstraction</th>
@@ -158,6 +176,8 @@
                   </td>
                   <td>Database integrations; you write dialect-specific SQL</td>
                   <td>Database integrations; you write dialect-specific SQL</td>
+                  <td>Typed model/schema/query APIs with provider dialects</td>
+                  <td>Database integrations; you write dialect-specific SQL</td>
                 </tr>
                 <tr>
                   <th scope="row">Repeatable / recurring work</th>
@@ -166,6 +186,8 @@
                   <td>Seeding APIs (EF 9+); custom code</td>
                   <td><code>RunAlways</code> scripts</td>
                   <td>Repeatable SQL reruns on checksum change</td>
+                  <td>Explicit migration reruns/reverts; custom recurring work</td>
+                  <td>Anytime scripts on hash changes; Everytime scripts each run</td>
                 </tr>
                 <tr>
                   <th scope="row">Automatic SQLite reconstruction</th>
@@ -173,6 +195,8 @@
                   <td>✗ Manual for general column and foreign-key alterations</td>
                   <td>✓ Rebuilds for model-represented artifacts</td>
                   <td>✗ Author scripts</td>
+                  <td>✗ Author scripts</td>
+                  <td>✓ Model-based schema-diff rebuilds; <code>RebuildTable</code> API</td>
                   <td>✗ Author scripts</td>
                 </tr>
                 <tr>
@@ -182,6 +206,8 @@
                   <td>Generated SQL scripts</td>
                   <td>Authored SQL / pending scripts</td>
                   <td>Authored SQL</td>
+                  <td>Schema diff with SQL and C# migration output; model-based</td>
+                  <td>Authored SQL + <code>--dryrun</code> / up-to-date check</td>
                 </tr>
                 <tr>
                   <th scope="row">Deployment coordination</th>
@@ -190,6 +216,8 @@
                   <td>Migration locking; execution-path dependent</td>
                   <td>Host/provider concern</td>
                   <td>Cluster setting; provider-dependent</td>
+                  <td>In-progress history/timeout check; serialize deployments externally</td>
+                  <td>External deployment coordination</td>
                 </tr>
                 {{advanced_features}}
               </tbody>
@@ -220,7 +248,7 @@
                 <strong>Migrator:</strong> imperative and fluent schema operations, scoped
                 history, tags/profiles, and the CLI or your own host.
                 <strong>FluentMigrator:</strong> a fluent DSL with packaged
-                runners, tags and profiles.
+                runners, tags and profiles. <strong>OrmLite:</strong> typed model/schema APIs and explicit Up/Down migrations.
               </p>
             </article>
             <article>
@@ -236,7 +264,7 @@
               <p>
                 <strong>DbUp:</strong> compose a script runner in .NET.
                 <strong>Evolve:</strong> convention-based versioned SQL,
-                checksum validation and repeatable scripts.
+                checksum validation and repeatable scripts. <strong>grate:</strong> ordered SQL folders, hash-driven anytime scripts and everytime scripts.
               </p>
             </article>
           </div>
@@ -247,7 +275,7 @@
               targets <code>net9.0</code>. Other columns summarize official
               documentation reviewed on 22 September 2026, with SQLite comparisons rechecked on 23 September, rather than claiming
               parity across every released package. The schema-operation rows have a separate source review dated 22 November 2026, linked immediately below the table. Check your chosen release,
-              provider and database version. Suitability notes are our
+              provider and database version. OrmLite and grate workflow/API sources were reviewed on 22 November 2026. Suitability notes are our
               interpretation of these documented capabilities.
             </p>
             <ol>
@@ -364,6 +392,21 @@
                 <a href="https://evolve-db.netlify.app/getting-started/"
                   >execution options</a
                 >.
+              </li>
+              <li id="source-ormlite"><strong>ServiceStack.OrmLite:</strong>
+                <a href="https://docs.servicestack.net/ormlite/db-migrations">migrations, transactions and named connections</a>,
+                <a href="https://docs.servicestack.net/ormlite/apis/schema">schema operations</a>,
+                <a href="https://docs.servicestack.net/ormlite/ddl-attributes">filtered indexes and constraints</a>,
+                <a href="https://docs.servicestack.net/ormlite/schema-diff">schema diff, generation and SQLite rebuilds</a>,
+                <a href="https://github.com/ServiceStack/ServiceStack/blob/main/ServiceStack.OrmLite/src/ServiceStack.OrmLite/Migrator.cs">runner and in-progress checks</a>,
+                <a href="https://github.com/ServiceStack/ServiceStack/blob/main/ServiceStack.OrmLite/src/ServiceStack.OrmLite/OrmLiteRebuildTable.cs">rebuild preservation scope</a>.
+              </li>
+              <li id="source-grate"><strong>grate:</strong>
+                <a href="https://grate-devs.github.io/grate/">SQL-first workflow</a>,
+                <a href="https://grate-devs.github.io/grate/configuration-options/">configuration, transactions and dry run</a>,
+                <a href="https://grate-devs.github.io/grate/script-types/anytime/">hash-driven anytime scripts</a>,
+                <a href="https://grate-devs.github.io/grate/script-types/everytime/">everytime scripts</a>,
+                <a href="https://grate-devs.github.io/grate/skills/use-grate/references/operations.html">provider transaction limits, coordination and recovery</a>.
               </li>
             </ol>
           </details>
