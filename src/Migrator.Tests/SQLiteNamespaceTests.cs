@@ -47,6 +47,7 @@ public class SQLiteNamespaceTests(ProviderTypes type)
         provider.RemoveIndex(table, "ix_value");
         provider.RenameTable(table, "renamed");
         Assert.That(provider.TableExists("\"sales.data\".renamed"), Is.True);
+        Assert.Throws<MigrationException>(() => provider.GetColumns("\"sales.data\"", "items"));
         Assert.That(provider.TableExists("main.items"), Is.True);
         provider.RemoveTable("\"sales.data\".renamed");
         Assert.That(provider.TableExists("main.items"), Is.True);

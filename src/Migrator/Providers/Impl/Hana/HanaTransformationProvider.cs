@@ -127,7 +127,7 @@ public class HanaTransformationProvider : TransformationProvider
     {
         foreach (var key in GetForeignKeyConstraints(table).Where(k => k.ChildColumns.Contains(column))) RemoveForeignKey(table, key.Name);
     }
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var name = Name(table);
         using var command = Catalog("SELECT COLUMN_NAME,DATA_TYPE_NAME,LENGTH,SCALE,IS_NULLABLE,DEFAULT_VALUE,GENERATION_TYPE FROM SYS.TABLE_COLUMNS WHERE SCHEMA_NAME=COALESCE(?,CURRENT_SCHEMA) AND TABLE_NAME=? ORDER BY POSITION", name.Schema, name.Table);

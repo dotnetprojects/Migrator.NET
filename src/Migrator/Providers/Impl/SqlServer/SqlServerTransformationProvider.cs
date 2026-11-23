@@ -372,7 +372,7 @@ public class SqlServerTransformationProvider : TransformationProvider, IScriptBa
         return Convert.ToInt32(result);
     }
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var relation = SqlIdentifier.Catalog(QuoteTableNameIfRequired(table));
         var schema = relation.Schema ?? Convert.ToString(ExecuteScalar("SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(" + SqlLiteral(QuoteTableNameIfRequired(table)) + "))"));

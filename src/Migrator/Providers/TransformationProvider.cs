@@ -121,6 +121,14 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual Column[] GetColumns(string table)
     {
+        var columns = ReadColumns(table);
+        if (columns.Length == 0 && !TableExists(table) && !ViewExists(table))
+            throw new MigrationException("Table does not exist: " + table);
+        return columns;
+    }
+
+    protected virtual Column[] ReadColumns(string table)
+    {
         var columns = new List<Column>();
         using (var cmd = CreateCommand())
         using (
@@ -414,6 +422,8 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
 
     public virtual bool ColumnExists(string table, string column, bool ignoreCase)
     {
+        if (!TableExists(table) && !ViewExists(table)) return false;
+
         if (ignoreCase)
         {
             return GetColumns(table).Any(x => x.Name.Equals(column, StringComparison.OrdinalIgnoreCase));
@@ -2068,13 +2078,12 @@ public abstract class TransformationProvider : ITransformationProvider, IMigrati
         if (!Enum.IsDefined(index.UnsupportedFilterBehavior))
             throw new ArgumentOutOfRangeException(nameof(index.UnsupportedFilterBehavior));
         var hasFilterItems = validateFilters && index.FilterItems != null && index.FilterItems.Count > 0;
-        var columns = GetColumns(table: tableName);
-
         if (!TableExists(tableName))
         {
             throw new MigrationException($"Table '{tableName}' does not exist.");
         }
 
+        var columns = GetColumns(tableName);
         foreach (var keyColumn in index.KeyColumns)
         {
             if (!columns.Any(column => column.Name.Equals(keyColumn, StringComparison.OrdinalIgnoreCase)))

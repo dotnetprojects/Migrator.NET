@@ -295,7 +295,7 @@ public class OracleTransformationProvider : TransformationProvider, IOracleTrans
 
     public override string[] GetTables() => base.GetTables();
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var stringBuilder = new StringBuilder();
         stringBuilder.AppendLine("SELECT");

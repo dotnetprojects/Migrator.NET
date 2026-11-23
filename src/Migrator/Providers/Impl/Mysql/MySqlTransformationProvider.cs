@@ -125,7 +125,7 @@ public class MySqlTransformationProvider : TransformationProvider
         return ConstraintExists(table, "PRIMARY");
     }
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var columns = new List<Column>();
         using var cmd = CreateCommand();

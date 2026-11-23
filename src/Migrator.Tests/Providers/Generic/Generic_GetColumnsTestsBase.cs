@@ -9,6 +9,14 @@ namespace Migrator.Tests.Providers.Generic;
 public abstract class Generic_GetColumnsTestsBase : TransformationProviderBase
 {
     [Test]
+    public void MissingTableThrowsWhenReadingColumns()
+    {
+        const string table = "migrator_missing_columns";
+        Assert.Throws<MigrationException>(() => Provider.ReadLegacyColumns(table));
+        Assert.Throws<MigrationException>(() => Provider.GetColumns(null, table));
+    }
+
+    [Test]
     public void NamedTableConstraintsEnforceCompositeKeysAndReturnOrderedMetadata()
     {
         Provider.AddTable("NamedConstraintModel",

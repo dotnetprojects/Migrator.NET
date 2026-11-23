@@ -164,16 +164,19 @@ public class ProviderCommandContractTests
         command.Received(1).Dispose();
     }
 
-    [TestCase(ProviderTypes.SqlServer)]
-    [TestCase(ProviderTypes.PostgreSQL)]
-    public void MissingTableReturnsEmptyColumnMetadata(ProviderTypes type)
+    [TestCaseSource(typeof(NamespaceProviderContractTests), nameof(NamespaceProviderContractTests.Providers))]
+    public void MissingTableThrowsWhenReadingColumnMetadata(ProviderTypes type)
     {
         using var catalog = new DataTable();
         command.ExecuteReader().Returns(_ => catalog.CreateDataReader());
         using var metadataProvider = ProviderFactory.Create(type, connection, null);
 
-        Assert.That(metadataProvider.ReadLegacyColumns("missing_table"), Is.Empty);
-        Assert.That(metadataProvider.GetColumns("tenant", "missing_table"), Is.Empty);
+        Assert.That(() => metadataProvider.ReadLegacyColumns("missing_table"),
+            Throws.TypeOf<MigrationException>().With.Message.Contains("missing_table"));
+        Assert.That(metadataProvider.ColumnExists("missing_table", "id"), Is.False);
+        if (type != ProviderTypes.Firebird)
+            Assert.That(() => metadataProvider.GetColumns("tenant", "missing_table"),
+                Throws.TypeOf<MigrationException>().With.Message.Contains("tenant.missing_table"));
     }
 
     [Test]
