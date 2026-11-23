@@ -1265,7 +1265,7 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
     public override string[] GetTables() => base.GetTables();
 
-    public override Column[] GetColumns(string tableName)
+    protected override Column[] ReadColumns(string tableName)
     {
         var pragmaTableInfoItems = GetPragmaTableInfoItems(tableName);
         var tableScript = GetSqlCreateTableScript(tableName);
@@ -1342,7 +1342,8 @@ public partial class SQLiteTransformationProvider : TransformationProvider
 
         var indexCreateScripts = GetCreateIndexSqlByName(table);
 
-        var pragmaIndexListItems = GetPragmaIndexListItems(table).Where(x => x.Origin == "c");
+        var pragmaIndexListItems = GetPragmaIndexListItems(table).Where(x => x.Origin == "c").ToArray();
+        if (pragmaIndexListItems.Length == 0) return [];
 
         var columns = GetColumns(table);
 

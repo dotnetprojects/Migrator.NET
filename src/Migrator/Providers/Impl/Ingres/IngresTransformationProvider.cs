@@ -235,7 +235,7 @@ public class IngresTransformationProvider : TransformationProvider
         ExecuteNonQuery($"ALTER TABLE {QuoteTableNameIfRequired(table)} DROP COLUMN {_dialect.QuoteIdentifier(column.Name)} RESTRICT");
     }
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var columns = new List<Column>();
         using var command = CreateCommand();

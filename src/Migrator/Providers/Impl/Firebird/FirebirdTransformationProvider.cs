@@ -83,7 +83,7 @@ public class FirebirdTransformationProvider : TransformationProvider
     public override bool PrimaryKeyExists(string table, string name) =>
         string.Equals(GetPrimaryKeyConstraintName(table), CatalogName(name), StringComparison.Ordinal);
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var primaryColumns = GetIndexes(table).Where(i => i.PrimaryKey).SelectMany(i => i.KeyColumns).ToHashSet(StringComparer.Ordinal);
         var result = new List<Column>();

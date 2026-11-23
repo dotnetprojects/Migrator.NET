@@ -367,7 +367,8 @@ public interface ITransformationProvider : IDisposable
     /// <see cref="Column.MigratorDbType"/> and <see cref="Column.Type"/> can in some cases only be guessed. Do not rely on them. Same for <see cref="Column.DefaultValue"/>  
     /// </summary>
     /// <param name="table">The table name that you want the columns for.</param>
-    /// <returns></returns>
+    /// <returns>The column metadata.</returns>
+    /// <exception cref="MigrationException">The table does not exist.</exception>
     [Obsolete("We cannot resolve the DbType or MigratorDbType exactly so the result is just a guess. Also the default value in the result is depending on DbType and therefore also a guess. Do not use this method any more. Look up the type in your migration history.")]
     Column[] GetColumns(string table);
 
@@ -736,5 +737,7 @@ public interface ITransformationProvider : IDisposable
 
     IEnumerable<string> GetTables(string schema);
 
+    /// <summary>Gets the column names in a table.</summary>
+    /// <exception cref="MigrationException">The table does not exist.</exception>
     IEnumerable<string> GetColumns(string schema, string table);
 }

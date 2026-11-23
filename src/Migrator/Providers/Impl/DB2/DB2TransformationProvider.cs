@@ -56,7 +56,7 @@ public class DB2TransformationProvider : TransformationProvider
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
         $"SELECT CONSTNAME FROM SYSCAT.TABCONST WHERE TABSCHEMA={NamespaceSql(table, "CURRENT SCHEMA", true)} AND TABNAME={ObjectSqlLiteral(table, true)} AND TYPE='P'").FirstOrDefault();
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var columns = new List<Column>();
         using var cmd = CreateCommand();

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.SqlServer;
@@ -161,6 +162,21 @@ public class ProviderCommandContractTests
         Assert.That(columns.Select(c => c.IsNullable), Is.EqualTo(new[] { false, true }));
         Assert.That(reader.IsClosed, Is.True);
         command.Received(1).Dispose();
+    }
+
+    [TestCaseSource(typeof(NamespaceProviderContractTests), nameof(NamespaceProviderContractTests.Providers))]
+    public void MissingTableThrowsWhenReadingColumnMetadata(ProviderTypes type)
+    {
+        using var catalog = new DataTable();
+        command.ExecuteReader().Returns(_ => catalog.CreateDataReader());
+        using var metadataProvider = ProviderFactory.Create(type, connection, null);
+
+        Assert.That(() => metadataProvider.ReadLegacyColumns("missing_table"),
+            Throws.TypeOf<MigrationException>().With.Message.Contains("missing_table"));
+        Assert.That(metadataProvider.ColumnExists("missing_table", "id"), Is.False);
+        if (type != ProviderTypes.Firebird)
+            Assert.That(() => metadataProvider.GetColumns("tenant", "missing_table"),
+                Throws.TypeOf<MigrationException>().With.Message.Contains("tenant.missing_table"));
     }
 
     [Test]

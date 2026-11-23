@@ -88,7 +88,7 @@ public class InformixTransformationProvider : TransformationProvider
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
         $"SELECT c.constrname FROM sysconstraints c JOIN systables t ON c.tabid=t.tabid WHERE t.owner={NamespaceSql(table, "USER")} AND t.tabname={ObjectSqlLiteral(table)} AND c.constrtype='P'").FirstOrDefault()?.Trim();
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var primaryColumns = GetIndexes(table).Where(i => i.PrimaryKey).SelectMany(i => i.KeyColumns).ToHashSet(StringComparer.Ordinal);
         var columns = new List<Column>();

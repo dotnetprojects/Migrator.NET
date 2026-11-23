@@ -60,7 +60,7 @@ public class SybaseTransformationProvider : TransformationProvider
     protected override string GetPrimaryKeyConstraintName(string table) => ExecuteStringQuery(
         $"SELECT name FROM sysindexes WHERE id={ObjectId(table)} AND (status & 2048)=2048 AND (status & 2)=2").FirstOrDefault();
 
-    public override Column[] GetColumns(string table)
+    protected override Column[] ReadColumns(string table)
     {
         var primaryColumns = GetIndexes(table).Where(i => i.PrimaryKey).SelectMany(i => i.KeyColumns).ToHashSet(StringComparer.Ordinal);
         var defaults = GetColumnDefaults(table);
