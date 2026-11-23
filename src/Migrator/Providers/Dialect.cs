@@ -15,6 +15,9 @@ namespace DotNetProjects.Migrator.Providers;
 /// </summary>
 public abstract class Dialect : IDialect
 {
+    /// <summary>Escape literal search text; SQL rendering uses ESCAPE '~'.</summary>
+    public virtual string EscapeLikePattern(string value) => SqlLikePattern.Escape(value);
+
     private readonly Dictionary<ColumnAttribute, string> _propertyMap = [];
     private readonly HashSet<string> _reservedWords = [];
     private readonly TypeNames _typeNames = new();

@@ -56,6 +56,7 @@
   "QuoteColumnNamesIfRequired": "Schema.QuoteColumn/QuoteColumns/QuoteTable/ParameterName/Encode/Concatenate",
   "QuoteTableNameIfRequired": "Schema.QuoteColumn/QuoteColumns/QuoteTable/ParameterName/Encode/Concatenate",
   "GenerateParameterName": "Schema.QuoteColumn/QuoteColumns/QuoteTable/ParameterName/Encode/Concatenate",
+  "AddQueryParameter": "Context.AddQueryParameter(command, index, value); native driver binding for typed DTO queries",
   "Encode": "Schema.QuoteColumn/QuoteColumns/QuoteTable/ParameterName/Encode/Concatenate",
   "Concatenate": "Schema.QuoteColumn/QuoteColumns/QuoteTable/ParameterName/Encode/Concatenate",
   "CreateDatabases": "Administration.CreateDatabase/DropDatabase/SwitchDatabase/KillConnections",

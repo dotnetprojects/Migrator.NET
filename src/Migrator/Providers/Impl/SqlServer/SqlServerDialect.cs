@@ -6,6 +6,8 @@ namespace DotNetProjects.Migrator.Providers.Impl.SqlServer;
 
 public class SqlServerDialect : Dialect
 {
+    public override string EscapeLikePattern(string value) => base.EscapeLikePattern(value).Replace("[", "~[");
+
     protected override string ResolveCollation(CollationKind kind) => kind switch
     {
         CollationKind.Binary => "Latin1_General_100_BIN2", CollationKind.CaseSensitive => "Latin1_General_100_CS_AS_SC", CollationKind.CaseInsensitive => "Latin1_General_100_CI_AS_SC",
