@@ -249,11 +249,11 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
         return reader.Read();
     }
 
-    private (string Table, string Schema) ResolveRelation(string table)
+    private (string Table, string Schema)? ResolveRelation(string table)
     {
         using var command = MetadataCommand(table);
         using var reader = ExecuteQuery(command, "SELECT c.relname, n.nspname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = to_regclass(@relation)");
-        if (!reader.Read()) throw new MigrationException("Table does not exist: " + table);
+        if (!reader.Read()) return null;
         return (reader.GetString(0), reader.GetString(1));
     }
 
@@ -264,7 +264,8 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     public override void ChangeColumn(string table, Column column)
     {
-        var oldColumn = GetColumnByName(table, column.Name);
+        var oldColumn = GetColumnByName(table, column.Name)
+            ?? throw new MigrationException($"Column '{column.Name}' does not exist in table '{table}'.");
 
 
         var mapper = _dialect.GetAndMapColumnProperties(column);
@@ -360,7 +361,7 @@ public class PostgreSQLTransformationProvider : TransformationProvider, IPostgre
 
     public override Column[] GetColumns(string table)
     {
-        var relation = ResolveRelation(table);
+        if (ResolveRelation(table) is not { } relation) return [];
         var columnInfos = _postgreSQLSystemDataLoader.GetColumnInfos(relation.Table, relation.Schema);
         var columns = new List<Column>();
         var tableConstraints = _postgreSQLSystemDataLoader.GetTableConstraints(relation.Table, relation.Schema);

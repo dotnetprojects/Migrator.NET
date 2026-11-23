@@ -20,6 +20,8 @@ public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTra
         Provider.ExecuteNonQuery("CREATE VIEW metadata_b.sample_view AS SELECT value FROM metadata_b.sample");
         Assert.That(Provider.TableExists("metadata_a.sample"), Is.True);
         Assert.That(Provider.TableExists("metadata_b.missing"), Is.False);
+        Assert.That(Provider.ReadLegacyColumns("metadata_b.missing"), Is.Empty);
+        Assert.That(Provider.GetColumns("metadata_b", "missing"), Is.Empty);
         Assert.That(Provider.ViewExists("metadata_b.sample_view"), Is.True);
         Assert.That(Provider.TableExists("metadata_b.sample_view"), Is.False);
         Assert.That(Provider.ColumnExists("metadata_a.sample", "id"), Is.True);
@@ -30,6 +32,7 @@ public class PostgreSQLTransformationProvider_MetadataScopeTests : PostgreSQLTra
         Assert.That(Provider.ReadLegacyColumns("metadata_b.sample").Single().MigratorDbType, Is.EqualTo(MigratorDbType.String));
         Provider.ExecuteNonQuery("SET LOCAL search_path TO metadata_b");
         Assert.That(Provider.ReadLegacyColumns("sample").Single().Name, Is.EqualTo("value"));
+        Assert.That(Provider.ReadLegacyColumns("missing"), Is.Empty);
     }
 
     [Test]

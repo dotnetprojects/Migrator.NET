@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using DotNetProjects.Migrator;
 using DotNetProjects.Migrator.Framework;
 using DotNetProjects.Migrator.Providers;
 using DotNetProjects.Migrator.Providers.Impl.SqlServer;
@@ -161,6 +162,18 @@ public class ProviderCommandContractTests
         Assert.That(columns.Select(c => c.IsNullable), Is.EqualTo(new[] { false, true }));
         Assert.That(reader.IsClosed, Is.True);
         command.Received(1).Dispose();
+    }
+
+    [TestCase(ProviderTypes.SqlServer)]
+    [TestCase(ProviderTypes.PostgreSQL)]
+    public void MissingTableReturnsEmptyColumnMetadata(ProviderTypes type)
+    {
+        using var catalog = new DataTable();
+        command.ExecuteReader().Returns(_ => catalog.CreateDataReader());
+        using var metadataProvider = ProviderFactory.Create(type, connection, null);
+
+        Assert.That(metadataProvider.ReadLegacyColumns("missing_table"), Is.Empty);
+        Assert.That(metadataProvider.GetColumns("tenant", "missing_table"), Is.Empty);
     }
 
     [Test]
